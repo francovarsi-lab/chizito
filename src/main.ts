@@ -10,6 +10,8 @@ import { PieceRegistry } from './pieces/PieceRegistry';
 import { buildBackdrop } from './render/Backdrop';
 import { setupEnvironment } from './render/Environment';
 import { Stage } from './render/Stage';
+import { Picker } from './interaction/Picker';
+import { Overlay } from './ui/Overlay';
 import { ContactShadow, markHero } from './render/ContactShadow';
 import { addPhotoFade, loadPhotoBackdrop, updatePhotoResolution } from './render/PhotoBackdrop';
 
@@ -60,17 +62,24 @@ async function main() {
 
   const input = new Input(canvas);
   const rotator = new TrackballRotator(pivot, stage.camera);
-  const interaction = new InteractionController(input, rotator);
-
-  const help = document.getElementById('help')!;
-  interaction.onFirstInteraction = () => setTimeout(() => help.classList.add('hidden'), 1200);
-  input.onKey((e) => {
-    if (e.code === 'KeyH') help.classList.toggle('hidden');
+  const overlay = new Overlay();
+  const picker = new Picker(stage.camera, construction, pieces, backdrop.bowls);
+  const interaction = new InteractionController({
+    input,
+    rotator,
+    camera: stage.camera,
+    scene: stage.scene,
+    picker,
+    construction,
+    pieces,
+    assets,
+    overlay,
+    center: CONFIG.chizitoCenter,
   });
 
   // Exponer para depuración y capturas automáticas.
   Object.assign(window as unknown as Record<string, unknown>, {
-    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow },
+    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker },
   });
 
   const timer = new THREE.Timer();

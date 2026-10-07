@@ -15,10 +15,19 @@
         pointer-events: none; user-select: none; transition: opacity 1.6s ease;
       }
       #help.hidden { opacity: 0; }
+      #angle {
+        position: fixed; left: 0; top: 0; pointer-events: none; user-select: none;
+        font: 500 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0.04em;
+        color: rgba(255, 250, 240, 0.62); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        white-space: nowrap; transition: opacity 0.25s ease;
+      }
+      #angle.hidden { opacity: 0; }
+      body.grab canvas { cursor: grabbing; }
+      body.over-bowl canvas { cursor: pointer; }
     </style>
   </head>
   <body>
-    <div id="help">arrastrá para girar el chizito</div>
+    <div id="help">arrastrá para girar · tocá el bowl para agarrar un palito</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

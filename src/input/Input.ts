@@ -45,8 +45,11 @@ export class Input {
       this.listeners.up.forEach((h) => h({ button: e.button, pointer: this.pointer }));
     });
     el.addEventListener('pointermove', (e) => {
+      // Delta calculado a partir de la posición (movementX no es confiable con eventos sintéticos).
+      const dx = this.hasLast ? e.clientX - this.lastX : 0;
+      const dy = this.hasLast ? e.clientY - this.lastY : 0;
       this.update(e);
-      this.listeners.move.forEach((h) => h({ dx: e.movementX, dy: e.movementY, pointer: this.pointer }));
+      this.listeners.move.forEach((h) => h({ dx, dy, pointer: this.pointer }));
     });
     window.addEventListener('blur', () => {
       this.buttons.left = this.buttons.right = false;
@@ -76,7 +79,14 @@ export class Input {
   onMove(h: Handler<{ dx: number; dy: number; pointer: PointerInfo }>) { this.listeners.move.push(h); }
   onKey(h: Handler<KeyboardEvent>) { this.listeners.key.push(h); }
 
+  private lastX = 0;
+  private lastY = 0;
+  private hasLast = false;
+
   private update(e: PointerEvent): void {
+    this.lastX = e.clientX;
+    this.lastY = e.clientY;
+    this.hasLast = true;
     const r = this.el.getBoundingClientRect();
     this.pointer.x = e.clientX - r.left;
     this.pointer.y = e.clientY - r.top;
