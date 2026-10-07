@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { PieceDefinition } from '../pieces/PieceDefinition';
 import type { PieceRegistry } from '../pieces/PieceRegistry';
 import { probeFile } from './probe';
@@ -15,7 +17,9 @@ export class AssetRegistry {
   constructor(private readonly pieces: PieceRegistry) {}
 
   async init(): Promise<void> {
-    const loader = new GLTFLoader();
+    // Soporta GLB comprimidos con Draco o meshopt (habituales en exportadores de fotogrametría/IA).
+    const draco = new DRACOLoader().setDecoderPath(`${import.meta.env.BASE_URL}assets/draco/`);
+    const loader = new GLTFLoader().setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
     await Promise.all(
       this.pieces.all().map(async (def) => {
         const url = `${import.meta.env.BASE_URL}assets/models/${def.type}.glb`;
@@ -23,13 +27,8 @@ export class AssetRegistry {
         if (!buf) return;
         try {
           const gltf = await loader.parseAsync(buf, '');
+          prepareGlb(gltf.scene);
           const tpl = normalizeToFrame(gltf.scene, def, true);
-          tpl.traverse((o) => {
-            if ((o as THREE.Mesh).isMesh) {
-              o.castShadow = true;
-              o.receiveShadow = true;
-            }
-          });
           this.glbTemplates.set(def.type, tpl);
           console.info(`[assets] usando ${def.type}.glb`);
         } catch (err) {
@@ -50,6 +49,47 @@ export class AssetRegistry {
     if (tpl) return tpl.clone(true);
     return normalizeToFrame(def.procedural(seed, detail), def, false);
   }
+}
+
+/**
+ * Deja un GLB externo (fotogrametría / IA) listo para la escena PBR:
+ *  - materiales "unlit" (KHR_materials_unlit → MeshBasicMaterial) pasan a MeshStandardMaterial,
+ *    para que reciban la luz de ventana, el IBL, las sombras y el AO;
+ *  - metalness en 0 (muchos exportadores dejan el default 1 de glTF; un snack nunca es metálico) y
+ *    roughness alto si no hay mapa;
+ *  - normales calculadas si faltan; texturas con anisotropía; sombras habilitadas.
+ */
+export function prepareGlb(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    if (!mesh.geometry.getAttribute('normal')) mesh.geometry.computeVertexNormals();
+    const fix = (m: THREE.Material): THREE.Material => {
+      let std: THREE.MeshStandardMaterial;
+      if ((m as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
+        std = m as THREE.MeshStandardMaterial;
+      } else {
+        const b = m as THREE.MeshBasicMaterial;
+        std = new THREE.MeshStandardMaterial({
+          name: m.name,
+          map: b.map ?? null,
+          color: b.color ?? new THREE.Color(1, 1, 1),
+          vertexColors: b.vertexColors,
+          transparent: b.transparent,
+          alphaTest: b.alphaTest,
+        });
+        m.dispose();
+      }
+      if (!std.metalnessMap) std.metalness = 0;
+      if (!std.roughnessMap) std.roughness = Math.max(std.roughness, 0.8);
+      for (const t of [std.map, std.normalMap, std.roughnessMap, std.aoMap]) if (t) t.anisotropy = 8;
+      std.envMapIntensity = 1;
+      return std;
+    };
+    mesh.material = Array.isArray(mesh.material) ? mesh.material.map(fix) : fix(mesh.material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+  });
 }
 
 const AXES = ['x', 'y', 'z'] as const;

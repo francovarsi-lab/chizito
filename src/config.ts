@@ -13,7 +13,7 @@ export const CONFIG = {
   },
   light: {
     /** Dirección HACIA la luz (ventana de tarde, adelante a la izquierda, alta). */
-    direction: new THREE.Vector3(-0.5, 0.55, 0.67).normalize(),
+    direction: new THREE.Vector3(-0.2, 0.55, 0.81).normalize(),
     color: new THREE.Color('#ffd2a1'),
     intensity: 4.6,
   },
@@ -26,6 +26,28 @@ export const CONFIG = {
     hdriBackgroundIntensity: 0.9,
     proceduralIntensity: 0.5,
     backgroundBlurriness: 0.04,
+  },
+  /**
+   * Fondo con foto real (opcional): public/assets/backdrop.jpg, ya desenfocada. Si existe, reemplaza la
+   * pared y los objetos de fondo modelados; la mesa 3D se funde con la foto entre fadeStart y fadeEnd (z).
+   */
+  photoBackdrop: {
+    url: 'assets/backdrop.jpg',
+    /** Distancia (m) del telón a la cámara, a lo largo de la mirada. */
+    distance: 0.95,
+    /** Corrimiento vertical de la foto (fracción de su alto) para alinear la mesa de la foto con la 3D. */
+    offsetY: 0,
+    /** Brillo de la foto (1 = tal cual). */
+    exposure: 1,
+    /** Fundido de la mesa 3D hacia la foto (coordenada z del mundo). */
+    fadeStart: -0.28,
+    fadeEnd: -0.55,
+  },
+  /** Sombra de contacto suave del chizito (y sus piezas) sobre la mesa. */
+  contactShadow: {
+    opacity: 0.8,
+    /** Desenfoque (m): ≈ penumbra de un objeto a 7 cm bajo luz de ventana. */
+    softness: 0.0065,
   },
   dof: {
     /** Banda nítida alrededor del foco, en dioptrías (1/m). ±1 dpt a 20 cm ≈ de 17 a 25 cm. */

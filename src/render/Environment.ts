@@ -76,8 +76,8 @@ function buildRoom(): THREE.Scene {
   const H = ceilY - floorY;
   const midY = (ceilY + floorY) / 2;
 
-  const wall = rad('#c9ab8a', 0.5);
-  const wallShade = rad('#b59474', 0.38);
+  const wall = rad('#f0dcc0', 0.78);
+  const wallShade = rad('#e2c9a8', 0.6);
   // Paredes
   s.add(box(0.02, H, front - back, wall, -W, midY, (front + back) / 2));
   s.add(box(0.02, H, front - back, wallShade, W, midY, (front + back) / 2));
@@ -92,15 +92,15 @@ function buildRoom(): THREE.Scene {
   // Ventana grande adelante a la izquierda (detrás del espectador): luz de tarde,
   // coherente con la luz direccional (CONFIG.light.direction).
   const winMat = rad('#ffe0b8', 11);
-  s.add(box(1.5, 1.35, 0.03, winMat, -1.3, 1.05, front - 0.02));
+  s.add(box(1.5, 1.35, 0.03, winMat, -0.55, 1.05, front - 0.02));
   const frameMat = rad('#d9cbb8', 0.6);
-  s.add(box(0.05, 1.45, 0.05, frameMat, -1.3, 1.05, front - 0.04));
-  s.add(box(1.6, 0.05, 0.05, frameMat, -1.3, 1.05, front - 0.04));
+  s.add(box(0.05, 1.45, 0.05, frameMat, -0.55, 1.05, front - 0.04));
+  s.add(box(1.6, 0.05, 0.05, frameMat, -0.55, 1.05, front - 0.04));
   // Cielo más frío en la parte alta de la ventana.
-  s.add(box(1.5, 0.35, 0.025, rad('#bcd4f0', 6), -1.3, 1.55, front - 0.035));
+  s.add(box(1.5, 0.35, 0.025, rad('#bcd4f0', 6), -0.55, 1.55, front - 0.035));
   // Cortinas
-  s.add(box(0.35, 1.9, 0.06, rad('#b4553d', 0.35), -2.15, 0.75, front - 0.08));
-  s.add(box(0.35, 1.9, 0.06, rad('#b4553d', 0.35), -0.4, 0.75, front - 0.08));
+  s.add(box(0.35, 1.9, 0.06, rad('#b4553d', 0.35), -1.45, 0.75, front - 0.08));
+  s.add(box(0.35, 1.9, 0.06, rad('#b4553d', 0.35), 0.35, 0.75, front - 0.08));
   // Manchas de sol en el piso y en la pared del fondo a la derecha
   s.add(box(1.0, 0.01, 1.3, rad('#ffcf96', 2.2), 0.3, floorY + 0.015, 0.2));
   s.add(box(0.9, 0.8, 0.01, rad('#ffcf96', 1.4), 1.6, 0.5, back + 0.02));
@@ -111,12 +111,12 @@ function buildRoom(): THREE.Scene {
   s.add(lamp);
 
   // Pared del fondo: aparador, cuadros, puerta, planta.
-  s.add(box(1.7, 0.85, 0.45, rad('#5a3a26', 0.32), -0.5, floorY + 0.425, back + 0.25));
-  s.add(box(1.7, 0.03, 0.47, rad('#7a5236', 0.4), -0.5, floorY + 0.86, back + 0.25));
-  s.add(box(0.5, 0.38, 0.02, rad('#2f3d4a', 0.45), -0.85, 0.75, back + 0.03));
+  s.add(box(1.7, 0.85, 0.45, rad('#a97c57', 0.5), -0.5, floorY + 0.425, back + 0.25));
+  s.add(box(1.7, 0.03, 0.47, rad('#c09670', 0.55), -0.5, floorY + 0.86, back + 0.25));
+  s.add(box(0.5, 0.38, 0.02, rad('#7d8c96', 0.6), -0.85, 0.75, back + 0.03));
   s.add(box(0.42, 0.3, 0.025, rad('#e8d9b5', 0.7), -0.85, 0.75, back + 0.04));
-  s.add(box(0.35, 0.45, 0.02, rad('#6d2f2a', 0.4), -0.2, 0.8, back + 0.03));
-  s.add(box(0.9, 2.05, 0.03, rad('#3a2b22', 0.22), 1.35, floorY + 1.025, back + 0.03));
+  s.add(box(0.35, 0.45, 0.02, rad('#c0705c', 0.6), -0.2, 0.8, back + 0.03));
+  s.add(box(0.9, 2.05, 0.03, rad('#d8c6ae', 0.6), 1.35, floorY + 1.025, back + 0.03));
   // Lámpara de pie en el rincón (punto cálido de bokeh)
   const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.3, 20), rad('#ffd7a0', 4.5));
   shade.position.set(2.0, 0.85, -2.3);
@@ -156,7 +156,7 @@ function buildRoom(): THREE.Scene {
     s.add(b);
   }
   // Silla y sillón a la derecha
-  s.add(box(0.5, 0.9, 1.6, rad('#6e5a4c', 0.3), W - 0.35, floorY + 0.45, -1.2));
+  s.add(box(0.5, 0.9, 1.6, rad('#b49a84', 0.5), W - 0.35, floorY + 0.45, -1.2));
   s.add(box(0.45, 0.06, 0.45, rad('#7a5236', 0.35), 0.9, floorY + 0.45, -1.4));
   return s;
 }

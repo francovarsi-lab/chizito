@@ -17,6 +17,9 @@ export class BokehDofPass extends Pass {
   blurRamp = 3.2;
   /** Desenfoque máximo como fracción de la altura de la imagen. */
   maxBlur = 0.022;
+  /** Distancia del telón fotográfico (ya viene desenfocado: se le aplica menos blur). */
+  photoDistance = 1e9;
+  photoBlurScale = 0.35;
 
   private readonly gather: THREE.ShaderMaterial;
   private readonly composite: THREE.ShaderMaterial;
@@ -31,7 +34,7 @@ export class BokehDofPass extends Pass {
 
     const cocFn = /* glsl */ `
       uniform sampler2D depthBuffer;
-      uniform float cameraNear, cameraFar, focusDistance, focusBand, blurRamp, maxBlurPx;
+      uniform float cameraNear, cameraFar, focusDistance, focusBand, blurRamp, maxBlurPx, photoDistance, photoBlurScale;
       float viewDist(vec2 uv) {
         float d = texture2D(depthBuffer, uv).r;
         return -perspectiveDepthToViewZ(d, cameraNear, cameraFar);
@@ -40,7 +43,8 @@ export class BokehDofPass extends Pass {
       float cocPx(float dist) {
         float dpt = abs(1.0 / focusDistance - 1.0 / max(dist, 1e-3));
         float t = clamp((dpt - focusBand) / blurRamp, 0.0, 1.0);
-        return maxBlurPx * pow(t, 0.85);
+        float k = dist > photoDistance - 0.01 ? photoBlurScale : 1.0;
+        return maxBlurPx * pow(t, 0.85) * k;
       }
     `;
 
@@ -56,6 +60,8 @@ export class BokehDofPass extends Pass {
         focusBand: { value: 1 },
         blurRamp: { value: 3 },
         maxBlurPx: { value: 12 },
+        photoDistance: { value: 1e9 },
+        photoBlurScale: { value: 0.35 },
       },
       vertexShader: /* glsl */ `
         varying vec2 vUv;
@@ -145,6 +151,8 @@ export class BokehDofPass extends Pass {
     u.focusDistance.value = this.focusDistance;
     u.focusBand.value = this.focusBand;
     u.blurRamp.value = this.blurRamp;
+    u.photoDistance.value = this.photoDistance;
+    u.photoBlurScale.value = this.photoBlurScale;
     this.fullscreenMaterial = this.gather;
     renderer.setRenderTarget(this.half);
     renderer.render(this.scene, this.camera);

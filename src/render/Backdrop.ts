@@ -12,6 +12,10 @@ export interface Backdrop {
   root: THREE.Group;
   /** Bowls de los que se agarran piezas: tipo de pieza → objeto clickeable. */
   bowls: Map<string, THREE.Object3D>;
+  /** Mesa y mantel (se funden con la foto de fondo si existe). */
+  surfaces: THREE.Mesh[];
+  /** Objetos modelados del fondo (se ocultan si hay foto de fondo). */
+  farProps: THREE.Group;
 }
 
 export const BOWL_LAYOUT = {
@@ -65,25 +69,28 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   root.add(papitaBowl);
   bowls.set('papita', papitaBowl);
 
+  const farProps = new THREE.Group();
+  farProps.name = 'far-props';
+  root.add(farProps);
   // Fondo: bowl de chizitos de plástico, otro de palitos, vasos, gaseosa, servilletas, gorrito.
   const plasticOrange = new THREE.MeshPhysicalMaterial({ color: '#2e8bd6', roughness: 0.3, clearcoat: 0.3 });
   const bgBowl = makeBowl(0.085, 0.05, plasticOrange);
   bgBowl.position.set(-0.2, 0, -0.34);
   bgBowl.add(fillBowl(assets, 'chizito', 0.075, 0.05, 55, 21));
-  root.add(bgBowl);
+  farProps.add(bgBowl);
 
   const plasticYellow = new THREE.MeshPhysicalMaterial({ color: '#f2c230', roughness: 0.3, clearcoat: 0.3 });
   const bgBowl2 = makeBowl(0.08, 0.048, plasticYellow);
   bgBowl2.position.set(0.3, 0, -0.62);
   bgBowl2.add(fillBowl(assets, 'papita', 0.07, 0.048, 40, 31));
-  root.add(bgBowl2);
+  farProps.add(bgBowl2);
 
-  root.add(makeCup('#d8342c', 0.13, -0.46));
-  root.add(makeCup('#2f7fd0', -0.36, -0.7));
-  root.add(makeCup('#f2efe9', 0.2, -0.36, 0.2));
-  root.add(makeBottle(0.06, -0.82));
-  root.add(makeNapkins(-0.02, -0.56));
-  root.add(makePartyHat(-0.34, -0.4));
+  farProps.add(makeCup('#d8342c', 0.13, -0.46));
+  farProps.add(makeCup('#2f7fd0', -0.36, -0.7));
+  farProps.add(makeCup('#f2efe9', 0.2, -0.36, 0.2));
+  farProps.add(makeBottle(0.06, -0.82));
+  farProps.add(makeNapkins(-0.02, -0.56));
+  farProps.add(makePartyHat(-0.34, -0.4));
 
   root.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) {
@@ -93,7 +100,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   });
   table.castShadow = false;
   cloth.castShadow = false;
-  return { root, bowls };
+  return { root, bowls, surfaces: [table, cloth], farProps };
 }
 
 function makeBowl(radius: number, height: number, mat: THREE.Material): THREE.Group {
