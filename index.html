@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hombrecito de chizito</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1410; }
+      canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+      #help {
+        position: fixed; left: 50%; bottom: 3.5vh; transform: translateX(-50%);
+        font: 400 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+        letter-spacing: 0.02em; color: rgba(255, 248, 235, 0.72);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+        pointer-events: none; user-select: none; transition: opacity 1.6s ease;
+      }
+      #help.hidden { opacity: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="help">arrastrá para girar el chizito</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
