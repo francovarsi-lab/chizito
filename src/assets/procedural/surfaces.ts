@@ -50,7 +50,7 @@ export function woodMaterial(): THREE.MeshPhysicalMaterial {
 }
 
 /**
- * Mantel de cumpleaños de plástico: fondo blanco con confeti impreso y arrugas suaves.
+ * Mantel de cumpleaños de plástico celeste con confeti impreso y arrugas suaves.
  * El tile cubre 30 cm × 30 cm.
  */
 export function tableclothMaterial(): THREE.MeshPhysicalMaterial {
@@ -58,14 +58,14 @@ export function tableclothMaterial(): THREE.MeshPhysicalMaterial {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#f3efe6';
+  ctx.fillStyle = '#bfe0f3';
   ctx.fillRect(0, 0, size, size);
   const rnd = mulberry32(2024);
-  const colors = ['#e2483d', '#f2b632', '#3a8fd8', '#4bb56a', '#e86fae', '#8a5cc7'];
+  const colors = ['#ffffff', '#ffffff', '#ff5a7a', '#ffd23f', '#4bc28a', '#8a6cf0', '#ff8a3d'];
   const drawWrapped = (fn: (ox: number, oy: number) => void) => {
     for (const ox of [-size, 0, size]) for (const oy of [-size, 0, size]) fn(ox, oy);
   };
-  for (let i = 0; i < 130; i++) {
+  for (let i = 0; i < 240; i++) {
     const x = rnd() * size;
     const y = rnd() * size;
     const color = colors[Math.floor(rnd() * colors.length)];
@@ -77,7 +77,7 @@ export function tableclothMaterial(): THREE.MeshPhysicalMaterial {
       ctx.translate(x + ox, y + oy);
       ctx.rotate(rot);
       ctx.fillStyle = color;
-      ctx.globalAlpha = 0.7;
+      ctx.globalAlpha = 0.92;
       if (kind < 0.45) {
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);

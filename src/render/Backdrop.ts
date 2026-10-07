@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { AssetRegistry } from '../assets/AssetRegistry';
 import { paperNormal, stripesTexture, tableclothMaterial, woodMaterial } from '../assets/procedural/surfaces';
 import { mulberry32 } from '../util/noise';
+import { PALITO_LENGTH } from '../assets/procedural/palito';
 import { bakeStatic } from '../util/merge';
 
 /**
@@ -57,7 +58,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   });
   const palitoBowl = makeBowl(0.066, 0.046, ceramic);
   palitoBowl.position.copy(BOWL_LAYOUT.palito);
-  palitoBowl.add(fillBowl(assets, 'palito', 0.058, 0.046, 70, 3));
+  palitoBowl.add(fillBowl(assets, 'palito', 0.058, 0.046, 38, 3));
   palitoBowl.userData.bowlFor = 'palito';
   root.add(palitoBowl);
   bowls.set('palito', palitoBowl);
@@ -76,7 +77,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   const plasticOrange = new THREE.MeshPhysicalMaterial({ color: '#2e8bd6', roughness: 0.3, clearcoat: 0.3 });
   const bgBowl = makeBowl(0.085, 0.05, plasticOrange);
   bgBowl.position.set(-0.2, 0, -0.34);
-  bgBowl.add(fillBowl(assets, 'chizito', 0.075, 0.05, 55, 21));
+  bgBowl.add(fillBowl(assets, 'chizito', 0.075, 0.05, 26, 21));
   farProps.add(bgBowl);
 
   const plasticYellow = new THREE.MeshPhysicalMaterial({ color: '#f2c230', roughness: 0.3, clearcoat: 0.3 });
@@ -155,7 +156,7 @@ function fillBowl(assets: AssetRegistry, type: string, innerR: number, height: n
       const dir = tmp.set(Math.cos(yaw) * Math.cos(elev), Math.sin(elev), Math.sin(yaw) * Math.cos(elev)).normalize();
       obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
       const c = new THREE.Vector3(Math.cos(a) * rr * innerR * 0.5, 0.01 + layer * height * 0.95, Math.sin(a) * rr * innerR * 0.5);
-      obj.position.copy(c).addScaledVector(dir, -0.05);
+      obj.position.copy(c).addScaledVector(dir, -PALITO_LENGTH / 2);
     } else {
       const r = rr * innerR * 0.75;
       const dome = (1 - (r * r) / (innerR * innerR)) * height * 0.55;

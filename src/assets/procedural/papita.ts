@@ -156,7 +156,7 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
     c.lerp(toast, edge * 0.75);
     const spot = THREE.MathUtils.smoothstep(noise.noise(x * 220 + 9, z * 220, 5), 0.72, 0.95);
     c.lerp(toast, spot * 0.6);
-    c.convertSRGBToLinear();
+    // `c` ya está en espacio lineal.
     col[v * 3] = c.r;
     col[v * 3 + 1] = c.g;
     col[v * 3 + 2] = c.b;

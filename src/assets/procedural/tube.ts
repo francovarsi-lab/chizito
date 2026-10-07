@@ -20,7 +20,7 @@ export interface TubeSpec {
   up?: THREE.Vector3;
   /** Escala de UV: u (a lo largo) y v (alrededor). */
   uvScale?: [number, number];
-  /** Color por vértice opcional (sRGB 0..1), evaluado tras el desplazamiento. */
+  /** Color por vértice opcional (THREE.Color, espacio lineal de trabajo), evaluado tras el desplazamiento. */
   color?: (p: THREE.Vector3, n: THREE.Vector3, u: number, theta: number, disp: number, out: THREE.Color) => void;
 }
 
@@ -123,7 +123,7 @@ export function buildTube(spec: TubeSpec): THREE.BufferGeometry {
         p.fromArray(pos, src * 3);
         n.fromBufferAttribute(wN, src);
         spec.color(p, n, us[i], (j / cols) * Math.PI * 2, disp[src], col);
-        col.convertSRGBToLinear();
+        // `col` ya está en espacio lineal (THREE.Color con hex convierte de sRGB al crearse).
         oCol[dst * 3] = col.r;
         oCol[dst * 3 + 1] = col.g;
         oCol[dst * 3 + 2] = col.b;

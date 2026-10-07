@@ -13,17 +13,26 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   (capturas con Playwright; la página con `?capture` renderiza bajo demanda porque el WebGL por software es lento).
   `node scripts/one.mjs "<query>" out.png` saca una sola captura. Query de depuración: `noao`, `tm=agx`, `seed=N`.
 
+## Dirección visual (actualizada con referencias del usuario)
+- Prioridad: que se vea DIVERTIDO y apetitoso, no hiperrealismo a toda costa. Look de foto de producto alegre:
+  luz blanca y suave, colores vivos pero fieles, mantel celeste con confeti (el amarillo y el naranja resaltan).
+- Chizito: inflado tipo "maní", amarillo pálido manteca (#f2cf68), gordito, puntas romas, grumos suaves y poros.
+- Palito: palito de queso NARANJA (#f2a240), grueso e irregular, grosor despareño, puntas redondeadas, leve curva.
+- Tone mapping Neutral (Khronos PBR Neutral) por defecto + `LookEffect` (saturación/brillo/contraste acotados).
+  `?tm=aces` / `?tm=agx` para comparar. No usar HueSaturationEffect de postprocessing: genera negativos → negros.
+- Colores por vértice: `new THREE.Color('#hex')` YA está en lineal; no volver a convertir (antes se linealizaba
+  dos veces y todo salía rojizo y saturado).
+
 ## Escala (1 unidad = 1 metro)
-- Chizito: 4,6–5,8 cm de largo, 1,25–1,55 cm de grosor, curvado, sección aplastada.
-- Palito: 10 cm, Ø 3 mm. Papita: Ø ~5 cm, 1,5 mm de espesor.
+- Chizito: 4,6–5,6 cm de largo, 1,85–2,2 cm de grosor, apenas curvado, con "cintura" de maní.
+- Palito: ~8,5 cm, Ø ~6 mm (más grueso que el original de 3 mm, según la referencia). Papita: Ø ~5 cm, 1,5 mm.
 - Mesa en y = 0. Chizito flotando con centro en y = 7,2 cm (`CONFIG.chizitoCenter`).
 - Cámara fija en (0, 12,2 cm, 20 cm) mirando al chizito con leve inclinación; 50 mm sobre film de 36 mm.
 
 ## Estética
-- Hiperrealismo fotográfico. Fuentes del realismo: IBL + luz direccional cálida de ventana con sombras suaves
+- Base fotográfica (sigue valiendo, pero al servicio de lo divertido). Fuentes del realismo: IBL + luz direccional cálida de ventana con sombras suaves
   (PCF, radio 7, mapa de 4096), PBR con roughness alto + normal/roughness maps generados por código,
-  AO (N8AO, radio 1 cm), profundidad de campo propia (`render/BokehDofPass.ts`), tone mapping ACES (AgX con `?tm=agx`;
-  AgX dejaba el chizito pastel/salmón), viñeta y grano leve.
+  AO (N8AO, radio 1 cm), profundidad de campo propia (`render/BokehDofPass.ts`), tone mapping Neutral, viñeta y grano leves.
 - DoF: el `DepthOfFieldEffect` de postprocessing dejaba fantasmas en el primer plano y su desenfoque dependía de la
   resolución; se reemplazó por un gather en espiral (Gustafsson) a media resolución. El CoC se mide en dioptrías con una
   banda nítida garantizada (±1 dpt alrededor del foco) para que el chizito y la pieza en la mano siempre estén nítidos.
@@ -34,11 +43,11 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   `CONFIG.environment.hdriRotationY` alinea la ventana del HDRI con la luz direccional.
 - Telón fotográfico opcional: `public/assets/backdrop.jpg` (foto real ya desenfocada). Plano perpendicular a la
   cámara fija a `CONFIG.photoBackdrop.distance`, en modo cover; el shader aplica la inversa exacta del ACES de three
-  para que la foto salga tal cual. Si existe: se ocultan los objetos de fondo modelados y la mesa 3D se funde con la
+  para que la foto salga tal cual (con Neutral se aproxima como identidad). Si existe: se ocultan los objetos de fondo modelados y la mesa 3D se funde con la
   foto (mezcla de color por z en pantalla, sin transparencia). `offsetY` alinea la mesa de la foto con la 3D.
 - Sombra del chizito: `ContactShadow` (silueta de las piezas héroe vista desde la luz, desenfocada y proyectada sobre
   la mesa). El chizito y lo clavado están en `HERO_LAYER` y NO proyectan la sombra dura del sol.
-- Fondo: mesa de madera con mantel de cumpleaños de plástico con confeti, apenas girado (se ve madera al fondo a la
+- Fondo: mesa de madera con mantel de cumpleaños de plástico celeste con confeti, apenas girado (se ve madera al fondo a la
   derecha). Bowls de cerámica blanca en primer plano: palitos abajo a la derecha, papitas abajo a la izquierda.
   Al fondo: bowl de chizitos, bowl de papitas, vasos descartables, gaseosa genérica (sin marca), servilletas, gorrito.
 

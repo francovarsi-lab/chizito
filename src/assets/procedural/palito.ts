@@ -36,67 +36,80 @@ export function palitoMaterial(): THREE.MeshPhysicalMaterial {
     normalMap: normal,
     roughnessMap: rough,
     roughness: 1,
-    // Leve brillo de horneado.
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.55,
-    sheen: 0.3,
-    sheenColor: new THREE.Color('#f3d29a'),
+    // Brillo leve de fritura + polvo de queso.
+    clearcoat: 0.15,
+    clearcoatRoughness: 0.5,
+    sheen: 0.45,
+    sheenColor: new THREE.Color('#ffd08a'),
     sheenRoughness: 0.6,
   });
   return sharedMaterial;
 }
 
-export const PALITO_LENGTH = 0.1;
-export const PALITO_RADIUS = 0.0015;
+/** Palito de queso naranja, grueso e irregular (ver referencia): ~8,5 cm × Ø 6 mm. */
+export const PALITO_LENGTH = 0.085;
+export const PALITO_RADIUS = 0.003;
 
 export function buildPalitoGeometry(seed: number, detail: 'hero' | 'prop' = 'hero'): THREE.BufferGeometry {
   const rnd = mulberry32(seed * 104729 + 3);
   const noise = new Simplex3(seed + 77);
-  const L = PALITO_LENGTH * (0.97 + rnd() * 0.06);
-  const R = PALITO_RADIUS * (0.92 + rnd() * 0.16);
-  const capA = R * (0.7 + rnd() * 0.5);
-  const capB = R * (0.7 + rnd() * 0.5);
-  const bow = (rnd() - 0.5) * 0.0012;
+  const L = PALITO_LENGTH * (0.9 + rnd() * 0.2);
+  const R = PALITO_RADIUS * (0.9 + rnd() * 0.2);
+  // Puntas redondeadas tipo "gota": casquete casi semiesférico, a veces un poco más gordo.
+  const capA = R * (0.95 + rnd() * 0.25);
+  const capB = R * (0.95 + rnd() * 0.25);
+  const bendX = (rnd() - 0.5) * 0.004;
+  const bendZ = (rnd() - 0.5) * 0.003;
+  const sBend = (rnd() - 0.5) * 0.0018;
+  const ph = rnd() * 10;
 
-  const center = (u: number, out: THREE.Vector3) => out.set(bow * Math.sin(Math.PI * u), u * L, 0);
+  const center = (u: number, out: THREE.Vector3) =>
+    out.set(bendX * Math.sin(Math.PI * u) + sBend * Math.sin(2 * Math.PI * u), u * L, bendZ * Math.sin(Math.PI * u));
   const radius = (u: number, th: number): [number, number] => {
-    const s = u * L;
-    const fromEnd = Math.min(s, L - s);
-    const cap = s < L / 2 ? capA : capB;
+    const sv = u * L;
+    const fromEnd = Math.min(sv, L - sv);
+    const cap = sv < L / 2 ? capA : capB;
     const t = Math.min(1, fromEnd / cap);
     const prof = Math.sqrt(Math.max(0, 1 - (1 - t) * (1 - t)));
-    const irr = 1 + 0.06 * noise.noise(u * 18, Math.cos(th) * 0.6, Math.sin(th) * 0.6) + 0.03 * noise.noise(u * 70, th * 0.3, 2);
-    return [R * prof * irr, R * prof * irr * 0.96];
+    // Grosor irregular a lo largo (extrusión despareja) + sección no del todo circular.
+    const along = 1 + 0.12 * noise.noise(u * 4 + ph, 0.4, 0) + 0.06 * noise.noise(u * 13 + ph, 2.1, 0);
+    const sect = 1 + 0.05 * noise.noise(Math.cos(th) * 0.8 + u * 6, Math.sin(th) * 0.8, 5);
+    const r = R * prof * along * sect;
+    return [r, r * 0.94];
   };
+  // Superficie grumosa: bultitos redondos y poros.
   const displace = (p: THREE.Vector3, _n: THREE.Vector3, u: number) => {
-    const s = u * L;
-    const nearEnd = Math.min(s, L - s) < R * 1.4 ? 1 : 0.35;
-    return noise.noise(p.x * 3000, p.y * 1200, p.z * 3000) * 0.00008 * nearEnd;
+    const fade = Math.min(1, Math.sin(Math.PI * u) * 6);
+    const lumps = (noise.billow(p.x * 300, p.y * 210, p.z * 300, 3) - 0.62) * 0.0011;
+    const fine = noise.noise(p.x * 1400, p.y * 1000, p.z * 1400) * 0.00008;
+    return lumps * fade + fine;
   };
-  const golden = new THREE.Color('#e4bd7c');
-  const light = new THREE.Color('#f0d39e');
-  const dark = new THREE.Color('#c89552');
-  const crumb = new THREE.Color('#f1dcae');
-  const color = (p: THREE.Vector3, _n: THREE.Vector3, u: number, _th: number, _d: number, out: THREE.Color) => {
-    const t = noise.fbm(p.x * 400, p.y * 60, p.z * 400, 3) * 0.5 + 0.5;
-    out.copy(golden).lerp(light, THREE.MathUtils.smoothstep(t, 0.35, 0.8));
-    out.lerp(dark, THREE.MathUtils.smoothstep(noise.noise(p.y * 90, p.x * 500, 4), 0.4, 0.95) * 0.5);
-    // Extremos cortados: miga más clara.
-    const s = u * L;
-    const e = Math.min(s, L - s);
-    if (e < R * 0.8) out.lerp(crumb, 1 - e / (R * 0.8));
+  const orange = new THREE.Color('#f2a240');
+  const light = new THREE.Color('#f9c06a');
+  const dark = new THREE.Color('#d9812c');
+  const color = (p: THREE.Vector3, _n: THREE.Vector3, u: number, _th: number, d: number, out: THREE.Color) => {
+    const t = noise.fbm(p.x * 220, p.y * 90, p.z * 220, 3) * 0.5 + 0.5;
+    out.copy(orange).lerp(light, THREE.MathUtils.smoothstep(t, 0.4, 0.9) * 0.7);
+    out.lerp(dark, THREE.MathUtils.smoothstep(noise.noise(p.y * 70, p.x * 300, 4), 0.45, 0.95) * 0.45);
+    const k = THREE.MathUtils.clamp(d / 0.0004, -1, 1);
+    if (k > 0) out.lerp(light, k * 0.25);
+    else out.lerp(dark, -k * 0.3);
+    // Puntas un poco más tostadas.
+    const sv = u * L;
+    const e = Math.min(sv, L - sv);
+    if (e < R * 1.5) out.lerp(dark, (1 - e / (R * 1.5)) * 0.35);
   };
 
-  const geo = buildTube({
-    rows: detail === 'hero' ? 180 : 24,
-    cols: detail === 'hero' ? 20 : 8,
+  return buildTube({
+    rows: detail === 'hero' ? 200 : 26,
+    cols: detail === 'hero' ? 40 : 10,
     rowParam: (t) => {
-      // Concentrar anillos en las puntas redondeadas.
-      const k = 0.06;
-      if (t < k) return (t / k) * (capA * 1.2) / L;
-      if (t > 1 - k) return 1 - ((1 - t) / k) * (capB * 1.2) / L;
-      const a = (capA * 1.2) / L;
-      const b = 1 - (capB * 1.2) / L;
+      // Más anillos en las puntas redondeadas.
+      const k = 0.12;
+      const a = (capA * 1.1) / L;
+      const b = 1 - (capB * 1.1) / L;
+      if (t < k) return a * (1 - Math.cos((t / k) * (Math.PI / 2)));
+      if (t > 1 - k) return 1 - (1 - b) * (1 - Math.cos(((1 - t) / k) * (Math.PI / 2)));
       return a + ((t - k) / (1 - 2 * k)) * (b - a);
     },
     center,
@@ -104,9 +117,8 @@ export function buildPalitoGeometry(seed: number, detail: 'hero' | 'prop' = 'her
     displace,
     color,
     up: new THREE.Vector3(0, 0, 1),
-    uvScale: [L / TILE, 1],
+    uvScale: [L / TILE, 2],
   });
-  return geo;
 }
 
 export function createPalito(seed: number, detail: 'hero' | 'prop' = 'hero'): THREE.Mesh {

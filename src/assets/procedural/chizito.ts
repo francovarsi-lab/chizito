@@ -47,7 +47,7 @@ function chizitoMaps() {
   const blur = boxBlur(hf, 9);
   for (let i = 0; i < cavity.length; i++) cavity[i] = hf.data[i] - blur[i];
 
-  const normal = hf.toNormalMap(8);
+  const normal = hf.toNormalMap(10);
   const rough = hf.toGrayTexture((h, x, y) => {
     const cv = cavity[y * size + x];
     return 0.84 - cv * 0.9 - (h - 0.5) * 0.08;
@@ -55,10 +55,10 @@ function chizitoMaps() {
   const color = hf.toColorTexture((_h, x, y, rgb) => {
     const cv = cavity[y * size + x];
     // Multiplicador del color de vértice: poros más oscuros y rojizos, crestas con polvo más claro.
-    const k = THREE.MathUtils.clamp(1 + cv * 1.6, 0.72, 1.08);
+    const k = THREE.MathUtils.clamp(1 + cv * 2.6, 0.62, 1.08);
     rgb[0] = 0.98 * k + Math.max(0, cv) * 0.2;
-    rgb[1] = 0.97 * k + Math.max(0, cv) * 0.25;
-    rgb[2] = 0.93 * k * k;
+    rgb[1] = 0.98 * k + Math.max(0, cv) * 0.22;
+    rgb[2] = 0.97 * k + Math.max(0, cv) * 0.2;
   });
   sharedMaps = { normal, rough, color };
   return sharedMaps;
@@ -104,10 +104,10 @@ export function chizitoMaterial(): THREE.MeshPhysicalMaterial {
     roughness: 1,
     metalness: 0,
     // Brillo polvoriento del recubrimiento de queso.
-    sheen: 0.55,
-    sheenColor: new THREE.Color('#ffc46b'),
-    sheenRoughness: 0.75,
-    specularIntensity: 0.55,
+    sheen: 0.7,
+    sheenColor: new THREE.Color('#fffbe6'),
+    sheenRoughness: 0.7,
+    specularIntensity: 0.5,
     envMapIntensity: 1,
   });
   return sharedMaterial;
@@ -121,15 +121,19 @@ export interface ChizitoShape {
 export function buildChizitoGeometry(seed: number, detail: Detail = 'hero'): { geometry: THREE.BufferGeometry; shape: ChizitoShape } {
   const rnd = mulberry32(seed * 7919 + 13);
   const noise = new Simplex3(seed + 101);
-  const L = 0.046 + rnd() * 0.012; // 4,6 a 5,8 cm
-  const D = 0.0125 + rnd() * 0.0028; // 1,25 a 1,53 cm (grosor)
-  const flat = 0.78 + rnd() * 0.12; // aplastamiento de la sección
-  const bend = (0.05 + rnd() * 0.09) * L; // flecha de la curvatura
-  const sWiggle = (rnd() - 0.5) * 0.25 * L;
-  const twist = (rnd() - 0.5) * 0.9;
-  const endA = 0.32 + rnd() * 0.16; // redondez de cada punta
-  const endB = 0.32 + rnd() * 0.16;
+  // Chizito inflado tipo "maní": gordito, puntas redondas y romas, apenas curvado (ver referencia).
+  const L = 0.046 + rnd() * 0.01; // 4,6 a 5,6 cm
+  const D = 0.0185 + rnd() * 0.0035; // 1,85 a 2,2 cm de grosor
+  const flat = 0.88 + rnd() * 0.1; // casi redondo
+  const bend = (0.04 + rnd() * 0.08) * L;
+  const sWiggle = (rnd() - 0.5) * 0.18 * L;
+  const twist = (rnd() - 0.5) * 0.6;
+  const endA = 0.26 + rnd() * 0.1; // puntas romas
+  const endB = 0.26 + rnd() * 0.1;
   const thickPhase = rnd() * 10;
+  const waist = 0.04 + rnd() * 0.08; // cinturita de maní
+  const waistAt = 0.42 + rnd() * 0.16;
+  const bulb = (rnd() - 0.5) * 0.16; // una punta un poco más gorda que la otra
 
   const center = (u: number, out: THREE.Vector3) => {
     const x = (u - 0.5) * L;
@@ -141,36 +145,40 @@ export function buildChizitoGeometry(seed: number, detail: Detail = 'hero'): { g
   const radius = (u: number, th: number): [number, number] => {
     const e = u < 0.5 ? endA : endB;
     const prof = Math.pow(Math.max(0, Math.sin(Math.PI * u)), e);
-    // Grosor irregular a lo largo + bulbos en las puntas, típicos de la extrusión.
-    const along = 1 + 0.1 * noise.noise(u * 3.2 + thickPhase, 0.3, 0) + 0.05 * noise.noise(u * 9 + thickPhase, 1.7, 0);
+    const along =
+      1 +
+      0.07 * noise.noise(u * 3.2 + thickPhase, 0.3, 0) +
+      bulb * (u - 0.5) -
+      waist * Math.exp(-Math.pow((u - waistAt) / 0.14, 2));
     const R = (D / 2) * prof * along;
     const tw = th + twist * (u - 0.5);
-    const ell = 1 + 0.05 * Math.cos(2 * tw);
+    const ell = 1 + 0.04 * Math.cos(2 * tw);
     return [R * flat * ell, R / ell];
   };
 
+  // Superficie inflada: ondulación grande + grumos redondos ("burbujas" de la masa) + rugosidad fina.
   const displace = (p: THREE.Vector3, _n: THREE.Vector3, u: number) => {
-    const fade = Math.min(1, Math.sin(Math.PI * u) * 3.5);
-    const big = noise.fbm(p.x * 55, p.y * 55, p.z * 55, 2) * 0.0007;
-    const lumps = (noise.billow(p.x * 210 + 7, p.y * 210, p.z * 210, 3) - 0.62) * 0.00135;
-    const knob = Math.max(0, noise.noise(p.x * 140 + 3, p.y * 140, p.z * 140) - 0.35) * 0.0016;
-    return (big + lumps + knob) * fade;
+    const fade = Math.min(1, Math.sin(Math.PI * u) * 3);
+    const big = noise.fbm(p.x * 42, p.y * 42, p.z * 42, 2) * 0.0006;
+    const lumps = (noise.billow(p.x * 170 + 7, p.y * 170, p.z * 170, 3) - 0.62) * 0.00075;
+    const fine = (noise.billow(p.x * 420 + 3, p.y * 420, p.z * 420, 2) - 0.6) * 0.0004;
+    return (big + lumps) * fade + fine;
   };
 
   const tone = new Simplex3(seed + 555);
   const base = new THREE.Color();
-  const toasted = new THREE.Color('#f0952c');
-  const orange = new THREE.Color('#ffb43c');
-  const yellow = new THREE.Color('#ffd470');
+  const deep = new THREE.Color('#e3ac3e');
+  const butter = new THREE.Color('#f2cf68');
+  const cream = new THREE.Color('#fbe7a2');
   const color = (p: THREE.Vector3, _n: THREE.Vector3, _u: number, _th: number, d: number, out: THREE.Color) => {
-    const t = tone.fbm(p.x * 160, p.y * 160, p.z * 160, 3) * 0.5 + 0.5;
-    base.copy(orange).lerp(yellow, THREE.MathUtils.smoothstep(t, 0.35, 0.9) * 0.6);
-    const toast = THREE.MathUtils.smoothstep(tone.noise(p.x * 70 + 9, p.y * 70, p.z * 70), 0.45, 0.95);
-    base.lerp(toasted, toast * 0.3);
-    // Crestas un poco más claras (polvo), huecos más saturados.
+    const t = tone.fbm(p.x * 120, p.y * 120, p.z * 120, 3) * 0.5 + 0.5;
+    base.copy(butter).lerp(cream, THREE.MathUtils.smoothstep(t, 0.45, 0.95) * 0.55);
+    const toast = THREE.MathUtils.smoothstep(tone.noise(p.x * 60 + 9, p.y * 60, p.z * 60), 0.5, 0.95);
+    base.lerp(deep, toast * 0.35);
+    // Grumos con polvo más claro; huecos un poco más dorados.
     const k = THREE.MathUtils.clamp(d / 0.0009, -1, 1);
-    if (k > 0) base.lerp(yellow, k * 0.2);
-    else base.lerp(toasted, -k * 0.2);
+    if (k > 0) base.lerp(cream, k * 0.3);
+    else base.lerp(deep, -k * 0.35);
     out.copy(base);
   };
 

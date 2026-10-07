@@ -76,8 +76,8 @@ function buildRoom(): THREE.Scene {
   const H = ceilY - floorY;
   const midY = (ceilY + floorY) / 2;
 
-  const wall = rad('#f0dcc0', 0.78);
-  const wallShade = rad('#e2c9a8', 0.6);
+  const wall = rad('#f3ece2', 0.8);
+  const wallShade = rad('#e8e0d4', 0.62);
   // Paredes
   s.add(box(0.02, H, front - back, wall, -W, midY, (front + back) / 2));
   s.add(box(0.02, H, front - back, wallShade, W, midY, (front + back) / 2));
@@ -91,7 +91,7 @@ function buildRoom(): THREE.Scene {
 
   // Ventana grande adelante a la izquierda (detrás del espectador): luz de tarde,
   // coherente con la luz direccional (CONFIG.light.direction).
-  const winMat = rad('#ffe0b8', 11);
+  const winMat = rad('#fff4e6', 11);
   s.add(box(1.5, 1.35, 0.03, winMat, -0.55, 1.05, front - 0.02));
   const frameMat = rad('#d9cbb8', 0.6);
   s.add(box(0.05, 1.45, 0.05, frameMat, -0.55, 1.05, front - 0.04));
@@ -102,8 +102,8 @@ function buildRoom(): THREE.Scene {
   s.add(box(0.35, 1.9, 0.06, rad('#b4553d', 0.35), -1.45, 0.75, front - 0.08));
   s.add(box(0.35, 1.9, 0.06, rad('#b4553d', 0.35), 0.35, 0.75, front - 0.08));
   // Manchas de sol en el piso y en la pared del fondo a la derecha
-  s.add(box(1.0, 0.01, 1.3, rad('#ffcf96', 2.2), 0.3, floorY + 0.015, 0.2));
-  s.add(box(0.9, 0.8, 0.01, rad('#ffcf96', 1.4), 1.6, 0.5, back + 0.02));
+  s.add(box(1.0, 0.01, 1.3, rad('#ffe9cc', 2.2), 0.3, floorY + 0.015, 0.2));
+  s.add(box(0.9, 0.8, 0.01, rad('#ffe9cc', 1.4), 1.6, 0.5, back + 0.02));
 
   // Lámpara de techo cálida
   const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.12, 24), rad('#ffd9a6', 7));

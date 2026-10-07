@@ -14,8 +14,8 @@ export const CONFIG = {
   light: {
     /** Dirección HACIA la luz (ventana de tarde, adelante a la izquierda, alta). */
     direction: new THREE.Vector3(-0.2, 0.55, 0.81).normalize(),
-    color: new THREE.Color('#ffd2a1'),
-    intensity: 4.6,
+    color: new THREE.Color('#fff8ee'),
+    intensity: 4.0,
   },
   environment: {
     /** HDRI opcional: si existe se usa automáticamente en lugar del entorno procedural. */
@@ -24,7 +24,7 @@ export const CONFIG = {
     hdriRotationY: 0,
     hdriIntensity: 1.0,
     hdriBackgroundIntensity: 0.9,
-    proceduralIntensity: 0.5,
+    proceduralIntensity: 0.85,
     backgroundBlurriness: 0.04,
   },
   /**
@@ -62,7 +62,9 @@ export const CONFIG = {
     distanceFalloff: 0.35,
     intensity: 2.2,
   },
-  /** 'agx' | 'aces' */
-  toneMapping: (new URLSearchParams(location.search).get('tm') ?? 'aces') as 'agx' | 'aces',
+  /** 'neutral' (Khronos PBR Neutral: respeta los colores, look de foto de producto) | 'aces' | 'agx' */
+  toneMapping: (new URLSearchParams(location.search).get('tm') ?? 'neutral') as 'neutral' | 'aces' | 'agx',
+  /** Ajuste de color final: alegre y apetitoso, sin llegar a dibujo animado. */
+  look: { saturation: 0.14, brightness: 0.02, contrast: 0.04 },
   pixelRatioMax: 1.5,
 };

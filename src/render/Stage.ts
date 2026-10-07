@@ -14,6 +14,7 @@ import {
 import { N8AOPostPass } from 'n8ao';
 import { CONFIG } from '../config';
 import { BokehDofPass } from './BokehDofPass';
+import { LookEffect } from './LookEffect';
 
 /**
  * Renderer, cámara fija (50 mm), luz de ventana con sombras suaves y postprocesado:
@@ -96,12 +97,19 @@ export class Stage {
     this.dof.maxBlur = CONFIG.dof.maxBlur;
     this.composer.addPass(this.dof);
     const tone = new ToneMappingEffect({
-      mode: CONFIG.toneMapping === 'agx' ? ToneMappingMode.AGX : ToneMappingMode.ACES_FILMIC,
+      mode:
+        CONFIG.toneMapping === 'agx'
+          ? ToneMappingMode.AGX
+          : CONFIG.toneMapping === 'aces'
+            ? ToneMappingMode.ACES_FILMIC
+            : ToneMappingMode.NEUTRAL,
     });
-    const vignette = new VignetteEffect({ offset: 0.32, darkness: 0.42 });
+    const vignette = new VignetteEffect({ offset: 0.36, darkness: 0.26 });
+    // Look alegre y apetitoso: un poco más de color y de brillo.
+    const look = new LookEffect(CONFIG.look);
     const grain = new NoiseEffect({ blendFunction: BlendFunction.SOFT_LIGHT, premultiply: false });
     grain.blendMode.opacity.value = 0.06;
-    this.composer.addPass(new EffectPass(this.camera, tone, vignette));
+    this.composer.addPass(new EffectPass(this.camera, tone, look, vignette));
     this.composer.addPass(new EffectPass(this.camera, new SMAAEffect({ preset: SMAAPreset.HIGH }), grain));
 
     window.addEventListener('resize', () => this.resize());

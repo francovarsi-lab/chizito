@@ -6,7 +6,7 @@ import type { PieceDefinition } from './PieceDefinition';
 export const CHIZITO: PieceDefinition = {
   type: 'chizito',
   displayName: 'Chizito',
-  dimensions: { length: 0.052, thickness: 0.014 },
+  dimensions: { length: 0.051, thickness: 0.02 },
   frame: 'centered',
   procedural: (seed, detail) => createChizito(seed, detail),
   canPierce: false,
