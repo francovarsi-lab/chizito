@@ -24,6 +24,13 @@ export function bakeStatic(group: THREE.Object3D, name: string): THREE.Group {
   out.quaternion.copy(group.quaternion);
   out.scale.copy(group.scale);
   for (const [mat, geos] of byMat) {
+    // Piezas de distinto origen (p. ej. hoja y guarda de la espadita) pueden traer atributos
+    // distintos: se fusiona sólo lo que tienen todas en común.
+    const common = Object.keys(geos[0].attributes).filter((k) => geos.every((g) => g.getAttribute(k)));
+    for (const g of geos) {
+      for (const k of Object.keys(g.attributes)) if (!common.includes(k)) g.deleteAttribute(k);
+      if (!g.index) g.setIndex([...Array(g.getAttribute('position').count).keys()]);
+    }
     const merged = mergeGeometries(geos, false);
     geos.forEach((g) => g.dispose());
     if (!merged) continue;

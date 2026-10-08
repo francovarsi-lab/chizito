@@ -33,6 +33,15 @@ export interface PieceDefinition {
    */
   procedural: (seed: number, detail: 'hero' | 'prop', params?: PieceParams) => THREE.Object3D;
 
+  /**
+   * Variantes elegibles al agarrar la pieza (tecla V en la mano). Se guardan en `params.variant`;
+   * la primera es la de fábrica. GLB opcional por variante: public/assets/models/<type>-<variant>.glb
+   */
+  variants?: { id: string; label: string }[];
+
+  /** Ayuda que se muestra al tener la pieza en la mano. */
+  holdHint?: string;
+
   /** La forma se puede partir en la mano (tecla B). Sólo con modelo procedural. */
   breakable?: boolean;
 

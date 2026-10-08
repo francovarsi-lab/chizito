@@ -115,6 +115,8 @@ export class InteractionController {
   private wheelIdle = 0;
   /** Semillas distintas en cada sesión: no hay dos piezas iguales ni entre partidas. */
   private seedCounter = Math.floor(Math.random() * 1e6);
+  /** Última variante elegida por tipo (al volver a agarrar se ofrece la misma). */
+  private lastVariant = new Map<string, string>();
   private hover: SurfaceHit | null = null;
   private resetArmedUntil = 0;
   /** Objetos de piezas quitadas, para reutilizarlos al deshacer sin regenerar la malla. */
@@ -348,6 +350,11 @@ export class InteractionController {
       this.breakActive();
       return;
     }
+    // V: elegir variante de la pieza en la mano.
+    if (e.code === 'KeyV' && this.state === InteractionState.HOLDING && this.active) {
+      this.cycleVariant();
+      return;
+    }
     if (this.state === InteractionState.AIMING && this.active && e.code.startsWith('Arrow')) {
       e.preventDefault();
       const step = THREE.MathUtils.degToRad(e.shiftKey ? 5 : 1);
@@ -375,13 +382,15 @@ export class InteractionController {
     const { assets, pieces, scene, picker, overlay } = this.d;
     const def = pieces.get(type);
     const seed = this.seedCounter++ * 7 + 100;
-    const object = assets.create(type, seed, 'hero');
+    const params: Record<string, unknown> = {};
+    if (def.variants?.length) params.variant = this.lastVariant.get(type) ?? def.variants[0].id;
+    const object = assets.create(type, seed, 'hero', params);
     markHero(object);
     const aim = new Aim();
     aim.spin = Math.random() * Math.PI * 2;
     scene.add(object);
     picker.ignore.add(object);
-    this.active = { def, object, aim, parent: null, node: null, seed, popT: 0, params: {} };
+    this.active = { def, object, aim, parent: null, node: null, seed, popT: 0, params };
     object.scale.setScalar(0.001);
     // Arranca saliendo del vaso / bowl.
     object.position.copy(this.bowlWorldPos(type));
@@ -389,7 +398,7 @@ export class InteractionController {
     this.hover = null;
     this.state = InteractionState.HOLDING;
     this.emit('pick', null);
-    if (type === 'papita') overlay.hint('holding-papita', 'la papita se clava de canto · Q / E la giran · B la parte');
+    if (def.holdHint) overlay.hint(`holding-${type}`, def.holdHint);
     else overlay.hint('holding', 'tocá el chizito donde lo quieras clavar · Esc lo devuelve');
   }
 
@@ -465,6 +474,29 @@ export class InteractionController {
     }
     bites.push(Math.floor(Math.random() * 1e9));
     a.params.bites = bites;
+    const fresh = this.regenerate();
+    const p = fresh.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, a.def.dimensions.length * 0.5, 0));
+    this.emit('break', { def: a.def, point: p, normal: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, -1, 0), depth: 0, dt: 0, parent: null, localPoint: p, localNormal: new THREE.Vector3(0, 1, 0) });
+    this.d.overlay.hint('break', 'B la sigue partiendo · cada pieza queda única');
+  }
+
+  /** V en la mano: pasa a la siguiente variante de la pieza (escarbadientes ↔ espadita…). */
+  private cycleVariant(): void {
+    const a = this.active!;
+    const vs = a.def.variants;
+    if (!vs || vs.length < 2) return;
+    const i = vs.findIndex((v) => v.id === a.params.variant);
+    const next = vs[(i + 1) % vs.length];
+    a.params.variant = next.id;
+    this.lastVariant.set(a.def.type, next.id);
+    this.regenerate();
+    this.emit('pick', null);
+    this.d.overlay.flash(next.label, 1100);
+  }
+
+  /** Rehace la malla de la pieza en la mano con sus params actuales (misma pose y semilla). */
+  private regenerate(): THREE.Object3D {
+    const a = this.active!;
     const old = a.object;
     const fresh = this.d.assets.create(a.def.type, a.seed, 'hero', a.params);
     markHero(fresh);
@@ -477,10 +509,8 @@ export class InteractionController {
     this.d.picker.ignore.delete(old);
     this.d.picker.ignore.add(fresh);
     a.object = fresh;
-    a.popT = 0.18; // pequeño rebote al partirse
-    const p = fresh.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, a.def.dimensions.length * 0.5, 0));
-    this.emit('break', { def: a.def, point: p, normal: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, -1, 0), depth: 0, dt: 0, parent: null, localPoint: p, localNormal: new THREE.Vector3(0, 1, 0) });
-    this.d.overlay.hint('break', 'B la sigue partiendo · cada papita queda única');
+    a.popT = 0.18; // pequeño rebote al cambiar de forma
+    return fresh;
   }
 
   /** De AIMING (o al sacarla del todo) vuelve a la mano. */

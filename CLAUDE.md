@@ -38,7 +38,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 
 ## Escala (1 unidad = 1 metro)
 - Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
-- Palito: 3,5 cm, Ø 3,4 mm. Papita: Ø ~5 cm, 1,5 mm.
+- Palito: 3,5 cm, Ø 3,4 mm. Papita: Ø ~5 cm, 1,5 mm. Nacho: triángulo de ~4,5 cm de lado, 1,8 mm.
+  Aceituna: 2 × 1,5 cm (rellena de morrón). Escarbadientes: 3 cm × Ø 2 mm (variante espadita de cotillón, 3 cm).
 - Mesa en y = 0. Chizito flotando con centro en y = 10 cm (`CONFIG.chizitoCenter`): la mesa queda más lejos y despejada.
 - Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, a 30 cm del chizito, con zoom por
   dolly (rueda del mouse) entre 16 y 50 cm, suave. 50 mm sobre film de 36 mm. Nunca orbita.
@@ -66,6 +67,9 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - Fondo: mesa de madera con mantel de cumpleaños de plástico rosado pastel con confeti; la mesa es grande para que su borde lejano
   no entre en cuadro. Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
   el vaso = un palito). Bowl de cerámica blanca con papitas abajo a la izquierda.
+  Tira de recipientes chicos al frente (mismo lenguaje: cerámica blanca y vasito descartable): nachos, aceitunas,
+  [centro libre para el bowl de chizitos] y vasito de escarbadientes/espaditas [punta derecha libre para el ketchup].
+  `fillBowl` centra cada pieza por su bbox y la acuesta (eje más fino hacia arriba).
   Al fondo: bowl de chizitos, bowl de papitas, vasos descartables, gaseosa genérica (sin marca), servilletas, gorrito.
 
 ## Assets
@@ -76,6 +80,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   el origen, cuerpo hacia +Y; la inserción avanza en −Y local).
 - Ojo con el winding: las caras de `buildTube` deben quedar CCW vistas desde afuera (un error ahí hace que se
   renderice el interior y el chizito se vea oscuro con patrón de sombra).
+- Variantes (`PieceDefinition.variants`, p. ej. escarbadientes liso / espadita): se guardan en
+  `params.variant`; GLB opcional por variante `public/assets/models/<tipo>-<variante>.glb` (si no, el del tipo).
 - GLB externos pasan por `prepareGlb`: unlit → MeshStandardMaterial, metalness 0, roughness ≥ 0,8 si no hay
   mapa, normales si faltan; soporta Draco (`public/assets/draco/`) y meshopt.
 - Procedurales: tubo con polos (`assets/procedural/tube.ts`) deformado con simplex/FBM/billow en 3 escalas;
@@ -105,6 +111,10 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   deshacer/guardar reproducen la forma exacta (hasta 7; desactivado si la papita viene de un .glb). Las semillas
   arrancan al azar en cada sesión: no hay dos papitas iguales ni entre partidas. Una papita colocada puede ser
   atravesada: el palito que entra en ella queda como hijo de la papita en el árbol.
+- Nacho: igual que la papita (de canto, máx. 6 mm, Q/E, B lo parte; mismo generador `buildChipGeometry` con otro
+  `ChipStyle`). Aceituna: entra apenas (máx. 4 mm) y se puede atravesar. Escarbadientes: como el palito (80 % del
+  largo); en la mano, V cambia entre escarbadientes y espadita (se recuerda la última elegida por tipo).
+- La ayuda en la mano sale de `PieceDefinition.holdHint`.
 - Editar: clic en una pieza colocada → SELECTED_PLACED_PIECE (resaltado cálido sutil): mantener = hundir,
   Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),
   Supr/Backspace = quitar, Esc = soltar.
@@ -137,6 +147,6 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 2. Bowl, agarrar palito, punto de entrada, ángulo, clavar/sacar, atravesar. ← hecha
    Prueba automatizada: `node scripts/play-test.mjs <dir>` (con `npm run dev` corriendo).
 3. Feedback (sacudida, migas, sonido), papitas, edición, undo/redo. ← hecha
-   Prueba automatizada: `node scripts/phase3-test.mjs <dir>`.
+   Prueba automatizada: `node scripts/phase3-test.mjs <dir>`. Piezas nuevas: `node scripts/pieces-test.mjs <dir>`.
 4. Guardado/carga JSON versionado, GLB, pulido.
 Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit, y esperar aprobación.

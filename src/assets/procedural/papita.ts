@@ -9,6 +9,8 @@ import { HeightField, Profiles } from './HeightField';
  */
 
 const TILE = 0.02;
+export const PAPITA_RADIUS = 0.025;
+export const PAPITA_THICKNESS = 0.0015;
 let sharedMaterial: THREE.MeshPhysicalMaterial | null = null;
 
 export function papitaMaterial(): THREE.MeshPhysicalMaterial {
@@ -46,22 +48,54 @@ export function papitaMaterial(): THREE.MeshPhysicalMaterial {
   return sharedMaterial;
 }
 
-export const PAPITA_RADIUS = 0.025;
-export const PAPITA_THICKNESS = 0.0015;
-
 /** Parámetros de forma de una papita: cada mordisco (semilla) le saca un pedazo irregular del borde. */
 export interface PapitaParams {
   bites?: number[];
 }
 
+/**
+ * Estilo de un "chip" (papita, nacho…): contorno, tamaño, ondulación y colores. El generador es el
+ * mismo para todos; cada snack sólo define su estilo.
+ */
+export interface ChipStyle {
+  radius: number;
+  thickness: number;
+  /** Contorno relativo (1 = radio) en función del ángulo, con ruido disponible para irregularidad. */
+  contour: (th: number, noise: Simplex3, ox: number, rnd: () => number) => number;
+  wave: [number, number];
+  colors: { base: string; light: string; toast: string };
+  /** Cuánto se tuesta el borde y cuántas manchas tiene (0..1). */
+  edgeToast: number;
+  spots: number;
+}
+
+export const PAPITA_STYLE: ChipStyle = {
+  radius: PAPITA_RADIUS,
+  thickness: PAPITA_THICKNESS,
+  contour: (th, noise, ox) =>
+    1 +
+    0.07 * noise.noise(Math.cos(th) * 1.3 + ox, Math.sin(th) * 1.3, 0.5) +
+    0.025 * noise.noise(Math.cos(th) * 5 + ox, Math.sin(th) * 5, 2.5) +
+    0.12 * (Math.cos(th) ** 2 - 0.5), // levemente ovalada
+  wave: [0.0016, 0.0012],
+  colors: { base: '#f3d06c', light: '#f9e6a6', toast: '#cf9440' },
+  edgeToast: 0.6,
+  spots: 0.45,
+};
+
 export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'hero', params: PapitaParams = {}): THREE.BufferGeometry {
+  return buildChipGeometry(seed, detail, params, PAPITA_STYLE);
+}
+
+export function buildChipGeometry(seed: number, detail: 'hero' | 'prop', params: PapitaParams, style: ChipStyle): THREE.BufferGeometry {
   const rnd = mulberry32(seed * 6151 + 17);
   const noise = new Simplex3(seed + 333);
-  const R = PAPITA_RADIUS * (0.88 + rnd() * 0.24);
-  const T = PAPITA_THICKNESS;
+  const R = style.radius * (0.88 + rnd() * 0.24);
+  const T = style.thickness;
   const ox = rnd() * 100;
-  const waveAmp = 0.0016 + rnd() * 0.0012; // ondulación suave de papita frita
+  const waveAmp = style.wave[0] + rnd() * style.wave[1];
   const cup = (rnd() - 0.3) * 0.004;
+  const rot = rnd() * Math.PI * 2;
 
   // Mordiscos ("partir con los dedos"): muescas irregulares del borde, deterministas por semilla.
   const bites = (params.bites ?? []).map((b) => {
@@ -80,13 +114,7 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
     }
     return Math.min(0.6, k);
   };
-  const edgeR = (th: number) =>
-    R *
-    (1 - biteAt(th)) *
-    (1 +
-      0.07 * noise.noise(Math.cos(th) * 1.3 + ox, Math.sin(th) * 1.3, 0.5) +
-      0.025 * noise.noise(Math.cos(th) * 5 + ox, Math.sin(th) * 5, 2.5) +
-      0.12 * (Math.cos(th) ** 2 - 0.5)); // levemente ovalada
+  const edgeR = (th: number) => R * (1 - biteAt(th)) * style.contour(th + rot, noise, ox, rnd);
   const height = (x: number, z: number) => {
     const r2 = (x * x + z * z) / (R * R);
     return waveAmp * noise.fbm(x * 30 + ox, z * 30, 1.3, 2) + cup * r2 + 0.00025 * noise.noise(x * 120, z * 120, 9);
@@ -163,9 +191,9 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
   const n = (rows + 1) * cols;
   const uv = new Float32Array(n * 2);
   const col = new Float32Array(n * 3);
-  const golden = new THREE.Color('#f3d06c');
-  const pale = new THREE.Color('#f9e6a6');
-  const toast = new THREE.Color('#cf9440');
+  const golden = new THREE.Color(style.colors.base);
+  const pale = new THREE.Color(style.colors.light);
+  const toast = new THREE.Color(style.colors.toast);
   const c = new THREE.Color();
   for (let v = 0; v < n; v++) {
     const x = pos[v * 3];
@@ -176,9 +204,9 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
     const t = noise.fbm(x * 80 + 4, z * 80, 7, 3) * 0.5 + 0.5;
     c.copy(golden).lerp(pale, THREE.MathUtils.smoothstep(t, 0.4, 0.85) * 0.7);
     const edge = THREE.MathUtils.smoothstep(f + noise.noise(x * 150, z * 150, 3) * 0.12, 0.82, 1.02);
-    c.lerp(toast, edge * 0.6);
+    c.lerp(toast, edge * style.edgeToast);
     const spot = THREE.MathUtils.smoothstep(noise.noise(x * 220 + 9, z * 220, 5), 0.72, 0.95);
-    c.lerp(toast, spot * 0.45);
+    c.lerp(toast, spot * style.spots);
     // `c` ya está en espacio lineal.
     col[v * 3] = c.r;
     col[v * 3 + 1] = c.g;

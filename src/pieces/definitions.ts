@@ -1,7 +1,12 @@
 import { createChizito } from '../assets/procedural/chizito';
 import { CHIZITO_REF_LENGTH, createPalito, PALITO_LENGTH, PALITO_RADIUS } from '../assets/procedural/palito';
 import { createPapita, PAPITA_RADIUS, PAPITA_THICKNESS, type PapitaParams } from '../assets/procedural/papita';
+import { ACEITUNA_DIAMETER, ACEITUNA_LENGTH, createAceituna } from '../assets/procedural/aceituna';
+import { createNacho, NACHO_RADIUS, NACHO_THICKNESS } from '../assets/procedural/nacho';
+import { createEscarbadientes, ESCARBADIENTES_LENGTH, ESCARBADIENTES_RADIUS, type EscarbadientesParams } from '../assets/procedural/escarbadientes';
 import type { PieceDefinition } from './PieceDefinition';
+
+const CRUNCHY = { pick: 'pick', drop: 'drop', contact: 'crack', insert: 'crunch' };
 
 export const CHIZITO: PieceDefinition = {
   type: 'chizito',
@@ -25,7 +30,7 @@ export const PALITO: PieceDefinition = {
   canBePierced: false,
   // Siempre queda afuera ~20 % del largo (≈ 7 mm con 3,5 cm).
   maxDepth: PALITO_LENGTH * 0.8,
-  sounds: { pick: 'pick', drop: 'drop', contact: 'crack', insert: 'crunch' },
+  sounds: CRUNCHY,
 };
 
 export const PAPITA: PieceDefinition = {
@@ -38,7 +43,53 @@ export const PAPITA: PieceDefinition = {
   canPierce: true,
   canBePierced: true,
   maxDepth: 0.008,
+  holdHint: 'la papita se clava de canto · Q / E la giran · B la parte',
+  sounds: CRUNCHY,
+};
+
+export const ACEITUNA: PieceDefinition = {
+  type: 'aceituna',
+  displayName: 'Aceituna',
+  dimensions: { length: ACEITUNA_LENGTH, thickness: ACEITUNA_DIAMETER },
+  frame: 'tip',
+  procedural: (seed, detail) => createAceituna(seed, detail),
+  canPierce: true,
+  canBePierced: true,
+  // Se apoya hundida apenas (como una nariz); un palito la puede atravesar.
+  maxDepth: 0.004,
+  holdHint: 'la aceituna se hunde apenas · después la podés atravesar con un palito',
   sounds: { pick: 'pick', drop: 'drop', contact: 'crack', insert: 'crunch' },
 };
 
-export const ALL_DEFINITIONS: PieceDefinition[] = [CHIZITO, PALITO, PAPITA];
+export const NACHO: PieceDefinition = {
+  type: 'nacho',
+  displayName: 'Nacho',
+  dimensions: { length: NACHO_RADIUS * 1.5, thickness: NACHO_THICKNESS },
+  frame: 'tip',
+  procedural: (seed, detail, params) => createNacho(seed, detail, params as { bites?: number[] }),
+  breakable: true,
+  canPierce: true,
+  canBePierced: true,
+  maxDepth: 0.006,
+  holdHint: 'el nacho se clava de canto · Q / E lo giran · B lo parte',
+  sounds: CRUNCHY,
+};
+
+export const ESCARBADIENTES: PieceDefinition = {
+  type: 'escarbadientes',
+  displayName: 'Escarbadientes',
+  dimensions: { length: ESCARBADIENTES_LENGTH, thickness: ESCARBADIENTES_RADIUS * 2 },
+  frame: 'tip',
+  procedural: (seed, detail, params) => createEscarbadientes(seed, detail, params as EscarbadientesParams),
+  variants: [
+    { id: 'liso', label: 'escarbadientes' },
+    { id: 'espadita', label: 'espadita de cotillón' },
+  ],
+  canPierce: true,
+  canBePierced: false,
+  maxDepth: ESCARBADIENTES_LENGTH * 0.8,
+  holdHint: 'V cambia entre escarbadientes y espadita · tocá dónde clavarlo',
+  sounds: CRUNCHY,
+};
+
+export const ALL_DEFINITIONS: PieceDefinition[] = [CHIZITO, PALITO, PAPITA, ACEITUNA, NACHO, ESCARBADIENTES];

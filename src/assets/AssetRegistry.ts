@@ -20,22 +20,31 @@ export class AssetRegistry {
     // Soporta GLB comprimidos con Draco o meshopt (habituales en exportadores de fotogrametría/IA).
     const draco = new DRACOLoader().setDecoderPath(`${import.meta.env.BASE_URL}assets/draco/`);
     const loader = new GLTFLoader().setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
+    // Un GLB por tipo y, si la definición tiene variantes, uno opcional por variante.
+    const wanted = this.pieces.all().flatMap((def) => [
+      { def, key: def.type },
+      ...(def.variants ?? []).map((v) => ({ def, key: `${def.type}-${v.id}` })),
+    ]);
     await Promise.all(
-      this.pieces.all().map(async (def) => {
-        const url = `${import.meta.env.BASE_URL}assets/models/${def.type}.glb`;
+      wanted.map(async ({ def, key }) => {
+        const url = `${import.meta.env.BASE_URL}assets/models/${key}.glb`;
         const buf = await probeFile(url, 'glTF');
         if (!buf) return;
         try {
           const gltf = await loader.parseAsync(buf, '');
           prepareGlb(gltf.scene);
           const tpl = normalizeToFrame(gltf.scene, def, true);
-          this.glbTemplates.set(def.type, tpl);
-          console.info(`[assets] usando ${def.type}.glb`);
+          this.glbTemplates.set(key, tpl);
+          console.info(`[assets] usando ${key}.glb`);
         } catch (err) {
-          console.warn(`[assets] no se pudo leer ${def.type}.glb, uso el procedural`, err);
+          console.warn(`[assets] no se pudo leer ${key}.glb, uso el procedural`, err);
         }
       }),
     );
+  }
+
+  definition(type: string): PieceDefinition {
+    return this.pieces.get(type);
   }
 
   hasGlb(type: string): boolean {
@@ -45,7 +54,8 @@ export class AssetRegistry {
   /** Crea una instancia lista para agregar a la escena, en el marco local de la definición. */
   create(type: string, seed: number, detail: 'hero' | 'prop' = 'hero', params?: PieceParams): THREE.Object3D {
     const def = this.pieces.get(type);
-    const tpl = this.glbTemplates.get(type);
+    const variant = typeof params?.variant === 'string' ? params.variant : null;
+    const tpl = (variant && this.glbTemplates.get(`${type}-${variant}`)) || this.glbTemplates.get(type);
     if (tpl) return tpl.clone(true);
     return normalizeToFrame(def.procedural(seed, detail, params), def, false);
   }

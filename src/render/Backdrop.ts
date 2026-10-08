@@ -22,6 +22,11 @@ export interface Backdrop {
 export const BOWL_LAYOUT = {
   palito: new THREE.Vector3(0.115, 0, -0.17),
   papita: new THREE.Vector3(-0.115, 0, -0.17),
+  // Tira de recipientes chicos al frente (desenfocados). El centro queda para el bowl de chizitos y
+  // la punta derecha para los sobrecitos de ketchup.
+  nacho: new THREE.Vector3(-0.078, 0, -0.072),
+  aceituna: new THREE.Vector3(-0.03, 0, -0.068),
+  escarbadientes: new THREE.Vector3(0.062, 0, -0.07),
 };
 
 export function buildBackdrop(assets: AssetRegistry): Backdrop {
@@ -58,7 +63,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
     clearcoatRoughness: 0.12,
   });
   // Palitos parados en un vaso descartable blanco, como en los cumpleaños.
-  const palitoCup = makePalitoCup(assets, 28, 3);
+  const palitoCup = makeStandCup(assets, { type: 'palito', count: 28, seed: 3, h: 0.026, r0: 0.017, r1: 0.024 });
   palitoCup.position.copy(BOWL_LAYOUT.palito);
   palitoCup.userData.bowlFor = 'palito';
   root.add(palitoCup);
@@ -70,6 +75,30 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   papitaBowl.userData.bowlFor = 'papita';
   root.add(papitaBowl);
   bowls.set('papita', papitaBowl);
+
+  // Tira del frente: mismo lenguaje (cerámica blanca y vasito descartable), más chicos.
+  const nachoBowl = makeBowl(0.034, 0.018, ceramic);
+  nachoBowl.position.copy(BOWL_LAYOUT.nacho);
+  nachoBowl.add(fillBowl(assets, 'nacho', 0.026, 0.016, 6, 41));
+  const oliveBowl = makeBowl(0.026, 0.016, ceramic);
+  oliveBowl.position.copy(BOWL_LAYOUT.aceituna);
+  oliveBowl.add(fillBowl(assets, 'aceituna', 0.021, 0.016, 9, 51));
+  const pickCup = makeStandCup(assets, {
+    type: 'escarbadientes',
+    count: 22,
+    seed: 61,
+    h: 0.018,
+    r0: 0.009,
+    r1: 0.0125,
+    // Mezcla de escarbadientes lisos y espaditas de colores.
+    params: (i) => ({ variant: i % 3 === 0 ? 'espadita' : 'liso' }),
+  });
+  pickCup.position.copy(BOWL_LAYOUT.escarbadientes);
+  for (const [type, obj] of [['nacho', nachoBowl], ['aceituna', oliveBowl], ['escarbadientes', pickCup]] as const) {
+    obj.userData.bowlFor = type;
+    root.add(obj);
+    bowls.set(type, obj);
+  }
 
   const farProps = new THREE.Group();
   farProps.name = 'far-props';
@@ -162,12 +191,17 @@ function fillBowl(assets: AssetRegistry, type: string, innerR: number, height: n
       const r = rr * innerR * 0.75;
       const dome = (1 - (r * r) / (innerR * innerR)) * height * 0.55;
       obj.position.set(Math.cos(a) * r, 0.008 + layer * height * 0.6 + dome * 0.5 + rnd() * 0.006, Math.sin(a) * r);
-      obj.rotation.set((rnd() - 0.5) * 2.2, rnd() * Math.PI * 2, (rnd() - 0.5) * 2.2);
-      if (type === 'papita') {
-        // El marco 'tip' deja el borde en el origen: centrar el disco en su posición.
-        const inner = obj.children[0];
-        inner.position.y -= 0.025;
-      }
+      // El marco 'tip' deja la punta/borde en el origen y el largo en Y: centrar la pieza y
+      // acostarla (su eje más fino hacia arriba), con un desorden leve; las chatas, más planas.
+      const inner = obj.children[0];
+      const box = new THREE.Box3().setFromObject(inner);
+      inner.position.sub(box.getCenter(tmp));
+      const size = box.getSize(new THREE.Vector3());
+      const thin = size.x <= size.z ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1);
+      const lay = new THREE.Quaternion().setFromUnitVectors(thin, new THREE.Vector3(0, 1, 0));
+      const tumble = assets.definition(type).dimensions.thickness < 0.003 ? 0.8 : 1.6;
+      const jitter = new THREE.Quaternion().setFromEuler(new THREE.Euler((rnd() - 0.5) * tumble, rnd() * Math.PI * 2, (rnd() - 0.5) * tumble, 'YXZ'));
+      obj.quaternion.copy(jitter).multiply(lay);
     }
     pile.add(obj);
   }
@@ -249,17 +283,26 @@ function makePartyHat(x: number, z: number): THREE.Group {
   return g;
 }
 
+interface StandCupSpec {
+  type: string;
+  count: number;
+  seed: number;
+  /** Alto, radio de la base y radio de la boca del vaso. */
+  h: number;
+  r0: number;
+  r1: number;
+  params?: (i: number) => Record<string, unknown>;
+}
+
 /**
- * Vaso descartable blanco (plástico, con anillos) lleno de palitos parados, levemente abiertos en
- * abanico, que sobresalen ~2 cm del borde. Se reconoce aunque esté desenfocado.
+ * Vaso descartable blanco (plástico, con anillos) lleno de piezas largas paradas (palitos,
+ * escarbadientes), levemente abiertas en abanico y asomando del borde. Se reconoce aunque esté
+ * desenfocado.
  */
-function makePalitoCup(assets: AssetRegistry, count: number, seed: number): THREE.Group {
+function makeStandCup(assets: AssetRegistry, spec: StandCupSpec): THREE.Group {
+  const { type, count, seed, h, r0, r1 } = spec;
   const g = new THREE.Group();
-  g.name = 'vaso-palitos';
-  // Vasito descartable chico: los palitos (3,5 cm) asoman ~1,2 cm del borde.
-  const h = 0.026;
-  const r0 = 0.017;
-  const r1 = 0.024;
+  g.name = `vaso-${type}`;
   const pts: THREE.Vector2[] = [new THREE.Vector2(0, 0.0015), new THREE.Vector2(r0 - 0.001, 0.0015), new THREE.Vector2(r0, 0.003)];
   for (let i = 0; i <= 24; i++) {
     const a = i / 24;
@@ -290,10 +333,10 @@ function makePalitoCup(assets: AssetRegistry, count: number, seed: number): THRE
   const pile = new THREE.Group();
   const up = new THREE.Vector3(0, 1, 0);
   for (let i = 0; i < count; i++) {
-    const obj = assets.create('palito', seed * 100 + (i % 9), 'prop');
+    const obj = assets.create(type, seed * 100 + (i % 9), 'prop', spec.params?.(i));
     // Base repartida en el fondo; inclinación hacia afuera según qué tan lejos del centro esté.
     const a = rnd() * Math.PI * 2;
-    const rr = Math.sqrt(rnd()) * (r0 - 0.004);
+    const rr = Math.sqrt(rnd()) * r0 * 0.75;
     // Que ningún palito atraviese la pared: a la altura del borde tiene que quedar adentro.
     const tiltMax = Math.asin(THREE.MathUtils.clamp((r1 - 0.003 - rr) / h, 0, 0.9));
     const tilt = Math.min(tiltMax, 0.05 + (rr / r0) * 0.3 + rnd() * 0.06);
@@ -302,6 +345,6 @@ function makePalitoCup(assets: AssetRegistry, count: number, seed: number): THRE
     obj.position.set(Math.cos(a) * rr, 0.005 + rnd() * 0.008, Math.sin(a) * rr);
     pile.add(obj);
   }
-  g.add(bakeStatic(pile, 'palitos-en-vaso'));
+  g.add(bakeStatic(pile, `${type}-en-vaso`));
   return g;
 }
