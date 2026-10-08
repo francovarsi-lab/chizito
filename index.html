@@ -4,22 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hombrecito de chizito</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600&display=swap" rel="stylesheet" />
     <style>
-      html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1410; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #fbeee9; }
       canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+      /* Ayuda: píldora translúcida, tipografía redondeada, aparece y se va con un fundido suave. */
       #help {
-        position: fixed; left: 50%; bottom: 3.5vh; transform: translateX(-50%);
-        font: 400 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
-        letter-spacing: 0.02em; color: rgba(255, 248, 235, 0.72);
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-        pointer-events: none; user-select: none; transition: opacity 1.6s ease;
+        position: fixed; left: 50%; bottom: 4vh; transform: translate(-50%, 0);
+        padding: 9px 18px; border-radius: 999px;
+        font: 500 13px/1.35 "Nunito", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+        letter-spacing: 0.01em; color: rgba(92, 64, 70, 0.92);
+        background: rgba(255, 250, 247, 0.62);
+        box-shadow: 0 6px 24px rgba(170, 110, 120, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2);
+        pointer-events: none; user-select: none; white-space: nowrap;
+        transition: opacity 0.9s cubic-bezier(.2,.7,.2,1), transform 0.9s cubic-bezier(.2,.7,.2,1), filter 0.9s ease;
       }
-      #help.hidden { opacity: 0; }
+      #help.hidden { opacity: 0; transform: translate(-50%, 10px); filter: blur(4px); }
+      /* Velo de entrada: la escena aparece desde un blanco cremoso. */
+      body::after {
+        content: ""; position: fixed; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at 50% 45%, #fffaf6 0%, #fbeee9 70%, #f6e2de 100%);
+        opacity: 1; transition: opacity 1.4s cubic-bezier(.3,.6,.2,1) 0.15s;
+      }
+      body.ready::after { opacity: 0; }
       #angle {
         position: fixed; left: 0; top: 0; pointer-events: none; user-select: none;
-        font: 500 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0.04em;
-        color: rgba(255, 250, 240, 0.62); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-        white-space: nowrap; transition: opacity 0.25s ease;
+        padding: 3px 8px; border-radius: 999px;
+        font: 600 11px/1 "Nunito", ui-rounded, system-ui, sans-serif; letter-spacing: 0.03em;
+        color: rgba(110, 76, 82, 0.85); background: rgba(255, 250, 247, 0.5);
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        white-space: nowrap; transition: opacity 0.35s ease;
       }
       #angle.hidden { opacity: 0; }
       body.grab canvas { cursor: grabbing; }

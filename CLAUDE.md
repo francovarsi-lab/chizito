@@ -14,8 +14,15 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   `node scripts/one.mjs "<query>" out.png` saca una sola captura. Query de depuración: `noao`, `tm=agx`, `seed=N`.
 
 ## Dirección visual (actualizada con referencias del usuario)
-- Prioridad: que se vea DIVERTIDO y apetitoso, no hiperrealismo a toda costa. Look de foto de producto alegre:
-  luz blanca y suave, colores vivos pero fieles, mantel celeste con confeti (el amarillo y el naranja resaltan).
+- Prioridad: que se vea LINDO, SUAVE y divertido, no hiperrealismo a toda costa. Paleta pastel: mantel rosado
+  pastel con confeti pastel, paredes rubor, madera clara, recipientes menta/lavanda/celeste, limonada en vez de cola.
+- Luz envolvente y suave (sol 2,7 + entorno 1,15), sombra de contacto amplia, bloom leve (umbral alto), contraste
+  apenas bajo y sombras levantadas con tono cálido (`look.lift`), viñeta y grano mínimos. Ojo: si el lift o el
+  bloom suben mucho la imagen queda lechosa/neblinosa.
+- Animación: el chizito entra cayendo con rebote y después "respira" (flota ±1,5 mm; se calma mientras se juega),
+  squash elástico al recibir una pieza (`fx/Shake.ts`); la pieza sale del vaso con un "pop" (easeOutBack) y se
+  encoge al devolverla; el anillo de entrada late; las ayudas son píldoras translúcidas con fundido (Nunito);
+  la escena aparece desde un velo crema.
 - Chizito: CÁPSULA según el modelo 3D de referencia del usuario: casi recto, sección redonda, largo/grosor ≈ 2,2,
   puntas semiesféricas con el "ombligo" del corte, arrugas suaves longitudinales. Amarillo (#f6cb43).
   Las arrugas dependen del ángulo alrededor del eje: se desvanecen en los polos (si no, forman una "estrella"), y el
@@ -55,8 +62,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   foto (mezcla de color por z en pantalla, sin transparencia). `offsetY` alinea la mesa de la foto con la 3D.
 - Sombra del chizito: `ContactShadow` (silueta de las piezas héroe vista desde la luz, desenfocada y proyectada sobre
   la mesa). El chizito y lo clavado están en `HERO_LAYER` y NO proyectan la sombra dura del sol.
-- Fondo: mesa de madera con mantel de cumpleaños de plástico celeste con confeti, apenas girado (se ve madera al fondo a la
-  derecha). Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
+- Fondo: mesa de madera con mantel de cumpleaños de plástico rosado pastel con confeti; la mesa es grande para que su borde lejano
+  no entre en cuadro. Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
   el vaso = un palito). Bowl de cerámica blanca con papitas abajo a la izquierda.
   Al fondo: bowl de chizitos, bowl de papitas, vasos descartables, gaseosa genérica (sin marca), servilletas, gorrito.
 

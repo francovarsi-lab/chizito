@@ -10,8 +10,8 @@ export function woodMaterial(): THREE.MeshPhysicalMaterial {
   const col = new Uint8Array(size * size * 4);
   const rough = new Uint8Array(size * size * 4);
   const hf = new HeightField(size);
-  const light = new THREE.Color('#9a6a42');
-  const dark = new THREE.Color('#5b3820');
+  const light = new THREE.Color('#e6cfae'); // madera clara (look suave)
+  const dark = new THREE.Color('#c9a77f');
   const c = new THREE.Color();
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -50,7 +50,7 @@ export function woodMaterial(): THREE.MeshPhysicalMaterial {
 }
 
 /**
- * Mantel de cumpleaños de plástico celeste con confeti impreso y arrugas suaves.
+ * Mantel de cumpleaños de plástico rosado pastel con confeti pastel impreso y arrugas suaves.
  * El tile cubre 30 cm × 30 cm.
  */
 export function tableclothMaterial(): THREE.MeshPhysicalMaterial {
@@ -58,14 +58,14 @@ export function tableclothMaterial(): THREE.MeshPhysicalMaterial {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#bfe0f3';
+  ctx.fillStyle = '#fbe6e4'; // rosado pastel muy suave
   ctx.fillRect(0, 0, size, size);
   const rnd = mulberry32(2024);
-  const colors = ['#ffffff', '#ffffff', '#ff5a7a', '#ffd23f', '#4bc28a', '#8a6cf0', '#ff8a3d'];
+  const colors = ['#ffffff', '#ffffff', '#ffc2d1', '#ffe7a3', '#bfe6cf', '#cdbdf5', '#bcdcf5'];
   const drawWrapped = (fn: (ox: number, oy: number) => void) => {
     for (const ox of [-size, 0, size]) for (const oy of [-size, 0, size]) fn(ox, oy);
   };
-  for (let i = 0; i < 240; i++) {
+  for (let i = 0; i < 170; i++) {
     const x = rnd() * size;
     const y = rnd() * size;
     const color = colors[Math.floor(rnd() * colors.length)];
@@ -77,7 +77,7 @@ export function tableclothMaterial(): THREE.MeshPhysicalMaterial {
       ctx.translate(x + ox, y + oy);
       ctx.rotate(rot);
       ctx.fillStyle = color;
-      ctx.globalAlpha = 0.92;
+      ctx.globalAlpha = 0.85;
       if (kind < 0.45) {
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);

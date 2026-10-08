@@ -76,15 +76,15 @@ function buildRoom(): THREE.Scene {
   const H = ceilY - floorY;
   const midY = (ceilY + floorY) / 2;
 
-  const wall = rad('#f3ece2', 0.8);
-  const wallShade = rad('#e8e0d4', 0.62);
+  const wall = rad('#f7e6e2', 0.85);
+  const wallShade = rad('#efdcd9', 0.68);
   // Paredes
   s.add(box(0.02, H, front - back, wall, -W, midY, (front + back) / 2));
   s.add(box(0.02, H, front - back, wallShade, W, midY, (front + back) / 2));
   s.add(box(2 * W, H, 0.02, wall, 0, midY, back));
   s.add(box(2 * W, H, 0.02, wallShade, 0, midY, front));
   // Piso de madera y techo
-  s.add(box(2 * W, 0.02, front - back, rad('#6b4329', 0.32), 0, floorY, (front + back) / 2));
+  s.add(box(2 * W, 0.02, front - back, rad('#e8d2bf', 0.6), 0, floorY, (front + back) / 2));
   s.add(box(2 * W, 0.02, front - back, rad('#efe6da', 0.42), 0, ceilY, (front + back) / 2));
   // Zócalo
   s.add(box(2 * W, 0.1, 0.03, rad('#e9e1d4', 0.4), 0, floorY + 0.05, back + 0.02));
@@ -127,7 +127,7 @@ function buildRoom(): THREE.Scene {
   s.add(plant);
 
   // Banderines de cumpleaños cruzando la pared del fondo.
-  const colors = ['#e2483d', '#f2b632', '#3a8fd8', '#4bb56a', '#e86fae', '#f28c28'];
+  const colors = ['#ffb7c8', '#ffe29a', '#b8dcf5', '#bfe8cf', '#d8c8f5', '#ffd0b0'];
   const tri = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(-0.09, 0, 0),
     new THREE.Vector3(0.09, 0, 0),
@@ -143,11 +143,11 @@ function buildRoom(): THREE.Scene {
   }
   // Globos
   const balloons: [string, number, number, number][] = [
-    ['#d93a35', 1.15, 1.1, -2.35],
-    ['#f0b429', 1.45, 1.25, -2.4],
-    ['#2f7fd0', 1.3, 0.85, -2.2],
-    ['#e86fae', -1.7, 1.2, -2.3],
-    ['#4bb56a', -1.95, 1.0, -2.1],
+    ['#ffb3c6', 1.15, 1.1, -2.35],
+    ['#ffe08f', 1.45, 1.25, -2.4],
+    ['#a9d4f5', 1.3, 0.85, -2.2],
+    ['#d6c4f7', -1.7, 1.2, -2.3],
+    ['#b5e6c8', -1.95, 1.0, -2.1],
   ];
   for (const [c, x, y, z] of balloons) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 16), rad(c, 0.85));

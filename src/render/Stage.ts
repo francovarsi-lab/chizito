@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   BlendFunction,
+  BloomEffect,
   EffectComposer,
   EffectPass,
   NoiseEffect,
@@ -104,12 +105,19 @@ export class Stage {
             ? ToneMappingMode.ACES_FILMIC
             : ToneMappingMode.NEUTRAL,
     });
-    const vignette = new VignetteEffect({ offset: 0.36, darkness: 0.26 });
+    const vignette = new VignetteEffect({ offset: 0.42, darkness: 0.16 });
     // Look alegre y apetitoso: un poco más de color y de brillo.
     const look = new LookEffect(CONFIG.look);
+    const bloom = new BloomEffect({
+      intensity: CONFIG.bloom.intensity,
+      luminanceThreshold: CONFIG.bloom.threshold,
+      luminanceSmoothing: CONFIG.bloom.smoothing,
+      mipmapBlur: true,
+      radius: CONFIG.bloom.radius,
+    });
     const grain = new NoiseEffect({ blendFunction: BlendFunction.SOFT_LIGHT, premultiply: false });
-    grain.blendMode.opacity.value = 0.06;
-    this.composer.addPass(new EffectPass(this.camera, tone, look, vignette));
+    grain.blendMode.opacity.value = 0.035;
+    this.composer.addPass(new EffectPass(this.camera, bloom, tone, look, vignette));
     this.composer.addPass(new EffectPass(this.camera, new SMAAEffect({ preset: SMAAPreset.HIGH }), grain));
 
     window.addEventListener('resize', () => this.resize());

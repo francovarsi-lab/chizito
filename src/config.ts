@@ -14,8 +14,8 @@ export const CONFIG = {
   light: {
     /** Dirección HACIA la luz (ventana de tarde, adelante a la izquierda, alta). */
     direction: new THREE.Vector3(-0.2, 0.55, 0.81).normalize(),
-    color: new THREE.Color('#fff8ee'),
-    intensity: 4.0,
+    color: new THREE.Color('#fff4ea'),
+    intensity: 2.7,
   },
   environment: {
     /** HDRI opcional: si existe se usa automáticamente en lugar del entorno procedural. */
@@ -24,7 +24,7 @@ export const CONFIG = {
     hdriRotationY: 0,
     hdriIntensity: 1.0,
     hdriBackgroundIntensity: 0.9,
-    proceduralIntensity: 0.85,
+    proceduralIntensity: 1.15,
     backgroundBlurriness: 0.04,
   },
   /**
@@ -45,9 +45,9 @@ export const CONFIG = {
   },
   /** Sombra de contacto suave del chizito (y sus piezas) sobre la mesa. */
   contactShadow: {
-    opacity: 0.8,
-    /** Desenfoque (m): ≈ penumbra de un objeto a 7 cm bajo luz de ventana. */
-    softness: 0.0065,
+    opacity: 0.62,
+    /** Desenfoque (m): penumbra amplia y suave (luz envolvente). */
+    softness: 0.012,
   },
   dof: {
     /** Banda nítida alrededor del foco, en dioptrías (1/m). ±1 dpt a 20 cm ≈ de 17 a 25 cm. */
@@ -55,16 +55,21 @@ export const CONFIG = {
     /** Dioptrías extra hasta el desenfoque máximo. */
     blurRamp: 2.4,
     /** Desenfoque máximo (radio) como fracción de la altura de la imagen. */
-    maxBlur: 0.022,
+    maxBlur: 0.03,
   },
   ao: {
     radius: 0.01,
     distanceFalloff: 0.35,
-    intensity: 2.2,
+    intensity: 1.6,
   },
   /** 'neutral' (Khronos PBR Neutral: respeta los colores, look de foto de producto) | 'aces' | 'agx' */
   toneMapping: (new URLSearchParams(location.search).get('tm') ?? 'neutral') as 'neutral' | 'aces' | 'agx',
-  /** Ajuste de color final: alegre y apetitoso, sin llegar a dibujo animado. */
-  look: { saturation: 0.14, brightness: 0.02, contrast: 0.04 },
+  /**
+   * Ajuste de color final: suave y luminoso. `lift` levanta las sombras con un tono cálido pastel
+   * (negros lavados, como una foto de revista de repostería).
+   */
+  look: { saturation: 0.1, brightness: 0.0, contrast: -0.015, lift: [0.022, 0.014, 0.018] as [number, number, number] },
+  /** Brillo suave alrededor de las zonas claras (sueño, no neón). */
+  bloom: { intensity: 0.16, threshold: 0.86, smoothing: 0.25, radius: 0.7 },
   pixelRatioMax: 1.5,
 };

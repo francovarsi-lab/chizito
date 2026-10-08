@@ -99,6 +99,7 @@ async function main() {
         if (!info) break;
         audio.play('crack', info.def.type === 'papita' ? 0.75 : 1);
         shake.kick(info.dir, info.def.type === 'papita' ? 0.07 : 0.1);
+        shake.squash(info.def.type === 'papita' ? 0.012 : 0.018);
         crumbs.emit(info.point, info.normal, 2);
         if (info.parent) crumbs.stick(info.parent, info.localPoint, info.localNormal, 1 + Math.round(Math.random()));
         crumbBudget = 2; // "2 o 3 migas" por clavada: 2 al contacto y hasta 2 más mientras entra
@@ -127,6 +128,7 @@ async function main() {
   const timer = new THREE.Timer();
   const frame = (dt: number) => {
     interaction.update(dt);
+    shake.busy = interaction.busy;
     shake.update(dt);
     crumbs.update(dt);
     stage.focusTarget.copy(CONFIG.chizitoCenter);
@@ -147,6 +149,9 @@ async function main() {
     return;
   }
 
+  // Entrada: el chizito cae desde arriba con un rebote y el velo blanco se disuelve.
+  shake.intro(0.045);
+  document.body.classList.add('ready');
   let frames = 0;
   const loop = (t: number) => {
     timer.update(t);

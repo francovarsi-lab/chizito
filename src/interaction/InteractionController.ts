@@ -58,6 +58,8 @@ export interface ActivePiece {
   seed: number;
   /** Elegida con clic entre las ya colocadas (SELECTED_PLACED_PIECE). */
   selected?: boolean;
+  /** Tiempo desde que salió del vaso/bowl (animación de "pop"). */
+  popT?: number;
 }
 
 export type FeedbackEvent = 'pick' | 'drop' | 'contact' | 'inserting' | 'out' | 'remove';
@@ -114,6 +116,13 @@ export class InteractionController {
   private resetArmedUntil = 0;
   /** Objetos de piezas quitadas, para reutilizarlos al deshacer sin regenerar la malla. */
   private readonly graveyard = new Map<string, THREE.Object3D>();
+  /** Piezas devueltas que se están achicando antes de desaparecer. */
+  private readonly leaving: { obj: THREE.Object3D; t: number; from: number }[] = [];
+  private time = 0;
+  /** true mientras el jugador tiene algo en la mano (la flotación del chizito se calma). */
+  get busy(): boolean {
+    return this.active !== null && this.state !== InteractionState.IDLE;
+  }
   private readonly hoverNormal = new THREE.Vector3();
   private readonly ring: THREE.Mesh;
   private readonly tmpV = new THREE.Vector3();
@@ -353,7 +362,8 @@ export class InteractionController {
     aim.spin = Math.random() * Math.PI * 2;
     scene.add(object);
     picker.ignore.add(object);
-    this.active = { def, object, aim, parent: null, node: null, seed };
+    this.active = { def, object, aim, parent: null, node: null, seed, popT: 0 };
+    object.scale.setScalar(0.001);
     // Arranca saliendo del vaso / bowl.
     object.position.copy(this.bowlWorldPos(type));
     object.quaternion.setFromUnitVectors(Y_UP, new THREE.Vector3(0.3, 1, 0.4).normalize());
@@ -368,9 +378,9 @@ export class InteractionController {
     const a = this.active;
     if (!a) return;
     if (a.node) this.d.construction.remove(a.node.data.id);
-    a.object.removeFromParent();
-    a.object.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
     setGhost(a.object, null);
+    // Se encoge suave de vuelta al vaso y recién ahí se descarta.
+    this.leaving.push({ obj: a.object, t: 0, from: a.object.scale.x });
     this.d.picker.ignore.delete(a.object);
     this.emit('drop', null);
     this.active = null;
@@ -607,8 +617,22 @@ export class InteractionController {
   // ───────────────────────────── por frame ─────────────────────────────
 
   update(dt: number): void {
+    this.time += dt;
     this.d.rotator.update(dt);
+    this.updateLeaving(dt);
     const a = this.active;
+    if (a && a.popT !== undefined) {
+      // "Pop" al salir del vaso: crece con un rebote elástico (easeOutBack).
+      a.popT += dt;
+      const t = Math.min(1, a.popT / 0.42);
+      const c = 2.2;
+      const k = 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
+      a.object.scale.setScalar(Math.max(0.001, k));
+      if (t >= 1) {
+        a.object.scale.setScalar(1);
+        a.popT = undefined;
+      }
+    }
     if (!a) {
       this.d.overlay.setAngle(null);
       this.updateCursor();
@@ -725,7 +749,25 @@ export class InteractionController {
     this.onEvent?.(e, info);
   }
 
+  private updateLeaving(dt: number): void {
+    for (let i = this.leaving.length - 1; i >= 0; i--) {
+      const l = this.leaving[i];
+      l.t += dt;
+      const t = Math.min(1, l.t / 0.22);
+      l.obj.scale.setScalar(Math.max(0.001, l.from * (1 - t * t)));
+      if (t >= 1) {
+        l.obj.removeFromParent();
+        l.obj.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+        this.leaving.splice(i, 1);
+      }
+    }
+  }
+
   private updateRing(a: ActivePiece): void {
+    // Late suave, como una respiración.
+    const breath = 0.5 + 0.5 * Math.sin(this.time * 4.2);
+    (this.ring.material as THREE.MeshBasicMaterial).opacity = 0.26 + 0.16 * breath;
+    this.ring.scale.setScalar(1 + 0.12 * breath);
     const show =
       (this.state === InteractionState.HOLDING && this.hover !== null) ||
       (this.state === InteractionState.AIMING && a.parent !== null);
