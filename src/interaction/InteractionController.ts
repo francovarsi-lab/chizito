@@ -44,6 +44,8 @@ const PULL_SPEED = 0.024;
 const TILT_PER_PX = THREE.MathUtils.degToRad(0.32);
 /** Giro propio con Q / E (rad por pulsación); sirve sobre todo para orientar la papita. */
 const SPIN_STEP = THREE.MathUtils.degToRad(15);
+/** Rueda del mouse: metros de profundidad por píxel de scroll (un "clic" típico ≈ 100 px ≈ 3 mm). */
+const WHEEL_M_PER_PX = 0.00003;
 
 export interface ActivePiece {
   def: PieceDefinition;
@@ -104,6 +106,9 @@ export class InteractionController {
   private press: 'push' | 'pull' | null = null;
   private pressTime = 0;
   private pressBefore: Snapshot | null = null;
+  private wheelTarget: number | null = null;
+  private wheelBefore: Snapshot | null = null;
+  private wheelIdle = 0;
   private seedCounter = 1;
   private hover: SurfaceHit | null = null;
   private resetArmedUntil = 0;
@@ -136,6 +141,7 @@ export class InteractionController {
     input.onUp(() => this.onUp());
     input.onMove((e) => this.onMove(e.dx, e.dy));
     input.onKey((e) => this.onKey(e));
+    input.onWheel((dy) => this.onWheel(dy));
   }
 
   // ───────────────────────────── entrada ─────────────────────────────
@@ -216,6 +222,62 @@ export class InteractionController {
     if (this.state === InteractionState.AIMING && this.active) {
       // La pieza pivota alrededor de la punta: la cola sigue al mouse.
       this.active.aim.addTilt(dx * TILT_PER_PX, -dy * TILT_PER_PX);
+    }
+  }
+
+  /**
+   * Rueda del mouse = profundidad: alejarla clava, acercarla saca (ir "hacia atrás"). Funciona al
+   * apuntar y con una pieza clavada o seleccionada. Cada giro se anima suave hacia el objetivo.
+   */
+  private onWheel(dy: number): void {
+    const a = this.active;
+    const s = this.state;
+    const ok = s === InteractionState.AIMING || s === InteractionState.PLACED || s === InteractionState.SELECTED_PLACED_PIECE;
+    if (!a || !ok || this.press) return;
+    if (this.wheelTarget === null) {
+      this.wheelTarget = a.aim.depth;
+      this.wheelBefore = this.snapshot();
+    }
+    this.wheelTarget = THREE.MathUtils.clamp(this.wheelTarget - dy * WHEEL_M_PER_PX, -AIM_GAP * 2, a.def.maxDepth);
+    this.wheelIdle = 0;
+    this.d.overlay.dismissHint(300);
+  }
+
+  /** Avanza la profundidad hacia el objetivo de la rueda (con los mismos eventos que mantener). */
+  private updateWheel(a: ActivePiece, dt: number): void {
+    if (this.wheelTarget === null) return;
+    const aim = a.aim;
+    const before = aim.depth;
+    const step = PUSH_SPEED * 1.6 * dt;
+    aim.depth += THREE.MathUtils.clamp(this.wheelTarget - aim.depth, -step, step);
+    if (before <= 0 && aim.depth > 0 && !a.node) {
+      this.commit(a);
+      this.state = a.selected ? InteractionState.SELECTED_PLACED_PIECE : InteractionState.PLACED;
+    } else if (aim.depth > before && aim.depth > 0) {
+      this.emit('inserting', this.info(a, dt));
+    }
+    if (aim.depth <= 0 && a.node) {
+      // Salió del todo: vuelve a la mano, como con Shift + mantener.
+      const info = this.info(a, dt);
+      aim.depth = 0;
+      const wb = this.wheelBefore;
+      this.wheelTarget = null;
+      this.wheelBefore = null;
+      this.backToHand();
+      this.emit('out', info);
+      if (wb) this.record('sacar', wb);
+      return;
+    }
+    aim.pose(a.object.position, a.object.quaternion);
+    if (a.node) aim.writeData(a.node.data, a.object);
+    if (Math.abs(this.wheelTarget - aim.depth) < 1e-5) {
+      this.wheelIdle += dt;
+      if (this.wheelIdle > 0.35) {
+        const wb = this.wheelBefore;
+        this.wheelTarget = null;
+        this.wheelBefore = null;
+        if (wb) this.record('rueda', wb);
+      }
     }
   }
 
@@ -331,7 +393,7 @@ export class InteractionController {
     parentObj.attach(a.object);
     setGhost(a.object, null);
     this.state = InteractionState.AIMING;
-    this.d.overlay.hint('aiming', 'mové el mouse para elegir el ángulo · mantené apretado para clavar');
+    this.d.overlay.hint('aiming', 'mové el mouse para elegir el ángulo · mantené apretado (o la rueda) para clavar');
   }
 
   /** Selecciona una pieza ya colocada para editarla (hundir, sacar, quitar). */
@@ -412,6 +474,12 @@ export class InteractionController {
   private startPress(kind: 'push' | 'pull'): void {
     const a = this.active;
     if (!a) return;
+    if (this.wheelTarget !== null) {
+      const wb = this.wheelBefore;
+      this.wheelTarget = null;
+      this.wheelBefore = null;
+      if (wb) this.record('rueda', wb);
+    }
     if (kind === 'pull' && a.aim.depth <= 0) return;
     this.press = kind;
     this.pressTime = 0;
@@ -429,7 +497,7 @@ export class InteractionController {
     if (a && a.aim.depth > 0) {
       this.state = a.selected ? InteractionState.SELECTED_PLACED_PIECE : InteractionState.PLACED;
       if (this.state === InteractionState.PLACED) {
-        this.d.overlay.hint('placed', 'mantené para hundirlo más · Shift + mantener para sacarlo · Esc lo suelta', 6500);
+        this.d.overlay.hint('placed', 'mantené para hundirlo · Shift + mantener (o la rueda hacia vos) para sacarlo · Esc lo suelta', 6500);
       }
     } else {
       this.state = InteractionState.AIMING;
@@ -473,6 +541,8 @@ export class InteractionController {
 
   /** Antes de deshacer / reiniciar: soltar o devolver lo que haya en la mano. */
   private settle(): void {
+    this.wheelTarget = null;
+    this.wheelBefore = null;
     if (this.press) {
       this.press = null;
       this.pressBefore = null;
@@ -551,7 +621,8 @@ export class InteractionController {
       case InteractionState.AIMING:
       case InteractionState.PLACED:
       case InteractionState.SELECTED_PLACED_PIECE:
-        a.aim.pose(a.object.position, a.object.quaternion);
+        if (this.wheelTarget !== null) this.updateWheel(a, dt);
+        else a.aim.pose(a.object.position, a.object.quaternion);
         break;
       case InteractionState.INSERTING:
         this.updateInserting(a, dt);
