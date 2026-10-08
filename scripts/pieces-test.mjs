@@ -66,7 +66,7 @@ const stick = async (type, local, name, keys = [], n = 24) => {
 await stick('nacho', [-0.014, 0.008, 0.004], '01-nacho', ['KeyE', 'KeyE', 'KeyB']);
 await stick('aceituna', [0.0, 0.01, 0.006], '02-aceituna');
 await stick('escarbadientes', [0.014, 0.004, 0.008], '03-escarbadientes');
-await stick('escarbadientes', [0.006, -0.006, 0.009], '04-espadita', ['KeyV']);
+await stick('escarbadientes', [0.019, 0.007, 0.004], '04-espadita', ['KeyV']);
 
 const variants = await page.evaluate(() => [...window.__chizito.construction.nodes.values()].map((n) => n.data.params?.variant ?? '').join(','));
 console.log('variantes', variants);
