@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "strict": false,
-    "noUnusedLocals": false,
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "skipLibCheck": true,
-    "lib": ["ES2020", "DOM"]
+    "isolatedModules": true,
+    "types": ["vite/client"]
   },
   "include": ["src"]
 }

@@ -1,64 +1,163 @@
 import * as THREE from 'three';
-import { createRenderer, createCamera, setupEnvironment, addLights, addTable, addBackdrop, createComposer, onResize, CHIZITO_Y } from './scene';
-import { Construction, PieceNode } from './construction';
-import { Interaction } from './interaction';
-import { loadAutosave, setupDragDropImport } from './save';
+import { AssetRegistry } from './assets/AssetRegistry';
+import { CONFIG } from './config';
+import { Input } from './input/Input';
+import { InteractionController } from './interaction/InteractionController';
+import { TrackballRotator } from './interaction/TrackballRotator';
+import { Construction } from './model/Construction';
+import { ALL_DEFINITIONS, CHIZITO } from './pieces/definitions';
+import { PieceRegistry } from './pieces/PieceRegistry';
+import { buildBackdrop } from './render/Backdrop';
+import { setupEnvironment } from './render/Environment';
+import { Stage } from './render/Stage';
+import { Picker } from './interaction/Picker';
+import { Overlay } from './ui/Overlay';
+import { AudioManager } from './audio/AudioManager';
+import { Crumbs } from './fx/Crumbs';
+import { Shake } from './fx/Shake';
+import { ContactShadow, markHero } from './render/ContactShadow';
+import { addPhotoFade, loadPhotoBackdrop, updatePhotoResolution } from './render/PhotoBackdrop';
 
-const canvas = document.createElement('canvas');
-document.body.prepend(canvas);
-const renderer = createRenderer(canvas);
-const camera = createCamera();
-const scene = new THREE.Scene();
+async function main() {
+  const canvas = document.createElement('canvas');
+  canvas.tabIndex = 0;
+  document.body.prepend(canvas);
+  const params = new URLSearchParams(location.search);
 
-addLights(scene);
-addTable(scene);
-addBackdrop(scene);
-setupEnvironment(renderer, scene);
+  const stage = new Stage(canvas);
+  const pieces = new PieceRegistry();
+  ALL_DEFINITIONS.forEach((d) => pieces.register(d));
+  const assets = new AssetRegistry(pieces);
+  await assets.init();
+  const envKind = await setupEnvironment(stage.renderer, stage.scene);
 
-let construction = new Construction();
-construction.group.position.set(0, CHIZITO_Y, 0);
-// tag cada mesh con su nodo para raycasting/selección
-for (const node of construction.nodes.values()) node.mesh.userData.node = node;
-scene.add(construction.group);
+  const backdrop = buildBackdrop(assets);
+  stage.scene.add(backdrop.root);
 
-const saved = loadAutosave();
-if (saved && saved.pieces && saved.pieces.length > 1) {
-  const restored = Construction.fromJSON(saved);
-  restored.group.position.copy(construction.group.position);
-  for (const node of restored.nodes.values()) node.mesh.userData.node = node;
-  scene.remove(construction.group);
-  construction = restored;
-  scene.add(construction.group);
-}
+  // Telón fotográfico opcional (public/assets/backdrop.jpg): reemplaza la pared y el fondo modelado.
+  const photo = await loadPhotoBackdrop(stage.camera);
+  if (photo) {
+    stage.scene.add(photo.mesh);
+    backdrop.farProps.visible = false;
+    for (const m of backdrop.surfaces) addPhotoFade(m.material as THREE.Material, photo, CONFIG.photoBackdrop.fadeStart, CONFIG.photoBackdrop.fadeEnd);
+    stage.dof.photoDistance = CONFIG.photoBackdrop.distance;
+    updatePhotoResolution(photo, stage.renderer);
+    window.addEventListener('resize', () => {
+      photo.layout();
+      updatePhotoResolution(photo, stage.renderer);
+    });
+  }
 
-const interaction = new Interaction(construction, scene, camera, canvas);
-interaction.init();
+  // Chizito central: raíz del árbol de piezas. El pivote es el objeto que rota.
+  const rootSeed = Number(params.get('seed') ?? 3);
+  const pivot = new THREE.Group();
+  pivot.name = 'chizito-root';
+  pivot.position.copy(CONFIG.chizitoCenter);
+  const chizitoModel = assets.create(CHIZITO.type, rootSeed, 'hero');
+  pivot.add(chizitoModel);
+  // Orientación inicial: levemente girado, como si lo hubieran dejado así.
+  pivot.quaternion.setFromEuler(new THREE.Euler(0.18, -0.38, 0.06));
+  stage.scene.add(pivot);
+  markHero(pivot);
+  const contactShadow = new ContactShadow(stage.scene, CONFIG.chizitoCenter);
+  stage.scene.add(contactShadow.decal);
+  const construction = new Construction(CHIZITO.type, rootSeed, pivot);
 
-// cuando el estado de construction cambia por undo/redo o import, retaguear meshes
-const retag = () => { for (const node of interaction.construction.nodes.values()) node.mesh.userData.node = node; };
-const origRestore = interaction.restoreFromSnapshot.bind(interaction);
-interaction.restoreFromSnapshot = (snap: string) => { origRestore(snap); retag(); };
+  const input = new Input(canvas);
+  const rotator = new TrackballRotator(pivot, stage.camera);
+  const overlay = new Overlay();
+  const picker = new Picker(stage.camera, construction, pieces, backdrop.bowls);
+  const interaction = new InteractionController({
+    input,
+    rotator,
+    camera: stage.camera,
+    scene: stage.scene,
+    picker,
+    construction,
+    pieces,
+    assets,
+    overlay,
+    center: CONFIG.chizitoCenter,
+  });
 
-setupDragDropImport((json) => {
-  const fresh = Construction.fromJSON(json);
-  fresh.group.position.set(0, CHIZITO_Y, 0);
-  scene.remove(interaction.construction.group);
-  (interaction as any).construction = fresh;
-  scene.add(fresh.group);
-  retag();
-  interaction.pushHistory();
-});
+  // Feedback del clavado: micro-sacudida del chizito, crack + crujido, migas que caen a la mesa.
+  const audio = new AudioManager();
+  const crumbs = new Crumbs(stage.scene);
+  const shake = new Shake(pivot, CONFIG.chizitoCenter);
+  let crumbBudget = 0;
+  interaction.onReset = () => crumbs.clear();
+  interaction.onEvent = (e, info) => {
+    switch (e) {
+      case 'pick':
+        audio.play('pick');
+        break;
+      case 'drop':
+      case 'remove':
+        audio.play('drop');
+        break;
+      case 'contact':
+        if (!info) break;
+        audio.play('crack', info.def.type === 'papita' ? 0.75 : 1);
+        shake.kick(info.dir, info.def.type === 'papita' ? 0.07 : 0.1);
+        crumbs.emit(info.point, info.normal, 2);
+        if (info.parent) crumbs.stick(info.parent, info.localPoint, info.localNormal, 1 + Math.round(Math.random()));
+        crumbBudget = 2; // "2 o 3 migas" por clavada: 2 al contacto y hasta 2 más mientras entra
+        break;
+      case 'inserting':
+        if (!info) break;
+        shake.tremble(0.7);
+        if (Math.random() < info.dt * 16) audio.play('crunch', 0.7 + Math.random() * 0.3);
+        if (crumbBudget > 0 && Math.random() < info.dt * 1.4) {
+          crumbs.emit(info.point, info.normal, 1);
+          crumbBudget--;
+        }
+        break;
+      case 'out':
+        audio.play('out');
+        if (info) crumbs.emit(info.point, info.normal, 1);
+        break;
+    }
+  };
 
-const { composer, bokeh } = createComposer(renderer, scene, camera);
-onResize(camera, renderer, composer);
+  // Exponer para depuración y capturas automáticas.
+  Object.assign(window as unknown as Record<string, unknown>, {
+    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker, assets, crumbs, audio },
+  });
 
-let last = performance.now();
-function loop() {
-  const now = performance.now();
-  const dt = Math.min(0.05, (now - last) / 1000);
-  last = now;
-  interaction.update(dt);
-  composer.render();
+  const timer = new THREE.Timer();
+  const frame = (dt: number) => {
+    interaction.update(dt);
+    shake.update(dt);
+    crumbs.update(dt);
+    stage.focusTarget.copy(CONFIG.chizitoCenter);
+    contactShadow.update(stage.renderer);
+    stage.render(dt);
+  };
+
+  if (params.has('capture')) {
+    // Modo captura (Playwright con WebGL por software): se renderiza bajo demanda.
+    Object.assign((window as unknown as { __chizito: object }).__chizito, {
+      renderFrames: (n: number, dt = 1 / 60) => {
+        for (let i = 0; i < n; i++) frame(dt);
+        return canvas.toDataURL('image/png');
+      },
+    });
+    frame(1 / 60);
+    document.body.dataset.ready = '1';
+    return;
+  }
+
+  let frames = 0;
+  const loop = (t: number) => {
+    timer.update(t);
+    frame(Math.min(timer.getDelta(), 1 / 20));
+    if (++frames === 3) document.body.dataset.ready = '1';
+    requestAnimationFrame(loop);
+  };
   requestAnimationFrame(loop);
 }
-loop();
+
+main().catch((err) => {
+  console.error(err);
+  document.body.dataset.error = String(err);
+});
