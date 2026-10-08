@@ -20,7 +20,9 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   puntas semiesféricas con el "ombligo" del corte, arrugas suaves longitudinales. Amarillo (#f6cb43).
   Las arrugas dependen del ángulo alrededor del eje: se desvanecen en los polos (si no, forman una "estrella"), y el
   normal map también (atributo `nmFade`).
-- Palito: palito de queso NARANJA (#f2a240), grueso e irregular, grosor despareño, puntas redondeadas, leve curva.
+- Palito: según el modelo 3D de referencia (3 palitos interpretados como uno): cilindro de grosor parejo con curva
+  leve distinta en cada uno, puntas CORTADAS planas con borde redondeado, superficie lisa con hoyitos y rayitas.
+  Naranja (#f2a240). Largo = 0,7 × largo del chizito (≈ 3,4 cm), Ø ≈ 3,4 mm. Se agrega de a uno.
 - Tone mapping Neutral (Khronos PBR Neutral) por defecto + `LookEffect` (saturación/brillo/contraste acotados).
   `?tm=aces` / `?tm=agx` para comparar. No usar HueSaturationEffect de postprocessing: genera negativos → negros.
 - Colores por vértice: `new THREE.Color('#hex')` YA está en lineal; no volver a convertir (antes se linealizaba
@@ -28,7 +30,7 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 
 ## Escala (1 unidad = 1 metro)
 - Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
-- Palito: ~8,5 cm, Ø ~6 mm (más grueso que el original de 3 mm, según la referencia). Papita: Ø ~5 cm, 1,5 mm.
+- Palito: ≈ 3,4 cm (0,7 × chizito), Ø ≈ 3,4 mm. Papita: Ø ~5 cm, 1,5 mm.
 - Mesa en y = 0. Chizito flotando con centro en y = 7,2 cm (`CONFIG.chizitoCenter`).
 - Cámara fija en (0, 12,2 cm, 20 cm) mirando al chizito con leve inclinación; 50 mm sobre film de 36 mm.
 
@@ -76,10 +78,11 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - Clic sobre el chizito fija el punto (AIMING): mover el mouse pivota la cola alrededor de la punta
   (0,32°/px, máx. 85° respecto de la normal); flechas 1° (Shift: 5°). Ángulo discreto "X 90° · Y 26°"
   (ángulo respecto de la superficie en cada eje; 90° = perpendicular).
-- Mantener clic izquierdo = hundir (INSERTING): 2,6 cm/s con arranque suave y resistencia en los primeros 4 mm
+- Mantener clic izquierdo = hundir (INSERTING): 2 cm/s con arranque suave y resistencia en los primeros 4 mm
   (la "costra"); al entrar la punta el ángulo queda trabado. Soltar = PLACED. Volver a mantener = más adentro.
   **Shift + mantener clic izquierdo = sacar** (único gesto para sacar); si sale del todo vuelve a la mano.
-  Atraviesa el chizito (y lo que haya en el camino); máximo = largo − 1,5 cm.
+  Atraviesa el chizito (y lo que haya en el camino); máximo = largo − 1 cm (con 3,4 cm de palito, dejar
+  1,5 cm afuera no alcanzaba para atravesar un chizito de 2 cm).
 - En PLACED: mantener actúa siempre sobre el palito recién clavado (el cursor suele quedar lejos tras apuntar);
   clic en el bowl = otro palito (el anterior queda clavado). Esc: devuelve
   (HOLDING), vuelve a la mano (AIMING) o suelta (PLACED).

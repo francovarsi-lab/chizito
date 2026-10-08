@@ -79,7 +79,7 @@ async function main() {
 
   // Exponer para depuración y capturas automáticas.
   Object.assign(window as unknown as Record<string, unknown>, {
-    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker },
+    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker, assets },
   });
 
   const timer = new THREE.Timer();

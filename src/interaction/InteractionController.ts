@@ -35,8 +35,8 @@ export enum InteractionState {
 }
 
 /** Velocidades del clavado (m/s). */
-const PUSH_SPEED = 0.026;
-const PULL_SPEED = 0.03;
+const PUSH_SPEED = 0.02;
+const PULL_SPEED = 0.024;
 /** Sensibilidad del ángulo con el mouse (rad/px). */
 const TILT_PER_PX = THREE.MathUtils.degToRad(0.32);
 
@@ -87,7 +87,7 @@ export class InteractionController {
   constructor(private readonly d: InteractionDeps) {
     // Indicador muy sutil del punto de entrada.
     this.ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.0016, 0.0024, 40),
+      new THREE.RingGeometry(0.0022, 0.003, 40),
       new THREE.MeshBasicMaterial({ color: 0xfff6e8, transparent: true, opacity: 0.38, depthWrite: false, toneMapped: false }),
     );
     this.ring.name = 'entry-ring';
@@ -450,9 +450,9 @@ export class InteractionController {
       return;
     }
     const [x, y] = s === InteractionState.HOLDING ? [90, 90] : a.aim.displayAngles();
-    // Junto al palito, a ~3,5 cm de la punta sobre su eje.
+    // Junto al palito, sobre su eje, hacia la cola.
     a.object.updateMatrixWorld(true);
-    const p = this.tmpV.set(0, 0.035, 0).applyMatrix4(a.object.matrixWorld).project(this.d.camera);
+    const p = this.tmpV.set(0, a.def.dimensions.length * 0.85, 0).applyMatrix4(a.object.matrixWorld).project(this.d.camera);
     const sx = (p.x * 0.5 + 0.5) * window.innerWidth + 14;
     const sy = (-p.y * 0.5 + 0.5) * window.innerHeight - 6;
     this.d.overlay.setAngle(`X ${x}° · Y ${y}°`, sx, sy);

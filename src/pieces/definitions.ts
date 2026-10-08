@@ -1,12 +1,12 @@
 import { createChizito } from '../assets/procedural/chizito';
-import { createPalito, PALITO_LENGTH, PALITO_RADIUS } from '../assets/procedural/palito';
+import { CHIZITO_REF_LENGTH, createPalito, PALITO_LENGTH, PALITO_RADIUS } from '../assets/procedural/palito';
 import { createPapita, PAPITA_RADIUS, PAPITA_THICKNESS } from '../assets/procedural/papita';
 import type { PieceDefinition } from './PieceDefinition';
 
 export const CHIZITO: PieceDefinition = {
   type: 'chizito',
   displayName: 'Chizito',
-  dimensions: { length: 0.048, thickness: 0.0205 },
+  dimensions: { length: CHIZITO_REF_LENGTH, thickness: 0.0205 },
   frame: 'centered',
   procedural: (seed, detail) => createChizito(seed, detail),
   canPierce: false,
@@ -23,7 +23,8 @@ export const PALITO: PieceDefinition = {
   procedural: (seed, detail) => createPalito(seed, detail),
   canPierce: true,
   canBePierced: false,
-  maxDepth: PALITO_LENGTH - 0.015,
+  // Siempre queda ~1 cm afuera (con un palito de 3,4 cm, 1,5 cm no dejaría atravesar el chizito).
+  maxDepth: PALITO_LENGTH - 0.01,
   sounds: { pick: 'pick', drop: 'drop', contact: 'crack', insert: 'crunch' },
 };
 

@@ -58,7 +58,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   });
   const palitoBowl = makeBowl(0.066, 0.046, ceramic);
   palitoBowl.position.copy(BOWL_LAYOUT.palito);
-  palitoBowl.add(fillBowl(assets, 'palito', 0.058, 0.046, 38, 3));
+  palitoBowl.add(fillBowl(assets, 'palito', 0.058, 0.046, 150, 3));
   palitoBowl.userData.bowlFor = 'palito';
   root.add(palitoBowl);
   bowls.set('palito', palitoBowl);
@@ -149,13 +149,15 @@ function fillBowl(assets: AssetRegistry, type: string, innerR: number, height: n
     const rr = Math.sqrt(rnd());
     const layer = i / count;
     if (type === 'palito') {
-      // Palitos cruzados; algunos asoman parados.
-      const up = rnd() < 0.18;
-      const elev = up ? 0.6 + rnd() * 0.5 : 0.05 + rnd() * 0.35;
+      // Montañita de palitos cruzados que sobresale del borde; algunos asoman parados.
+      const up = rnd() < 0.22;
+      const elev = up ? 0.5 + rnd() * 0.6 : 0.05 + rnd() * 0.4;
       const yaw = rnd() * Math.PI * 2;
       const dir = tmp.set(Math.cos(yaw) * Math.cos(elev), Math.sin(elev), Math.sin(yaw) * Math.cos(elev)).normalize();
       obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-      const c = new THREE.Vector3(Math.cos(a) * rr * innerR * 0.5, 0.01 + layer * height * 0.95, Math.sin(a) * rr * innerR * 0.5);
+      const r = rr * innerR * 0.8;
+      const dome = (1 - (r * r) / (innerR * innerR)) * 0.035;
+      const c = new THREE.Vector3(Math.cos(a) * r, 0.01 + layer * height * 0.8 + dome * layer, Math.sin(a) * r);
       obj.position.copy(c).addScaledVector(dir, -PALITO_LENGTH / 2);
     } else {
       const r = rr * innerR * 0.75;
