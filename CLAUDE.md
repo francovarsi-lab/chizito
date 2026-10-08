@@ -88,8 +88,26 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - En PLACED: mantener actúa siempre sobre el palito recién clavado (el cursor suele quedar lejos tras apuntar);
   clic en el bowl = otro palito (el anterior queda clavado). Esc: devuelve
   (HOLDING), vuelve a la mano (AIMING) o suelta (PLACED).
-- H oculta ayudas, R reinicia (con confirmación), Ctrl+S exporta, Ctrl+Z / Ctrl+Shift+Z deshacer/rehacer,
-  Supr/Backspace quita la pieza seleccionada.
+- Papitas (bowl abajo a la izquierda): se clavan de canto con la misma mecánica (profundidad máx. 8 mm);
+  Q / E giran la pieza sobre su eje (orientan la papita) mientras se apunta. Una papita colocada puede ser
+  atravesada: el palito que entra en ella queda como hijo de la papita en el árbol.
+- Editar: clic en una pieza colocada → SELECTED_PLACED_PIECE (resaltado cálido sutil): mantener = hundir,
+  Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),
+  Supr/Backspace = quitar, Esc = soltar.
+- Ctrl+Z / Ctrl+Shift+Z (o Ctrl+Y): deshacer / rehacer. R dos veces (en 2,5 s) reinicia; también se deshace.
+  H oculta ayudas. Ctrl+S exporta (fase 4).
+
+## Feedback (fase 3)
+- Al primer contacto: micro-sacudida del chizito (resorte amortiguado, ~3 mm, `fx/Shake.ts`) + "crack" + 2 migas.
+- Mientras entra: temblor mínimo, crujido muy leve (granos de ruido esporádicos) y hasta 2 migas más.
+- Migas (`fx/Crumbs.ts`): caen con gravedad, rebotan apenas y quedan sobre el mantel (máx. 70; R las limpia).
+- Audio (`audio/AudioManager.ts`): busca public/assets/sounds/<id>.(ogg|mp3|wav) con id = pick, drop, crack,
+  crunch, out; si no existe, sintetiza un placeholder con Web Audio. Arranca tras el primer gesto del usuario.
+
+## Deshacer / rehacer
+- `commands/CommandStack.ts`: cada acción (clavar/hundir, sacar, quitar, reiniciar) guarda la construcción antes y
+  después; deshacer = `Construction.restore(snapshot)`, que reutiliza objetos por id (los quitados quedan en un
+  "cementerio" para no regenerar mallas). Antes de deshacer se suelta o devuelve lo que haya en la mano.
 
 ## Arquitectura (`src/`)
 - `render/` escena, cámara, luces, entorno, postprocesado, set de fondo.
@@ -97,12 +115,14 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - `pieces/` PieceDefinition (datos) + PieceRegistry. Agregar un snack = agregar una definición.
 - `model/` Construction: árbol de piezas; la raíz es el chizito (una pieza más).
 - `interaction/` máquina de estados (IDLE → HOLDING → AIMING → INSERTING → PLACED, SELECTED_PLACED_PIECE) y trackball.
-- `input/` mouse/teclado normalizados. Próximas fases: `commands/` (undo/redo), `persistence/`, `audio/`.
+- `input/` mouse/teclado normalizados. `commands/` deshacer/rehacer. `audio/` sonidos. `fx/` sacudida y migas.
+  `ui/` ayudas y ángulo. Próxima fase: `persistence/`.
 
 ## Fases
 1. Escena realista + chizito procedural + rotación con inercia. ← hecha
 2. Bowl, agarrar palito, punto de entrada, ángulo, clavar/sacar, atravesar. ← hecha
    Prueba automatizada: `node scripts/play-test.mjs <dir>` (con `npm run dev` corriendo).
-3. Feedback (sacudida, migas, sonido), papitas, edición, undo/redo.
+3. Feedback (sacudida, migas, sonido), papitas, edición, undo/redo. ← hecha
+   Prueba automatizada: `node scripts/phase3-test.mjs <dir>`.
 4. Guardado/carga JSON versionado, GLB, pulido.
 Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit, y esperar aprobación.

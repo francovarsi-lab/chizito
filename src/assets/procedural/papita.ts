@@ -55,7 +55,7 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
   const R = PAPITA_RADIUS * (0.88 + rnd() * 0.24);
   const T = PAPITA_THICKNESS;
   const ox = rnd() * 100;
-  const waveAmp = 0.0028 + rnd() * 0.002;
+  const waveAmp = 0.0016 + rnd() * 0.0012; // ondulación suave de papita frita
   const cup = (rnd() - 0.3) * 0.004;
 
   const edgeR = (th: number) =>
@@ -66,7 +66,7 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
       0.12 * (Math.cos(th) ** 2 - 0.5)); // levemente ovalada
   const height = (x: number, z: number) => {
     const r2 = (x * x + z * z) / (R * R);
-    return waveAmp * noise.fbm(x * 38 + ox, z * 38, 1.3, 2) + cup * r2 + 0.0009 * noise.noise(x * 120, z * 120, 9);
+    return waveAmp * noise.fbm(x * 30 + ox, z * 30, 1.3, 2) + cup * r2 + 0.00025 * noise.noise(x * 120, z * 120, 9);
   };
 
   const nr = detail === 'hero' ? 34 : 8; // anillos por cara
@@ -140,9 +140,9 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
   const n = (rows + 1) * cols;
   const uv = new Float32Array(n * 2);
   const col = new Float32Array(n * 3);
-  const golden = new THREE.Color('#ecc75e');
-  const pale = new THREE.Color('#f4dc8a');
-  const toast = new THREE.Color('#b9772e');
+  const golden = new THREE.Color('#f3d06c');
+  const pale = new THREE.Color('#f9e6a6');
+  const toast = new THREE.Color('#cf9440');
   const c = new THREE.Color();
   for (let v = 0; v < n; v++) {
     const x = pos[v * 3];
@@ -153,9 +153,9 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
     const t = noise.fbm(x * 80 + 4, z * 80, 7, 3) * 0.5 + 0.5;
     c.copy(golden).lerp(pale, THREE.MathUtils.smoothstep(t, 0.4, 0.85) * 0.7);
     const edge = THREE.MathUtils.smoothstep(f + noise.noise(x * 150, z * 150, 3) * 0.12, 0.82, 1.02);
-    c.lerp(toast, edge * 0.75);
+    c.lerp(toast, edge * 0.6);
     const spot = THREE.MathUtils.smoothstep(noise.noise(x * 220 + 9, z * 220, 5), 0.72, 0.95);
-    c.lerp(toast, spot * 0.6);
+    c.lerp(toast, spot * 0.45);
     // `c` ya está en espacio lineal.
     col[v * 3] = c.r;
     col[v * 3 + 1] = c.g;

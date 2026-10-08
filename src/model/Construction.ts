@@ -89,6 +89,53 @@ export class Construction {
     return removed;
   }
 
+  /**
+   * Lleva la construcción a `list` (piezas sin la raíz, en orden padre→hijo). Reutiliza los nodos
+   * existentes por id; los que faltan se crean con `factory`. Base de deshacer/rehacer y de la carga.
+   * Devuelve los objetos quitados (por si se quieren reutilizar después).
+   */
+  restore(list: PieceData[], factory: (d: PieceData) => THREE.Object3D): THREE.Object3D[] {
+    const want = new Set(list.map((d) => d.id));
+    const removed: THREE.Object3D[] = [];
+    // Quitar lo que sobra (de las hojas hacia arriba).
+    const toRemove = [...this.nodes.values()].filter((n) => n !== this.root && !want.has(n.data.id)).reverse();
+    for (const n of toRemove) {
+      n.parent?.children.splice(n.parent.children.indexOf(n), 1);
+      n.object.removeFromParent();
+      this.nodes.delete(n.data.id);
+      removed.push(n.object);
+    }
+    // Agregar / actualizar en orden padre→hijo.
+    for (const src of list) {
+      const d: PieceData = {
+        ...src,
+        entryPoint: [...src.entryPoint] as [number, number, number],
+        direction: [...src.direction] as [number, number, number],
+        localMatrix: [...src.localMatrix],
+      };
+      const parent = this.nodes.get(d.parentId ?? '');
+      if (!parent) continue;
+      let node = this.nodes.get(d.id);
+      if (!node) {
+        const object = factory(d);
+        object.userData.pieceId = d.id;
+        node = { data: d, object, children: [], parent };
+        this.nodes.set(d.id, node);
+        parent.children.push(node);
+      } else {
+        node.data = d;
+        if (node.parent !== parent) {
+          node.parent?.children.splice(node.parent.children.indexOf(node), 1);
+          parent.children.push(node);
+          node.parent = parent;
+        }
+      }
+      parent.object.add(node.object);
+      new THREE.Matrix4().fromArray(d.localMatrix).decompose(node.object.position, node.object.quaternion, node.object.scale);
+    }
+    return removed;
+  }
+
   /** Todas las piezas en orden padre→hijo (apto para serializar). */
   list(): PieceData[] {
     const out: PieceData[] = [];

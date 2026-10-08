@@ -12,6 +12,9 @@ import { setupEnvironment } from './render/Environment';
 import { Stage } from './render/Stage';
 import { Picker } from './interaction/Picker';
 import { Overlay } from './ui/Overlay';
+import { AudioManager } from './audio/AudioManager';
+import { Crumbs } from './fx/Crumbs';
+import { Shake } from './fx/Shake';
 import { ContactShadow, markHero } from './render/ContactShadow';
 import { addPhotoFade, loadPhotoBackdrop, updatePhotoResolution } from './render/PhotoBackdrop';
 
@@ -77,14 +80,55 @@ async function main() {
     center: CONFIG.chizitoCenter,
   });
 
+  // Feedback del clavado: micro-sacudida del chizito, crack + crujido, migas que caen a la mesa.
+  const audio = new AudioManager();
+  const crumbs = new Crumbs(stage.scene);
+  const shake = new Shake(pivot, CONFIG.chizitoCenter);
+  let crumbBudget = 0;
+  interaction.onReset = () => crumbs.clear();
+  interaction.onEvent = (e, info) => {
+    switch (e) {
+      case 'pick':
+        audio.play('pick');
+        break;
+      case 'drop':
+      case 'remove':
+        audio.play('drop');
+        break;
+      case 'contact':
+        if (!info) break;
+        audio.play('crack', info.def.type === 'papita' ? 0.75 : 1);
+        shake.kick(info.dir, info.def.type === 'papita' ? 0.07 : 0.1);
+        crumbs.emit(info.point, info.normal, 2);
+        if (info.parent) crumbs.stick(info.parent, info.localPoint, info.localNormal, 1 + Math.round(Math.random()));
+        crumbBudget = 2; // "2 o 3 migas" por clavada: 2 al contacto y hasta 2 más mientras entra
+        break;
+      case 'inserting':
+        if (!info) break;
+        shake.tremble(0.7);
+        if (Math.random() < info.dt * 16) audio.play('crunch', 0.7 + Math.random() * 0.3);
+        if (crumbBudget > 0 && Math.random() < info.dt * 1.4) {
+          crumbs.emit(info.point, info.normal, 1);
+          crumbBudget--;
+        }
+        break;
+      case 'out':
+        audio.play('out');
+        if (info) crumbs.emit(info.point, info.normal, 1);
+        break;
+    }
+  };
+
   // Exponer para depuración y capturas automáticas.
   Object.assign(window as unknown as Record<string, unknown>, {
-    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker, assets },
+    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker, assets, crumbs, audio },
   });
 
   const timer = new THREE.Timer();
   const frame = (dt: number) => {
     interaction.update(dt);
+    shake.update(dt);
+    crumbs.update(dt);
     stage.focusTarget.copy(CONFIG.chizitoCenter);
     contactShadow.update(stage.renderer);
     stage.render(dt);

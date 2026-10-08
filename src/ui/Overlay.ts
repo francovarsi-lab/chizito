@@ -26,6 +26,14 @@ export class Overlay {
     this.hideTimer = window.setTimeout(() => this.help.classList.add('hidden'), ms);
   }
 
+  /** Mensaje breve que se muestra siempre (confirmaciones, deshacer). */
+  flash(text: string, ms = 2200): void {
+    this.help.textContent = text;
+    this.help.classList.remove('hidden');
+    window.clearTimeout(this.hideTimer);
+    this.hideTimer = window.setTimeout(() => this.help.classList.add('hidden'), ms);
+  }
+
   /** Oculta la ayuda actual (p. ej. al interactuar). */
   dismissHint(delay = 900): void {
     window.clearTimeout(this.hideTimer);

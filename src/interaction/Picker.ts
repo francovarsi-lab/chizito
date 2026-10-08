@@ -47,6 +47,22 @@ export class Picker {
     return best?.type ?? null;
   }
 
+  /**
+   * Pieza YA COLOCADA bajo el cursor (no la raíz), o null. Si lo primero que toca el rayo es el
+   * chizito u otra superficie, devuelve null.
+   */
+  pickPlaced(ndcX: number, ndcY: number): PieceNode | null {
+    const ray = this.setRay(ndcX, ndcY);
+    const hits = ray.intersectObject(this.construction.root.object, true);
+    for (const h of hits) {
+      if (!(h.object as THREE.Mesh).isMesh || h.object.userData.noPick) continue;
+      const node = this.ownerNode(h.object);
+      if (!node) continue; // ignorado (pieza en la mano)
+      return node === this.construction.root ? null : node;
+    }
+    return null;
+  }
+
   /** Superficie atravesable bajo el cursor (con normal suavizada), o null. */
   pickSurface(ndcX: number, ndcY: number): SurfaceHit | null {
     const raw = this.pickSurfaceRaw(this.setRay(ndcX, ndcY));
@@ -60,7 +76,7 @@ export class Picker {
       if (!this.pieces.get(node.data.type).canBePierced) continue;
       node.object.traverse((o) => {
         const m = o as THREE.Mesh;
-        if (!m.isMesh || !m.visible) return;
+        if (!m.isMesh || !m.visible || m.userData.noPick) return;
         // Sólo las mallas propias de la pieza, no las de sus hijas.
         if (this.ownerNode(m) !== node) return;
         out.push({ mesh: m, node });
