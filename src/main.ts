@@ -15,6 +15,7 @@ import { Overlay } from './ui/Overlay';
 import { AudioManager } from './audio/AudioManager';
 import { Crumbs } from './fx/Crumbs';
 import { Shake } from './fx/Shake';
+import { CameraRig } from './render/CameraRig';
 import { ContactShadow, markHero } from './render/ContactShadow';
 import { addPhotoFade, loadPhotoBackdrop, updatePhotoResolution } from './render/PhotoBackdrop';
 
@@ -63,7 +64,13 @@ async function main() {
   stage.scene.add(contactShadow.decal);
   const construction = new Construction(CHIZITO.type, rootSeed, pivot);
 
+  // Cámara casi fija con zoom (rueda): se acerca/aleja en línea recta hacia el chizito.
+  const rig = new CameraRig(stage.camera, CONFIG.camera.target, CONFIG.camera.position, CONFIG.camera.minDistance, CONFIG.camera.maxDistance, CONFIG.camera.distance);
+  photo?.layout();
   const input = new Input(canvas);
+  input.onWheel((e) => {
+    if (!e.ctrl) rig.zoom(e.dy);
+  });
   const rotator = new TrackballRotator(pivot, stage.camera);
   const overlay = new Overlay();
   const picker = new Picker(stage.camera, construction, pieces, backdrop.bowls);
@@ -122,11 +129,13 @@ async function main() {
 
   // Exponer para depuración y capturas automáticas.
   Object.assign(window as unknown as Record<string, unknown>, {
-    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker, assets, crumbs, audio },
+    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker, assets, crumbs, audio, rig },
   });
 
   const timer = new THREE.Timer();
   const frame = (dt: number) => {
+    rig.update(dt);
+    if (rig.moved && photo) photo.layout();
     interaction.update(dt);
     shake.busy = interaction.busy;
     shake.update(dt);

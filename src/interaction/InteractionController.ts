@@ -150,7 +150,10 @@ export class InteractionController {
     input.onUp(() => this.onUp());
     input.onMove((e) => this.onMove(e.dx, e.dy));
     input.onKey((e) => this.onKey(e));
-    input.onWheel((dy) => this.onWheel(dy));
+    // Ctrl + rueda = profundidad (la rueda sola es el zoom de la cámara).
+    input.onWheel((e) => {
+      if (e.ctrl) this.onWheel(e.dy);
+    });
   }
 
   // ───────────────────────────── entrada ─────────────────────────────
@@ -235,7 +238,7 @@ export class InteractionController {
   }
 
   /**
-   * Rueda del mouse = profundidad: alejarla clava, acercarla saca (ir "hacia atrás"). Funciona al
+   * Ctrl + rueda = profundidad: alejarla clava, acercarla saca (ir "hacia atrás"). Funciona al
    * apuntar y con una pieza clavada o seleccionada. Cada giro se anima suave hacia el objetivo.
    */
   private onWheel(dy: number): void {
@@ -403,7 +406,7 @@ export class InteractionController {
     parentObj.attach(a.object);
     setGhost(a.object, null);
     this.state = InteractionState.AIMING;
-    this.d.overlay.hint('aiming', 'mové el mouse para elegir el ángulo · mantené apretado (o la rueda) para clavar');
+    this.d.overlay.hint('aiming', 'mové el mouse para elegir el ángulo · mantené apretado (o Ctrl + rueda) para clavar');
   }
 
   /** Selecciona una pieza ya colocada para editarla (hundir, sacar, quitar). */
@@ -507,7 +510,7 @@ export class InteractionController {
     if (a && a.aim.depth > 0) {
       this.state = a.selected ? InteractionState.SELECTED_PLACED_PIECE : InteractionState.PLACED;
       if (this.state === InteractionState.PLACED) {
-        this.d.overlay.hint('placed', 'mantené para hundirlo · Shift + mantener (o la rueda hacia vos) para sacarlo · Esc lo suelta', 6500);
+        this.d.overlay.hint('placed', 'mantené para hundirlo · Shift + mantener (o Ctrl + rueda hacia vos) para sacarlo · Esc lo suelta', 6500);
       }
     } else {
       this.state = InteractionState.AIMING;

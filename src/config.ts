@@ -8,6 +8,10 @@ export const CONFIG = {
     position: new THREE.Vector3(0, 0.15, 0.2),
     target: new THREE.Vector3(0, 0.098, 0),
     focalLength: 50, // mm, equivalente full frame (36 mm)
+    /** Distancia inicial al chizito y límites del zoom (m). `position` sólo define la dirección de mirada. */
+    distance: 0.3,
+    minDistance: 0.16,
+    maxDistance: 0.5,
     near: 0.01,
     far: 6,
   },

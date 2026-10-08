@@ -40,7 +40,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
 - Palito: 3,5 cm, Ø 3,4 mm. Papita: Ø ~5 cm, 1,5 mm.
 - Mesa en y = 0. Chizito flotando con centro en y = 10 cm (`CONFIG.chizitoCenter`): la mesa queda más lejos y despejada.
-- Cámara fija en (0, 15 cm, 20 cm) mirando al chizito con leve inclinación; 50 mm sobre film de 36 mm.
+- Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, a 30 cm del chizito, con zoom por
+  dolly (rueda del mouse) entre 16 y 50 cm, suave. 50 mm sobre film de 36 mm. Nunca orbita.
 - Composición despejada: bowl de papitas (izq.) y vasito de palitos (der.) simétricos a los costados, a media
   distancia; pocos objetos al fondo y lejos.
 
@@ -93,7 +94,7 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   (la "costra"); al entrar la punta el ángulo queda trabado. Soltar = PLACED. Volver a mantener = más adentro.
   **Shift + mantener clic izquierdo = sacar** (único gesto para sacar); si sale del todo vuelve a la mano.
   Atraviesa el chizito (y lo que haya en el camino); siempre queda afuera el 20 % del largo (≈ 7 mm).
-- Rueda del mouse = profundidad (alejarla clava, acercarla saca: "ir hacia atrás"), animada y suave; sirve al
+- Rueda = zoom de la cámara. **Ctrl + rueda = profundidad** (alejarla clava, acercarla saca: "ir hacia atrás"), suave; sirve al
   apuntar y con piezas clavadas o seleccionadas. Si sale del todo, vuelve a la mano. Cada gesto se puede deshacer.
 - En PLACED: mantener actúa siempre sobre el palito recién clavado (el cursor suele quedar lejos tras apuntar);
   clic en el bowl = otro palito (el anterior queda clavado). Esc: devuelve

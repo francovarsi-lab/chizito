@@ -27,7 +27,7 @@ export class Input {
     up: [] as Handler<{ button: number; pointer: PointerInfo }>[],
     move: [] as Handler<{ dx: number; dy: number; pointer: PointerInfo }>[],
     key: [] as Handler<KeyboardEvent>[],
-    wheel: [] as Handler<number>[],
+    wheel: [] as Handler<{ dy: number; ctrl: boolean }>[],
   };
 
   constructor(private readonly el: HTMLElement) {
@@ -58,7 +58,7 @@ export class Input {
         e.preventDefault();
         // Normalizar: líneas/páginas → píxeles aproximados.
         const k = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1;
-        this.listeners.wheel.forEach((h) => h(e.deltaY * k));
+        this.listeners.wheel.forEach((h) => h({ dy: e.deltaY * k, ctrl: e.ctrlKey || e.metaKey }));
       },
       { passive: false },
     );
@@ -89,8 +89,8 @@ export class Input {
   onUp(h: Handler<{ button: number; pointer: PointerInfo }>) { this.listeners.up.push(h); }
   onMove(h: Handler<{ dx: number; dy: number; pointer: PointerInfo }>) { this.listeners.move.push(h); }
   onKey(h: Handler<KeyboardEvent>) { this.listeners.key.push(h); }
-  /** Rueda del mouse: delta vertical en píxeles (positivo = hacia el usuario). */
-  onWheel(h: Handler<number>) { this.listeners.wheel.push(h); }
+  /** Rueda del mouse: delta vertical en píxeles (positivo = hacia el usuario) y si había Ctrl. */
+  onWheel(h: Handler<{ dy: number; ctrl: boolean }>) { this.listeners.wheel.push(h); }
 
   private lastX = 0;
   private lastY = 0;
