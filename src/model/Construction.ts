@@ -11,6 +11,8 @@ export interface PieceData {
   parentId: string | null;
   /** Semilla de variación del modelo procedural. */
   seed: number;
+  /** Parámetros de forma/variante elegidos por el jugador (mordiscos, variante…). Opcional. */
+  params?: Record<string, unknown>;
   /** Punto de entrada en coordenadas locales del padre. */
   entryPoint: [number, number, number];
   /** Dirección de inserción (unitaria, local al padre). */
@@ -112,6 +114,7 @@ export class Construction {
         entryPoint: [...src.entryPoint] as [number, number, number],
         direction: [...src.direction] as [number, number, number],
         localMatrix: [...src.localMatrix],
+        params: src.params ? structuredClone(src.params) : undefined,
       };
       const parent = this.nodes.get(d.parentId ?? '');
       if (!parent) continue;

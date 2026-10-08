@@ -49,7 +49,12 @@ export function papitaMaterial(): THREE.MeshPhysicalMaterial {
 export const PAPITA_RADIUS = 0.025;
 export const PAPITA_THICKNESS = 0.0015;
 
-export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'hero'): THREE.BufferGeometry {
+/** Parámetros de forma de una papita: cada mordisco (semilla) le saca un pedazo irregular del borde. */
+export interface PapitaParams {
+  bites?: number[];
+}
+
+export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'hero', params: PapitaParams = {}): THREE.BufferGeometry {
   const rnd = mulberry32(seed * 6151 + 17);
   const noise = new Simplex3(seed + 333);
   const R = PAPITA_RADIUS * (0.88 + rnd() * 0.24);
@@ -58,8 +63,26 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
   const waveAmp = 0.0016 + rnd() * 0.0012; // ondulación suave de papita frita
   const cup = (rnd() - 0.3) * 0.004;
 
+  // Mordiscos ("partir con los dedos"): muescas irregulares del borde, deterministas por semilla.
+  const bites = (params.bites ?? []).map((b) => {
+    const r = mulberry32(b * 7907 + 3);
+    return { a: r() * Math.PI * 2, w: 0.35 + r() * 0.45, d: 0.16 + r() * 0.2, ph: r() * 100 };
+  });
+  const biteAt = (th: number) => {
+    let k = 0;
+    for (const b of bites) {
+      let da = Math.abs(th - b.a) % (Math.PI * 2);
+      if (da > Math.PI) da = Math.PI * 2 - da;
+      const x = da / b.w;
+      if (x >= 1) continue;
+      const jag = 1 + 0.18 * noise.noise(Math.cos(th) * 8 + b.ph, Math.sin(th) * 8, 4.2);
+      k = Math.max(k, b.d * Math.pow(1 - x * x, 0.7) * jag);
+    }
+    return Math.min(0.6, k);
+  };
   const edgeR = (th: number) =>
     R *
+    (1 - biteAt(th)) *
     (1 +
       0.07 * noise.noise(Math.cos(th) * 1.3 + ox, Math.sin(th) * 1.3, 0.5) +
       0.025 * noise.noise(Math.cos(th) * 5 + ox, Math.sin(th) * 5, 2.5) +
@@ -169,8 +192,8 @@ export function buildPapitaGeometry(seed: number, detail: 'hero' | 'prop' = 'her
   return geo;
 }
 
-export function createPapita(seed: number, detail: 'hero' | 'prop' = 'hero'): THREE.Mesh {
-  const mesh = new THREE.Mesh(buildPapitaGeometry(seed, detail), papitaMaterial());
+export function createPapita(seed: number, detail: 'hero' | 'prop' = 'hero', params: PapitaParams = {}): THREE.Mesh {
+  const mesh = new THREE.Mesh(buildPapitaGeometry(seed, detail, params), papitaMaterial());
   mesh.name = 'papita';
   mesh.castShadow = true;
   mesh.receiveShadow = true;

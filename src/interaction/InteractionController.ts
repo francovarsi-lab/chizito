@@ -60,9 +60,11 @@ export interface ActivePiece {
   selected?: boolean;
   /** Tiempo desde que salió del vaso/bowl (animación de "pop"). */
   popT?: number;
+  /** Parámetros de forma elegidos por el jugador (mordiscos de la papita, variante…). */
+  params: Record<string, unknown>;
 }
 
-export type FeedbackEvent = 'pick' | 'drop' | 'contact' | 'inserting' | 'out' | 'remove';
+export type FeedbackEvent = 'pick' | 'drop' | 'contact' | 'inserting' | 'out' | 'remove' | 'break';
 
 export interface FeedbackInfo {
   def: PieceDefinition;
@@ -111,7 +113,8 @@ export class InteractionController {
   private wheelTarget: number | null = null;
   private wheelBefore: Snapshot | null = null;
   private wheelIdle = 0;
-  private seedCounter = 1;
+  /** Semillas distintas en cada sesión: no hay dos piezas iguales ni entre partidas. */
+  private seedCounter = Math.floor(Math.random() * 1e6);
   private hover: SurfaceHit | null = null;
   private resetArmedUntil = 0;
   /** Objetos de piezas quitadas, para reutilizarlos al deshacer sin regenerar la malla. */
@@ -327,9 +330,22 @@ export class InteractionController {
       this.removeActive();
       return;
     }
-    const aimingLike = this.state === InteractionState.AIMING || (this.state === InteractionState.HOLDING && this.hover);
-    if (this.active && aimingLike && (e.code === 'KeyQ' || e.code === 'KeyE')) {
-      this.active.aim.spin += e.code === 'KeyQ' ? -SPIN_STEP : SPIN_STEP;
+    // Q / E: girar la pieza sobre su eje en cualquier momento (en la mano, apuntando, clavándola o ya clavada).
+    if (this.active && (e.code === 'KeyQ' || e.code === 'KeyE')) {
+      const a = this.active;
+      const settled = this.state === InteractionState.PLACED || this.state === InteractionState.SELECTED_PLACED_PIECE;
+      const before = settled ? this.snapshot() : null;
+      a.aim.spin += e.code === 'KeyQ' ? -SPIN_STEP : SPIN_STEP;
+      if (a.node && this.state !== InteractionState.HOLDING) {
+        a.aim.pose(a.object.position, a.object.quaternion);
+        a.aim.writeData(a.node.data, a.object);
+      }
+      if (before) this.record('girar', before);
+      return;
+    }
+    // B: partir la pieza en la mano (le saca un pedazo irregular del borde). Repetible.
+    if (e.code === 'KeyB' && this.state === InteractionState.HOLDING && this.active) {
+      this.breakActive();
       return;
     }
     if (this.state === InteractionState.AIMING && this.active && e.code.startsWith('Arrow')) {
@@ -365,7 +381,7 @@ export class InteractionController {
     aim.spin = Math.random() * Math.PI * 2;
     scene.add(object);
     picker.ignore.add(object);
-    this.active = { def, object, aim, parent: null, node: null, seed, popT: 0 };
+    this.active = { def, object, aim, parent: null, node: null, seed, popT: 0, params: {} };
     object.scale.setScalar(0.001);
     // Arranca saliendo del vaso / bowl.
     object.position.copy(this.bowlWorldPos(type));
@@ -373,7 +389,7 @@ export class InteractionController {
     this.hover = null;
     this.state = InteractionState.HOLDING;
     this.emit('pick', null);
-    if (type === 'papita') overlay.hint('holding-papita', 'la papita se clava de canto · Q / E la giran');
+    if (type === 'papita') overlay.hint('holding-papita', 'la papita se clava de canto · Q / E la giran · B la parte');
     else overlay.hint('holding', 'tocá el chizito donde lo quieras clavar · Esc lo devuelve');
   }
 
@@ -418,11 +434,53 @@ export class InteractionController {
     aim.setFrame(new THREE.Vector3().fromArray(node.data.entryPoint), axis, new THREE.Vector3(1, 0, 0));
     aim.depth = node.data.depth;
     aim.spin = node.data.spin;
-    this.active = { def, object: node.object, aim, parent: node.parent, node, seed: node.data.seed, selected: true };
+    this.active = {
+      def,
+      object: node.object,
+      aim,
+      parent: node.parent,
+      node,
+      seed: node.data.seed,
+      selected: true,
+      params: node.data.params ? structuredClone(node.data.params) : {},
+    };
     this.d.picker.ignore.add(node.object);
     setHighlight(node.object, true);
     this.state = InteractionState.SELECTED_PLACED_PIECE;
     this.d.overlay.hint('selected', 'mantené para hundirla · Shift + mantener para sacarla · Supr la quita · Esc la suelta', 6500);
+  }
+
+  /** Parte la pieza en la mano: suma un mordisco y regenera su forma (determinista por semilla). */
+  private breakActive(): void {
+    const a = this.active!;
+    if (!a.def.breakable) return;
+    if (this.d.assets.hasGlb(a.def.type)) {
+      this.d.overlay.flash('esta pieza viene de un modelo .glb: no se puede partir', 1800);
+      return;
+    }
+    const bites = ((a.params.bites as number[] | undefined) ?? []).slice();
+    if (bites.length >= 7) {
+      this.d.overlay.flash('ya no se puede achicar más', 1200);
+      return;
+    }
+    bites.push(Math.floor(Math.random() * 1e9));
+    a.params.bites = bites;
+    const old = a.object;
+    const fresh = this.d.assets.create(a.def.type, a.seed, 'hero', a.params);
+    markHero(fresh);
+    fresh.position.copy(old.position);
+    fresh.quaternion.copy(old.quaternion);
+    fresh.scale.copy(old.scale);
+    old.parent?.add(fresh);
+    old.removeFromParent();
+    old.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+    this.d.picker.ignore.delete(old);
+    this.d.picker.ignore.add(fresh);
+    a.object = fresh;
+    a.popT = 0.18; // pequeño rebote al partirse
+    const p = fresh.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, a.def.dimensions.length * 0.5, 0));
+    this.emit('break', { def: a.def, point: p, normal: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, -1, 0), depth: 0, dt: 0, parent: null, localPoint: p, localNormal: new THREE.Vector3(0, 1, 0) });
+    this.d.overlay.hint('break', 'B la sigue partiendo · cada papita queda única');
   }
 
   /** De AIMING (o al sacarla del todo) vuelve a la mano. */
@@ -530,6 +588,7 @@ export class InteractionController {
       depth: 0,
       spin: a.aim.spin,
       localMatrix: [],
+      params: Object.keys(a.params).length ? structuredClone(a.params) : undefined,
     };
     a.aim.writeData(data, a.object);
     a.node = this.d.construction.add(data, a.object);
@@ -602,7 +661,7 @@ export class InteractionController {
         this.graveyard.delete(d.id);
         return reuse;
       }
-      const obj = this.d.assets.create(d.type, d.seed, 'hero');
+      const obj = this.d.assets.create(d.type, d.seed, 'hero', d.params);
       markHero(obj);
       return obj;
     });

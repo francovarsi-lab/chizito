@@ -1,6 +1,6 @@
 import { createChizito } from '../assets/procedural/chizito';
 import { CHIZITO_REF_LENGTH, createPalito, PALITO_LENGTH, PALITO_RADIUS } from '../assets/procedural/palito';
-import { createPapita, PAPITA_RADIUS, PAPITA_THICKNESS } from '../assets/procedural/papita';
+import { createPapita, PAPITA_RADIUS, PAPITA_THICKNESS, type PapitaParams } from '../assets/procedural/papita';
 import type { PieceDefinition } from './PieceDefinition';
 
 export const CHIZITO: PieceDefinition = {
@@ -33,7 +33,8 @@ export const PAPITA: PieceDefinition = {
   displayName: 'Papita',
   dimensions: { length: PAPITA_RADIUS * 2, thickness: PAPITA_THICKNESS },
   frame: 'tip',
-  procedural: (seed, detail) => createPapita(seed, detail),
+  procedural: (seed, detail, params) => createPapita(seed, detail, params as PapitaParams),
+  breakable: true,
   canPierce: true,
   canBePierced: true,
   maxDepth: 0.008,

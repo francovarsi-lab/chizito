@@ -100,7 +100,10 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   clic en el bowl = otro palito (el anterior queda clavado). Esc: devuelve
   (HOLDING), vuelve a la mano (AIMING) o suelta (PLACED).
 - Papitas (bowl abajo a la izquierda): se clavan de canto con la misma mecánica (profundidad máx. 8 mm);
-  Q / E giran la pieza sobre su eje (orientan la papita) mientras se apunta. Una papita colocada puede ser
+  Q / E giran la pieza sobre su eje en cualquier momento (en la mano, apuntando, mientras entra o ya clavada).
+  B (en la mano) parte la papita: cada mordisco es una semilla guardada en `PieceData.params.bites`, así
+  deshacer/guardar reproducen la forma exacta (hasta 7; desactivado si la papita viene de un .glb). Las semillas
+  arrancan al azar en cada sesión: no hay dos papitas iguales ni entre partidas. Una papita colocada puede ser
   atravesada: el palito que entra en ella queda como hijo de la papita en el árbol.
 - Editar: clic en una pieza colocada → SELECTED_PLACED_PIECE (resaltado cálido sutil): mantener = hundir,
   Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),

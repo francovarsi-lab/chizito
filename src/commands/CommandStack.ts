@@ -19,6 +19,7 @@ export function cloneSnapshot(list: PieceData[]): Snapshot {
     entryPoint: [...d.entryPoint] as [number, number, number],
     direction: [...d.direction] as [number, number, number],
     localMatrix: [...d.localMatrix],
+    params: d.params ? structuredClone(d.params) : undefined,
   }));
 }
 
@@ -27,7 +28,13 @@ export function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
   const byId = new Map(b.map((d) => [d.id, d]));
   return a.every((d) => {
     const o = byId.get(d.id);
-    return !!o && o.parentId === d.parentId && Math.abs(o.depth - d.depth) < 1e-6 && o.spin === d.spin;
+    return (
+      !!o &&
+      o.parentId === d.parentId &&
+      Math.abs(o.depth - d.depth) < 1e-6 &&
+      o.spin === d.spin &&
+      JSON.stringify(o.params ?? null) === JSON.stringify(d.params ?? null)
+    );
   });
 }
 

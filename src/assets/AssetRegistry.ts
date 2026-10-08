@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import type { PieceDefinition } from '../pieces/PieceDefinition';
+import type { PieceDefinition, PieceParams } from '../pieces/PieceDefinition';
 import type { PieceRegistry } from '../pieces/PieceRegistry';
 import { probeFile } from './probe';
 
@@ -43,11 +43,11 @@ export class AssetRegistry {
   }
 
   /** Crea una instancia lista para agregar a la escena, en el marco local de la definición. */
-  create(type: string, seed: number, detail: 'hero' | 'prop' = 'hero'): THREE.Object3D {
+  create(type: string, seed: number, detail: 'hero' | 'prop' = 'hero', params?: PieceParams): THREE.Object3D {
     const def = this.pieces.get(type);
     const tpl = this.glbTemplates.get(type);
     if (tpl) return tpl.clone(true);
-    return normalizeToFrame(def.procedural(seed, detail), def, false);
+    return normalizeToFrame(def.procedural(seed, detail, params), def, false);
   }
 }
 

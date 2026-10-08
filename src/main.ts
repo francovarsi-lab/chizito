@@ -120,6 +120,10 @@ async function main() {
           crumbBudget--;
         }
         break;
+      case 'break':
+        audio.play('crack', 0.85);
+        if (info) crumbs.emit(info.point, info.normal, 3);
+        break;
       case 'out':
         audio.play('out');
         if (info) crumbs.emit(info.point, info.normal, 1);
