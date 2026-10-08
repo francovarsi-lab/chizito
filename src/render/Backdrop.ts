@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { AssetRegistry } from '../assets/AssetRegistry';
-import { paperNormal, stripesTexture, tableclothMaterial, woodMaterial } from '../assets/procedural/surfaces';
+import { stripesTexture, tableclothMaterial, woodMaterial } from '../assets/procedural/surfaces';
 import { mulberry32 } from '../util/noise';
 import { PALITO_LENGTH } from '../assets/procedural/palito';
 import { bakeStatic } from '../util/merge';
@@ -20,8 +20,8 @@ export interface Backdrop {
 }
 
 export const BOWL_LAYOUT = {
-  palito: new THREE.Vector3(0.105, 0, -0.16),
-  papita: new THREE.Vector3(-0.082, 0, 0.066),
+  palito: new THREE.Vector3(0.115, 0, -0.17),
+  papita: new THREE.Vector3(-0.115, 0, -0.17),
 };
 
 export function buildBackdrop(assets: AssetRegistry): Backdrop {
@@ -63,9 +63,9 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   root.add(palitoCup);
   bowls.set('palito', palitoCup);
 
-  const papitaBowl = makeBowl(0.07, 0.044, ceramic);
+  const papitaBowl = makeBowl(0.055, 0.032, ceramic);
   papitaBowl.position.copy(BOWL_LAYOUT.papita);
-  papitaBowl.add(fillBowl(assets, 'papita', 0.06, 0.044, 46, 11));
+  papitaBowl.add(fillBowl(assets, 'papita', 0.046, 0.032, 22, 11));
   papitaBowl.userData.bowlFor = 'papita';
   root.add(papitaBowl);
   bowls.set('papita', papitaBowl);
@@ -76,22 +76,20 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   // Fondo: bowl de chizitos de plástico, otro de palitos, vasos, gaseosa, servilletas, gorrito.
   const plasticOrange = new THREE.MeshPhysicalMaterial({ color: '#2e8bd6', roughness: 0.3, clearcoat: 0.3 });
   const bgBowl = makeBowl(0.085, 0.05, plasticOrange);
-  bgBowl.position.set(-0.2, 0, -0.34);
+  bgBowl.position.set(-0.3, 0, -0.62);
   bgBowl.add(fillBowl(assets, 'chizito', 0.075, 0.05, 26, 21));
   farProps.add(bgBowl);
 
   const plasticYellow = new THREE.MeshPhysicalMaterial({ color: '#f2c230', roughness: 0.3, clearcoat: 0.3 });
   const bgBowl2 = makeBowl(0.08, 0.048, plasticYellow);
-  bgBowl2.position.set(0.3, 0, -0.62);
+  bgBowl2.position.set(0.36, 0, -0.85);
   bgBowl2.add(fillBowl(assets, 'papita', 0.07, 0.048, 40, 31));
   farProps.add(bgBowl2);
 
-  farProps.add(makeCup('#d8342c', 0.13, -0.46));
-  farProps.add(makeCup('#2f7fd0', -0.36, -0.7));
-  farProps.add(makeCup('#f2c230', 0.24, -0.4, 0.3));
-  farProps.add(makeBottle(0.06, -0.82));
-  farProps.add(makeNapkins(-0.02, -0.56));
-  farProps.add(makePartyHat(-0.34, -0.4));
+  // Pocos objetos y lejos: el centro de la mesa queda despejado para el juego.
+  farProps.add(makeCup('#2f7fd0', -0.5, -0.95));
+  farProps.add(makeBottle(0.22, -1.05));
+  farProps.add(makePartyHat(-0.16, -0.9));
 
   root.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) {
@@ -231,21 +229,6 @@ function makeBottle(x: number, z: number): THREE.Group {
   cap.position.y = 0.32;
   g.add(cap);
   g.position.set(x, 0, z);
-  return g;
-}
-
-function makeNapkins(x: number, z: number): THREE.Group {
-  const g = new THREE.Group();
-  const mat = new THREE.MeshPhysicalMaterial({ color: '#f4b8c8', roughness: 0.9, normalMap: paperNormal(), sheen: 0.3, sheenColor: new THREE.Color('#ffffff') });
-  const rnd = mulberry32(8);
-  for (let i = 0; i < 14; i++) {
-    const n = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.0012, 0.11), mat);
-    n.position.set((rnd() - 0.5) * 0.004, 0.0006 + i * 0.0013, (rnd() - 0.5) * 0.004);
-    n.rotation.y = (rnd() - 0.5) * 0.08;
-    g.add(n);
-  }
-  g.position.set(x, 0, z);
-  g.rotation.y = 0.5;
   return g;
 }
 

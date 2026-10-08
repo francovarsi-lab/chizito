@@ -3,10 +3,10 @@ import * as THREE from 'three';
 /** Parámetros de puesta en escena (metros). Centralizados para ajustar el look sin tocar la lógica. */
 export const CONFIG = {
   /** Centro del chizito: flota ~7 cm sobre la mesa (la mesa está en y = 0). */
-  chizitoCenter: new THREE.Vector3(0, 0.072, 0),
+  chizitoCenter: new THREE.Vector3(0, 0.1, 0),
   camera: {
-    position: new THREE.Vector3(0, 0.122, 0.2),
-    target: new THREE.Vector3(0, 0.068, 0),
+    position: new THREE.Vector3(0, 0.15, 0.2),
+    target: new THREE.Vector3(0, 0.098, 0),
     focalLength: 50, // mm, equivalente full frame (36 mm)
     near: 0.01,
     far: 6,

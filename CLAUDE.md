@@ -32,8 +32,10 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 ## Escala (1 unidad = 1 metro)
 - Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
 - Palito: 3,5 cm, Ø 3,4 mm. Papita: Ø ~5 cm, 1,5 mm.
-- Mesa en y = 0. Chizito flotando con centro en y = 7,2 cm (`CONFIG.chizitoCenter`).
-- Cámara fija en (0, 12,2 cm, 20 cm) mirando al chizito con leve inclinación; 50 mm sobre film de 36 mm.
+- Mesa en y = 0. Chizito flotando con centro en y = 10 cm (`CONFIG.chizitoCenter`): la mesa queda más lejos y despejada.
+- Cámara fija en (0, 15 cm, 20 cm) mirando al chizito con leve inclinación; 50 mm sobre film de 36 mm.
+- Composición despejada: bowl de papitas (izq.) y vasito de palitos (der.) simétricos a los costados, a media
+  distancia; pocos objetos al fondo y lejos.
 
 ## Estética
 - Base fotográfica (sigue valiendo, pero al servicio de lo divertido). Fuentes del realismo: IBL + luz direccional cálida de ventana con sombras suaves
