@@ -24,9 +24,10 @@ export const BOWL_LAYOUT = {
   papita: new THREE.Vector3(-0.115, 0, -0.17),
   // Tira de recipientes chicos al frente (desenfocados). El centro queda para el bowl de chizitos y
   // la punta derecha para los sobrecitos de ketchup.
-  nacho: new THREE.Vector3(-0.078, 0, -0.072),
-  aceituna: new THREE.Vector3(-0.03, 0, -0.068),
-  escarbadientes: new THREE.Vector3(0.062, 0, -0.07),
+  nacho: new THREE.Vector3(-0.098, 0, -0.074),
+  aceituna: new THREE.Vector3(-0.048, 0, -0.066),
+  chizito: new THREE.Vector3(0.006, 0, -0.076),
+  escarbadientes: new THREE.Vector3(0.06, 0, -0.068),
 };
 
 export function buildBackdrop(assets: AssetRegistry): Backdrop {
@@ -94,7 +95,11 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
     params: (i) => ({ variant: i % 3 === 0 ? 'espadita' : 'liso' }),
   });
   pickCup.position.copy(BOWL_LAYOUT.escarbadientes);
-  for (const [type, obj] of [['nacho', nachoBowl], ['aceituna', oliveBowl], ['escarbadientes', pickCup]] as const) {
+  // Chizitos extra para ensartar en la punta de un palito.
+  const chizitoBowl = makeBowl(0.034, 0.018, ceramic);
+  chizitoBowl.position.copy(BOWL_LAYOUT.chizito);
+  chizitoBowl.add(fillBowl(assets, 'chizito', 0.026, 0.018, 4, 71));
+  for (const [type, obj] of [['nacho', nachoBowl], ['aceituna', oliveBowl], ['chizito', chizitoBowl], ['escarbadientes', pickCup]] as const) {
     obj.userData.bowlFor = type;
     root.add(obj);
     bowls.set(type, obj);

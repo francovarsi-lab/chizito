@@ -16,8 +16,11 @@ export const CHIZITO: PieceDefinition = {
   procedural: (seed, detail) => createChizito(seed, detail),
   canPierce: false,
   canBePierced: true,
+  // Los chizitos extra del bowl se ensartan en la punta libre de un palito (chizito + palito + chizito).
+  mountsOnTail: true,
   maxDepth: 0,
-  sounds: { pick: 'pick', drop: 'drop' },
+  holdHint: 'tocá un palito clavado para ensartarle este chizito en la punta',
+  sounds: { pick: 'pick', drop: 'drop', contact: 'crack', insert: 'crunch' },
 };
 
 export const PALITO: PieceDefinition = {
@@ -28,6 +31,7 @@ export const PALITO: PieceDefinition = {
   procedural: (seed, detail) => createPalito(seed, detail),
   canPierce: true,
   canBePierced: false,
+  tailMount: true,
   // Siempre queda afuera ~20 % del largo (≈ 7 mm con 3,5 cm).
   maxDepth: PALITO_LENGTH * 0.8,
   sounds: CRUNCHY,
@@ -87,6 +91,7 @@ export const ESCARBADIENTES: PieceDefinition = {
   ],
   canPierce: true,
   canBePierced: false,
+  tailMount: true,
   maxDepth: ESCARBADIENTES_LENGTH * 0.8,
   holdHint: 'V cambia entre escarbadientes y espadita · tocá dónde clavarlo',
   sounds: CRUNCHY,

@@ -45,6 +45,11 @@ export interface PieceDefinition {
   /** La forma se puede partir en la mano (tecla B). Sólo con modelo procedural. */
   breakable?: boolean;
 
+  /** Pieza larga con la cola libre afuera: se le puede ensartar otra pieza en la punta (palito). */
+  tailMount?: boolean;
+  /** Se agarra del bowl y se ensarta en la cola libre de una pieza `tailMount` (chizito extra). */
+  mountsOnTail?: boolean;
+
   /** Puede atravesar otras piezas (palito: sí; papita: entra de canto). */
   canPierce: boolean;
   /** Puede ser atravesada por otras piezas. */

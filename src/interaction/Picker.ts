@@ -70,6 +70,29 @@ export class Picker {
     return { node: raw.node, point: raw.point, normal: this.smoothNormal(raw.node, raw.point, raw.normal) };
   }
 
+  /**
+   * Superficie de un objeto suelto (p. ej. el chizito en la mano que se va a ensartar), aunque esté
+   * en `ignore`. Normal suavizada como en `pickSurface`.
+   */
+  pickObject(ndcX: number, ndcY: number, obj: THREE.Object3D): { point: THREE.Vector3; normal: THREE.Vector3 } | null {
+    const ray = this.setRay(ndcX, ndcY);
+    const meshes: THREE.Mesh[] = [];
+    obj.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.visible && !m.userData.noPick && !this.belongsToOtherPiece(m, obj)) meshes.push(m);
+    });
+    const hit = ray.intersectObjects(meshes, false)[0];
+    if (!hit) return null;
+    const n = hitNormal(hit, hit.object as THREE.Mesh);
+    return { point: hit.point.clone(), normal: this.averageNormal(meshes, hit.point, n) };
+  }
+
+  /** true si la malla es de una pieza clavada dentro de `obj` (y no de `obj` mismo). */
+  private belongsToOtherPiece(m: THREE.Object3D, obj: THREE.Object3D): boolean {
+    for (let cur: THREE.Object3D | null = m; cur && cur !== obj; cur = cur.parent) if (cur.userData.pieceId) return true;
+    return false;
+  }
+
   private targets(): { mesh: THREE.Mesh; node: PieceNode }[] {
     const out: { mesh: THREE.Mesh; node: PieceNode }[] = [];
     for (const node of this.construction.nodes.values()) {
@@ -112,10 +135,13 @@ export class Picker {
    * Se promedian las normales de 4 rayos vecinos (±1,8 mm) disparados contra la superficie.
    */
   private smoothNormal(node: PieceNode, p: THREE.Vector3, n: THREE.Vector3): THREE.Vector3 {
+    return this.averageNormal(this.targets().filter((t) => t.node === node).map((t) => t.mesh), p, n);
+  }
+
+  private averageNormal(meshes: THREE.Mesh[], p: THREE.Vector3, n: THREE.Vector3): THREE.Vector3 {
     const t1 = new THREE.Vector3().crossVectors(n, Math.abs(n.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize();
     const t2 = new THREE.Vector3().crossVectors(n, t1);
     const acc = n.clone();
-    const meshes = this.targets().filter((t) => t.node === node).map((t) => t.mesh);
     const r = 0.0018;
     for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const origin = p.clone().addScaledVector(n, 0.006).addScaledVector(t1, a * r).addScaledVector(t2, b * r);

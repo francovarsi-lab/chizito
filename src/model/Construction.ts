@@ -13,6 +13,11 @@ export interface PieceData {
   seed: number;
   /** Parámetros de forma/variante elegidos por el jugador (mordiscos, variante…). Opcional. */
   params?: Record<string, unknown>;
+  /**
+   * 'tail': la pieza se ensartó en la cola libre de su padre (chizito sobre un palito). En ese caso
+   * `entryPoint` y `direction` están en coordenadas de la PROPIA pieza (por dónde le entra el palito).
+   */
+  mount?: 'tail';
   /** Punto de entrada en coordenadas locales del padre. */
   entryPoint: [number, number, number];
   /** Dirección de inserción (unitaria, local al padre). */

@@ -62,6 +62,11 @@ export interface ActivePiece {
   popT?: number;
   /** Parámetros de forma elegidos por el jugador (mordiscos de la papita, variante…). */
   params: Record<string, unknown>;
+  /**
+   * Pieza larga (palito) en cuya cola se está ensartando esta (chizito extra). Mientras está en la
+   * mano (HOLDING) se "presenta" sobre la punta; desde AIMING, `aim` vive en el marco de ESTA pieza.
+   */
+  mount?: PieceNode;
 }
 
 export type FeedbackEvent = 'pick' | 'drop' | 'contact' | 'inserting' | 'out' | 'remove' | 'break';
@@ -118,6 +123,10 @@ export class InteractionController {
   /** Última variante elegida por tipo (al volver a agarrar se ofrece la misma). */
   private lastVariant = new Map<string, string>();
   private hover: SurfaceHit | null = null;
+  /** Punto del chizito presentado (para ensartar) bajo el cursor, en mundo. */
+  private mountHover: { point: THREE.Vector3; normal: THREE.Vector3 } | null = null;
+  private readonly tmpM = new THREE.Matrix4();
+  private readonly tmpM2 = new THREE.Matrix4();
   private resetArmedUntil = 0;
   /** Objetos de piezas quitadas, para reutilizarlos al deshacer sin regenerar la malla. */
   private readonly graveyard = new Map<string, THREE.Object3D>();
@@ -192,6 +201,19 @@ export class InteractionController {
           if (bowl !== was && this.canGrab(bowl)) this.grab(bowl);
           break;
         }
+        if (this.active && this.mountOnly(this.active)) {
+          // Chizito extra: primero se elige el palito; después, sobre el chizito, por dónde entra.
+          const a = this.active;
+          const spot = a.mount ? picker.pickObject(p.ndcX, p.ndcY, a.object) : null;
+          if (spot) {
+            this.beginMountAim(spot);
+            break;
+          }
+          const tail = this.pickFreeTail();
+          if (tail) this.presentMount(tail);
+          else if (a.mount) this.cancelMount();
+          break;
+        }
         const hit = picker.pickSurface(p.ndcX, p.ndcY);
         if (hit) this.beginAim(hit);
         break;
@@ -237,8 +259,10 @@ export class InteractionController {
       return;
     }
     if (this.state === InteractionState.AIMING && this.active) {
-      // La pieza pivota alrededor de la punta: la cola sigue al mouse.
-      this.active.aim.addTilt(dx * TILT_PER_PX, -dy * TILT_PER_PX);
+      // La pieza pivota alrededor de la punta: la cola sigue al mouse. Ensartando un chizito, lo que
+      // se mueve es el chizito (el palito queda quieto), así que el gesto se invierte.
+      const k = this.active.mount ? -TILT_PER_PX : TILT_PER_PX;
+      this.active.aim.addTilt(dx * k, -dy * k);
     }
   }
 
@@ -255,7 +279,7 @@ export class InteractionController {
       this.wheelTarget = a.aim.depth;
       this.wheelBefore = this.snapshot();
     }
-    this.wheelTarget = THREE.MathUtils.clamp(this.wheelTarget - dy * WHEEL_M_PER_PX, -AIM_GAP * 2, a.def.maxDepth);
+    this.wheelTarget = THREE.MathUtils.clamp(this.wheelTarget - dy * WHEEL_M_PER_PX, -AIM_GAP * 2, this.maxDepth(a));
     this.wheelIdle = 0;
     this.d.overlay.dismissHint(300);
   }
@@ -285,7 +309,7 @@ export class InteractionController {
       if (wb) this.record('sacar', wb);
       return;
     }
-    aim.pose(a.object.position, a.object.quaternion);
+    this.pose(a);
     if (a.node) aim.writeData(a.node.data, a.object);
     if (Math.abs(this.wheelTarget - aim.depth) < 1e-5) {
       this.wheelIdle += dt;
@@ -322,8 +346,14 @@ export class InteractionController {
       return;
     }
     if (e.code === 'Escape') {
-      if (this.state === InteractionState.HOLDING) this.returnToBowl();
-      else if (this.state === InteractionState.AIMING) this.backToHand();
+      if (this.state === InteractionState.HOLDING && this.active?.mount) this.cancelMount();
+      else if (this.state === InteractionState.HOLDING) this.returnToBowl();
+      else if (this.state === InteractionState.AIMING && this.active?.mount && !this.active.node) {
+        // Ensartando: vuelve a la presentación sobre la punta para elegir otro punto.
+        this.active.parent = null;
+        this.active.aim.tiltX = this.active.aim.tiltY = 0;
+        this.state = InteractionState.HOLDING;
+      } else if (this.state === InteractionState.AIMING) this.backToHand();
       else if (this.state === InteractionState.PLACED || this.state === InteractionState.SELECTED_PLACED_PIECE) this.release();
       return;
     }
@@ -339,7 +369,7 @@ export class InteractionController {
       const before = settled ? this.snapshot() : null;
       a.aim.spin += e.code === 'KeyQ' ? -SPIN_STEP : SPIN_STEP;
       if (a.node && this.state !== InteractionState.HOLDING) {
-        a.aim.pose(a.object.position, a.object.quaternion);
+        this.pose(a);
         a.aim.writeData(a.node.data, a.object);
       }
       if (before) this.record('girar', before);
@@ -375,7 +405,7 @@ export class InteractionController {
 
   private canGrab(type: string): boolean {
     const def = this.d.pieces.get(type);
-    return def.canPierce;
+    return def.canPierce || !!def.mountsOnTail;
   }
 
   private grab(type: string): void {
@@ -452,6 +482,7 @@ export class InteractionController {
       seed: node.data.seed,
       selected: true,
       params: node.data.params ? structuredClone(node.data.params) : {},
+      mount: node.data.mount === 'tail' && node.parent ? node.parent : undefined,
     };
     this.d.picker.ignore.add(node.object);
     setHighlight(node.object, true);
@@ -513,6 +544,108 @@ export class InteractionController {
     return fresh;
   }
 
+  // ───────────────────────────── ensartar en la cola ─────────────────────────────
+
+  /** Pieza que no se clava sino que se ensarta en la cola de un palito (chizito extra). */
+  private mountOnly(a: ActivePiece): boolean {
+    return !!a.def.mountsOnTail && !a.def.canPierce;
+  }
+
+  /** Palito (u otra pieza `tailMount`) clavado bajo el cursor con la cola libre, o null. */
+  private pickFreeTail(): PieceNode | null {
+    const p = this.d.input.pointer;
+    const node = this.d.picker.pickPlaced(p.ndcX, p.ndcY);
+    if (!node || !this.d.pieces.get(node.data.type).tailMount) return null;
+    return node.children.some((c) => c.data.mount === 'tail') ? null : node;
+  }
+
+  /** Presenta el chizito en la mano sobre la punta libre del palito, para elegir por dónde entra. */
+  private presentMount(node: PieceNode): void {
+    const a = this.active!;
+    tailFrame(node.object); // se calcula antes de colgarle nada
+    a.mount = node;
+    node.object.attach(a.object);
+    setGhost(a.object, null);
+    this.hover = null;
+    this.mountHover = null;
+    this.d.overlay.hint('mount', 'tocá el chizito donde quieras que le entre el palito · Esc cancela');
+  }
+
+  private cancelMount(): void {
+    const a = this.active!;
+    this.d.scene.attach(a.object);
+    a.mount = undefined;
+    this.mountHover = null;
+  }
+
+  /** Pose de presentación (local al palito): el chizito acostado sobre la punta, de cara a la cámara. */
+  private presentPose(a: ActivePiece, k: number): void {
+    const P = a.mount!.object;
+    const tail = this.tmpV.setFromMatrixPosition(tailFrame(P));
+    const r = a.def.dimensions.thickness / 2;
+    this.targetPos.copy(tail).add(this.tmpV2.set(0, r + 0.007, 0));
+    P.updateMatrixWorld(true);
+    const inv = P.getWorldQuaternion(this.tmpQ).invert();
+    const y = new THREE.Vector3(0, 1, 0);
+    const x = new THREE.Vector3(1, 0, 0).applyQuaternion(this.d.camera.quaternion).applyQuaternion(inv);
+    x.addScaledVector(y, -x.dot(y));
+    if (x.lengthSq() < 1e-6) x.set(1, 0, 0);
+    x.normalize();
+    const z = new THREE.Vector3().crossVectors(x, y);
+    this.targetQuat.setFromRotationMatrix(this.tmpM.makeBasis(x, y, z));
+    a.object.position.lerp(this.targetPos, k);
+    a.object.quaternion.slerp(this.targetQuat, k);
+  }
+
+  /** Clic sobre el chizito presentado: ese punto es la "superficie" donde entra la cola del palito. */
+  private beginMountAim(spot: { point: THREE.Vector3; normal: THREE.Vector3 }): void {
+    const a = this.active!;
+    const obj = a.object;
+    obj.updateMatrixWorld(true);
+    const inv = this.tmpM.copy(obj.matrixWorld).invert();
+    const entry = spot.point.clone().applyMatrix4(inv);
+    const normal = spot.normal.clone().transformDirection(inv);
+    const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(this.d.camera.quaternion).transformDirection(inv);
+    a.aim.setFrame(entry, normal, camRight);
+    a.aim.tiltX = a.aim.tiltY = 0;
+    a.aim.depth = -AIM_GAP;
+    a.aim.spin = 0;
+    a.parent = a.mount!;
+    this.mountHover = null;
+    this.state = InteractionState.AIMING;
+    this.d.overlay.hint('aiming-mount', 'mové el mouse para inclinarlo · mantené apretado (o Ctrl + rueda) para ensartarlo');
+  }
+
+  /**
+   * Pose de la pieza activa según su apuntado. Ensartando, `aim` describe una "punta virtual" (la cola
+   * del palito, mirando hacia el palito) clavada en el chizito; el chizito queda en
+   * cola · inversa(punta en el chizito), en coordenadas del palito. Con `smooth` se acerca suave.
+   */
+  private pose(a: ActivePiece, smooth = 0): void {
+    if (!a.mount) {
+      a.aim.pose(a.object.position, a.object.quaternion);
+      return;
+    }
+    a.aim.pose(this.tmpV, this.tmpQ);
+    const tipInPiece = this.tmpM2.compose(this.tmpV, this.tmpQ, ONE).invert();
+    this.tmpM.copy(tailFrame(a.mount.object)).multiply(tipInPiece);
+    this.tmpM.decompose(this.targetPos, this.targetQuat, this.tmpV2);
+    if (smooth > 0) {
+      a.object.position.lerp(this.targetPos, smooth);
+      a.object.quaternion.slerp(this.targetQuat, smooth);
+    } else {
+      a.object.position.copy(this.targetPos);
+      a.object.quaternion.copy(this.targetQuat);
+    }
+  }
+
+  /** Profundidad máxima: la propia de la pieza o, ensartando, lo que queda del palito afuera. */
+  private maxDepth(a: ActivePiece): number {
+    if (!a.mount) return a.def.maxDepth;
+    const tailY = new THREE.Vector3().setFromMatrixPosition(tailFrame(a.mount.object)).y;
+    return Math.max(0.004, tailY - a.mount.data.depth - 0.003);
+  }
+
   /** De AIMING (o al sacarla del todo) vuelve a la mano. */
   private backToHand(): void {
     const a = this.active;
@@ -536,6 +669,8 @@ export class InteractionController {
       this.d.scene.attach(a.object);
     }
     a.parent = null;
+    a.mount = undefined;
+    this.mountHover = null;
     a.aim.depth = -AIM_GAP;
     a.aim.tiltX = a.aim.tiltY = 0;
     this.state = InteractionState.HOLDING;
@@ -620,6 +755,7 @@ export class InteractionController {
       localMatrix: [],
       params: Object.keys(a.params).length ? structuredClone(a.params) : undefined,
     };
+    if (a.mount) data.mount = 'tail';
     a.aim.writeData(data, a.object);
     a.node = this.d.construction.add(data, a.object);
     this.emit('contact', this.info(a, 0));
@@ -738,7 +874,8 @@ export class InteractionController {
       case InteractionState.PLACED:
       case InteractionState.SELECTED_PLACED_PIECE:
         if (this.wheelTarget !== null) this.updateWheel(a, dt);
-        else a.aim.pose(a.object.position, a.object.quaternion);
+        // El chizito que se ensarta se acomoda suave al cambiar el punto o el ángulo.
+        else this.pose(a, a.mount && this.state === InteractionState.AIMING ? 1 - Math.exp(-dt * 14) : 0);
         break;
       case InteractionState.INSERTING:
         this.updateInserting(a, dt);
@@ -752,8 +889,14 @@ export class InteractionController {
   private updateHolding(a: ActivePiece, dt: number): void {
     const { input, picker, camera, center } = this.d;
     const p = input.pointer;
-    const hit = this.rotating ? this.hover : picker.pickSurface(p.ndcX, p.ndcY);
     const k = 1 - Math.exp(-dt * 16);
+    if (a.mount) {
+      // Presentado sobre la punta del palito: el anillo muestra por dónde le entraría.
+      this.presentPose(a, k);
+      if (!this.rotating) this.mountHover = picker.pickObject(p.ndcX, p.ndcY, a.object);
+      return;
+    }
+    const hit = this.mountOnly(a) || this.rotating ? (this.mountOnly(a) ? null : this.hover) : picker.pickSurface(p.ndcX, p.ndcY);
     if (hit) {
       // Previsualización: perpendicular a la superficie, la punta apenas afuera.
       if (!this.hover) this.hoverNormal.copy(hit.normal);
@@ -785,7 +928,7 @@ export class InteractionController {
     const { input } = this.d;
     if (!input.buttons.left) {
       this.stopPress();
-      a.aim.pose(a.object.position, a.object.quaternion);
+      this.pose(a);
       return;
     }
     this.pressTime += dt;
@@ -795,7 +938,7 @@ export class InteractionController {
     if (this.press === 'push') {
       const crust = aim.depth < 0 ? 1 : 0.3 + 0.7 * THREE.MathUtils.smoothstep(aim.depth, 0.0005, 0.0045);
       const before = aim.depth;
-      aim.depth = Math.min(a.def.maxDepth, aim.depth + PUSH_SPEED * accel * crust * dt);
+      aim.depth = Math.min(this.maxDepth(a), aim.depth + PUSH_SPEED * accel * crust * dt);
       if (before <= 0 && aim.depth > 0) this.commit(a);
       else if (aim.depth > 0 && aim.depth > before) this.emit('inserting', this.info(a, dt));
     } else if (this.press === 'pull') {
@@ -803,7 +946,7 @@ export class InteractionController {
       if (aim.depth <= 0) {
         const info = this.info(a, dt);
         aim.depth = 0;
-        aim.pose(a.object.position, a.object.quaternion);
+        this.pose(a);
         const before = this.pressBefore;
         this.press = null;
         this.pressBefore = null;
@@ -813,13 +956,15 @@ export class InteractionController {
         return;
       }
     }
-    aim.pose(a.object.position, a.object.quaternion);
+    this.pose(a);
     if (a.node) aim.writeData(a.node.data, a.object);
   }
 
   /** Punto de entrada, normal y dirección de avance en mundo, para el feedback. */
   private info(a: ActivePiece, dt: number): FeedbackInfo {
-    const obj = a.parent?.object ?? a.object.parent ?? this.d.scene;
+    // Ensartando, el punto de entrada está sobre la propia pieza (el chizito nuevo).
+    const target = a.mount ? a.object : a.parent?.object ?? null;
+    const obj = target ?? a.object.parent ?? this.d.scene;
     obj.updateMatrixWorld(true);
     const point = a.aim.entry.clone().applyMatrix4(obj.matrixWorld);
     const normal = a.aim.normal.clone().transformDirection(obj.matrixWorld);
@@ -831,7 +976,7 @@ export class InteractionController {
       dir,
       depth: a.aim.depth,
       dt,
-      parent: a.parent?.object ?? null,
+      parent: target,
       localPoint: a.aim.entry.clone(),
       localNormal: a.aim.normal.clone(),
     };
@@ -861,15 +1006,18 @@ export class InteractionController {
     (this.ring.material as THREE.MeshBasicMaterial).opacity = 0.26 + 0.16 * breath;
     this.ring.scale.setScalar(1 + 0.12 * breath);
     const show =
-      (this.state === InteractionState.HOLDING && this.hover !== null) ||
+      (this.state === InteractionState.HOLDING && (this.hover !== null || (!!a.mount && this.mountHover !== null))) ||
       (this.state === InteractionState.AIMING && a.parent !== null);
     this.ring.visible = show;
     if (!show) return;
-    if (this.state === InteractionState.HOLDING && this.hover) {
+    if (this.state === InteractionState.HOLDING && a.mount && this.mountHover) {
+      this.ring.position.copy(this.mountHover.point).addScaledVector(this.mountHover.normal, 0.0003);
+      this.ring.quaternion.setFromUnitVectors(Z_UP, this.mountHover.normal);
+    } else if (this.state === InteractionState.HOLDING && this.hover) {
       this.ring.position.copy(this.hover.point).addScaledVector(this.hoverNormal, 0.0003);
       this.ring.quaternion.setFromUnitVectors(Z_UP, this.hoverNormal);
     } else if (a.parent) {
-      const obj = a.parent.object;
+      const obj = a.mount ? a.object : a.parent.object;
       const n = this.tmpV.copy(a.aim.normal).transformDirection(obj.matrixWorld);
       this.ring.position.copy(a.aim.entry).applyMatrix4(obj.matrixWorld).addScaledVector(n, 0.0003);
       this.ring.quaternion.setFromUnitVectors(Z_UP, n);
@@ -879,7 +1027,7 @@ export class InteractionController {
   private updateAngleLabel(a: ActivePiece): void {
     const s = this.state;
     const showing =
-      (s === InteractionState.HOLDING && this.hover) || s === InteractionState.AIMING || (s === InteractionState.INSERTING && !a.node);
+      (s === InteractionState.HOLDING && (this.hover || (a.mount && this.mountHover))) || s === InteractionState.AIMING || (s === InteractionState.INSERTING && !a.node);
     if (!showing) {
       this.d.overlay.setAngle(null);
       return;
@@ -887,7 +1035,9 @@ export class InteractionController {
     const [x, y] = s === InteractionState.HOLDING ? [90, 90] : a.aim.displayAngles();
     // Junto a la pieza, sobre su eje, hacia la cola.
     a.object.updateMatrixWorld(true);
-    const p = this.tmpV.set(0, a.def.dimensions.length * 0.85, 0).applyMatrix4(a.object.matrixWorld).project(this.d.camera);
+    const p = a.mount
+      ? this.tmpV.setFromMatrixPosition(tailFrame(a.mount.object)).applyMatrix4(a.mount.object.matrixWorld).project(this.d.camera)
+      : this.tmpV.set(0, a.def.dimensions.length * 0.85, 0).applyMatrix4(a.object.matrixWorld).project(this.d.camera);
     const sx = (p.x * 0.5 + 0.5) * window.innerWidth + 14;
     const sy = (-p.y * 0.5 + 0.5) * window.innerHeight - 6;
     this.d.overlay.setAngle(`X ${x}° · Y ${y}°`, sx, sy);
@@ -899,10 +1049,59 @@ export class InteractionController {
     const busy = this.state === InteractionState.INSERTING;
     const overBowl = !busy && this.d.picker.pickBowl(p.ndcX, p.ndcY) !== null;
     const canSelect = this.state === InteractionState.IDLE || this.state === InteractionState.PLACED || this.state === InteractionState.SELECTED_PLACED_PIECE;
-    const overPiece = !busy && !overBowl && canSelect && this.d.picker.pickPlaced(p.ndcX, p.ndcY) !== null;
+    const a = this.active;
+    const mounting = this.state === InteractionState.HOLDING && !!a && this.mountOnly(a);
+    const overPiece =
+      !busy &&
+      !overBowl &&
+      ((canSelect && this.d.picker.pickPlaced(p.ndcX, p.ndcY) !== null) ||
+        (mounting && (this.pickFreeTail() !== null || (!!a.mount && this.mountHover !== null))));
     document.body.classList.toggle('over-bowl', overBowl || overPiece);
   }
 }
 
 const Y_UP = new THREE.Vector3(0, 1, 0);
 const Z_UP = new THREE.Vector3(0, 0, 1);
+const ONE = new THREE.Vector3(1, 1, 1);
+
+/**
+ * Marco de la cola de una pieza larga, local a la pieza: origen en el centro del corte de la cola y
+ * +Y mirando de vuelta hacia el cuerpo (como la punta de una pieza que se clava). Se calcula una vez
+ * a partir de la malla (sirve igual para el procedural y para un GLB).
+ */
+function tailFrame(obj: THREE.Object3D): THREE.Matrix4 {
+  const cached = obj.userData.tailFrame as THREE.Matrix4 | undefined;
+  if (cached) return cached;
+  obj.updateMatrixWorld(true);
+  const inv = obj.matrixWorld.clone().invert();
+  const meshes: { m: THREE.Mesh; toLocal: THREE.Matrix4 }[] = [];
+  obj.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    // Sólo la malla propia: nada de lo que tenga colgado (otras piezas).
+    for (let cur: THREE.Object3D | null = m; cur && cur !== obj; cur = cur.parent) if (cur.userData.pieceId) return;
+    meshes.push({ m, toLocal: inv.clone().multiply(m.matrixWorld) });
+  });
+  const v = new THREE.Vector3();
+  let maxY = -Infinity;
+  for (const { m, toLocal } of meshes) {
+    const pos = m.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) maxY = Math.max(maxY, v.fromBufferAttribute(pos, i).applyMatrix4(toLocal).y);
+  }
+  const acc = new THREE.Vector3();
+  let n = 0;
+  for (const { m, toLocal } of meshes) {
+    const pos = m.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(toLocal);
+      if (v.y > maxY - 0.0004) {
+        acc.add(v);
+        n++;
+      }
+    }
+  }
+  acc.divideScalar(Math.max(1, n));
+  const frame = new THREE.Matrix4().makeRotationX(Math.PI).setPosition(acc.x, maxY, acc.z);
+  obj.userData.tailFrame = frame;
+  return frame;
+}
