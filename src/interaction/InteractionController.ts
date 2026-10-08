@@ -37,9 +37,9 @@ export enum InteractionState {
   SELECTED_PLACED_PIECE = 'SELECTED_PLACED_PIECE',
 }
 
-/** Velocidades del clavado (m/s), proporcionales al largo del palito (7 cm). */
-const PUSH_SPEED = 0.04;
-const PULL_SPEED = 0.048;
+/** Velocidades del clavado (m/s), proporcionales al largo del palito (3,5 cm). */
+const PUSH_SPEED = 0.02;
+const PULL_SPEED = 0.024;
 /** Sensibilidad del ángulo con el mouse (rad/px). */
 const TILT_PER_PX = THREE.MathUtils.degToRad(0.32);
 /** Giro propio con Q / E (rad por pulsación); sirve sobre todo para orientar la papita. */
@@ -457,7 +457,7 @@ export class InteractionController {
 
   private bowlWorldPos(type: string): THREE.Vector3 {
     const bowl = this.d.picker.bowls.get(type);
-    return bowl ? bowl.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.07, 0)) : this.d.center.clone();
+    return bowl ? bowl.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.04, 0)) : this.d.center.clone();
   }
 
   // ───────────────────────────── deshacer / reiniciar ─────────────────────────────

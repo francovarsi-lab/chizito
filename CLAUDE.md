@@ -23,8 +23,7 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - Palito: según el modelo 3D de referencia (3 palitos interpretados como uno): cilindro de grosor parejo con curva
   leve distinta en cada uno, puntas CORTADAS planas con borde redondeado, superficie lisa con hoyitos y rayitas.
   Dorado de horneado / marrón claro (#d4a15e), claramente distinto del chizito; puntas y hoyitos más tostados;
-  granos de sal gruesa (malla aparte, hija del palito). 7 cm × Ø 3,6 mm (≈ 1,45 × el chizito: con 3,4 cm las
-  extremidades no se leían como "hombrecito"; el real mide ~2 × el chizito, 7 cm entra mejor en el encuadre).
+  granos de sal gruesa (malla aparte, hija del palito). 3,5 cm × Ø 3,4 mm (el usuario pidió la mitad de 7 cm).
 - Tone mapping Neutral (Khronos PBR Neutral) por defecto + `LookEffect` (saturación/brillo/contraste acotados).
   `?tm=aces` / `?tm=agx` para comparar. No usar HueSaturationEffect de postprocessing: genera negativos → negros.
 - Colores por vértice: `new THREE.Color('#hex')` YA está en lineal; no volver a convertir (antes se linealizaba
@@ -32,7 +31,7 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 
 ## Escala (1 unidad = 1 metro)
 - Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
-- Palito: 7 cm, Ø 3,6 mm. Papita: Ø ~5 cm, 1,5 mm.
+- Palito: 3,5 cm, Ø 3,4 mm. Papita: Ø ~5 cm, 1,5 mm.
 - Mesa en y = 0. Chizito flotando con centro en y = 7,2 cm (`CONFIG.chizitoCenter`).
 - Cámara fija en (0, 12,2 cm, 20 cm) mirando al chizito con leve inclinación; 50 mm sobre film de 36 mm.
 
@@ -55,7 +54,7 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - Sombra del chizito: `ContactShadow` (silueta de las piezas héroe vista desde la luz, desenfocada y proyectada sobre
   la mesa). El chizito y lo clavado están en `HERO_LAYER` y NO proyectan la sombra dura del sol.
 - Fondo: mesa de madera con mantel de cumpleaños de plástico celeste con confeti, apenas girado (se ve madera al fondo a la
-  derecha). Palitos parados en un vaso descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
+  derecha). Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
   el vaso = un palito). Bowl de cerámica blanca con papitas abajo a la izquierda.
   Al fondo: bowl de chizitos, bowl de papitas, vasos descartables, gaseosa genérica (sin marca), servilletas, gorrito.
 
@@ -81,10 +80,10 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - Clic sobre el chizito fija el punto (AIMING): mover el mouse pivota la cola alrededor de la punta
   (0,32°/px, máx. 85° respecto de la normal); flechas 1° (Shift: 5°). Ángulo discreto "X 90° · Y 26°"
   (ángulo respecto de la superficie en cada eje; 90° = perpendicular).
-- Mantener clic izquierdo = hundir (INSERTING): 4 cm/s (proporcional al largo) con arranque suave y resistencia en los primeros 4 mm
+- Mantener clic izquierdo = hundir (INSERTING): 2 cm/s (proporcional al largo) con arranque suave y resistencia en los primeros 4 mm
   (la "costra"); al entrar la punta el ángulo queda trabado. Soltar = PLACED. Volver a mantener = más adentro.
   **Shift + mantener clic izquierdo = sacar** (único gesto para sacar); si sale del todo vuelve a la mano.
-  Atraviesa el chizito (y lo que haya en el camino); siempre queda afuera el 20 % del largo (≈ 1,4 cm).
+  Atraviesa el chizito (y lo que haya en el camino); siempre queda afuera el 20 % del largo (≈ 7 mm).
 - En PLACED: mantener actúa siempre sobre el palito recién clavado (el cursor suele quedar lejos tras apuntar);
   clic en el bowl = otro palito (el anterior queda clavado). Esc: devuelve
   (HOLDING), vuelve a la mano (AIMING) o suelta (PLACED).

@@ -57,7 +57,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
     clearcoatRoughness: 0.12,
   });
   // Palitos parados en un vaso descartable blanco, como en los cumpleaños.
-  const palitoCup = makePalitoCup(assets, 34, 3);
+  const palitoCup = makePalitoCup(assets, 28, 3);
   palitoCup.position.copy(BOWL_LAYOUT.palito);
   palitoCup.userData.bowlFor = 'palito';
   root.add(palitoCup);
@@ -272,9 +272,10 @@ function makePartyHat(x: number, z: number): THREE.Group {
 function makePalitoCup(assets: AssetRegistry, count: number, seed: number): THREE.Group {
   const g = new THREE.Group();
   g.name = 'vaso-palitos';
-  const h = 0.058;
-  const r0 = 0.022;
-  const r1 = 0.032;
+  // Vasito descartable chico: los palitos (3,5 cm) asoman ~1,2 cm del borde.
+  const h = 0.026;
+  const r0 = 0.017;
+  const r1 = 0.024;
   const pts: THREE.Vector2[] = [new THREE.Vector2(0, 0.0015), new THREE.Vector2(r0 - 0.001, 0.0015), new THREE.Vector2(r0, 0.003)];
   for (let i = 0; i <= 24; i++) {
     const a = i / 24;

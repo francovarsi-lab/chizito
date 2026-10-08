@@ -54,10 +54,9 @@ export function palitoMaterial(): THREE.MeshPhysicalMaterial {
  * Dorado de horneado (marrón claro), con puntas y hoyitos más tostados y granos de sal gruesa.
  */
 export const CHIZITO_REF_LENGTH = 0.048;
-// Largo ≈ 1,45 × el chizito: lo suficiente para que brazos y piernas se lean como extremidades
-// (en la vida real el palito mide ~2 veces el chizito; 7 cm entra mejor en el encuadre de la cámara fija).
-export const PALITO_LENGTH = 0.07;
-export const PALITO_RADIUS = 0.0018; // Ø ≈ 3,6 mm (largo/grosor ≈ 19, como un palito salado real)
+// Largo ≈ 0,73 × el chizito (pedido del usuario: la mitad del palito de 7 cm).
+export const PALITO_LENGTH = 0.035;
+export const PALITO_RADIUS = 0.0017; // Ø ≈ 3,4 mm (largo/grosor ≈ 10, como en el modelo de referencia)
 
 interface Pit {
   s: number; // posición a lo largo (m)
@@ -85,7 +84,7 @@ export function buildPalitoGeometry(seed: number, detail: 'hero' | 'prop' = 'her
   // Hoyitos y rayitas (sólo en el detalle "hero"; en el bowl no se ven).
   const pits: Pit[] = [];
   if (detail === 'hero') {
-    const n = 60 + Math.floor(rnd() * 40);
+    const n = 30 + Math.floor(rnd() * 20);
     for (let i = 0; i < n; i++) {
       const scratch = rnd() < 0.3;
       pits.push({
@@ -193,7 +192,7 @@ function saltGrains(geo: THREE.BufferGeometry, seed: number): THREE.Mesh | null 
   geo.computeBoundingBox();
   const minY = geo.boundingBox!.min.y + 0.004;
   const maxY = geo.boundingBox!.max.y - 0.004;
-  const count = 14 + Math.floor(rnd() * 14);
+  const count = 7 + Math.floor(rnd() * 8);
   const parts: THREE.BufferGeometry[] = [];
   const p = new THREE.Vector3();
   const n = new THREE.Vector3();
