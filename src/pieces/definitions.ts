@@ -23,8 +23,8 @@ export const PALITO: PieceDefinition = {
   procedural: (seed, detail) => createPalito(seed, detail),
   canPierce: true,
   canBePierced: false,
-  // Siempre queda ~1 cm afuera (con un palito de 3,4 cm, 1,5 cm no dejaría atravesar el chizito).
-  maxDepth: PALITO_LENGTH - 0.01,
+  // Siempre queda afuera ~20 % del largo (≈ 1,4 cm con 7 cm), proporcional al 1,5 cm original.
+  maxDepth: PALITO_LENGTH * 0.8,
   sounds: { pick: 'pick', drop: 'drop', contact: 'crack', insert: 'crunch' },
 };
 

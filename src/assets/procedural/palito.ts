@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Simplex3, mulberry32 } from '../../util/noise';
 import { HeightField, Profiles } from './HeightField';
 import { buildTube } from './tube';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
  * Palito salado procedural. Convención de pieza "perforante": la PUNTA está en el origen
@@ -37,11 +38,11 @@ export function palitoMaterial(): THREE.MeshPhysicalMaterial {
     normalMap: normal,
     roughnessMap: rough,
     roughness: 1,
-    // Brillo leve de fritura + polvo de queso.
-    clearcoat: 0.15,
-    clearcoatRoughness: 0.5,
-    sheen: 0.45,
-    sheenColor: new THREE.Color('#ffd08a'),
+    // Brillo leve del horneado (glaseado de la masa).
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.45,
+    sheen: 0.3,
+    sheenColor: new THREE.Color('#f3dcb0'),
     sheenRoughness: 0.6,
   });
   return sharedMaterial;
@@ -50,11 +51,13 @@ export function palitoMaterial(): THREE.MeshPhysicalMaterial {
 /**
  * Palito según el modelo 3D de referencia: cilindro de grosor parejo con una curva leve, puntas
  * CORTADAS planas con el borde redondeado, superficie lisa con hoyitos y rayitas sueltas.
- * Largo = 0,7 × el largo del chizito (más corto que el chizito, más largo que su grosor).
+ * Dorado de horneado (marrón claro), con puntas y hoyitos más tostados y granos de sal gruesa.
  */
 export const CHIZITO_REF_LENGTH = 0.048;
-export const PALITO_LENGTH = 0.7 * CHIZITO_REF_LENGTH; // ≈ 3,4 cm
-export const PALITO_RADIUS = 0.0017; // Ø ≈ 3,4 mm (largo/grosor ≈ 10)
+// Largo ≈ 1,45 × el chizito: lo suficiente para que brazos y piernas se lean como extremidades
+// (en la vida real el palito mide ~2 veces el chizito; 7 cm entra mejor en el encuadre de la cámara fija).
+export const PALITO_LENGTH = 0.07;
+export const PALITO_RADIUS = 0.0018; // Ø ≈ 3,6 mm (largo/grosor ≈ 19, como un palito salado real)
 
 interface Pit {
   s: number; // posición a lo largo (m)
@@ -82,7 +85,7 @@ export function buildPalitoGeometry(seed: number, detail: 'hero' | 'prop' = 'her
   // Hoyitos y rayitas (sólo en el detalle "hero"; en el bowl no se ven).
   const pits: Pit[] = [];
   if (detail === 'hero') {
-    const n = 30 + Math.floor(rnd() * 20);
+    const n = 60 + Math.floor(rnd() * 40);
     for (let i = 0; i < n; i++) {
       const scratch = rnd() < 0.3;
       pits.push({
@@ -142,17 +145,21 @@ export function buildPalitoGeometry(seed: number, detail: 'hero' | 'prop' = 'her
     }
     return d;
   };
-  const orange = new THREE.Color('#f2a240');
-  const light = new THREE.Color('#f8bd66');
-  const dark = new THREE.Color('#d9822e');
+  // Dorado de horneado: claramente distinto del amarillo del chizito.
+  const golden = new THREE.Color('#d4a15e');
+  const light = new THREE.Color('#e6c38c');
+  const toasted = new THREE.Color('#9c6230');
   const color = (p: THREE.Vector3, _n: THREE.Vector3, u: number, _th: number, d: number, out: THREE.Color) => {
     const t = noise.fbm(p.x * 260, p.y * 120, p.z * 260, 3) * 0.5 + 0.5;
-    out.copy(orange).lerp(light, THREE.MathUtils.smoothstep(t, 0.4, 0.9) * 0.6);
-    out.lerp(dark, THREE.MathUtils.smoothstep(noise.noise(p.y * 90, p.x * 300, 4), 0.5, 0.95) * 0.35);
-    // Hoyitos un poco más oscuros (sombra interna).
-    if (d < -0.00004) out.lerp(dark, Math.min(1, -d / 0.00018) * 0.6);
-    // Caras del corte: miga algo más clara.
-    if (rOf(u) < R - bevel * 0.5) out.lerp(light, 0.35);
+    out.copy(golden).lerp(light, THREE.MathUtils.smoothstep(t, 0.4, 0.9) * 0.55);
+    out.lerp(toasted, THREE.MathUtils.smoothstep(noise.noise(p.y * 80, p.x * 300, 4), 0.55, 0.98) * 0.3);
+    // Hoyitos más tostados.
+    if (d < -0.00004) out.lerp(toasted, Math.min(1, -d / 0.00018) * 0.7);
+    // Puntas tostadas (los últimos ~5 mm), y la cara del corte con miga apenas más clara.
+    const sv = THREE.MathUtils.clamp(sOf(u), 0, L);
+    const e = Math.min(sv, L - sv);
+    out.lerp(toasted, (1 - THREE.MathUtils.smoothstep(e, 0.0005, 0.005)) * 0.55);
+    if (rOf(u) < R - bevel * 0.5) out.lerp(light, 0.25);
   };
 
   return buildTube({
@@ -176,10 +183,58 @@ export function buildPalitoGeometry(seed: number, detail: 'hero' | 'prop' = 'her
   });
 }
 
-export function createPalito(seed: number, detail: 'hero' | 'prop' = 'hero'): THREE.Mesh {
-  const mesh = new THREE.Mesh(buildPalitoGeometry(seed, detail), palitoMaterial());
+let saltMaterial: THREE.MeshPhysicalMaterial | null = null;
+
+/** Granos de sal gruesa sobre el cuerpo del palito (una sola malla por palito). */
+function saltGrains(geo: THREE.BufferGeometry, seed: number): THREE.Mesh | null {
+  const rnd = mulberry32(seed * 31 + 7);
+  const pos = geo.getAttribute('position');
+  const nrm = geo.getAttribute('normal');
+  geo.computeBoundingBox();
+  const minY = geo.boundingBox!.min.y + 0.004;
+  const maxY = geo.boundingBox!.max.y - 0.004;
+  const count = 14 + Math.floor(rnd() * 14);
+  const parts: THREE.BufferGeometry[] = [];
+  const p = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  for (let tries = 0; parts.length < count && tries < count * 20; tries++) {
+    const i = Math.floor(rnd() * pos.count);
+    p.fromBufferAttribute(pos, i);
+    if (p.y < minY || p.y > maxY) continue;
+    n.fromBufferAttribute(nrm, i);
+    const sz = 0.00028 + rnd() * 0.00035;
+    const g = new THREE.BoxGeometry(sz, sz * (0.7 + rnd() * 0.5), sz * (0.7 + rnd() * 0.5));
+    q.setFromEuler(new THREE.Euler(rnd() * 6, rnd() * 6, rnd() * 6));
+    m.compose(p.clone().addScaledVector(n, sz * 0.25), q, new THREE.Vector3(1, 1, 1));
+    g.applyMatrix4(m);
+    parts.push(g);
+  }
+  if (!parts.length) return null;
+  const merged = mergeGeometries(parts.map((g) => g.toNonIndexed()), false);
+  parts.forEach((g) => g.dispose());
+  saltMaterial ??= new THREE.MeshPhysicalMaterial({
+    name: 'sal',
+    color: '#f7f5ef',
+    roughness: 0.25,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.2,
+    sheen: 0.4,
+    sheenColor: new THREE.Color('#ffffff'),
+  });
+  const mesh = new THREE.Mesh(merged, saltMaterial);
+  mesh.name = 'sal';
+  return mesh;
+}
+
+export function createPalito(seed: number, detail: 'hero' | 'prop' = 'hero'): THREE.Object3D {
+  const geo = buildPalitoGeometry(seed, detail);
+  const mesh = new THREE.Mesh(geo, palitoMaterial());
   mesh.name = 'palito';
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  const salt = saltGrains(geo, seed);
+  if (salt) mesh.add(salt);
   return mesh;
 }

@@ -34,9 +34,9 @@ export enum InteractionState {
   SELECTED_PLACED_PIECE = 'SELECTED_PLACED_PIECE',
 }
 
-/** Velocidades del clavado (m/s). */
-const PUSH_SPEED = 0.02;
-const PULL_SPEED = 0.024;
+/** Velocidades del clavado (m/s), proporcionales al largo del palito (7 cm). */
+const PUSH_SPEED = 0.04;
+const PULL_SPEED = 0.048;
 /** Sensibilidad del ángulo con el mouse (rad/px). */
 const TILT_PER_PX = THREE.MathUtils.degToRad(0.32);
 

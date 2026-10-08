@@ -29,10 +29,10 @@ const screenOf = (expr) => page.evaluate((expr) => {
 }, expr);
 
 // 1. Agarrar un palito del bowl.
-// Busca un punto visible del bowl de palitos (está recortado abajo a la derecha del encuadre).
+// Busca un punto visible del vaso de palitos (a la derecha del encuadre).
 const bowl = await page.evaluate(() => {
   const c = window.__chizito;
-  for (let y = -0.95; y < 0; y += 0.05) for (let x = 0.95; x > 0; x -= 0.05) {
+  for (let y = -0.95; y < 0.9; y += 0.05) for (let x = 0.95; x > 0; x -= 0.05) {
     if (c.picker.pickBowl(x, y) === 'palito') return [(x * 0.5 + 0.5) * innerWidth, (-y * 0.5 + 0.5) * innerHeight];
   }
   throw new Error('no encontré el bowl de palitos');

@@ -20,7 +20,7 @@ export interface Backdrop {
 }
 
 export const BOWL_LAYOUT = {
-  palito: new THREE.Vector3(0.082, 0, 0.07),
+  palito: new THREE.Vector3(0.105, 0, -0.16),
   papita: new THREE.Vector3(-0.082, 0, 0.066),
 };
 
@@ -56,12 +56,12 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
     clearcoat: 0.6,
     clearcoatRoughness: 0.12,
   });
-  const palitoBowl = makeBowl(0.066, 0.046, ceramic);
-  palitoBowl.position.copy(BOWL_LAYOUT.palito);
-  palitoBowl.add(fillBowl(assets, 'palito', 0.058, 0.046, 150, 3));
-  palitoBowl.userData.bowlFor = 'palito';
-  root.add(palitoBowl);
-  bowls.set('palito', palitoBowl);
+  // Palitos parados en un vaso descartable blanco, como en los cumpleaños.
+  const palitoCup = makePalitoCup(assets, 34, 3);
+  palitoCup.position.copy(BOWL_LAYOUT.palito);
+  palitoCup.userData.bowlFor = 'palito';
+  root.add(palitoCup);
+  bowls.set('palito', palitoCup);
 
   const papitaBowl = makeBowl(0.07, 0.044, ceramic);
   papitaBowl.position.copy(BOWL_LAYOUT.papita);
@@ -88,7 +88,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
 
   farProps.add(makeCup('#d8342c', 0.13, -0.46));
   farProps.add(makeCup('#2f7fd0', -0.36, -0.7));
-  farProps.add(makeCup('#f2efe9', 0.2, -0.36, 0.2));
+  farProps.add(makeCup('#f2c230', 0.24, -0.4, 0.3));
   farProps.add(makeBottle(0.06, -0.82));
   farProps.add(makeNapkins(-0.02, -0.56));
   farProps.add(makePartyHat(-0.34, -0.4));
@@ -262,5 +262,61 @@ function makePartyHat(x: number, z: number): THREE.Group {
   pom.position.y = 0.132;
   g.add(pom);
   g.position.set(x, 0, z);
+  return g;
+}
+
+/**
+ * Vaso descartable blanco (plástico, con anillos) lleno de palitos parados, levemente abiertos en
+ * abanico, que sobresalen ~2 cm del borde. Se reconoce aunque esté desenfocado.
+ */
+function makePalitoCup(assets: AssetRegistry, count: number, seed: number): THREE.Group {
+  const g = new THREE.Group();
+  g.name = 'vaso-palitos';
+  const h = 0.058;
+  const r0 = 0.022;
+  const r1 = 0.032;
+  const pts: THREE.Vector2[] = [new THREE.Vector2(0, 0.0015), new THREE.Vector2(r0 - 0.001, 0.0015), new THREE.Vector2(r0, 0.003)];
+  for (let i = 0; i <= 24; i++) {
+    const a = i / 24;
+    // Anillos típicos del vaso descartable cerca de la base y del borde.
+    const ring = (a > 0.12 && a < 0.2) || (a > 0.82 && a < 0.86) ? 0.0006 : 0;
+    pts.push(new THREE.Vector2(r0 + (r1 - r0) * a + ring, 0.003 + a * (h - 0.003)));
+  }
+  pts.push(new THREE.Vector2(r1 + 0.0011, h + 0.0008));
+  pts.push(new THREE.Vector2(r1 - 0.0006, h + 0.0012));
+  pts.push(new THREE.Vector2(r1 - 0.001, h - 0.002));
+  pts.push(new THREE.Vector2(r0 - 0.0008, 0.005));
+  pts.push(new THREE.Vector2(0, 0.005));
+  const cup = new THREE.Mesh(
+    new THREE.LatheGeometry(pts, 64),
+    new THREE.MeshPhysicalMaterial({
+      name: 'vaso',
+      color: '#f7f6f2',
+      roughness: 0.35,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.25,
+      sheen: 0.2,
+      side: THREE.DoubleSide,
+    }),
+  );
+  g.add(cup);
+
+  const rnd = mulberry32(seed);
+  const pile = new THREE.Group();
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < count; i++) {
+    const obj = assets.create('palito', seed * 100 + (i % 9), 'prop');
+    // Base repartida en el fondo; inclinación hacia afuera según qué tan lejos del centro esté.
+    const a = rnd() * Math.PI * 2;
+    const rr = Math.sqrt(rnd()) * (r0 - 0.004);
+    // Que ningún palito atraviese la pared: a la altura del borde tiene que quedar adentro.
+    const tiltMax = Math.asin(THREE.MathUtils.clamp((r1 - 0.003 - rr) / h, 0, 0.9));
+    const tilt = Math.min(tiltMax, 0.05 + (rr / r0) * 0.3 + rnd() * 0.06);
+    const dir = new THREE.Vector3(Math.cos(a) * Math.sin(tilt), Math.cos(tilt), Math.sin(a) * Math.sin(tilt)).normalize();
+    obj.quaternion.setFromUnitVectors(up, dir);
+    obj.position.set(Math.cos(a) * rr, 0.005 + rnd() * 0.008, Math.sin(a) * rr);
+    pile.add(obj);
+  }
+  g.add(bakeStatic(pile, 'palitos-en-vaso'));
   return g;
 }

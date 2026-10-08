@@ -22,7 +22,9 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   normal map también (atributo `nmFade`).
 - Palito: según el modelo 3D de referencia (3 palitos interpretados como uno): cilindro de grosor parejo con curva
   leve distinta en cada uno, puntas CORTADAS planas con borde redondeado, superficie lisa con hoyitos y rayitas.
-  Naranja (#f2a240). Largo = 0,7 × largo del chizito (≈ 3,4 cm), Ø ≈ 3,4 mm. Se agrega de a uno.
+  Dorado de horneado / marrón claro (#d4a15e), claramente distinto del chizito; puntas y hoyitos más tostados;
+  granos de sal gruesa (malla aparte, hija del palito). 7 cm × Ø 3,6 mm (≈ 1,45 × el chizito: con 3,4 cm las
+  extremidades no se leían como "hombrecito"; el real mide ~2 × el chizito, 7 cm entra mejor en el encuadre).
 - Tone mapping Neutral (Khronos PBR Neutral) por defecto + `LookEffect` (saturación/brillo/contraste acotados).
   `?tm=aces` / `?tm=agx` para comparar. No usar HueSaturationEffect de postprocessing: genera negativos → negros.
 - Colores por vértice: `new THREE.Color('#hex')` YA está en lineal; no volver a convertir (antes se linealizaba
@@ -30,7 +32,7 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 
 ## Escala (1 unidad = 1 metro)
 - Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
-- Palito: ≈ 3,4 cm (0,7 × chizito), Ø ≈ 3,4 mm. Papita: Ø ~5 cm, 1,5 mm.
+- Palito: 7 cm, Ø 3,6 mm. Papita: Ø ~5 cm, 1,5 mm.
 - Mesa en y = 0. Chizito flotando con centro en y = 7,2 cm (`CONFIG.chizitoCenter`).
 - Cámara fija en (0, 12,2 cm, 20 cm) mirando al chizito con leve inclinación; 50 mm sobre film de 36 mm.
 
@@ -53,7 +55,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - Sombra del chizito: `ContactShadow` (silueta de las piezas héroe vista desde la luz, desenfocada y proyectada sobre
   la mesa). El chizito y lo clavado están en `HERO_LAYER` y NO proyectan la sombra dura del sol.
 - Fondo: mesa de madera con mantel de cumpleaños de plástico celeste con confeti, apenas girado (se ve madera al fondo a la
-  derecha). Bowls de cerámica blanca en primer plano: palitos abajo a la derecha, papitas abajo a la izquierda.
+  derecha). Palitos parados en un vaso descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
+  el vaso = un palito). Bowl de cerámica blanca con papitas abajo a la izquierda.
   Al fondo: bowl de chizitos, bowl de papitas, vasos descartables, gaseosa genérica (sin marca), servilletas, gorrito.
 
 ## Assets
@@ -73,16 +76,15 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - Rotar el chizito (con todas sus piezas): clic izquierdo + arrastrar sobre el chizito o el vacío cuando no hay
   nada en la mano; **clic derecho + arrastrar o Espacio + arrastrar, siempre, en cualquier estado**.
   Trackball con cuaterniones, inercia y amortiguación. La cámara NUNCA rota.
-- Clic en el bowl de palitos: palito en la mano (suministro infinito). Sobre el chizito: anillo sutil en el punto de
+- Clic en el vaso de palitos: palito en la mano (suministro infinito). Sobre el chizito: anillo sutil en el punto de
   entrada + palito fantasma perpendicular (normal suavizada con 4 rayos vecinos, el chizito es grumoso).
 - Clic sobre el chizito fija el punto (AIMING): mover el mouse pivota la cola alrededor de la punta
   (0,32°/px, máx. 85° respecto de la normal); flechas 1° (Shift: 5°). Ángulo discreto "X 90° · Y 26°"
   (ángulo respecto de la superficie en cada eje; 90° = perpendicular).
-- Mantener clic izquierdo = hundir (INSERTING): 2 cm/s con arranque suave y resistencia en los primeros 4 mm
+- Mantener clic izquierdo = hundir (INSERTING): 4 cm/s (proporcional al largo) con arranque suave y resistencia en los primeros 4 mm
   (la "costra"); al entrar la punta el ángulo queda trabado. Soltar = PLACED. Volver a mantener = más adentro.
   **Shift + mantener clic izquierdo = sacar** (único gesto para sacar); si sale del todo vuelve a la mano.
-  Atraviesa el chizito (y lo que haya en el camino); máximo = largo − 1 cm (con 3,4 cm de palito, dejar
-  1,5 cm afuera no alcanzaba para atravesar un chizito de 2 cm).
+  Atraviesa el chizito (y lo que haya en el camino); siempre queda afuera el 20 % del largo (≈ 1,4 cm).
 - En PLACED: mantener actúa siempre sobre el palito recién clavado (el cursor suele quedar lejos tras apuntar);
   clic en el bowl = otro palito (el anterior queda clavado). Esc: devuelve
   (HOLDING), vuelve a la mano (AIMING) o suelta (PLACED).
