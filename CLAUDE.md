@@ -115,6 +115,14 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   `ChipStyle`). Aceituna: entra apenas (máx. 4 mm) y se puede atravesar. Escarbadientes: como el palito (80 % del
   largo); en la mano, V cambia entre escarbadientes y espadita (se recuerda la última elegida por tipo).
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
+- Chizito extra (bowl al centro de la tira, `mountsOnTail`): se ensarta en la cola libre de un palito/escarbadientes
+  (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
+  pasar el mouse muestra el anillo; clic en el chizito = punto de entrada → AIMING (mouse = ángulo, invertido porque se
+  mueve el chizito), mantener / Ctrl + rueda = ensartar, Esc vuelve a la presentación. Matemática: la cola del palito es
+  una "punta virtual" (`tailFrame`, calculada de la malla) clavada en el chizito con el mismo `Aim`, en el marco del
+  chizito; pose del chizito = cola · inversa(punta). `PieceData.mount = 'tail'` (entryPoint/direction en coordenadas de
+  la propia pieza). Profundidad máx. = lo que queda del palito afuera − 3 mm. El chizito nuevo se puede atravesar: la
+  torre sigue (chizito + palito + chizito + palito…). Prueba: `node scripts/mount-test.mjs <dir>`.
 - Editar: clic en una pieza colocada → SELECTED_PLACED_PIECE (resaltado cálido sutil): mantener = hundir,
   Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),
   Supr/Backspace = quitar, Esc = soltar.
