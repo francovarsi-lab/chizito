@@ -16,7 +16,10 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 ## Dirección visual (actualizada con referencias del usuario)
 - Prioridad: que se vea DIVERTIDO y apetitoso, no hiperrealismo a toda costa. Look de foto de producto alegre:
   luz blanca y suave, colores vivos pero fieles, mantel celeste con confeti (el amarillo y el naranja resaltan).
-- Chizito: inflado tipo "maní", amarillo pálido manteca (#f2cf68), gordito, puntas romas, grumos suaves y poros.
+- Chizito: CÁPSULA según el modelo 3D de referencia del usuario: casi recto, sección redonda, largo/grosor ≈ 2,2,
+  puntas semiesféricas con el "ombligo" del corte, arrugas suaves longitudinales. Amarillo (#f6cb43).
+  Las arrugas dependen del ángulo alrededor del eje: se desvanecen en los polos (si no, forman una "estrella"), y el
+  normal map también (atributo `nmFade`).
 - Palito: palito de queso NARANJA (#f2a240), grueso e irregular, grosor despareño, puntas redondeadas, leve curva.
 - Tone mapping Neutral (Khronos PBR Neutral) por defecto + `LookEffect` (saturación/brillo/contraste acotados).
   `?tm=aces` / `?tm=agx` para comparar. No usar HueSaturationEffect de postprocessing: genera negativos → negros.
@@ -24,7 +27,7 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   dos veces y todo salía rojizo y saturado).
 
 ## Escala (1 unidad = 1 metro)
-- Chizito: 4,6–5,6 cm de largo, 1,85–2,2 cm de grosor, apenas curvado, con "cintura" de maní.
+- Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
 - Palito: ~8,5 cm, Ø ~6 mm (más grueso que el original de 3 mm, según la referencia). Papita: Ø ~5 cm, 1,5 mm.
 - Mesa en y = 0. Chizito flotando con centro en y = 7,2 cm (`CONFIG.chizitoCenter`).
 - Cámara fija en (0, 12,2 cm, 20 cm) mirando al chizito con leve inclinación; 50 mm sobre film de 36 mm.

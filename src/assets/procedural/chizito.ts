@@ -47,7 +47,7 @@ function chizitoMaps() {
   const blur = boxBlur(hf, 9);
   for (let i = 0; i < cavity.length; i++) cavity[i] = hf.data[i] - blur[i];
 
-  const normal = hf.toNormalMap(10);
+  const normal = hf.toNormalMap(7);
   const rough = hf.toGrayTexture((h, x, y) => {
     const cv = cavity[y * size + x];
     return 0.84 - cv * 0.9 - (h - 0.5) * 0.08;
@@ -110,6 +110,17 @@ export function chizitoMaterial(): THREE.MeshPhysicalMaterial {
     specularIntensity: 0.5,
     envMapIntensity: 1,
   });
+  sharedMaterial.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float nmFade;\nvarying float vNmFade;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvNmFade = nmFade;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vNmFade;')
+      .replace(
+        '#include <normal_fragment_maps>',
+        THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale * vNmFade;'),
+      );
+  };
   return sharedMaterial;
 }
 
@@ -121,19 +132,18 @@ export interface ChizitoShape {
 export function buildChizitoGeometry(seed: number, detail: Detail = 'hero'): { geometry: THREE.BufferGeometry; shape: ChizitoShape } {
   const rnd = mulberry32(seed * 7919 + 13);
   const noise = new Simplex3(seed + 101);
-  // Chizito inflado tipo "maní": gordito, puntas redondas y romas, apenas curvado (ver referencia).
-  const L = 0.046 + rnd() * 0.01; // 4,6 a 5,6 cm
-  const D = 0.0185 + rnd() * 0.0035; // 1,85 a 2,2 cm de grosor
-  const flat = 0.88 + rnd() * 0.1; // casi redondo
-  const bend = (0.04 + rnd() * 0.08) * L;
-  const sWiggle = (rnd() - 0.5) * 0.18 * L;
-  const twist = (rnd() - 0.5) * 0.6;
-  const endA = 0.26 + rnd() * 0.1; // puntas romas
-  const endB = 0.26 + rnd() * 0.1;
+  // Chizito tipo cápsula (según el modelo 3D de referencia): casi recto, sección redonda, puntas
+  // semiesféricas, arrugas suaves a lo largo de la extrusión y el "ombligo" del corte en una punta.
+  const L = 0.044 + rnd() * 0.008; // 4,4 a 5,2 cm
+  const D = 0.019 + rnd() * 0.003; // 1,9 a 2,2 cm de grosor (largo/grosor ≈ 2,2)
+  const flat = 0.9 + rnd() * 0.08; // apenas ovalado
+  const bend = (0.01 + rnd() * 0.04) * L;
+  const sWiggle = (rnd() - 0.5) * 0.08 * L;
+  const capA = 0.92 + rnd() * 0.12; // radio de cada casquete relativo al radio del cuerpo
+  const capB = 0.92 + rnd() * 0.12;
   const thickPhase = rnd() * 10;
-  const waist = 0.04 + rnd() * 0.08; // cinturita de maní
-  const waistAt = 0.42 + rnd() * 0.16;
-  const bulb = (rnd() - 0.5) * 0.16; // una punta un poco más gorda que la otra
+  const bulb = (rnd() - 0.5) * 0.08; // una punta apenas más gorda que la otra
+  const navelEnd = rnd() < 0.5 ? 0 : 1;
 
   const center = (u: number, out: THREE.Vector3) => {
     const x = (u - 0.5) * L;
@@ -143,41 +153,52 @@ export function buildChizitoGeometry(seed: number, detail: Detail = 'hero'): { g
   };
 
   const radius = (u: number, th: number): [number, number] => {
-    const e = u < 0.5 ? endA : endB;
-    const prof = Math.pow(Math.max(0, Math.sin(Math.PI * u)), e);
-    const along =
-      1 +
-      0.07 * noise.noise(u * 3.2 + thickPhase, 0.3, 0) +
-      bulb * (u - 0.5) -
-      waist * Math.exp(-Math.pow((u - waistAt) / 0.14, 2));
-    const R = (D / 2) * prof * along;
-    const tw = th + twist * (u - 0.5);
-    const ell = 1 + 0.04 * Math.cos(2 * tw);
+    const R0 = D / 2;
+    const sv = u * L;
+    const fromEnd = Math.min(sv, L - sv);
+    const cap = R0 * (u < 0.5 ? capA : capB);
+    const t = Math.min(1, fromEnd / cap);
+    const prof = Math.sqrt(Math.max(0, 1 - (1 - t) * (1 - t)));
+    const along = 1 + 0.04 * noise.noise(u * 2.6 + thickPhase, 0.3, 0) + bulb * (u - 0.5);
+    const R = R0 * prof * along;
+    const ell = 1 + 0.03 * Math.cos(2 * th + u * 1.5);
     return [R * flat * ell, R / ell];
   };
 
-  // Superficie inflada: ondulación grande + grumos redondos ("burbujas" de la masa) + rugosidad fina.
-  const displace = (p: THREE.Vector3, _n: THREE.Vector3, u: number) => {
-    const fade = Math.min(1, Math.sin(Math.PI * u) * 3);
-    const big = noise.fbm(p.x * 42, p.y * 42, p.z * 42, 2) * 0.0006;
-    const lumps = (noise.billow(p.x * 170 + 7, p.y * 170, p.z * 170, 3) - 0.62) * 0.00075;
-    const fine = (noise.billow(p.x * 420 + 3, p.y * 420, p.z * 420, 2) - 0.6) * 0.0004;
-    return (big + lumps) * fade + fine;
+  const displace = (p: THREE.Vector3, _n: THREE.Vector3, u: number, th: number) => {
+    const sv = u * L;
+    const fromEnd = Math.min(sv, L - sv);
+    // Arrugas longitudinales: varían rápido alrededor y lento a lo largo (pliegues de la extrusión).
+    const ca = Math.cos(th) * 1.6;
+    const sa = Math.sin(th) * 1.6;
+    const fold = 1 - Math.abs(noise.noise(p.x * 55 + 11, ca, sa));
+    const fold2 = 1 - Math.abs(noise.noise(p.x * 110 + 3, ca * 2.2, sa * 2.2));
+    const wrinkles = (fold - 0.6) * 0.001 + (fold2 - 0.6) * 0.00045;
+    // Bultitos suaves y ondulación general.
+    const lumps = (noise.billow(p.x * 130 + 7, p.y * 130, p.z * 130, 2) - 0.6) * 0.00045;
+    const big = noise.fbm(p.x * 35, p.y * 35, p.z * 35, 2) * 0.00045;
+    // "Ombligo" del corte de la extrusión en las puntas (más marcado en una).
+    const navelAt = (e: number, k: number) =>
+      k * (-0.0009 * Math.exp(-Math.pow(e / 0.0022, 2)) + 0.00025 * Math.exp(-Math.pow((e - 0.0035) / 0.0015, 2)));
+    const navel = navelAt(sv, navelEnd === 0 ? 1 : 0.6) + navelAt(L - sv, navelEnd === 1 ? 1 : 0.6);
+    // Las arrugas siguen el ángulo alrededor del eje: en el polo convergerían en una "estrella".
+    const capFade = THREE.MathUtils.smoothstep(fromEnd, 0.0015, 0.0075);
+    return wrinkles * capFade + lumps * (0.4 + 0.6 * capFade) + big + navel;
   };
 
   const tone = new Simplex3(seed + 555);
   const base = new THREE.Color();
-  const deep = new THREE.Color('#e3ac3e');
-  const butter = new THREE.Color('#f2cf68');
-  const cream = new THREE.Color('#fbe7a2');
+  const deep = new THREE.Color('#e8ad2c');
+  const yellow = new THREE.Color('#f6cb43');
+  const light = new THREE.Color('#fbe189');
   const color = (p: THREE.Vector3, _n: THREE.Vector3, _u: number, _th: number, d: number, out: THREE.Color) => {
-    const t = tone.fbm(p.x * 120, p.y * 120, p.z * 120, 3) * 0.5 + 0.5;
-    base.copy(butter).lerp(cream, THREE.MathUtils.smoothstep(t, 0.45, 0.95) * 0.55);
-    const toast = THREE.MathUtils.smoothstep(tone.noise(p.x * 60 + 9, p.y * 60, p.z * 60), 0.5, 0.95);
-    base.lerp(deep, toast * 0.35);
-    // Grumos con polvo más claro; huecos un poco más dorados.
-    const k = THREE.MathUtils.clamp(d / 0.0009, -1, 1);
-    if (k > 0) base.lerp(cream, k * 0.3);
+    const t = tone.fbm(p.x * 110, p.y * 110, p.z * 110, 3) * 0.5 + 0.5;
+    base.copy(yellow).lerp(light, THREE.MathUtils.smoothstep(t, 0.5, 0.95) * 0.45);
+    const toast = THREE.MathUtils.smoothstep(tone.noise(p.x * 55 + 9, p.y * 55, p.z * 55), 0.5, 0.95);
+    base.lerp(deep, toast * 0.3);
+    // Crestas de las arrugas más claras; pliegues un poco más dorados.
+    const k = THREE.MathUtils.clamp(d / 0.0005, -1, 1);
+    if (k > 0) base.lerp(light, k * 0.3);
     else base.lerp(deep, -k * 0.35);
     out.copy(base);
   };
@@ -202,6 +223,15 @@ export function buildChizitoGeometry(seed: number, detail: Detail = 'hero'): { g
   geometry.translate(-c.x, -c.y, -c.z);
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
+  // En los polos las UV convergen y el normal map dibuja una "estrella": se desvanece cerca de las puntas.
+  const pos = geometry.getAttribute('position');
+  const bb = geometry.boundingBox!;
+  const fade = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    fade[i] = THREE.MathUtils.smoothstep(Math.min(x - bb.min.x, bb.max.x - x), 0.0012, 0.0055);
+  }
+  geometry.setAttribute('nmFade', new THREE.BufferAttribute(fade, 1));
   return { geometry, shape: { length: L, thickness: D } };
 }
 
