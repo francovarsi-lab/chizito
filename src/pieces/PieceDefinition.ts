@@ -24,8 +24,10 @@ export interface PieceDefinition {
    * Marco local del modelo:
    *  - 'centered': centrado en el origen, eje largo en X (piezas raíz como el chizito).
    *  - 'tip':      punta/borde de entrada en el origen, cuerpo hacia +Y (piezas que se clavan).
+   *  - 'free':     sin normalizar ni GLB: la geometría ya viene en coordenadas de la pieza padre
+   *                (trazos de ketchup dibujados sobre una pieza).
    */
-  frame: 'centered' | 'tip';
+  frame: 'centered' | 'tip' | 'free';
 
   /**
    * Generador procedural (fallback cuando no hay GLB). `seed` da variación entre instancias y `params`

@@ -70,6 +70,27 @@ export class Picker {
     return { node: raw.node, point: raw.point, normal: this.smoothNormal(raw.node, raw.point, raw.normal) };
   }
 
+  /** Primera superficie de CUALQUIER pieza colocada (incluida la raíz) bajo el cursor: para pintar. */
+  pickAnyPiece(ndcX: number, ndcY: number): SurfaceHit | null {
+    const ray = this.setRay(ndcX, ndcY);
+    const hits = ray.intersectObject(this.construction.root.object, true);
+    for (const h of hits) {
+      if (!(h.object as THREE.Mesh).isMesh || h.object.userData.noPick) continue;
+      const node = this.ownerNode(h.object);
+      if (!node) continue;
+      const own: THREE.Mesh[] = [];
+      node.object.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh && m.visible && !m.userData.noPick && this.ownerNode(m) === node) own.push(m);
+      });
+      const n = hitNormal(h, h.object as THREE.Mesh);
+      // En piezas finitas (palitos) los rayos vecinos se caerían por el costado: normal directa.
+      const thin = this.pieces.get(node.data.type).dimensions.thickness < 0.006;
+      return { node, point: h.point.clone(), normal: thin ? n : this.averageNormal(own, h.point, n) };
+    }
+    return null;
+  }
+
   /**
    * Superficie de un objeto suelto (p. ej. el chizito en la mano que se va a ensartar), aunque esté
    * en `ignore`. Normal suavizada como en `pickSurface`.

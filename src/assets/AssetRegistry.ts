@@ -21,7 +21,7 @@ export class AssetRegistry {
     const draco = new DRACOLoader().setDecoderPath(`${import.meta.env.BASE_URL}assets/draco/`);
     const loader = new GLTFLoader().setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
     // Un GLB por tipo y, si la definición tiene variantes, uno opcional por variante.
-    const wanted = this.pieces.all().flatMap((def) => [
+    const wanted = this.pieces.all().filter((def) => def.frame !== 'free').flatMap((def) => [
       { def, key: def.type },
       ...(def.variants ?? []).map((v) => ({ def, key: `${def.type}-${v.id}` })),
     ]);
@@ -111,6 +111,12 @@ const AXES = ['x', 'y', 'z'] as const;
  * Con `rescale`, la dimensión más larga pasa a medir `def.dimensions.length`.
  */
 export function normalizeToFrame(obj: THREE.Object3D, def: PieceDefinition, rescale: boolean): THREE.Object3D {
+  if (def.frame === 'free') {
+    const outer = new THREE.Group();
+    outer.name = def.type;
+    outer.add(obj);
+    return outer;
+  }
   const inner = new THREE.Group();
   inner.add(obj);
   obj.updateMatrixWorld(true);

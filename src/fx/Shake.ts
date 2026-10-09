@@ -55,6 +55,14 @@ export class Shake {
 
   update(dt: number): void {
     this.t += dt;
+    // Los resortes son rígidos: integrados con el dt de un cuadro lento (< ~24 fps) divergen y el
+    // chizito sale disparado. Se subdivide en pasos cortos, estables a cualquier frecuencia.
+    const n = Math.max(1, Math.ceil(dt / (1 / 240)));
+    for (let i = 0; i < n; i++) this.springs(dt / n);
+    this.apply(dt);
+  }
+
+  private springs(dt: number): void {
     // Golpecito: a = -k·x - c·v
     const ax = -this.stiffness * this.offset.x - this.damping * this.vel.x;
     const ay = -this.stiffness * this.offset.y - this.damping * this.vel.y;
@@ -71,7 +79,9 @@ export class Shake {
     // Squash: resorte de escala, rápido y gomoso.
     this.squashV += (-520 * this.squashX - 11 * this.squashV) * dt;
     this.squashX += this.squashV * dt;
+  }
 
+  private apply(dt: number): void {
     // Flotación: se calma mientras se interactúa, vuelve sola.
     this.calm += ((this.busy ? 0.25 : 1) - this.calm) * Math.min(1, dt * 2);
     const bob = Math.sin(this.t * 2 * Math.PI * 0.32) * 0.0015 * this.calm;

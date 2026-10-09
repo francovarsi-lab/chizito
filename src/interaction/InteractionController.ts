@@ -6,6 +6,7 @@ import { newPieceId, type Construction, type PieceData, type PieceNode } from '.
 import type { PieceDefinition } from '../pieces/PieceDefinition';
 import type { PieceRegistry } from '../pieces/PieceRegistry';
 import { markHero } from '../render/ContactShadow';
+import { createSachetInHand } from '../assets/procedural/ketchup';
 import type { Overlay } from '../ui/Overlay';
 import { setGhost, setHighlight } from './Ghost';
 import type { Picker, SurfaceHit } from './Picker';
@@ -27,6 +28,9 @@ import type { TrackballRotator } from './TrackballRotator';
  * Rotar el chizito: clic derecho o Espacio + arrastrar en cualquier estado; en IDLE también el
  * clic izquierdo sobre el chizito o el vacío. Sacar: sólo Shift + mantener clic izquierdo.
  * Ctrl+Z / Ctrl+Shift+Z deshacen / rehacen; R (dos veces) reinicia.
+ *
+ * Los recipientes se nombran `tipo` o `tipo:variante` (p. ej. escarbadientes:espadita). Clic en los
+ * sobrecitos de ketchup (desde cualquier estado) → DRAWING; Esc o clic en los sobrecitos lo deja.
  */
 export enum InteractionState {
   IDLE = 'IDLE',
@@ -35,7 +39,12 @@ export enum InteractionState {
   INSERTING = 'INSERTING',
   PLACED = 'PLACED',
   SELECTED_PLACED_PIECE = 'SELECTED_PLACED_PIECE',
+  /** Sobrecito de ketchup en la mano: mantener apretado pinta sobre las piezas. */
+  DRAWING = 'DRAWING',
 }
+
+/** Recipiente de los sobrecitos de ketchup (no es una pieza: activa el modo DRAWING). */
+export const KETCHUP_BOWL = 'ketchup';
 
 /** Velocidades del clavado (m/s), proporcionales al largo del palito (3,5 cm). */
 const PUSH_SPEED = 0.02;
@@ -58,6 +67,8 @@ export interface ActivePiece {
   seed: number;
   /** Elegida con clic entre las ya colocadas (SELECTED_PLACED_PIECE). */
   selected?: boolean;
+  /** Recipiente del que salió (`tipo` o `tipo:variante`). */
+  source?: string;
   /** Tiempo desde que salió del vaso/bowl (animación de "pop"). */
   popT?: number;
   /** Parámetros de forma elegidos por el jugador (mordiscos de la papita, variante…). */
@@ -120,8 +131,10 @@ export class InteractionController {
   private wheelIdle = 0;
   /** Semillas distintas en cada sesión: no hay dos piezas iguales ni entre partidas. */
   private seedCounter = Math.floor(Math.random() * 1e6);
-  /** Última variante elegida por tipo (al volver a agarrar se ofrece la misma). */
-  private lastVariant = new Map<string, string>();
+  /** Sobrecito de ketchup en la mano (modo DRAWING) y el trazo que se está dibujando. */
+  private sachet: THREE.Object3D | null = null;
+  private drawPress = false;
+  private stroke: { node: PieceNode; points: number[]; normals: number[]; before: Snapshot } | null = null;
   private hover: SurfaceHit | null = null;
   /** Punto del chizito presentado (para ensartar) bajo el cursor, en mundo. */
   private mountHover: { point: THREE.Vector3; normal: THREE.Vector3 } | null = null;
@@ -135,7 +148,7 @@ export class InteractionController {
   private time = 0;
   /** true mientras el jugador tiene algo en la mano (la flotación del chizito se calma). */
   get busy(): boolean {
-    return this.active !== null && this.state !== InteractionState.IDLE;
+    return (this.active !== null && this.state !== InteractionState.IDLE) || this.state === InteractionState.DRAWING;
   }
   private readonly hoverNormal = new THREE.Vector3();
   private readonly ring: THREE.Mesh;
@@ -183,6 +196,21 @@ export class InteractionController {
     const p = input.pointer;
     const bowl = picker.pickBowl(p.ndcX, p.ndcY);
 
+    if (bowl === KETCHUP_BOWL) {
+      if (this.state === InteractionState.DRAWING) this.stopDrawing();
+      else this.startDrawing();
+      return;
+    }
+    if (this.state === InteractionState.DRAWING) {
+      if (bowl) {
+        this.stopDrawing();
+        if (this.canGrab(bowl)) this.grab(bowl);
+      } else {
+        this.drawPress = true;
+      }
+      return;
+    }
+
     switch (this.state) {
       case InteractionState.IDLE: {
         if (bowl && this.canGrab(bowl)) {
@@ -196,7 +224,7 @@ export class InteractionController {
       }
       case InteractionState.HOLDING: {
         if (bowl) {
-          const was = this.active?.def.type;
+          const was = this.active?.source;
           this.returnToBowl();
           if (bowl !== was && this.canGrab(bowl)) this.grab(bowl);
           break;
@@ -251,6 +279,10 @@ export class InteractionController {
       document.body.classList.remove('grab');
     }
     if (this.press && !input.buttons.left) this.stopPress();
+    if (this.drawPress && !input.buttons.left) {
+      this.drawPress = false;
+      this.endStroke();
+    }
   }
 
   private onMove(dx: number, dy: number): void {
@@ -346,7 +378,8 @@ export class InteractionController {
       return;
     }
     if (e.code === 'Escape') {
-      if (this.state === InteractionState.HOLDING && this.active?.mount) this.cancelMount();
+      if (this.state === InteractionState.DRAWING) this.stopDrawing();
+      else if (this.state === InteractionState.HOLDING && this.active?.mount) this.cancelMount();
       else if (this.state === InteractionState.HOLDING) this.returnToBowl();
       else if (this.state === InteractionState.AIMING && this.active?.mount && !this.active.node) {
         // Ensartando: vuelve a la presentación sobre la punta para elegir otro punto.
@@ -380,11 +413,6 @@ export class InteractionController {
       this.breakActive();
       return;
     }
-    // V: elegir variante de la pieza en la mano.
-    if (e.code === 'KeyV' && this.state === InteractionState.HOLDING && this.active) {
-      this.cycleVariant();
-      return;
-    }
     if (this.state === InteractionState.AIMING && this.active && e.code.startsWith('Arrow')) {
       e.preventDefault();
       const step = THREE.MathUtils.degToRad(e.shiftKey ? 5 : 1);
@@ -403,27 +431,29 @@ export class InteractionController {
     document.body.classList.add('grab');
   }
 
-  private canGrab(type: string): boolean {
-    const def = this.d.pieces.get(type);
+  private canGrab(source: string): boolean {
+    const def = this.d.pieces.get(source.split(':')[0]);
     return def.canPierce || !!def.mountsOnTail;
   }
 
-  private grab(type: string): void {
+  /** Agarra una pieza del recipiente `source` (`tipo` o `tipo:variante`). */
+  private grab(source: string): void {
     const { assets, pieces, scene, picker, overlay } = this.d;
+    const [type, variant] = source.split(':');
     const def = pieces.get(type);
     const seed = this.seedCounter++ * 7 + 100;
     const params: Record<string, unknown> = {};
-    if (def.variants?.length) params.variant = this.lastVariant.get(type) ?? def.variants[0].id;
+    if (def.variants?.length) params.variant = def.variants.find((v) => v.id === variant)?.id ?? def.variants[0].id;
     const object = assets.create(type, seed, 'hero', params);
     markHero(object);
     const aim = new Aim();
     aim.spin = Math.random() * Math.PI * 2;
     scene.add(object);
     picker.ignore.add(object);
-    this.active = { def, object, aim, parent: null, node: null, seed, popT: 0, params };
+    this.active = { def, object, aim, parent: null, node: null, seed, popT: 0, params, source };
     object.scale.setScalar(0.001);
     // Arranca saliendo del vaso / bowl.
-    object.position.copy(this.bowlWorldPos(type));
+    object.position.copy(this.bowlWorldPos(source));
     object.quaternion.setFromUnitVectors(Y_UP, new THREE.Vector3(0.3, 1, 0.4).normalize());
     this.hover = null;
     this.state = InteractionState.HOLDING;
@@ -509,20 +539,6 @@ export class InteractionController {
     const p = fresh.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, a.def.dimensions.length * 0.5, 0));
     this.emit('break', { def: a.def, point: p, normal: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, -1, 0), depth: 0, dt: 0, parent: null, localPoint: p, localNormal: new THREE.Vector3(0, 1, 0) });
     this.d.overlay.hint('break', 'B la sigue partiendo · cada pieza queda única');
-  }
-
-  /** V en la mano: pasa a la siguiente variante de la pieza (escarbadientes ↔ espadita…). */
-  private cycleVariant(): void {
-    const a = this.active!;
-    const vs = a.def.variants;
-    if (!vs || vs.length < 2) return;
-    const i = vs.findIndex((v) => v.id === a.params.variant);
-    const next = vs[(i + 1) % vs.length];
-    a.params.variant = next.id;
-    this.lastVariant.set(a.def.type, next.id);
-    this.regenerate();
-    this.emit('pick', null);
-    this.d.overlay.flash(next.label, 1100);
   }
 
   /** Rehace la malla de la pieza en la mano con sus params actuales (misma pose y semilla). */
@@ -766,6 +782,141 @@ export class InteractionController {
     return bowl ? bowl.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.04, 0)) : this.d.center.clone();
   }
 
+  // ───────────────────────────── ketchup (DRAWING) ─────────────────────────────
+
+  private startDrawing(): void {
+    // Lo que hubiera en la mano: clavado queda, suelto vuelve al recipiente.
+    if (this.active) {
+      if (this.active.node) this.release();
+      else this.returnToBowl();
+    }
+    const s = createSachetInHand();
+    s.position.copy(this.bowlWorldPos(KETCHUP_BOWL));
+    s.scale.setScalar(0.001);
+    this.d.scene.add(s);
+    this.d.picker.ignore.add(s);
+    this.sachet = s;
+    this.state = InteractionState.DRAWING;
+    this.emit('pick', null);
+    this.d.overlay.hint('drawing', 'mantené apretado y pasá por las piezas para ponerles ketchup · Esc lo deja');
+  }
+
+  private stopDrawing(): void {
+    this.endStroke();
+    this.drawPress = false;
+    const s = this.sachet;
+    if (s) {
+      this.d.picker.ignore.delete(s);
+      this.leaving.push({ obj: s, t: 0, from: s.scale.x });
+    }
+    this.sachet = null;
+    this.state = InteractionState.IDLE;
+    this.emit('drop', null);
+  }
+
+  private updateDrawing(dt: number): void {
+    const { input, picker, camera, center } = this.d;
+    const s = this.sachet;
+    if (!s) return;
+    const p = input.pointer;
+    const hit = this.rotating ? null : picker.pickAnyPiece(p.ndcX, p.ndcY);
+    const k = 1 - Math.exp(-dt * 20);
+    const toCam = camera.getWorldDirection(this.tmpV).negate();
+    if (hit) {
+      // El pico apenas despegado de la superficie, el sobrecito inclinado hacia la cámara.
+      this.targetPos.copy(hit.point).addScaledVector(hit.normal, this.drawPress ? 0.0026 : 0.005);
+      const axis = this.tmpV2.copy(hit.normal).addScaledVector(toCam, 0.8).normalize();
+      this.targetQuat.copy(faceCamera(axis, toCam, this.tmpM));
+    } else {
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(p.ndcX, p.ndcY), camera);
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(toCam, center.clone().addScaledVector(toCam, 0.025));
+      this.targetPos.copy(ray.ray.intersectPlane(plane, this.tmpV2) ?? center);
+      const axis = new THREE.Vector3(0.25, 1, 0).addScaledVector(toCam, 0.4).normalize();
+      this.targetQuat.copy(faceCamera(axis, toCam, this.tmpM));
+    }
+    s.position.lerp(this.targetPos, k);
+    s.quaternion.slerp(this.targetQuat, k);
+    s.scale.setScalar(Math.min(1, s.scale.x + dt * 5));
+
+    if (!this.drawPress) return;
+    if (this.stroke && (!hit || hit.node !== this.stroke.node.parent)) this.endStroke();
+    if (!hit) return;
+    if (!this.stroke) this.beginStroke(hit);
+    else this.addStrokePoint(hit);
+  }
+
+  /** Arranca un trazo sobre la pieza tocada: es un nodo hijo de ella (así se deshace y se guarda). */
+  private beginStroke(hit: SurfaceHit): void {
+    const before = this.snapshot();
+    const parent = hit.node;
+    const seed = this.seedCounter++ * 7 + 100;
+    const [pt, n] = this.toLocal(parent.object, hit);
+    const points = [...pt];
+    const normals = [...n];
+    const data: PieceData = {
+      id: newPieceId('ketchup'),
+      type: 'ketchup',
+      parentId: parent.data.id,
+      seed,
+      params: { points, normals },
+      entryPoint: pt,
+      direction: [-n[0], -n[1], -n[2]],
+      depth: 0,
+      spin: 0,
+      localMatrix: new THREE.Matrix4().toArray(),
+    };
+    const object = this.d.assets.create('ketchup', seed, 'hero', data.params);
+    markHero(object);
+    const node = this.d.construction.add(data, object);
+    this.stroke = { node, points, normals, before };
+  }
+
+  private addStrokePoint(hit: SurfaceHit): void {
+    const st = this.stroke!;
+    const [pt, n] = this.toLocal(st.node.parent!.object, hit);
+    const i = st.points.length - 3;
+    const d = Math.hypot(pt[0] - st.points[i], pt[1] - st.points[i + 1], pt[2] - st.points[i + 2]);
+    if (d < 0.0007) return;
+    st.points.push(...pt);
+    st.normals.push(...n);
+    // Rehacer la malla del trazo (dentro del mismo objeto del nodo).
+    const fresh = this.d.assets.create('ketchup', st.node.data.seed, 'hero', { points: st.points, normals: st.normals });
+    const obj = st.node.object;
+    for (const c of [...obj.children]) {
+      c.removeFromParent();
+      c.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+    }
+    for (const c of [...fresh.children]) obj.add(c);
+    markHero(obj);
+    st.node.data.params = { points: st.points.slice(), normals: st.normals.slice() };
+    // Trazos larguísimos: se corta y sigue uno nuevo (la malla se mantiene liviana).
+    if (st.points.length > 3 * 360) {
+      this.endStroke();
+      this.beginStroke(hit);
+    }
+  }
+
+  private endStroke(): void {
+    const st = this.stroke;
+    if (!st) return;
+    this.stroke = null;
+    this.record('ketchup', st.before);
+  }
+
+  /** Punto y normal del impacto en coordenadas locales de `obj`, redondeados a 0,01 mm. */
+  private toLocal(obj: THREE.Object3D, hit: SurfaceHit): [[number, number, number], [number, number, number]] {
+    obj.updateMatrixWorld(true);
+    const inv = this.tmpM2.copy(obj.matrixWorld).invert();
+    const p = hit.point.clone().applyMatrix4(inv);
+    const n = hit.normal.clone().transformDirection(inv);
+    const r = (x: number, q: number) => Math.round(x * q) / q;
+    return [
+      [r(p.x, 1e5), r(p.y, 1e5), r(p.z, 1e5)],
+      [r(n.x, 1e3), r(n.y, 1e3), r(n.z, 1e3)],
+    ];
+  }
+
   // ───────────────────────────── deshacer / reiniciar ─────────────────────────────
 
   private snapshot(): Snapshot {
@@ -779,6 +930,7 @@ export class InteractionController {
 
   /** Antes de deshacer / reiniciar: soltar o devolver lo que haya en la mano. */
   private settle(): void {
+    this.endStroke();
     this.wheelTarget = null;
     this.wheelBefore = null;
     if (this.press) {
@@ -860,6 +1012,13 @@ export class InteractionController {
         a.object.scale.setScalar(1);
         a.popT = undefined;
       }
+    }
+    if (this.state === InteractionState.DRAWING) {
+      this.updateDrawing(dt);
+      this.ring.visible = false;
+      this.d.overlay.setAngle(null);
+      this.updateCursor();
+      return;
     }
     if (!a) {
       this.d.overlay.setAngle(null);
@@ -1063,6 +1222,16 @@ export class InteractionController {
 const Y_UP = new THREE.Vector3(0, 1, 0);
 const Z_UP = new THREE.Vector3(0, 0, 1);
 const ONE = new THREE.Vector3(1, 1, 1);
+
+/** Orientación con +Y en `axis` y la cara (+Z) lo más de frente posible a la cámara. */
+function faceCamera(axis: THREE.Vector3, toCam: THREE.Vector3, m: THREE.Matrix4): THREE.Quaternion {
+  const y = axis;
+  const z = toCam.clone().addScaledVector(y, -toCam.dot(y));
+  if (z.lengthSq() < 1e-6) z.set(0, 0, 1).addScaledVector(y, -y.z);
+  z.normalize();
+  const x = new THREE.Vector3().crossVectors(y, z);
+  return new THREE.Quaternion().setFromRotationMatrix(m.makeBasis(x, y, z));
+}
 
 /**
  * Marco de la cola de una pieza larga, local a la pieza: origen en el centro del corte de la cola y

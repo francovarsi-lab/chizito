@@ -4,6 +4,7 @@ import { createPapita, PAPITA_RADIUS, PAPITA_THICKNESS, type PapitaParams } from
 import { ACEITUNA_DIAMETER, ACEITUNA_LENGTH, createAceituna } from '../assets/procedural/aceituna';
 import { createNacho, NACHO_RADIUS, NACHO_THICKNESS } from '../assets/procedural/nacho';
 import { createEscarbadientes, ESCARBADIENTES_LENGTH, ESCARBADIENTES_RADIUS, type EscarbadientesParams } from '../assets/procedural/escarbadientes';
+import { createKetchupStroke, KETCHUP_RADIUS, type KetchupParams } from '../assets/procedural/ketchup';
 import type { PieceDefinition } from './PieceDefinition';
 
 const CRUNCHY = { pick: 'pick', drop: 'drop', contact: 'crack', insert: 'crunch' };
@@ -93,8 +94,23 @@ export const ESCARBADIENTES: PieceDefinition = {
   canBePierced: false,
   tailMount: true,
   maxDepth: ESCARBADIENTES_LENGTH * 0.8,
-  holdHint: 'V cambia entre escarbadientes y espadita · tocá dónde clavarlo',
   sounds: CRUNCHY,
 };
 
-export const ALL_DEFINITIONS: PieceDefinition[] = [CHIZITO, PALITO, PAPITA, ACEITUNA, NACHO, ESCARBADIENTES];
+/**
+ * Trazo de ketchup: no se agarra ni se clava; se dibuja con el sobrecito (modo DRAWING) y queda como
+ * hijo de la pieza pintada, con los puntos en `params` (así deshacer y guardar lo reproducen).
+ */
+export const KETCHUP: PieceDefinition = {
+  type: 'ketchup',
+  displayName: 'Ketchup',
+  dimensions: { length: 0.01, thickness: KETCHUP_RADIUS * 2 },
+  frame: 'free',
+  procedural: (seed, _detail, params) => createKetchupStroke(seed, params as KetchupParams),
+  canPierce: false,
+  canBePierced: false,
+  maxDepth: 0,
+  sounds: {},
+};
+
+export const ALL_DEFINITIONS: PieceDefinition[] = [CHIZITO, PALITO, PAPITA, ACEITUNA, NACHO, ESCARBADIENTES, KETCHUP];

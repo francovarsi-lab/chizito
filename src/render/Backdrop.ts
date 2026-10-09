@@ -4,6 +4,7 @@ import { stripesTexture, tableclothMaterial, woodMaterial } from '../assets/proc
 import { mulberry32 } from '../util/noise';
 import { PALITO_LENGTH } from '../assets/procedural/palito';
 import { bakeStatic } from '../util/merge';
+import { createSachet, SACHET_H } from '../assets/procedural/ketchup';
 
 /**
  * Set de cumpleaños: mesa de madera con mantel, bowls de snacks en primer plano lateral
@@ -22,13 +23,14 @@ export interface Backdrop {
 export const BOWL_LAYOUT = {
   palito: new THREE.Vector3(0.115, 0, -0.17),
   papita: new THREE.Vector3(-0.115, 0, -0.17),
-  // Tira de recipientes chicos al frente (desenfocados). El centro queda para el bowl de chizitos y
-  // la punta derecha para los sobrecitos de ketchup.
+  // Tira de recipientes chicos al frente: nachos, aceitunas, escarbadientes, espaditas y sobrecitos de
+  // ketchup. La clave es el tipo de pieza o `tipo:variante`.
   nacho: new THREE.Vector3(-0.098, 0, -0.074),
-  aceituna: new THREE.Vector3(-0.048, 0, -0.066),
-  chizito: new THREE.Vector3(0.006, 0, -0.076),
-  escarbadientes: new THREE.Vector3(0.06, 0, -0.068),
-};
+  aceituna: new THREE.Vector3(-0.05, 0, -0.066),
+  escarbadientes: new THREE.Vector3(-0.012, 0, -0.064),
+  'escarbadientes:espadita': new THREE.Vector3(0.018, 0, -0.064),
+  ketchup: new THREE.Vector3(0.062, 0, -0.07),
+} as Record<string, THREE.Vector3>;
 
 export function buildBackdrop(assets: AssetRegistry): Backdrop {
   const root = new THREE.Group();
@@ -78,28 +80,30 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   bowls.set('papita', papitaBowl);
 
   // Tira del frente: mismo lenguaje (cerámica blanca y vasito descartable), más chicos.
+  // Escarbadientes y espaditas van en vasitos separados (cada uno da su variante).
   const nachoBowl = makeBowl(0.034, 0.018, ceramic);
   nachoBowl.position.copy(BOWL_LAYOUT.nacho);
   nachoBowl.add(fillBowl(assets, 'nacho', 0.026, 0.016, 6, 41));
   const oliveBowl = makeBowl(0.026, 0.016, ceramic);
   oliveBowl.position.copy(BOWL_LAYOUT.aceituna);
   oliveBowl.add(fillBowl(assets, 'aceituna', 0.021, 0.016, 9, 51));
-  const pickCup = makeStandCup(assets, {
-    type: 'escarbadientes',
-    count: 22,
-    seed: 61,
-    h: 0.018,
-    r0: 0.009,
-    r1: 0.0125,
-    // Mezcla de escarbadientes lisos y espaditas de colores.
-    params: (i) => ({ variant: i % 3 === 0 ? 'espadita' : 'liso' }),
-  });
+  const pickCup = makeStandCup(assets, { type: 'escarbadientes', count: 18, seed: 61, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'liso' }) });
   pickCup.position.copy(BOWL_LAYOUT.escarbadientes);
-  // Chizitos extra para ensartar en la punta de un palito.
-  const chizitoBowl = makeBowl(0.034, 0.018, ceramic);
-  chizitoBowl.position.copy(BOWL_LAYOUT.chizito);
-  chizitoBowl.add(fillBowl(assets, 'chizito', 0.026, 0.018, 4, 71));
-  for (const [type, obj] of [['nacho', nachoBowl], ['aceituna', oliveBowl], ['chizito', chizitoBowl], ['escarbadientes', pickCup]] as const) {
+  const swordCup = makeStandCup(assets, { type: 'escarbadientes', count: 12, seed: 67, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'espadita' }) });
+  swordCup.position.copy(BOWL_LAYOUT['escarbadientes:espadita']);
+  // Sobrecitos de ketchup en un platito: clic = modo dibujar.
+  const sachetDish = makeBowl(0.03, 0.012, ceramic);
+  sachetDish.position.copy(BOWL_LAYOUT.ketchup);
+  sachetDish.add(fillSachets(5, 81));
+  // (El bowl de chizitos para ensartar queda en pausa: el mecanismo sigue en la interacción.)
+  const strip: [string, THREE.Object3D][] = [
+    ['nacho', nachoBowl],
+    ['aceituna', oliveBowl],
+    ['escarbadientes', pickCup],
+    ['escarbadientes:espadita', swordCup],
+    ['ketchup', sachetDish],
+  ];
+  for (const [type, obj] of strip) {
     obj.userData.bowlFor = type;
     root.add(obj);
     bowls.set(type, obj);
@@ -211,6 +215,25 @@ function fillBowl(assets: AssetRegistry, type: string, innerR: number, height: n
     pile.add(obj);
   }
   return bakeStatic(pile, `${type}-pile`);
+}
+
+/** Sobrecitos de ketchup apilados en abanico, apenas parados contra el borde del platito. */
+function fillSachets(count: number, seed: number): THREE.Object3D {
+  const rnd = mulberry32(seed);
+  const pile = new THREE.Group();
+  for (let i = 0; i < count; i++) {
+    const s = createSachet(seed + i, 'prop');
+    const yaw = (i / count - 0.5) * 1.3 + (rnd() - 0.5) * 0.2;
+    const g = new THREE.Group();
+    // Acostado, levantado hacia atrás (se ve la cara impresa desde la cámara).
+    s.rotation.x = -Math.PI / 2 + 0.55 + rnd() * 0.2;
+    s.position.y = SACHET_H * 0.22;
+    g.add(s);
+    g.rotation.y = yaw;
+    g.position.set((rnd() - 0.5) * 0.006, 0.006 + i * 0.0022, (rnd() - 0.5) * 0.004);
+    pile.add(g);
+  }
+  return bakeStatic(pile, 'sobres-ketchup');
 }
 
 function makeCup(color: string, x: number, z: number, roughness = 0.32): THREE.Mesh {

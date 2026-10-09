@@ -68,7 +68,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   no entre en cuadro. Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
   el vaso = un palito). Bowl de cerámica blanca con papitas abajo a la izquierda.
   Tira de recipientes chicos al frente (mismo lenguaje: cerámica blanca y vasito descartable): nachos, aceitunas,
-  [centro libre para el bowl de chizitos] y vasito de escarbadientes/espaditas [punta derecha libre para el ketchup].
+  vasito de escarbadientes, vasito de espaditas y platito con sobrecitos de ketchup (genéricos, sin marca).
+  Las claves de `bowls`/`BOWL_LAYOUT` son `tipo` o `tipo:variante` (el recipiente decide la variante).
   `fillBowl` centra cada pieza por su bbox y la acuesta (eje más fino hacia arriba).
   Al fondo: bowl de chizitos, bowl de papitas, vasos descartables, gaseosa genérica (sin marca), servilletas, gorrito.
 
@@ -113,9 +114,9 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   atravesada: el palito que entra en ella queda como hijo de la papita en el árbol.
 - Nacho: igual que la papita (de canto, máx. 6 mm, Q/E, B lo parte; mismo generador `buildChipGeometry` con otro
   `ChipStyle`). Aceituna: entra apenas (máx. 4 mm) y se puede atravesar. Escarbadientes: como el palito (80 % del
-  largo); en la mano, V cambia entre escarbadientes y espadita (se recuerda la última elegida por tipo).
+  largo); escarbadientes y espadita salen de vasitos distintos (`escarbadientes` / `escarbadientes:espadita`).
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
-- Chizito extra (bowl al centro de la tira, `mountsOnTail`): se ensarta en la cola libre de un palito/escarbadientes
+- Chizito extra (EN PAUSA por pedido del usuario: el bowl no está en la mesa; el mecanismo queda en el código, `mountsOnTail`): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
   pasar el mouse muestra el anillo; clic en el chizito = punto de entrada → AIMING (mouse = ángulo, invertido porque se
   mueve el chizito), mantener / Ctrl + rueda = ensartar, Esc vuelve a la presentación. Matemática: la cola del palito es
@@ -123,6 +124,12 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   chizito; pose del chizito = cola · inversa(punta). `PieceData.mount = 'tail'` (entryPoint/direction en coordenadas de
   la propia pieza). Profundidad máx. = lo que queda del palito afuera − 3 mm. El chizito nuevo se puede atravesar: la
   torre sigue (chizito + palito + chizito + palito…). Prueba: `node scripts/mount-test.mjs <dir>`.
+- Ketchup (estado DRAWING): clic en el platito de sobrecitos (desde cualquier estado; lo que hubiera en la mano se
+  suelta o se devuelve) → el sobrecito sigue al cursor con el pico hacia la pieza. Mantener apretado pinta un cordón
+  rojo brillante SOLO sobre piezas (la mesa no). Cada trazo es un nodo `ketchup` hijo de la pieza pintada (frame
+  'free': geometría en coordenadas del padre; puntos/normales en `params`), así deshacer/rehacer/guardar lo reproducen;
+  si el cursor pasa a otra pieza, empieza otro trazo. Los trazos son `noPick` (no se eligen ni se atraviesan; se borran
+  con Ctrl+Z). Esc o clic en el platito deja el sobrecito; clic en otro recipiente agarra esa pieza.
 - Editar: clic en una pieza colocada → SELECTED_PLACED_PIECE (resaltado cálido sutil): mantener = hundir,
   Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),
   Supr/Backspace = quitar, Esc = soltar.
@@ -131,6 +138,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 
 ## Feedback (fase 3)
 - Al primer contacto: micro-sacudida del chizito (resorte amortiguado, ~3 mm, `fx/Shake.ts`) + "crack" + 2 migas.
+  Los resortes se integran en subpasos de 1/240 s: con el dt de un cuadro lento (< ~24 fps) divergían y el chizito
+  "desaparecía" al clavar el primer palito.
 - Mientras entra: temblor mínimo, crujido muy leve (granos de ruido esporádicos) y hasta 2 migas más.
 - Migas (`fx/Crumbs.ts`): caen con gravedad, rebotan apenas y quedan sobre el mantel (máx. 70; R las limpia).
 - Audio (`audio/AudioManager.ts`): busca public/assets/sounds/<id>.(ogg|mp3|wav) con id = pick, drop, crack,
@@ -156,5 +165,6 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
    Prueba automatizada: `node scripts/play-test.mjs <dir>` (con `npm run dev` corriendo).
 3. Feedback (sacudida, migas, sonido), papitas, edición, undo/redo. ← hecha
    Prueba automatizada: `node scripts/phase3-test.mjs <dir>`. Piezas nuevas: `node scripts/pieces-test.mjs <dir>`.
+   Ketchup / vasitos / sacudida a 20 fps: `node scripts/ketchup-test.mjs <dir>`.
 4. Guardado/carga JSON versionado, GLB, pulido.
 Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit, y esperar aprobación.
