@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { AssetRegistry } from '../assets/AssetRegistry';
-import { CommandStack, cloneSnapshot, type Snapshot } from '../commands/CommandStack';
+import { CommandStack, cloneSnapshot, clonePieces, type Snapshot } from '../commands/CommandStack';
+import { CONFIG } from '../config';
 import type { Input } from '../input/Input';
 import { newPieceId, type Construction, type PieceData, type PieceNode } from '../model/Construction';
 import type { PieceDefinition } from '../pieces/PieceDefinition';
@@ -11,6 +12,7 @@ import type { Overlay } from '../ui/Overlay';
 import { setGhost, setHighlight } from './Ghost';
 import type { Picker, SurfaceHit } from './Picker';
 import { AIM_GAP, Aim } from './Placement';
+import { poseFromData, tailFrame } from './attach';
 import type { TrackballRotator } from './TrackballRotator';
 
 /**
@@ -109,6 +111,8 @@ export interface InteractionDeps {
   overlay: Overlay;
   /** Centro del chizito raíz (para ubicar la pieza "en la mano"). */
   center: THREE.Vector3;
+  /** Rehace la malla del chizito raíz con otra semilla (al cargar una criatura). */
+  setRootSeed?: (seed: number) => void;
 }
 
 export class InteractionController {
@@ -152,6 +156,9 @@ export class InteractionController {
   }
   private readonly hoverNormal = new THREE.Vector3();
   private readonly ring: THREE.Mesh;
+  /** Marca del frente de la criatura (se muestra un rato al fijarlo o al cargar). */
+  private readonly frontMark: THREE.Group;
+  private frontT = 0;
   private readonly tmpV = new THREE.Vector3();
   private readonly tmpV2 = new THREE.Vector3();
   private readonly tmpQ = new THREE.Quaternion();
@@ -169,6 +176,21 @@ export class InteractionController {
     this.ring.renderOrder = 2;
     d.scene.add(this.ring);
     d.picker.ignore.add(this.ring);
+
+    // Marca del frente: un "ojito" suave (aro + punto) apoyado en el chizito, mirando hacia afuera.
+    this.frontMark = new THREE.Group();
+    this.frontMark.name = 'front-mark';
+    const markMat = new THREE.MeshBasicMaterial({ color: 0xff8f86, transparent: true, opacity: 0, depthWrite: false, toneMapped: false });
+    const ringM = new THREE.Mesh(new THREE.RingGeometry(0.0034, 0.0046, 40), markMat);
+    const dotM = new THREE.Mesh(new THREE.CircleGeometry(0.0016, 24), markMat);
+    for (const m of [ringM, dotM]) {
+      m.userData.noPick = true;
+      m.renderOrder = 3;
+      this.frontMark.add(m);
+    }
+    this.frontMark.visible = false;
+    d.construction.root.object.add(this.frontMark);
+    d.picker.ignore.add(this.frontMark);
 
     this.commands = new CommandStack((s) => this.restore(s));
 
@@ -377,6 +399,11 @@ export class InteractionController {
       this.requestReset();
       return;
     }
+    // F: el lado de la criatura que mira a la cámara pasa a ser su frente.
+    if (e.code === 'KeyF') {
+      this.setFrontFromCamera();
+      return;
+    }
     if (e.code === 'Escape') {
       if (this.state === InteractionState.DRAWING) this.stopDrawing();
       else if (this.state === InteractionState.HOLDING && this.active?.mount) this.cancelMount();
@@ -437,8 +464,21 @@ export class InteractionController {
   }
 
   /** Agarra una pieza del recipiente `source` (`tipo` o `tipo:variante`). */
+  /** Piezas clavadas en la criatura (sin la raíz ni los trazos de ketchup). */
+  pieceCount(): number {
+    let n = 0;
+    for (const node of this.d.construction.nodes.values()) {
+      if (node.parent && this.d.pieces.get(node.data.type).frame !== 'free') n++;
+    }
+    return n;
+  }
+
   private grab(source: string): void {
     const { assets, pieces, scene, picker, overlay } = this.d;
+    if (this.pieceCount() >= CONFIG.creature.maxPieces) {
+      overlay.flash(`esta criatura ya tiene ${CONFIG.creature.maxPieces} piezas (el máximo)`, 2200);
+      return;
+    }
     const [type, variant] = source.split(':');
     const def = pieces.get(type);
     const seed = this.seedCounter++ * 7 + 100;
@@ -917,10 +957,87 @@ export class InteractionController {
     ];
   }
 
+  // ───────────────────────────── frente de la criatura ─────────────────────────────
+
+  /** F: el lado del chizito raíz que mira a la cámara pasa a ser el frente (con su "arriba"). */
+  private setFrontFromCamera(): void {
+    const c = this.d.construction;
+    const pivot = c.root.object;
+    pivot.updateMatrixWorld(true);
+    const inv = pivot.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const center = pivot.getWorldPosition(new THREE.Vector3());
+    const front = this.d.camera.position.clone().sub(center).normalize().applyQuaternion(inv);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(inv);
+    up.addScaledVector(front, -up.dot(front));
+    if (up.lengthSq() < 1e-6) up.set(0, 0, 1).applyQuaternion(this.d.camera.quaternion).applyQuaternion(inv);
+    up.normalize();
+    const before = this.snapshot();
+    c.front.copy(front);
+    c.up.copy(up);
+    this.record('frente', before);
+    this.showFront();
+    this.d.overlay.flash('este lado es el frente de la criatura', 1600);
+  }
+
+  /** Muestra la marca del frente un rato, apoyada sobre la superficie del chizito raíz. */
+  showFront(): void {
+    const c = this.d.construction;
+    const pivot = c.root.object;
+    pivot.updateMatrixWorld(true);
+    // Rayo desde afuera hacia el centro, sólo contra la malla del chizito raíz.
+    const meshes: THREE.Object3D[] = [];
+    pivot.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh && !o.userData.noPick && this.d.picker.ownerNode(o) === c.root) meshes.push(o);
+    });
+    const centerW = pivot.getWorldPosition(new THREE.Vector3());
+    const dirW = c.front.clone().transformDirection(pivot.matrixWorld);
+    const ray = new THREE.Raycaster(centerW.clone().addScaledVector(dirW, 0.08), dirW.clone().negate());
+    const hit = ray.intersectObjects(meshes, false)[0];
+    const local = hit ? pivot.worldToLocal(hit.point.clone()) : c.front.clone().multiplyScalar(0.012);
+    this.frontMark.position.copy(local).addScaledVector(c.front, 0.0012);
+    this.frontMark.quaternion.setFromUnitVectors(Z_UP, c.front);
+    this.frontT = 2.6;
+    this.frontMark.visible = true;
+  }
+
+  private updateFrontMark(dt: number): void {
+    if (this.frontT <= 0) return;
+    this.frontT -= dt;
+    // Aparece rápido, late dos veces y se desvanece.
+    const t = 2.6 - this.frontT;
+    const k = Math.min(1, t / 0.2) * Math.min(1, Math.max(0, this.frontT) / 0.6);
+    const mat = (this.frontMark.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+    mat.opacity = 0.75 * k;
+    this.frontMark.scale.setScalar(1 + 0.12 * Math.sin(t * 7));
+    if (this.frontT <= 0) this.frontMark.visible = false;
+  }
+
   // ───────────────────────────── deshacer / reiniciar ─────────────────────────────
 
-  private snapshot(): Snapshot {
-    return cloneSnapshot(this.d.construction.list().filter((p) => p.parentId !== null));
+  /** Estado completo de la criatura (piezas, frente, semilla de la raíz), copiado. */
+  snapshot(): Snapshot {
+    const c = this.d.construction;
+    return cloneSnapshot({
+      pieces: c.list().filter((p) => p.parentId !== null),
+      front: c.front.toArray() as [number, number, number],
+      up: c.up.toArray() as [number, number, number],
+      rootSeed: c.root.data.seed,
+    });
+  }
+
+  /**
+   * Carga una criatura (archivo o autoguardado): la pose de cada pieza se reconstruye desde su punto
+   * de clavado, dirección y profundidad. Con `record`, se puede deshacer.
+   */
+  load(s: Snapshot, record = true): void {
+    this.settle();
+    if (this.state === InteractionState.DRAWING) this.stopDrawing();
+    const before = this.snapshot();
+    this.restore(s, true);
+    if (record) this.record('cargar', before);
+    else this.onChange?.();
+    this.onReset?.();
+    this.showFront();
   }
 
   private record(label: string, before: Snapshot): void {
@@ -965,15 +1082,29 @@ export class InteractionController {
     this.resetArmedUntil = 0;
     this.settle();
     const before = this.snapshot();
-    this.restore([]);
+    this.restore({ pieces: [], front: [0, 0, 1], up: [0, 1, 0], rootSeed: before.rootSeed });
     this.record('reiniciar', before);
     this.onReset?.();
     this.d.overlay.flash('chizito nuevo', 1200);
   }
 
-  /** Lleva la construcción a un estado guardado (deshacer, rehacer, carga). */
-  restore(s: Snapshot): void {
-    const removed = this.d.construction.restore(s, (d) => {
+  /**
+   * Lleva la criatura a un estado guardado (deshacer, rehacer, carga). Con `fromConnections`, la pose
+   * se reconstruye desde los datos de conexión (la carga de archivo no trae matrices).
+   */
+  restore(s: Snapshot, fromConnections = false): void {
+    const c = this.d.construction;
+    if (s.rootSeed !== c.root.data.seed && this.d.setRootSeed) {
+      this.d.setRootSeed(s.rootSeed);
+      c.root.data.seed = s.rootSeed;
+    }
+    const frontChanged = c.front.distanceTo(new THREE.Vector3().fromArray(s.front)) > 1e-6;
+    c.front.fromArray(s.front).normalize();
+    c.up.fromArray(s.up).normalize();
+    if (frontChanged) this.showFront();
+    const pieces = clonePieces(s.pieces);
+    const pose = fromConnections ? (d: PieceData, parent: THREE.Object3D) => poseFromData(d, this.d.pieces.get(d.type), parent) : undefined;
+    const removed = c.restore(pieces, (d) => {
       const reuse = this.graveyard.get(d.id);
       if (reuse) {
         this.graveyard.delete(d.id);
@@ -982,7 +1113,7 @@ export class InteractionController {
       const obj = this.d.assets.create(d.type, d.seed, 'hero', d.params);
       markHero(obj);
       return obj;
-    });
+    }, pose);
     for (const o of removed) {
       const id = o.userData.pieceId as string | undefined;
       if (id) this.graveyard.set(id, o);
@@ -998,6 +1129,7 @@ export class InteractionController {
 
   update(dt: number): void {
     this.time += dt;
+    this.updateFrontMark(dt);
     this.d.rotator.update(dt);
     this.updateLeaving(dt);
     const a = this.active;
@@ -1231,46 +1363,4 @@ function faceCamera(axis: THREE.Vector3, toCam: THREE.Vector3, m: THREE.Matrix4)
   z.normalize();
   const x = new THREE.Vector3().crossVectors(y, z);
   return new THREE.Quaternion().setFromRotationMatrix(m.makeBasis(x, y, z));
-}
-
-/**
- * Marco de la cola de una pieza larga, local a la pieza: origen en el centro del corte de la cola y
- * +Y mirando de vuelta hacia el cuerpo (como la punta de una pieza que se clava). Se calcula una vez
- * a partir de la malla (sirve igual para el procedural y para un GLB).
- */
-function tailFrame(obj: THREE.Object3D): THREE.Matrix4 {
-  const cached = obj.userData.tailFrame as THREE.Matrix4 | undefined;
-  if (cached) return cached;
-  obj.updateMatrixWorld(true);
-  const inv = obj.matrixWorld.clone().invert();
-  const meshes: { m: THREE.Mesh; toLocal: THREE.Matrix4 }[] = [];
-  obj.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    // Sólo la malla propia: nada de lo que tenga colgado (otras piezas).
-    for (let cur: THREE.Object3D | null = m; cur && cur !== obj; cur = cur.parent) if (cur.userData.pieceId) return;
-    meshes.push({ m, toLocal: inv.clone().multiply(m.matrixWorld) });
-  });
-  const v = new THREE.Vector3();
-  let maxY = -Infinity;
-  for (const { m, toLocal } of meshes) {
-    const pos = m.geometry.getAttribute('position');
-    for (let i = 0; i < pos.count; i++) maxY = Math.max(maxY, v.fromBufferAttribute(pos, i).applyMatrix4(toLocal).y);
-  }
-  const acc = new THREE.Vector3();
-  let n = 0;
-  for (const { m, toLocal } of meshes) {
-    const pos = m.geometry.getAttribute('position');
-    for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i).applyMatrix4(toLocal);
-      if (v.y > maxY - 0.0004) {
-        acc.add(v);
-        n++;
-      }
-    }
-  }
-  acc.divideScalar(Math.max(1, n));
-  const frame = new THREE.Matrix4().makeRotationX(Math.PI).setPosition(acc.x, maxY, acc.z);
-  obj.userData.tailFrame = frame;
-  return frame;
 }

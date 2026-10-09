@@ -134,7 +134,10 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),
   Supr/Backspace = quitar, Esc = soltar.
 - Ctrl+Z / Ctrl+Shift+Z (o Ctrl+Y): deshacer / rehacer. R dos veces (en 2,5 s) reinicia; también se deshace.
-  H oculta ayudas. Ctrl+S exporta (fase 4).
+  H oculta ayudas. F: el lado de la criatura que mira a la cámara pasa a ser su FRENTE (marca de aro + punto que
+  late 2,6 s; se puede deshacer). Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
+  (se deshace con Ctrl+Z). Autoguardado en el navegador (localStorage) y se recupera al abrir (`?nuevo` lo evita).
+  Tope de 40 piezas por criatura (`CONFIG.creature.maxPieces`; el ketchup no cuenta): con 40 no deja agarrar más.
 
 ## Feedback (fase 3)
 - Al primer contacto: micro-sacudida del chizito (resorte amortiguado, ~3 mm, `fx/Shake.ts`) + "crack" + 2 migas.
@@ -157,7 +160,19 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - `model/` Construction: árbol de piezas; la raíz es el chizito (una pieza más).
 - `interaction/` máquina de estados (IDLE → HOLDING → AIMING → INSERTING → PLACED, SELECTED_PLACED_PIECE) y trackball.
 - `input/` mouse/teclado normalizados. `commands/` deshacer/rehacer. `audio/` sonidos. `fx/` sacudida y migas.
-  `ui/` ayudas y ángulo. Próxima fase: `persistence/`.
+  `ui/` ayudas y ángulo. `persistence/` archivo de criatura (`CreatureFile.ts`: formato, validación) y
+  guardar/cargar/autoguardar (`Persistence.ts`).
+- `interaction/attach.ts`: modos de conexión ('pierce', 'tail', 'paint') y `poseFromData`: la pose de cada pieza se
+  deriva de punto de clavado + dirección + profundidad + giro (la misma cuenta que `Aim.pose`). `tailFrame` también vive acá.
+
+## Archivo de criatura (Fase 4)
+- `{ format: "hombrecito-de-chizito/criatura", version: 1, units: "m", creature: { name, savedAt, pieceCount,
+  root: { type, seed }, front: { direction, up } }, pieces: [ { id, type, parentId, seed, attach: { mode, entryPoint,
+  direction, depth, spin }, params? } ] }`, piezas en orden padre → hijo. NO guarda matrices ni posiciones sueltas.
+- Frente/arriba en coordenadas del chizito raíz (`Construction.front/up`), parte del `Snapshot` (deshacer) junto con
+  la semilla de la raíz.
+- Al cargar: se valida todo (formato, versión, tipos, padres, conexión posible según canPierce/canBePierced/tailMount,
+  profundidad ≤ maxDepth, tope de 40); lo inválido se descarta con aviso. Versiones nuevas: migraciones en `fromCreatureFile`.
 
 ## Fases
 1. Escena realista + chizito procedural + rotación con inercia. ← hecha
@@ -166,7 +181,7 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 3. Feedback (sacudida, migas, sonido), papitas, edición, undo/redo. ← hecha
    Prueba automatizada: `node scripts/phase3-test.mjs <dir>`. Piezas nuevas: `node scripts/pieces-test.mjs <dir>`.
    Ketchup / vasitos / sacudida a 20 fps: `node scripts/ketchup-test.mjs <dir>`.
-4. Guardado/carga JSON versionado, GLB, pulido. Requisitos del usuario (las construcciones son CRIATURAS para jugar):
+4. Guardado/carga JSON versionado, frente, tope de 40. ← hecha (prueba: `node scripts/phase4-test.mjs <dir>`). Requisitos del usuario (las construcciones son CRIATURAS para jugar):
    - Cada criatura tiene un "frente" explícito (dirección guardada en el marco local del chizito raíz).
    - El JSON guarda, por pieza, el punto de clavado, la dirección y la jerarquía (parentId): la pose se
      RECONSTRUYE desde esos datos (entryPoint, direction, depth, spin, mount, params). Nada de guardar sólo

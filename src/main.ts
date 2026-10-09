@@ -18,6 +18,7 @@ import { Shake } from './fx/Shake';
 import { CameraRig } from './render/CameraRig';
 import { ContactShadow, markHero } from './render/ContactShadow';
 import { addPhotoFade, loadPhotoBackdrop, updatePhotoResolution } from './render/PhotoBackdrop';
+import { Persistence } from './persistence/Persistence';
 
 async function main() {
   const canvas = document.createElement('canvas');
@@ -54,7 +55,7 @@ async function main() {
   const pivot = new THREE.Group();
   pivot.name = 'chizito-root';
   pivot.position.copy(CONFIG.chizitoCenter);
-  const chizitoModel = assets.create(CHIZITO.type, rootSeed, 'hero');
+  let chizitoModel = assets.create(CHIZITO.type, rootSeed, 'hero');
   pivot.add(chizitoModel);
   // Orientación inicial: levemente girado, como si lo hubieran dejado así.
   pivot.quaternion.setFromEuler(new THREE.Euler(0.18, -0.38, 0.06));
@@ -85,7 +86,17 @@ async function main() {
     assets,
     overlay,
     center: CONFIG.chizitoCenter,
+    // Al cargar una criatura con otro chizito raíz: se rehace sólo su malla (las piezas cuelgan del pivote).
+    setRootSeed: (seed) => {
+      chizitoModel.removeFromParent();
+      chizitoModel.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+      chizitoModel = assets.create(CHIZITO.type, seed, 'hero');
+      markHero(chizitoModel);
+      pivot.add(chizitoModel);
+    },
   });
+  const persistence = new Persistence(interaction, pieces, overlay, CHIZITO.type);
+  persistence.install();
 
   // Feedback del clavado: micro-sacudida del chizito, crack + crujido, migas que caen a la mesa.
   const audio = new AudioManager();
@@ -133,7 +144,7 @@ async function main() {
 
   // Exponer para depuración y capturas automáticas.
   Object.assign(window as unknown as Record<string, unknown>, {
-    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker, assets, crumbs, audio, rig },
+    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker, assets, crumbs, audio, rig, persistence },
   });
 
   const timer = new THREE.Timer();
@@ -161,6 +172,9 @@ async function main() {
     document.body.dataset.ready = '1';
     return;
   }
+
+  // La última criatura del navegador vuelve sola (?nuevo arranca de cero).
+  if (!params.has('nuevo')) persistence.restoreAutosave();
 
   // Entrada: el chizito cae desde arriba con un rebote y el velo blanco se disuelve.
   shake.intro(0.045);

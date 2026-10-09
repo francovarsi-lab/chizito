@@ -26,7 +26,10 @@ export interface PieceData {
   depth: number;
   /** Rotación propia alrededor de su eje (rad). */
   spin: number;
-  /** Transformación local resultante (matriz 4×4, column-major), derivada de lo anterior. */
+  /**
+   * Transformación local resultante (matriz 4×4, column-major). Es un DERIVADO (caché para deshacer):
+   * no se guarda en el archivo de la criatura; al cargar se reconstruye con `poseFromData`.
+   */
   localMatrix: number[];
 }
 
@@ -46,6 +49,12 @@ export function newPieceId(type: string): string {
 export class Construction {
   readonly nodes = new Map<string, PieceNode>();
   root: PieceNode;
+  /**
+   * "Frente" explícito de la criatura y su "arriba", unitarios, en coordenadas locales del chizito
+   * raíz (giran con él). Por defecto el lado +Z, que al empezar mira a la cámara.
+   */
+  readonly front = new THREE.Vector3(0, 0, 1);
+  readonly up = new THREE.Vector3(0, 1, 0);
 
   constructor(rootType: string, rootSeed: number, rootObject: THREE.Object3D) {
     const data: PieceData = {
@@ -101,7 +110,12 @@ export class Construction {
    * existentes por id; los que faltan se crean con `factory`. Base de deshacer/rehacer y de la carga.
    * Devuelve los objetos quitados (por si se quieren reutilizar después).
    */
-  restore(list: PieceData[], factory: (d: PieceData) => THREE.Object3D): THREE.Object3D[] {
+  restore(
+    list: PieceData[],
+    factory: (d: PieceData) => THREE.Object3D,
+    /** Si se da, la pose se reconstruye desde los datos de conexión (carga de archivo) en vez de `localMatrix`. */
+    pose?: (d: PieceData, parent: THREE.Object3D) => THREE.Matrix4,
+  ): THREE.Object3D[] {
     const want = new Set(list.map((d) => d.id));
     const removed: THREE.Object3D[] = [];
     // Quitar lo que sobra (de las hojas hacia arriba).
@@ -139,6 +153,7 @@ export class Construction {
         }
       }
       parent.object.add(node.object);
+      if (pose) d.localMatrix = pose(d, parent.object).toArray();
       new THREE.Matrix4().fromArray(d.localMatrix).decompose(node.object.position, node.object.quaternion, node.object.scale);
     }
     return removed;

@@ -76,4 +76,6 @@ export const CONFIG = {
   /** Brillo suave alrededor de las zonas claras (sueño, no neón). */
   bloom: { intensity: 0.16, threshold: 0.86, smoothing: 0.25, radius: 0.7 },
   pixelRatioMax: 1.5,
+  /** Criaturas: tope de piezas clavadas (los trazos de ketchup no cuentan). */
+  creature: { maxPieces: 40 },
 };

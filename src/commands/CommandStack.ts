@@ -1,11 +1,19 @@
 import type { PieceData } from '../model/Construction';
 
 /**
- * Deshacer / rehacer. Cada comando guarda la construcción antes y después (lista de PieceData sin la
- * raíz). Deshacer/rehacer = restaurar uno de esos estados; la restauración reutiliza los objetos que
- * ya existen (diff por id), así que es barata aunque haya muchas piezas.
+ * Deshacer / rehacer. Cada comando guarda la criatura antes y después: sus piezas (PieceData sin la
+ * raíz), el frente y la semilla del chizito raíz. Deshacer/rehacer = restaurar uno de esos estados;
+ * la restauración reutiliza los objetos que ya existen (diff por id), así que es barata.
  */
-export type Snapshot = PieceData[];
+export type Vec3 = [number, number, number];
+
+export interface Snapshot {
+  pieces: PieceData[];
+  /** Frente y arriba de la criatura, en coordenadas del chizito raíz. */
+  front: Vec3;
+  up: Vec3;
+  rootSeed: number;
+}
 
 export interface Command {
   label: string;
@@ -13,17 +21,26 @@ export interface Command {
   after: Snapshot;
 }
 
-export function cloneSnapshot(list: PieceData[]): Snapshot {
+export function clonePieces(list: PieceData[]): PieceData[] {
   return list.map((d) => ({
     ...d,
-    entryPoint: [...d.entryPoint] as [number, number, number],
-    direction: [...d.direction] as [number, number, number],
+    entryPoint: [...d.entryPoint] as Vec3,
+    direction: [...d.direction] as Vec3,
     localMatrix: [...d.localMatrix],
     params: d.params ? structuredClone(d.params) : undefined,
   }));
 }
 
-export function sameSnapshot(a: Snapshot, b: Snapshot): boolean {
+export function cloneSnapshot(s: Snapshot): Snapshot {
+  return { pieces: clonePieces(s.pieces), front: [...s.front], up: [...s.up], rootSeed: s.rootSeed };
+}
+
+const sameVec = (a: Vec3, b: Vec3) => a.every((x, i) => Math.abs(x - b[i]) < 1e-6);
+
+export function sameSnapshot(sa: Snapshot, sb: Snapshot): boolean {
+  if (sa.rootSeed !== sb.rootSeed || !sameVec(sa.front, sb.front) || !sameVec(sa.up, sb.up)) return false;
+  const a = sa.pieces;
+  const b = sb.pieces;
   if (a.length !== b.length) return false;
   const byId = new Map(b.map((d) => [d.id, d]));
   return a.every((d) => {
