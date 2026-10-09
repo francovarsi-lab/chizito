@@ -140,6 +140,7 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
   const out: PieceData[] = [];
   let count = 0;
   let dropped = 0;
+  let overLimit = 0;
   // Orden padre → hijo; si viniera desordenado, se reintenta hasta que no avance.
   let pending = list.slice();
   for (let pass = 0; pass < 64 && pending.length; pass++) {
@@ -160,7 +161,7 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
       }
       const isPiece = pieces.get(d.type).frame !== 'free';
       if (isPiece && count >= CONFIG.creature.maxPieces) {
-        dropped++;
+        overLimit++;
         continue;
       }
       if (isPiece) count++;
@@ -173,8 +174,8 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
     }
     pending = next;
   }
-  if (dropped) warnings.push(`${dropped} pieza${dropped === 1 ? '' : 's'} no se pudo cargar`);
-  if (count >= CONFIG.creature.maxPieces && list.length > out.length) warnings.push(`tope de ${CONFIG.creature.maxPieces} piezas`);
+  if (dropped) warnings.push(dropped === 1 ? '1 pieza no se pudo cargar' : `${dropped} piezas no se pudieron cargar`);
+  if (overLimit) warnings.push(`${overLimit} pieza${overLimit === 1 ? '' : 's'} de más (el tope es ${CONFIG.creature.maxPieces})`);
 
   return {
     snapshot: { pieces: out, front, up, rootSeed: cr.root.seed },

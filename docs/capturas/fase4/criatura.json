@@ -4,7 +4,7 @@
   "units": "m",
   "creature": {
     "name": "Criatura",
-    "savedAt": "2026-10-09T16:19:11.016Z",
+    "savedAt": "2026-10-09T16:38:40.554Z",
     "pieceCount": 4,
     "root": {
       "type": "chizito",
@@ -14,7 +14,7 @@
       "direction": [
         -0.705528,
         0.432804,
-        0.56117
+        0.561169
       ],
       "up": [
         0.338867,
@@ -25,10 +25,10 @@
   },
   "pieces": [
     {
-      "id": "palito-mv15nqhu-1",
+      "id": "palito-mv16cknc-1",
       "type": "palito",
       "parentId": "root",
-      "seed": 5956036,
+      "seed": 943693,
       "attach": {
         "mode": "pierce",
         "entryPoint": [
@@ -42,14 +42,14 @@
           -0.799225
         ],
         "depth": 0.001372,
-        "spin": 3.405699
+        "spin": 2.792783
       }
     },
     {
-      "id": "papita-mv15s13a-2",
+      "id": "papita-mv16gtpq-2",
       "type": "papita",
       "parentId": "root",
-      "seed": 5956043,
+      "seed": 943700,
       "attach": {
         "mode": "pierce",
         "entryPoint": [
@@ -63,40 +63,40 @@
           -0.524686
         ],
         "depth": 0.001372,
-        "spin": 0.271207
+        "spin": 4.581631
       },
       "params": {
         "bites": [
-          781549307
+          278053400
         ]
       }
     },
     {
-      "id": "palito-mv15zsy3-4",
+      "id": "palito-mv16ongc-4",
       "type": "palito",
-      "parentId": "papita-mv15s13a-2",
-      "seed": 5956057,
+      "parentId": "papita-mv16gtpq-2",
+      "seed": 943714,
       "attach": {
         "mode": "pierce",
         "entryPoint": [
-          0.00057,
-          0.036526,
-          0.001874
+          0.000822,
+          0.034081,
+          -0.000774
         ],
         "direction": [
-          -0.00402,
-          -0.173722,
-          -0.984787
+          -0.994062,
+          -0.029364,
+          -0.104777
         ],
         "depth": 0.002706,
-        "spin": 3.685052
+        "spin": 3.54404
       }
     },
     {
-      "id": "escarbadientes-mv15vunb-3",
+      "id": "escarbadientes-mv16kqkp-3",
       "type": "escarbadientes",
       "parentId": "root",
-      "seed": 5956050,
+      "seed": 943707,
       "attach": {
         "mode": "pierce",
         "entryPoint": [
@@ -110,17 +110,17 @@
           -0.272314
         ],
         "depth": 0.001372,
-        "spin": 3.352205
+        "spin": 5.284481
       },
       "params": {
         "variant": "espadita"
       }
     },
     {
-      "id": "ketchup-mv1645cr-5",
+      "id": "ketchup-mv16t3vk-5",
       "type": "ketchup",
       "parentId": "root",
-      "seed": 5956064,
+      "seed": 943721,
       "attach": {
         "mode": "paint",
         "entryPoint": [
