@@ -60,7 +60,8 @@ const stick = async (bowlKey, local, keys = [], n = 22, dx = 20, dy = -25) => {
 // Matrices de mundo de todas las piezas, por id (para comparar después de cargar).
 const poses = () => page.evaluate(() => {
   const c = window.__chizito; const out = {};
-  for (const n of c.construction.nodes.values()) { n.object.updateMatrixWorld(true); out[n.data.id] = [...n.object.matrixWorld.elements]; }
+  // Pose relativa al padre (la del mundo incluye la flotación del chizito, que no es parte de la criatura).
+  for (const n of c.construction.nodes.values()) if (n.parent) { n.object.updateMatrix(); out[n.data.id] = [...n.object.matrix.elements]; }
   return out;
 });
 const maxDiff = (a, b) => { let m = 0; for (const id of Object.keys(a)) { if (!b[id]) return Infinity; for (let i = 0; i < 16; i++) m = Math.max(m, Math.abs(a[id][i] - b[id][i])); } return m; };
@@ -105,6 +106,7 @@ const file = JSON.parse(json);
 console.log('archivo: versión', file.version, '· piezas', file.creature.pieceCount, '· registros', file.pieces.length, '· modos', [...new Set(file.pieces.map((p) => p.attach.mode))].join('/'));
 console.log('¿guarda matrices sueltas?', json.includes('localMatrix') || json.includes('matrix') ? 'SÍ (mal)' : 'no');
 console.log('jerarquía', file.pieces.map((p) => `${p.type}<${p.parentId === 'root' ? 'root' : file.pieces.find((q) => q.id === p.parentId)?.type}`).join(' '));
+await frames(30); // que termine el "pop" de la última pieza
 const p0 = await poses();
 
 // 4. Reiniciar (R R) y cargar: todo vuelve al mismo lugar.
@@ -125,7 +127,7 @@ page2.on('pageerror', (e) => console.log('[pageerror2]', e.message));
 await page2.goto('http://localhost:5173/?capture');
 await page2.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
 await page2.evaluate(([t, q]) => { const c = window.__chizito; c.pivot.quaternion.fromArray(q); c.persistence.loadText(t); }, [json, await page.evaluate(() => window.__chizito.pivot.quaternion.toArray())]);
-const p2 = await page2.evaluate(() => { const c = window.__chizito; const o = {}; for (const n of c.construction.nodes.values()) { n.object.updateMatrixWorld(true); o[n.data.id] = [...n.object.matrixWorld.elements]; } return o; });
+const p2 = await page2.evaluate(() => { const c = window.__chizito; const o = {}; for (const n of c.construction.nodes.values()) if (n.parent) { n.object.updateMatrix(); o[n.data.id] = [...n.object.matrix.elements]; } return o; });
 console.log('cargada en otra página: dif. máx.', maxDiff(p0, p2).toExponential(2));
 const d2 = await page2.evaluate(() => window.__chizito.renderFrames(4));
 fs.writeFileSync(`${out}/03-otra-pagina.png`, Buffer.from(d2.split(',')[1], 'base64'));
