@@ -166,5 +166,10 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 3. Feedback (sacudida, migas, sonido), papitas, edición, undo/redo. ← hecha
    Prueba automatizada: `node scripts/phase3-test.mjs <dir>`. Piezas nuevas: `node scripts/pieces-test.mjs <dir>`.
    Ketchup / vasitos / sacudida a 20 fps: `node scripts/ketchup-test.mjs <dir>`.
-4. Guardado/carga JSON versionado, GLB, pulido.
+4. Guardado/carga JSON versionado, GLB, pulido. Requisitos del usuario (las construcciones son CRIATURAS para jugar):
+   - Cada criatura tiene un "frente" explícito (dirección guardada en el marco local del chizito raíz).
+   - El JSON guarda, por pieza, el punto de clavado, la dirección y la jerarquía (parentId): la pose se
+     RECONSTRUYE desde esos datos (entryPoint, direction, depth, spin, mount, params). Nada de guardar sólo
+     posiciones/matrices sueltas (`localMatrix` es un derivado, no la fuente de verdad).
+   - Tope: 40 piezas por criatura.
 Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit, y esperar aprobación.
