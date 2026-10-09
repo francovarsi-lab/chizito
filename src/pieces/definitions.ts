@@ -58,11 +58,12 @@ export const ACEITUNA: PieceDefinition = {
   dimensions: { length: ACEITUNA_LENGTH, thickness: ACEITUNA_DIAMETER },
   frame: 'tip',
   procedural: (seed, detail) => createAceituna(seed, detail),
-  canPierce: true,
+  // No se clava en el chizito: se ensarta en la punta libre de un palito o escarbadientes.
+  canPierce: false,
+  mountsOnTail: true,
   canBePierced: true,
-  // Se apoya hundida apenas (como una nariz); un palito la puede atravesar.
-  maxDepth: 0.004,
-  holdHint: 'la aceituna se hunde apenas · después la podés atravesar con un palito',
+  maxDepth: 0,
+  holdHint: 'tocá un palito o escarbadientes clavado para ensartarle la aceituna en la punta',
   sounds: { pick: 'pick', drop: 'drop', contact: 'crack', insert: 'crunch' },
 };
 

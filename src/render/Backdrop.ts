@@ -74,7 +74,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
 
   const papitaBowl = makeBowl(0.055, 0.032, ceramic);
   papitaBowl.position.copy(BOWL_LAYOUT.papita);
-  papitaBowl.add(fillBowl(assets, 'papita', 0.046, 0.032, 22, 11));
+  papitaBowl.add(fillBowl(assets, 'papita', 0.055, 0.032, 22, 11));
   papitaBowl.userData.bowlFor = 'papita';
   root.add(papitaBowl);
   bowls.set('papita', papitaBowl);
@@ -83,10 +83,10 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   // Escarbadientes y espaditas van en vasitos separados (cada uno da su variante).
   const nachoBowl = makeBowl(0.034, 0.018, ceramic);
   nachoBowl.position.copy(BOWL_LAYOUT.nacho);
-  nachoBowl.add(fillBowl(assets, 'nacho', 0.026, 0.016, 6, 41));
+  nachoBowl.add(fillBowl(assets, 'nacho', 0.034, 0.018, 6, 41));
   const oliveBowl = makeBowl(0.026, 0.016, ceramic);
   oliveBowl.position.copy(BOWL_LAYOUT.aceituna);
-  oliveBowl.add(fillBowl(assets, 'aceituna', 0.021, 0.016, 9, 51));
+  oliveBowl.add(fillBowl(assets, 'aceituna', 0.026, 0.016, 9, 51));
   const pickCup = makeStandCup(assets, { type: 'escarbadientes', count: 18, seed: 61, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'liso' }) });
   pickCup.position.copy(BOWL_LAYOUT.escarbadientes);
   const swordCup = makeStandCup(assets, { type: 'escarbadientes', count: 12, seed: 67, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'espadita' }) });
@@ -116,13 +116,13 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   const plasticOrange = new THREE.MeshPhysicalMaterial({ color: '#bfe6d6', roughness: 0.35, clearcoat: 0.3 }); // menta pastel
   const bgBowl = makeBowl(0.085, 0.05, plasticOrange);
   bgBowl.position.set(-0.3, 0, -0.62);
-  bgBowl.add(fillBowl(assets, 'chizito', 0.075, 0.05, 26, 21));
+  bgBowl.add(fillBowl(assets, 'chizito', 0.085, 0.05, 26, 21));
   farProps.add(bgBowl);
 
   const plasticYellow = new THREE.MeshPhysicalMaterial({ color: '#d9cdf3', roughness: 0.35, clearcoat: 0.3 }); // lavanda
   const bgBowl2 = makeBowl(0.08, 0.048, plasticYellow);
   bgBowl2.position.set(0.36, 0, -0.85);
-  bgBowl2.add(fillBowl(assets, 'papita', 0.07, 0.048, 40, 31));
+  bgBowl2.add(fillBowl(assets, 'papita', 0.08, 0.048, 40, 31));
   farProps.add(bgBowl2);
 
   // Pocos objetos y lejos: el centro de la mesa queda despejado para el juego.
@@ -174,8 +174,28 @@ function makeBowl(radius: number, height: number, mat: THREE.Material): THREE.Gr
   return g;
 }
 
-/** Llena un bowl con instancias de la pieza (horneadas en pocas mallas). */
-function fillBowl(assets: AssetRegistry, type: string, innerR: number, height: number, count: number, seed: number): THREE.Object3D {
+/** Espesor de pared de `makeBowl` (el interior se calcula con el mismo perfil). */
+const BOWL_WALL = 0.0035;
+
+/**
+ * Altura mínima a la que puede estar un punto dentro del bowl (radio `rho` desde el eje) sin
+ * atravesar la cerámica: el fondo, la pared curva y, más allá del borde, por encima del borde.
+ */
+function bowlFloor(radius: number, height: number, rho: number): number {
+  const ri = radius - BOWL_WALL;
+  const base = 0.004 + BOWL_WALL;
+  if (rho <= ri * 0.45) return base;
+  if (rho >= ri) return height + 0.0015;
+  const a = (Math.asin(Math.min(1, (rho / ri - 0.45) / 0.55)) * 2) / Math.PI;
+  return base + a * (height - BOWL_WALL - 0.004);
+}
+
+/**
+ * Llena un bowl (de `makeBowl(radius, height)`) con instancias de la pieza, horneadas en pocas mallas.
+ * Cada pieza se apoya: si algún vértice quedaría dentro de la cerámica, se la sube hasta que no.
+ */
+function fillBowl(assets: AssetRegistry, type: string, radius: number, height: number, count: number, seed: number): THREE.Object3D {
+  const innerR = radius - BOWL_WALL - 0.004;
   const rnd = mulberry32(seed);
   const pile = new THREE.Group();
   const variants = 6;
@@ -212,9 +232,28 @@ function fillBowl(assets: AssetRegistry, type: string, innerR: number, height: n
       const jitter = new THREE.Quaternion().setFromEuler(new THREE.Euler((rnd() - 0.5) * tumble, rnd() * Math.PI * 2, (rnd() - 0.5) * tumble, 'YXZ'));
       obj.quaternion.copy(jitter).multiply(lay);
     }
+    restOnBowl(obj, radius, height);
     pile.add(obj);
   }
   return bakeStatic(pile, `${type}-pile`);
+}
+
+/** Sube la pieza lo justo para que ningún vértice atraviese el fondo, la pared o el borde del bowl. */
+function restOnBowl(obj: THREE.Object3D, radius: number, height: number): void {
+  obj.updateMatrixWorld(true);
+  const v = new THREE.Vector3();
+  let lift = 0;
+  obj.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const pos = m.geometry.getAttribute('position');
+    const stride = Math.max(1, Math.floor(pos.count / 600));
+    for (let i = 0; i < pos.count; i += stride) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+      lift = Math.max(lift, bowlFloor(radius, height, Math.hypot(v.x, v.z)) + 0.0005 - v.y);
+    }
+  });
+  obj.position.y += lift;
 }
 
 /** Sobrecitos de ketchup apilados en abanico, apenas parados contra el borde del platito. */

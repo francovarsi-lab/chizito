@@ -138,6 +138,9 @@ export class InteractionController {
   /** Sobrecito de ketchup en la mano (modo DRAWING) y el trazo que se está dibujando. */
   private sachet: THREE.Object3D | null = null;
   private drawPress = false;
+  /** Goma (Shift + mantener con el sobrecito): estado antes de borrar, para deshacer de una vez. */
+  private eraseBefore: Snapshot | null = null;
+  private erased = 0;
   private stroke: { node: PieceNode; points: number[]; normals: number[]; before: Snapshot } | null = null;
   private hover: SurfaceHit | null = null;
   /** Punto del chizito presentado (para ensartar) bajo el cursor, en mundo. */
@@ -229,6 +232,10 @@ export class InteractionController {
         if (this.canGrab(bowl)) this.grab(bowl);
       } else {
         this.drawPress = true;
+        if (input.shift) {
+          this.eraseBefore = this.snapshot();
+          this.erased = 0;
+        }
       }
       return;
     }
@@ -304,6 +311,7 @@ export class InteractionController {
     if (this.drawPress && !input.buttons.left) {
       this.drawPress = false;
       this.endStroke();
+      this.endErase();
     }
   }
 
@@ -328,7 +336,7 @@ export class InteractionController {
     const a = this.active;
     const s = this.state;
     const ok = s === InteractionState.AIMING || s === InteractionState.PLACED || s === InteractionState.SELECTED_PLACED_PIECE;
-    if (!a || !ok || this.press) return;
+    if (!a || !ok || this.press || a.def.frame === 'free') return;
     if (this.wheelTarget === null) {
       this.wheelTarget = a.aim.depth;
       this.wheelBefore = this.snapshot();
@@ -423,7 +431,7 @@ export class InteractionController {
       return;
     }
     // Q / E: girar la pieza sobre su eje en cualquier momento (en la mano, apuntando, clavándola o ya clavada).
-    if (this.active && (e.code === 'KeyQ' || e.code === 'KeyE')) {
+    if (this.active && this.active.def.frame !== 'free' && (e.code === 'KeyQ' || e.code === 'KeyE')) {
       const a = this.active;
       const settled = this.state === InteractionState.PLACED || this.state === InteractionState.SELECTED_PLACED_PIECE;
       const before = settled ? this.snapshot() : null;
@@ -557,7 +565,8 @@ export class InteractionController {
     this.d.picker.ignore.add(node.object);
     setHighlight(node.object, true);
     this.state = InteractionState.SELECTED_PLACED_PIECE;
-    this.d.overlay.hint('selected', 'mantené para hundirla · Shift + mantener para sacarla · Supr la quita · Esc la suelta', 6500);
+    if (def.frame === 'free') this.d.overlay.flash('Supr borra este ketchup · Esc lo suelta', 2600);
+    else this.d.overlay.hint('selected', 'mantené para hundirla · Shift + mantener para sacarla · Supr la quita · Esc la suelta', 6500);
   }
 
   /** Parte la pieza en la mano: suma un mordisco y regenera su forma (determinista por semilla). */
@@ -624,7 +633,7 @@ export class InteractionController {
     setGhost(a.object, null);
     this.hover = null;
     this.mountHover = null;
-    this.d.overlay.hint('mount', 'tocá el chizito donde quieras que le entre el palito · Esc cancela');
+    this.d.overlay.hint('mount', 'tocá la pieza donde quieras que le entre el palito · Esc cancela');
   }
 
   private cancelMount(): void {
@@ -634,12 +643,15 @@ export class InteractionController {
     this.mountHover = null;
   }
 
-  /** Pose de presentación (local al palito): el chizito acostado sobre la punta, de cara a la cámara. */
+  /** Pose de presentación (local al palito): la pieza acostada sobre la punta, de cara a la cámara. */
   private presentPose(a: ActivePiece, k: number): void {
     const P = a.mount!.object;
     const tail = this.tmpV.setFromMatrixPosition(tailFrame(P));
     const r = a.def.dimensions.thickness / 2;
-    this.targetPos.copy(tail).add(this.tmpV2.set(0, r + 0.007, 0));
+    // Centro de la pieza (en su marco) para presentarla centrada, sea 'centered' o 'tip'.
+    const center = (a.object.userData.localCenter as THREE.Vector3 | undefined) ?? localCenter(a.object);
+    a.object.userData.localCenter = center;
+    const wantCenter = this.tmpV2.copy(tail).add(new THREE.Vector3(0, r + 0.006, 0));
     P.updateMatrixWorld(true);
     const inv = P.getWorldQuaternion(this.tmpQ).invert();
     const y = new THREE.Vector3(0, 1, 0);
@@ -649,6 +661,7 @@ export class InteractionController {
     x.normalize();
     const z = new THREE.Vector3().crossVectors(x, y);
     this.targetQuat.setFromRotationMatrix(this.tmpM.makeBasis(x, y, z));
+    this.targetPos.copy(wantCenter).sub(center.clone().applyQuaternion(this.targetQuat));
     a.object.position.lerp(this.targetPos, k);
     a.object.quaternion.slerp(this.targetQuat, k);
   }
@@ -678,6 +691,7 @@ export class InteractionController {
    * cola · inversa(punta en el chizito), en coordenadas del palito. Con `smooth` se acerca suave.
    */
   private pose(a: ActivePiece, smooth = 0): void {
+    if (a.def.frame === 'free') return; // el ketchup ya está en coordenadas del padre: no se mueve
     if (!a.mount) {
       a.aim.pose(a.object.position, a.object.quaternion);
       return;
@@ -765,7 +779,8 @@ export class InteractionController {
 
   private startPress(kind: 'push' | 'pull'): void {
     const a = this.active;
-    if (!a) return;
+    // Un trazo de ketchup no se hunde ni se saca: sólo se borra (Supr).
+    if (!a || a.def.frame === 'free') return;
     if (this.wheelTarget !== null) {
       const wb = this.wheelBefore;
       this.wheelTarget = null;
@@ -838,11 +853,12 @@ export class InteractionController {
     this.sachet = s;
     this.state = InteractionState.DRAWING;
     this.emit('pick', null);
-    this.d.overlay.hint('drawing', 'mantené apretado y pasá por las piezas para ponerles ketchup · Esc lo deja');
+    this.d.overlay.hint('drawing', 'mantené apretado y pasá por las piezas para ponerles ketchup · Shift + mantener borra · Esc lo deja', 6500);
   }
 
   private stopDrawing(): void {
     this.endStroke();
+    this.endErase();
     this.drawPress = false;
     const s = this.sachet;
     if (s) {
@@ -880,6 +896,16 @@ export class InteractionController {
     s.scale.setScalar(Math.min(1, s.scale.x + dt * 5));
 
     if (!this.drawPress) return;
+    if (this.eraseBefore) {
+      // Goma: borra los trazos de ketchup que toca.
+      const node = this.rotating ? null : picker.pickPlaced(p.ndcX, p.ndcY);
+      if (node && this.isStroke(node)) {
+        for (const n of this.d.construction.remove(node.data.id)) this.bury(n);
+        this.erased++;
+        this.emit('remove', null);
+      }
+      return;
+    }
     if (this.stroke && (!hit || hit.node !== this.stroke.node.parent)) this.endStroke();
     if (!hit) return;
     if (!this.stroke) this.beginStroke(hit);
@@ -935,6 +961,16 @@ export class InteractionController {
       this.endStroke();
       this.beginStroke(hit);
     }
+  }
+
+  private isStroke(node: PieceNode): boolean {
+    return this.d.pieces.get(node.data.type).frame === 'free';
+  }
+
+  private endErase(): void {
+    const before = this.eraseBefore;
+    this.eraseBefore = null;
+    if (before && this.erased) this.record('borrar ketchup', before);
   }
 
   private endStroke(): void {
@@ -1048,6 +1084,7 @@ export class InteractionController {
   /** Antes de deshacer / reiniciar: soltar o devolver lo que haya en la mano. */
   private settle(): void {
     this.endStroke();
+    this.endErase();
     this.wheelTarget = null;
     this.wheelBefore = null;
     if (this.press) {
@@ -1082,7 +1119,9 @@ export class InteractionController {
     this.resetArmedUntil = 0;
     this.settle();
     const before = this.snapshot();
-    this.restore({ pieces: [], front: [0, 0, 1], up: [0, 1, 0], rootSeed: before.rootSeed });
+    // Chizito nuevo de verdad: otra forma (otra semilla) y sin piezas. Se puede deshacer.
+    const rootSeed = this.d.setRootSeed ? 1 + Math.floor(Math.random() * 1e5) : before.rootSeed;
+    this.restore({ pieces: [], front: [0, 0, 1], up: [0, 1, 0], rootSeed });
     this.record('reiniciar', before);
     this.onReset?.();
     this.d.overlay.flash('chizito nuevo', 1200);
@@ -1354,6 +1393,20 @@ export class InteractionController {
 const Y_UP = new THREE.Vector3(0, 1, 0);
 const Z_UP = new THREE.Vector3(0, 0, 1);
 const ONE = new THREE.Vector3(1, 1, 1);
+
+/** Centro del bbox de un objeto en su propio marco (sin su transformación). */
+function localCenter(obj: THREE.Object3D): THREE.Vector3 {
+  const box = new THREE.Box3();
+  obj.updateMatrixWorld(true);
+  const inv = obj.matrixWorld.clone().invert();
+  obj.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.geometry.computeBoundingBox();
+    box.union(m.geometry.boundingBox!.clone().applyMatrix4(inv.clone().multiply(m.matrixWorld)));
+  });
+  return box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3());
+}
 
 /** Orientación con +Y en `axis` y la cara (+Z) lo más de frente posible a la cámara. */
 function faceCamera(axis: THREE.Vector3, toCam: THREE.Vector3, m: THREE.Matrix4): THREE.Quaternion {

@@ -51,7 +51,8 @@ async function main() {
   }
 
   // Chizito central: raíz del árbol de piezas. El pivote es el objeto que rota.
-  const rootSeed = Number(params.get('seed') ?? 3);
+  // Cada vez que se abre el juego, un chizito distinto (?seed=N lo fija; las capturas usan el 3).
+  const rootSeed = Number(params.get('seed') ?? (params.has('capture') ? 3 : 1 + Math.floor(Math.random() * 1e5)));
   const pivot = new THREE.Group();
   pivot.name = 'chizito-root';
   pivot.position.copy(CONFIG.chizitoCenter);
@@ -173,8 +174,9 @@ async function main() {
     return;
   }
 
-  // La última criatura del navegador vuelve sola (?nuevo arranca de cero).
-  if (!params.has('nuevo')) persistence.restoreAutosave();
+  // Al abrir siempre se arranca con un chizito nuevo. La última criatura queda autoguardada en el
+  // navegador y se recupera a pedido con ?recuperar (para guardarla de verdad: Ctrl+S).
+  if (params.has('recuperar')) persistence.restoreAutosave();
 
   // Entrada: el chizito cae desde arriba con un rebote y el velo blanco se disuelve.
   shake.intro(0.045);

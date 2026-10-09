@@ -214,7 +214,8 @@ export function createKetchupStroke(seed: number, params: KetchupParams = {}): T
   mesh.name = 'ketchup';
   mesh.castShadow = false;
   mesh.receiveShadow = true;
-  // Los trazos no se eligen ni se atraviesan: se borran con deshacer.
-  mesh.userData.noPick = true;
+  // Los trazos no se atraviesan ni se pinta encima de ellos, pero se pueden elegir (clic + Supr) y
+  // borrar con la goma (Shift + mantener con el sobrecito).
+  mesh.userData.stroke = true;
   return mesh;
 }

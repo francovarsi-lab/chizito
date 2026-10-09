@@ -75,13 +75,14 @@ export class Picker {
     const ray = this.setRay(ndcX, ndcY);
     const hits = ray.intersectObject(this.construction.root.object, true);
     for (const h of hits) {
-      if (!(h.object as THREE.Mesh).isMesh || h.object.userData.noPick) continue;
+      // Sobre el ketchup no se pinta: se sigue a la pieza que está debajo.
+      if (!(h.object as THREE.Mesh).isMesh || h.object.userData.noPick || h.object.userData.stroke) continue;
       const node = this.ownerNode(h.object);
       if (!node) continue;
       const own: THREE.Mesh[] = [];
       node.object.traverse((o) => {
         const m = o as THREE.Mesh;
-        if (m.isMesh && m.visible && !m.userData.noPick && this.ownerNode(m) === node) own.push(m);
+        if (m.isMesh && m.visible && !m.userData.noPick && !m.userData.stroke && this.ownerNode(m) === node) own.push(m);
       });
       const n = hitNormal(h, h.object as THREE.Mesh);
       // En piezas finitas (palitos) los rayos vecinos se caerían por el costado: normal directa.

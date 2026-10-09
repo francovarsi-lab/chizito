@@ -12,13 +12,14 @@ const NACHO_STYLE: ChipStyle = {
   radius: NACHO_RADIUS,
   thickness: NACHO_THICKNESS,
   contour: (th, noise, ox) => {
-    // Triángulo en polares (circunradio 1), con las puntas redondeadas por un mínimo suave.
+    // Triángulo en polares (circunradio 1): lados rectos y puntas apenas redondeadas (antes el tope
+    // en 0,86 las cortaba tanto que se leía como un hexágono o una papita).
     const sector = (2 * Math.PI) / 3;
     const x = ((((th % sector) + sector) % sector) - sector / 2);
     const tri = 0.5 / Math.cos(x);
-    const k = 0.08;
-    const capped = 0.5 * (tri + 0.86 - Math.sqrt((tri - 0.86) ** 2 + k * k)); // smin(tri, 0.86)
-    return capped * (1 + 0.03 * noise.noise(Math.cos(th) * 3 + ox, Math.sin(th) * 3, 1.7));
+    const k = 0.035;
+    const capped = 0.5 * (tri + 0.96 - Math.sqrt((tri - 0.96) ** 2 + k * k)); // smin(tri, 0.96)
+    return capped * (1 + 0.012 * noise.noise(Math.cos(th) * 3 + ox, Math.sin(th) * 3, 1.7));
   },
   wave: [0.0009, 0.0008],
   colors: { base: '#eac46c', light: '#f5dc9a', toast: '#c58a3a' },

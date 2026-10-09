@@ -64,7 +64,7 @@ const stick = async (type, local, name, keys = [], n = 24) => {
 };
 
 await stick('nacho', [-0.014, 0.008, 0.004], '01-nacho', ['KeyE', 'KeyE', 'KeyB']);
-await stick('aceituna', [0.0, 0.01, 0.006], '02-aceituna');
+// (la aceituna ya no se clava en el chizito: ver scripts/fixes-test.mjs)
 await stick('escarbadientes', [0.014, 0.004, 0.008], '03-escarbadientes');
 await stick('escarbadientes:espadita', [0.019, 0.007, 0.004], '04-espadita');
 

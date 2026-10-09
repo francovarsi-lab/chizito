@@ -70,7 +70,9 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   Tira de recipientes chicos al frente (mismo lenguaje: cerámica blanca y vasito descartable): nachos, aceitunas,
   vasito de escarbadientes, vasito de espaditas y platito con sobrecitos de ketchup (genéricos, sin marca).
   Las claves de `bowls`/`BOWL_LAYOUT` son `tipo` o `tipo:variante` (el recipiente decide la variante).
-  `fillBowl` centra cada pieza por su bbox y la acuesta (eje más fino hacia arriba).
+  `fillBowl(assets, tipo, radioBowl, altoBowl, …)` centra cada pieza por su bbox, la acuesta (eje más fino hacia
+  arriba) y la APOYA: `restOnBowl` la sube hasta que ningún vértice atraviese fondo, pared o borde (`bowlFloor`
+  usa el mismo perfil interior que `makeBowl`).
   Al fondo: bowl de chizitos, bowl de papitas, vasos descartables, gaseosa genérica (sin marca), servilletas, gorrito.
 
 ## Assets
@@ -113,10 +115,13 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   arrancan al azar en cada sesión: no hay dos papitas iguales ni entre partidas. Una papita colocada puede ser
   atravesada: el palito que entra en ella queda como hijo de la papita en el árbol.
 - Nacho: igual que la papita (de canto, máx. 6 mm, Q/E, B lo parte; mismo generador `buildChipGeometry` con otro
-  `ChipStyle`). Aceituna: entra apenas (máx. 4 mm) y se puede atravesar. Escarbadientes: como el palito (80 % del
+  `ChipStyle`): TRIÁNGULO de lados rectos con puntas apenas redondeadas (smin con tope 0,96).
+  Aceituna: NO se clava en el chizito; se ensarta en la punta libre de un palito o escarbadientes (`mountsOnTail`,
+  mismo flujo que el chizito extra: clic en el palito → se presenta → clic en la aceituna = por dónde entra →
+  ángulo → mantener). Se puede atravesar. Escarbadientes: como el palito (80 % del
   largo); escarbadientes y espadita salen de vasitos distintos (`escarbadientes` / `escarbadientes:espadita`).
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
-- Chizito extra (EN PAUSA por pedido del usuario: el bowl no está en la mesa; el mecanismo queda en el código, `mountsOnTail`): se ensarta en la cola libre de un palito/escarbadientes
+- Chizito extra (EN PAUSA por pedido del usuario: el bowl no está en la mesa; el mecanismo `mountsOnTail` lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
   pasar el mouse muestra el anillo; clic en el chizito = punto de entrada → AIMING (mouse = ángulo, invertido porque se
   mueve el chizito), mantener / Ctrl + rueda = ensartar, Esc vuelve a la presentación. Matemática: la cola del palito es
@@ -128,15 +133,19 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   suelta o se devuelve) → el sobrecito sigue al cursor con el pico hacia la pieza. Mantener apretado pinta un cordón
   rojo brillante SOLO sobre piezas (la mesa no). Cada trazo es un nodo `ketchup` hijo de la pieza pintada (frame
   'free': geometría en coordenadas del padre; puntos/normales en `params`), así deshacer/rehacer/guardar lo reproducen;
-  si el cursor pasa a otra pieza, empieza otro trazo. Los trazos son `noPick` (no se eligen ni se atraviesan; se borran
-  con Ctrl+Z). Esc o clic en el platito deja el sobrecito; clic en otro recipiente agarra esa pieza.
+  si el cursor pasa a otra pieza, empieza otro trazo. Los trazos (`userData.stroke`) no se atraviesan ni se pinta
+  encima, pero se BORRAN: clic en un trazo lo elige (no se hunde ni se mueve) y Supr lo borra; con el sobrecito,
+  Shift + mantener es una goma (un solo deshacer por pasada). Esc o clic en el platito deja el sobrecito; clic en
+  otro recipiente agarra esa pieza.
 - Editar: clic en una pieza colocada → SELECTED_PLACED_PIECE (resaltado cálido sutil): mantener = hundir,
   Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),
   Supr/Backspace = quitar, Esc = soltar.
 - Ctrl+Z / Ctrl+Shift+Z (o Ctrl+Y): deshacer / rehacer. R dos veces (en 2,5 s) reinicia; también se deshace.
   H oculta ayudas. F: el lado de la criatura que mira a la cámara pasa a ser su FRENTE (marca de aro + punto que
   late 2,6 s; se puede deshacer). Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
-  (se deshace con Ctrl+Z). Autoguardado en el navegador (localStorage) y se recupera al abrir (`?nuevo` lo evita).
+  (se deshace con Ctrl+Z). Al abrir (o recargar) SIEMPRE arranca un chizito nuevo con forma al azar (`?seed=N` la fija;
+  `?capture` usa la 3). La última criatura se autoguarda en el navegador y sólo vuelve con `?recuperar`.
+  R R también da un chizito de otra forma.
   Tope de 40 piezas por criatura (`CONFIG.creature.maxPieces`; el ketchup no cuenta): con 40 no deja agarrar más.
 
 ## Feedback (fase 3)
@@ -181,6 +190,7 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 3. Feedback (sacudida, migas, sonido), papitas, edición, undo/redo. ← hecha
    Prueba automatizada: `node scripts/phase3-test.mjs <dir>`. Piezas nuevas: `node scripts/pieces-test.mjs <dir>`.
    Ketchup / vasitos / sacudida a 20 fps: `node scripts/ketchup-test.mjs <dir>`.
+   Correcciones (borrar ketchup, nacho, bowls, recarga, aceituna en palito): `node scripts/fixes-test.mjs <dir>`.
 4. Guardado/carga JSON versionado, frente, tope de 40. ← hecha (prueba: `node scripts/phase4-test.mjs <dir>`). Requisitos del usuario (las construcciones son CRIATURAS para jugar):
    - Cada criatura tiene un "frente" explícito (dirección guardada en el marco local del chizito raíz).
    - El JSON guarda, por pieza, el punto de clavado, la dirección y la jerarquía (parentId): la pose se
