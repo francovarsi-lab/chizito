@@ -126,9 +126,14 @@ await shot('05-final', 4);
 
 // Recargar: siempre un chizito nuevo (el autoguardado sólo vuelve con ?recuperar).
 await page.waitForTimeout(800);
+// Otra "pestaña" con el mismo autoguardado que dejó esta página.
+const saved = await page.evaluate(() => localStorage.getItem('chizito.criatura.v1'));
+console.log('autoguardado:', saved ? `${JSON.parse(saved).creature.pieceCount} piezas` : 'nada');
+const ctx2 = await browser.newContext({ viewport: { width: 640, height: 360 } });
+await ctx2.addInitScript((t) => { if (t && !sessionStorage.getItem('x')) { localStorage.setItem('chizito.criatura.v1', t); sessionStorage.setItem('x', '1'); } }, saved);
 const seeds = [];
 for (const q of ['', '', 'recuperar']) {
-  const p2 = await page.context().newPage(); // mismo perfil: comparte el autoguardado
+  const p2 = await ctx2.newPage();
   await p2.goto(`http://localhost:5173/?${q}`);
   await p2.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
   const r = await p2.evaluate(() => ({ seed: window.__chizito.construction.root.data.seed, pieces: window.__chizito.construction.nodes.size - 1 }));
