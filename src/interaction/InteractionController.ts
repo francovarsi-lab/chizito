@@ -266,9 +266,9 @@ export class InteractionController {
             this.beginMountAim(spot);
             break;
           }
+          // Un clic que no cae en la pieza presentada no la cancela (eso es Esc); otro palito libre la cambia.
           const tail = this.pickFreeTail();
-          if (tail) this.presentMount(tail);
-          else if (a.mount) this.cancelMount();
+          if (tail && tail !== a.mount) this.presentMount(tail);
           break;
         }
         const hit = picker.pickSurface(p.ndcX, p.ndcY);
@@ -648,10 +648,11 @@ export class InteractionController {
     const P = a.mount!.object;
     const tail = this.tmpV.setFromMatrixPosition(tailFrame(P));
     const r = a.def.dimensions.thickness / 2;
-    // Centro de la pieza (en su marco) para presentarla centrada, sea 'centered' o 'tip'.
+    // Centro de la pieza (en su marco) para presentarla centrada, sea 'centered' o 'tip', a pocos mm
+    // por encima de la punta del palito.
     const center = (a.object.userData.localCenter as THREE.Vector3 | undefined) ?? localCenter(a.object);
     a.object.userData.localCenter = center;
-    const wantCenter = this.tmpV2.copy(tail).add(new THREE.Vector3(0, r + 0.006, 0));
+    const wantCenter = this.tmpV2.copy(tail).add(new THREE.Vector3(0, r + 0.004, 0));
     P.updateMatrixWorld(true);
     const inv = P.getWorldQuaternion(this.tmpQ).invert();
     const y = new THREE.Vector3(0, 1, 0);

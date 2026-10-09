@@ -54,7 +54,7 @@ const screenOfNode = (type, local) => page.evaluate(([type, local]) => {
 }, [type, local]);
 const screenOfActive = () => page.evaluate(() => {
   const c = window.__chizito; const T = c.THREE;
-  const v = c.interaction['active'].object.getWorldPosition(new T.Vector3()).project(c.stage.camera);
+  const v = new T.Box3().setFromObject(c.interaction['active'].object).getCenter(new T.Vector3()).project(c.stage.camera);
   return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight];
 });
 
@@ -83,9 +83,10 @@ pt = await screenOfNode('palito', [0, 0.028, 0]);
 await page.mouse.move(pt[0], pt[1], { steps: 3 }); await frames(2);
 await click(...pt); await frames(20);
 let c2 = await screenOfActive();
-await page.mouse.move(c2[0] + 4, c2[1] + 6, { steps: 3 }); await frames(4);
+await page.mouse.move(c2[0], c2[1], { steps: 3 }); await frames(4);
 await shot('02-aceituna-presentada', 2);
-await click(c2[0] + 4, c2[1] + 6); await frames(16);
+await click(c2[0], c2[1]); await frames(16);
+console.log('clic en la aceituna →', (await state()).state);
 await hold(40);
 await page.keyboard.press('Escape'); await page.mouse.move(50, 50); await frames(6);
 await shot('03-aceituna-ensartada', 4);
@@ -127,7 +128,7 @@ await shot('05-final', 4);
 await page.waitForTimeout(800);
 const seeds = [];
 for (const q of ['', '', 'recuperar']) {
-  const p2 = await browser.newPage({ viewport: { width: 640, height: 360 } });
+  const p2 = await page.context().newPage(); // mismo perfil: comparte el autoguardado
   await p2.goto(`http://localhost:5173/?${q}`);
   await p2.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
   const r = await p2.evaluate(() => ({ seed: window.__chizito.construction.root.data.seed, pieces: window.__chizito.construction.nodes.size - 1 }));
