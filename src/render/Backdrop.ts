@@ -105,7 +105,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   // Platito playo con los paquetes acostados y prolijos (casi paralelos, apenas encimados).
   const selvaBowl = makeBowl(0.05, 0.009, ceramic);
   selvaBowl.position.copy(BOWL_LAYOUT['palito-selva']);
-  selvaBowl.add(fillSelvaDish(assets, 5, 91));
+  selvaBowl.add(fillSelvaDish(assets, 6, 91));
   const popCup = makeStandCup(assets, { type: 'chupetin', count: 7, seed: 97, h: 0.028, r0: 0.014, r1: 0.019, params: () => ({ wrapped: true }) });
   popCup.position.copy(BOWL_LAYOUT.chupetin);
   // (El bowl de chizitos para ensartar queda en pausa: el mecanismo sigue en la interacción.)
@@ -295,9 +295,9 @@ function fillSelvaDish(assets: AssetRegistry, count: number, seed: number): THRE
     const lay = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0));
     const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.5 + (i - (count - 1) / 2) * 0.16 + (rnd() - 0.5) * 0.08);
     obj.quaternion.copy(yaw).multiply(lay);
-    const row = i < 3 ? 0 : 1; // dos capas: tres abajo, dos encima
-    const slot = row === 0 ? i - 1 : i - 3.5;
-    obj.position.set(slot * 0.022, 0.012 + row * 0.011, (rnd() - 0.5) * 0.004 + row * 0.004);
+    const row = i < 4 ? 0 : 1; // dos capas: cuatro abajo, dos encima
+    const slot = row === 0 ? i - 1.5 : i - 4.5;
+    obj.position.set(slot * 0.0125, 0.008 + row * 0.0085, (rnd() - 0.5) * 0.003 + row * 0.003);
     restOnBowl(obj, 0.05, 0.009);
     pile.add(obj);
   }

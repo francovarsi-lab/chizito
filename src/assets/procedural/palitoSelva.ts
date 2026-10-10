@@ -3,15 +3,16 @@ import { Simplex3, mulberry32 } from '../../util/noise';
 import { buildTube } from './tube';
 
 /**
- * Palito de la selva (según la foto del usuario): caramelo masticable CILÍNDRICO, blanco con una franja
- * rosa que gira apenas a lo largo (mitad rosa / mitad blanco), puntas cortadas con el borde redondeado.
- * En el bowl viene en su paquete (almohadita con las puntas selladas en aleta dentada, verdes de selva,
- * cuerpo a rayas diagonales rosa y blanco, un animalito y su ficha). Al agarrarlo el paquete se abre y
- * se cae (`SelvaWrapper`), y se clava sin papel. Marco 'tip': la punta en el origen, el cuerpo hacia +Y.
- * Sin logo ni nombre de marca. Más adelante cada paquete traerá un dato curioso del animal.
+ * Palito de la selva (según las fotos del usuario): caramelo masticable CILÍNDRICO, MITAD ROSA / MITAD
+ * BLANCO con la división en línea recta a lo largo (acostado: rosa la mitad de abajo, blanca la de arriba),
+ * puntas cortadas con el borde redondeado. En el bowl viene envuelto: papel ajustado en tubito con las
+ * PUNTAS RETORCIDAS (verde selva), cuerpo rosado claro con una franja amarilla y un bichito. Al agarrarlo
+ * se destuercen las puntas, se desenrolla el papel y se cae (`SelvaWrapper`); se clava sin papel.
+ * Marco 'tip': la punta en el origen, el cuerpo hacia +Y. Sin logo ni nombre de marca.
+ * Más adelante cada envoltorio traerá un dato curioso del animal.
  */
-export const SELVA_LENGTH = 0.055;
-export const SELVA_RADIUS = 0.0056;
+export const SELVA_LENGTH = 0.045;
+export const SELVA_RADIUS = 0.00425;
 /** Compatibilidad: ancho total del caramelo. */
 export const SELVA_WIDTH = SELVA_RADIUS * 2;
 
@@ -46,7 +47,7 @@ export function createPalitoSelva(seed: number, detail: 'hero' | 'prop' = 'hero'
   const R = SELVA_RADIUS * (0.97 + rnd() * 0.06);
   const bevel = 0.0018; // borde redondeado del corte
   const bow = (rnd() - 0.5) * 0.0014; // apenas curvado (es blando)
-  const turn = 0.35 + rnd() * 0.3; // vueltas de la franja rosa a lo largo
+  rnd(); // (antes: vueltas de la franja; se conserva la secuencia de la semilla)
   const phase = rnd() * Math.PI * 2;
   const geo = buildTube({
     rows: detail === 'hero' ? 150 : 28,
@@ -65,10 +66,10 @@ export function createPalitoSelva(seed: number, detail: 'hero' | 'prop' = 'hero'
     },
     displace: (p) => noise.noise(p.x * 900, p.y * 700, p.z * 900) * 0.00002,
     color: (p, _n, u, th, _d, out) => {
-      // Franja rosa que ocupa media vuelta y gira apenas a lo largo; bordes fundidos y ondulados.
-      const a = th - phase - u * turn * Math.PI * 2;
-      const seam = Math.cos(a) + 0.1 * noise.noise(p.y * 160, 0.5, 2);
-      const k = THREE.MathUtils.smoothstep(seam, -0.1, 0.1);
+      // Mitad rosa / mitad blanco, división RECTA a lo largo (sin hélice), apenas fundida.
+      void u;
+      const seam = Math.cos(th - phase);
+      const k = THREE.MathUtils.smoothstep(seam, -0.05, 0.05);
       out.copy(WHITE).lerp(PINK, k);
       out.lerp(PINK_DEEP, k * THREE.MathUtils.smoothstep(noise.noise(p.x * 400, p.y * 220, p.z * 400), 0.4, 0.95) * 0.3);
     },
@@ -85,99 +86,86 @@ export function createPalitoSelva(seed: number, detail: 'hero' | 'prop' = 'hero'
   return g;
 }
 
-// ───────────────────────────── paquete ─────────────────────────────
+// ───────────────────────────── envoltorio ─────────────────────────────
 
-/** Textura del paquete: u = alrededor (la cara de adelante es la primera mitad), v = a lo largo. */
-let packTex: THREE.CanvasTexture | null = null;
-function packTexture(): THREE.CanvasTexture {
-  if (packTex) return packTex;
+/** Textura del papel: u = alrededor (la cara de adelante es la primera mitad), v = a lo largo. */
+let paperTex: THREE.CanvasTexture | null = null;
+function paperTexture(): THREE.CanvasTexture {
+  if (paperTex) return paperTex;
   const W = 768;
   const H = 512;
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const g = c.getContext('2d')!;
-  // Cuerpo: rayas diagonales rosa y blanco.
-  g.fillStyle = '#fbe3ea';
+  // Cuerpo: rosado muy claro (como la foto), con brillo de papel encerado.
+  const grad = g.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, '#f9e4ec');
+  grad.addColorStop(0.5, '#f3d3df');
+  grad.addColorStop(1, '#f9e4ec');
+  g.fillStyle = grad;
   g.fillRect(0, 0, W, H);
-  g.save();
-  g.rotate(-0.5);
-  for (let x = -H * 2; x < W * 2; x += 30) {
-    g.fillStyle = '#f4a8c2';
-    g.fillRect(x, -H, 15, H * 4);
-  }
-  g.restore();
-  // Puntas (aletas selladas): verde selva con hojas y dientes del sellado.
-  const fin = (y0: number, y1: number) => {
-    g.fillStyle = '#3f9a3a';
+  // Puntas: verde selva oscuro con hojas (lo que se retuerce).
+  const end = (y0: number, y1: number) => {
+    g.fillStyle = '#2f6b2a';
     g.fillRect(0, y0, W, y1 - y0);
     const rnd = mulberry32(y0 + 3);
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < 60; i++) {
       g.save();
       g.translate(rnd() * W, y0 + rnd() * (y1 - y0));
       g.rotate(rnd() * Math.PI);
-      g.fillStyle = rnd() < 0.5 ? '#6cc24a' : '#24702c';
+      g.fillStyle = rnd() < 0.5 ? '#5aa548' : '#1f4f1f';
       g.beginPath();
-      g.ellipse(0, 0, 16 + rnd() * 14, 6 + rnd() * 4, 0, 0, Math.PI * 2);
+      g.ellipse(0, 0, 18 + rnd() * 16, 7 + rnd() * 4, 0, 0, Math.PI * 2);
       g.fill();
       g.restore();
     }
-    g.fillStyle = '#ffffff40';
-    for (let x = 0; x < W; x += 14) g.fillRect(x, y0, 5, y1 - y0); // rayitas del sellado
   };
-  fin(0, 70);
-  fin(H - 70, H);
-  // Cara de adelante (primera mitad de u): título amarillo con borde rojo (sin letras de marca),
-  // un pingüino y la ficha del animal.
-  const fx = W * 0.25;
-  const fy = H * 0.48;
-  g.fillStyle = '#e8352b';
-  roundRect(g, fx - 150, fy - 70, 300, 64, 30);
-  g.fill();
-  g.fillStyle = '#ffd52e';
-  roundRect(g, fx - 140, fy - 62, 280, 48, 24);
-  g.fill();
-  g.fillStyle = '#e8352b';
+  end(0, 96);
+  end(H - 96, H);
+  // Hojitas verdes claras sueltas sobre el cuerpo (como en la foto).
+  const rnd = mulberry32(9);
   for (let i = 0; i < 6; i++) {
+    g.save();
+    g.translate(W * (0.55 + rnd() * 0.4), H * (0.25 + rnd() * 0.5));
+    g.rotate(rnd() * Math.PI);
+    g.fillStyle = '#b9dca0cc';
     g.beginPath();
-    g.arc(fx - 105 + i * 42, fy - 38, 13, 0, Math.PI * 2);
+    g.ellipse(0, 0, 34, 14, 0, 0, Math.PI * 2);
     g.fill();
+    g.restore();
   }
-  // Pingüino.
-  const px = fx + 110;
-  const py = fy + 60;
-  g.fillStyle = '#2c2f38';
-  g.beginPath();
-  g.ellipse(px, py, 34, 48, 0, 0, Math.PI * 2);
+  // Cara de adelante: franja amarilla a lo largo con borde rojo (en lugar del logo) y una libélula.
+  const fx = W * 0.25;
+  g.fillStyle = '#e8352b';
+  roundRect(g, fx - 80, 118, 160, H - 236, 40);
   g.fill();
-  g.fillStyle = '#ffffff';
-  g.beginPath();
-  g.ellipse(px, py + 8, 22, 34, 0, 0, Math.PI * 2);
+  g.fillStyle = '#ffe14d';
+  roundRect(g, fx - 66, 130, 132, H - 260, 32);
   g.fill();
-  g.fillStyle = '#f5a623';
+  // Libélula: cuerpo y cuatro alas.
+  const lx = fx;
+  const ly = H * 0.5;
+  g.fillStyle = '#7fc8e8aa';
+  for (const [dx, dy, a] of [[-26, -14, -0.4], [26, -14, 0.4], [-22, 10, 0.3], [22, 10, -0.3]] as const) {
+    g.save();
+    g.translate(lx + dx, ly + dy);
+    g.rotate(a);
+    g.beginPath();
+    g.ellipse(0, 0, 26, 9, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+  g.fillStyle = '#2e7d4f';
+  g.fillRect(lx - 4, ly - 30, 8, 70);
   g.beginPath();
-  g.moveTo(px - 6, py - 28);
-  g.lineTo(px + 6, py - 28);
-  g.lineTo(px, py - 18);
+  g.arc(lx, ly - 32, 8, 0, Math.PI * 2);
   g.fill();
-  g.fillStyle = '#2c2f38';
-  g.beginPath();
-  g.arc(px - 10, py - 34, 4, 0, Math.PI * 2);
-  g.arc(px + 10, py - 34, 4, 0, Math.PI * 2);
-  g.fill();
-  // Ficha del animal (futuro dato curioso): renglones con datos.
-  g.fillStyle = '#c2185b';
-  g.font = 'bold 20px Nunito, sans-serif';
-  const rows = ['Velocidad  56 km/h', 'Peso  18 kg', 'Alto  0,8 m'];
-  rows.forEach((t, i) => g.fillText(t, fx - 150, fy + 30 + i * 28));
-  // Dorso: rayas y renglones del texto chiquito.
-  g.fillStyle = '#c2185b99';
-  for (let i = 0; i < 6; i++) g.fillRect(W * 0.6, H * 0.3 + i * 30, W * 0.3 - (i % 2) * 40, 8);
-  packTex = new THREE.CanvasTexture(c);
-  packTex.colorSpace = THREE.SRGBColorSpace;
-  packTex.anisotropy = 8;
-  packTex.wrapS = THREE.RepeatWrapping;
-  return packTex;
+  paperTex = new THREE.CanvasTexture(c);
+  paperTex.colorSpace = THREE.SRGBColorSpace;
+  paperTex.anisotropy = 8;
+  paperTex.wrapS = THREE.RepeatWrapping;
+  return paperTex;
 }
 
 function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
@@ -191,57 +179,36 @@ function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number,
 }
 
 /**
- * Paquete del palito de la selva: una hoja que envuelve el caramelo como almohadita y se cierra en las
- * puntas en aletas planas (con el borde dentado). `setProgress(p)` lo abre: 0 = cerrado, 1 = hoja plana
- * despegada (empieza por el borde suelto). Después la mano lo deja caer.
+ * Envoltorio del palito de la selva: papel enrollado ajustado al caramelo (una vuelta y un poco) con las
+ * PUNTAS RETORCIDAS. `setProgress(p)` lo abre en dos tiempos, como se hace con la mano: primero se
+ * destuercen las puntas (p 0 → 0,4) y después el papel se desenrolla desde el borde suelto (0,4 → 1).
  */
 export class SelvaWrapper {
   readonly object: THREE.Mesh;
-  private readonly wrapped: Float32Array;
-  private readonly flat: Float32Array;
-  private readonly outward: Float32Array;
   private readonly cols: number;
   private readonly rows: number;
+  private readonly L: number;
+  private readonly ext = 0.0085; // papel que sobra en cada punta (se retuerce)
+  private readonly A = SELVA_RADIUS * 1.1 + 0.0002;
+  private readonly turns = 1.15;
+  private readonly twistSign: number;
+  private readonly arc: number[] = [];
 
   constructor(seed: number, candyLength: number, detail: 'hero' | 'prop' = 'hero') {
     const rnd = mulberry32(seed * 331 + 5);
-    const ext = 0.0085; // aleta sellada en cada punta
-    const cols = (this.cols = detail === 'hero' ? 48 : 20);
-    const rows = (this.rows = detail === 'hero' ? 26 : 10);
-    // Sección de almohadita: más ancha que alta, apenas más grande que el caramelo.
-    const A = SELVA_RADIUS * 1.55;
-    const B = SELVA_RADIUS * 1.08;
-    const sec = (th: number, flatten: number) => [Math.cos(th) * A, Math.sin(th) * B * flatten] as const;
+    this.L = candyLength;
+    this.twistSign = rnd() < 0.5 ? -1 : 1;
+    const cols = (this.cols = detail === 'hero' ? 44 : 18);
+    const rows = (this.rows = detail === 'hero' ? 30 : 12);
+    for (let c = 0; c <= cols; c++) this.arc.push((c / cols) * this.turns * Math.PI * 2 * this.A);
     const n = (cols + 1) * (rows + 1);
-    this.wrapped = new Float32Array(n * 3);
-    this.flat = new Float32Array(n * 3);
-    this.outward = new Float32Array(n * 3);
     const uv = new Float32Array(n * 2);
-    const arc: number[] = [0];
-    for (let c = 1; c <= cols; c++) {
-      const [x0, z0] = sec(((c - 1) / cols) * Math.PI * 2, 1);
-      const [x1, z1] = sec((c / cols) * Math.PI * 2, 1);
-      arc.push(arc[c - 1] + Math.hypot(x1 - x0, z1 - z0));
-    }
     for (let r = 0; r <= rows; r++) {
-      const v = r / rows;
-      const y = -ext + v * (candyLength + 2 * ext);
-      // En las aletas el paquete se aplasta hasta quedar plano (sellado), con un leve ondeo.
-      const out = y < 0 ? -y / ext : y > candyLength ? (y - candyLength) / ext : 0;
-      const flatten = 1 - THREE.MathUtils.smoothstep(out, 0, 0.75) * 0.97;
-      const wobble = out > 0 ? Math.sin(y * 900 + seed) * 0.0002 : 0;
       for (let c = 0; c <= cols; c++) {
         const i = r * (cols + 1) + c;
-        // La cara de adelante (u en [0, 0,5]) mira a +Z.
-        const th = (c / cols) * Math.PI * 2;
-        const [x, z] = sec(th, flatten);
-        this.wrapped.set([x, y, z + wobble], i * 3);
-        this.flat.set([A + 0.0004, y + (rnd() - 0.5) * 0.00008, -arc[c] + arc[cols] * 0.25], i * 3);
-        const len = Math.hypot(x, z) || 1;
-        this.outward.set([x / len, 0, z / len], i * 3);
-        // u al revés de th: vista desde +Z la cara de adelante no queda espejada.
+        // u al revés de θ: vista desde +Z la cara de adelante no queda espejada.
         uv[i * 2] = 0.5 - c / cols;
-        uv[i * 2 + 1] = v;
+        uv[i * 2 + 1] = r / rows;
       }
     }
     const idx: number[] = [];
@@ -255,18 +222,17 @@ export class SelvaWrapper {
       }
     }
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(this.wrapped.slice(), 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
     geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     geo.setIndex(idx);
-    geo.computeVertexNormals();
     this.object = new THREE.Mesh(
       geo,
       new THREE.MeshPhysicalMaterial({
-        name: 'paquete-selva',
-        map: packTexture(),
-        roughness: 0.35,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.25,
+        name: 'papel-selva',
+        map: paperTexture(),
+        roughness: 0.45,
+        clearcoat: 0.35,
+        clearcoatRoughness: 0.3,
         side: THREE.DoubleSide,
         transparent: true,
         opacity: 1,
@@ -276,19 +242,46 @@ export class SelvaWrapper {
     this.object.castShadow = true;
     this.object.receiveShadow = true;
     this.object.userData.noPick = true;
+    this.setProgress(0);
   }
 
-  /** 0 = cerrado, 1 = abierto del todo (empieza por el borde suelto). */
+  /** 0 = cerrado y retorcido; 0,4 = puntas sueltas; 1 = desenrollado del todo. */
   setProgress(p: number): void {
+    const { cols, rows, L, ext, A, turns } = this;
+    const untwist = THREE.MathUtils.smoothstep(p, 0, 0.4);
+    const unroll = THREE.MathUtils.clamp((p - 0.4) / 0.6, 0, 1);
     const pos = this.object.geometry.getAttribute('position') as THREE.BufferAttribute;
     const arr = pos.array as Float32Array;
-    for (let r = 0; r <= this.rows; r++) {
-      for (let c = 0; c <= this.cols; c++) {
-        const i = (r * (this.cols + 1) + c) * 3;
-        const t = c / this.cols;
-        const k = THREE.MathUtils.smoothstep((p - (1 - t) * 0.55) / 0.45, 0, 1);
-        const lift = Math.sin(Math.PI * k) * 0.005; // se despega hacia afuera mientras se abre
-        for (let j = 0; j < 3; j++) arr[i + j] = THREE.MathUtils.lerp(this.wrapped[i + j], this.flat[i + j], k) + this.outward[i + j] * lift;
+    const total = this.arc[cols];
+    for (let r = 0; r <= rows; r++) {
+      const y = -ext + (r / rows) * (L + 2 * ext);
+      // Más allá del caramelo el papel se junta y se retuerce (hasta casi un hilo en la punta).
+      const out = y < 0 ? -y / ext : y > L ? (y - L) / ext : 0;
+      const side = y < L / 2 ? -1 : 1;
+      const pinch = 1 - 0.85 * THREE.MathUtils.smoothstep(out, 0, 0.85) * (1 - untwist);
+      const twist = out * 2.6 * this.twistSign * side * (1 - untwist);
+      // Al destorcer, las puntas quedan abiertas en una pollerita.
+      const flare = 1 + 0.35 * out * untwist;
+      for (let c = 0; c <= cols; c++) {
+        const i = (r * (cols + 1) + c) * 3;
+        const t = c / cols;
+        const th = t * turns * Math.PI * 2 + twist;
+        const rad = A * pinch * flare * (1 + t * 0.04);
+        let x = Math.cos(th) * rad;
+        let z = Math.sin(th) * rad;
+        // Desenrollar: cada columna pasa de su lugar en el tubo a una hoja plana tangente (borde suelto primero).
+        const k = THREE.MathUtils.smoothstep((unroll - (1 - t) * 0.55) / 0.45, 0, 1);
+        if (k > 0) {
+          const fx = A + 0.0004;
+          const fz = -this.arc[c] + total * 0.25;
+          const lift = Math.sin(Math.PI * k) * 0.004;
+          const len = Math.hypot(x, z) || 1;
+          x = THREE.MathUtils.lerp(x, fx, k) + (x / len) * lift;
+          z = THREE.MathUtils.lerp(z, fz, k) + (z / len) * lift;
+        }
+        arr[i] = x;
+        arr[i + 1] = y;
+        arr[i + 2] = z;
       }
     }
     pos.needsUpdate = true;

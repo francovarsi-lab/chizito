@@ -58,7 +58,7 @@ function materials(color: string) {
   return { stick: stickMat, candy };
 }
 
-/** Film casi transparente con líneas blancas (meridianos y un par de vueltas) y apenas brillo. */
+/** Film transparente sobre la bola: red de líneas blancas que se cruzan en diagonal (como la foto). */
 let filmTex: THREE.CanvasTexture | null = null;
 function filmTexture(): THREE.CanvasTexture {
   if (filmTex) return filmTex;
@@ -66,29 +66,60 @@ function filmTexture(): THREE.CanvasTexture {
   c.width = 512;
   c.height = 256;
   const g = c.getContext('2d')!;
-  g.fillStyle = 'rgba(255,255,255,0.10)';
+  g.fillStyle = 'rgba(255,255,255,0.08)';
   g.fillRect(0, 0, 512, 256);
-  g.strokeStyle = 'rgba(255,255,255,0.92)';
-  g.lineCap = 'round';
-  // Líneas blancas que suben hacia el moño (en la lathe, u = alrededor, v = de abajo al moño).
-  for (let i = 0; i < 12; i++) {
-    const x = (i / 12) * 512 + 12;
-    g.lineWidth = i % 3 === 0 ? 7 : 4;
-    g.beginPath();
-    g.moveTo(x, 20);
-    g.bezierCurveTo(x + 18, 90, x - 14, 160, x + 6, 236);
-    g.stroke();
-  }
-  g.lineWidth = 5;
-  for (const y of [70, 120]) {
-    g.beginPath();
-    for (let x = 0; x <= 512; x += 8) g.lineTo(x, y + Math.sin(x / 30) * 6);
-    g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.95)';
+  g.lineWidth = 3.5;
+  for (const dir of [1, -1]) {
+    for (let i = -10; i < 22; i++) {
+      g.beginPath();
+      for (let y = 0; y <= 256; y += 8) {
+        const x = i * 32 + dir * y * 0.9 + Math.sin(y / 18 + i) * 4;
+        if (y === 0) g.moveTo(x, y);
+        else g.lineTo(x, y);
+      }
+      g.stroke();
+    }
   }
   filmTex = new THREE.CanvasTexture(c);
   filmTex.colorSpace = THREE.SRGBColorSpace;
   filmTex.wrapS = THREE.RepeatWrapping;
   return filmTex;
+}
+
+/** Abanico de arriba: film blanco con rayas verticales rojas, azules y verdes. */
+let fanTex: THREE.CanvasTexture | null = null;
+function fanTexture(): THREE.CanvasTexture {
+  if (fanTex) return fanTex;
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 128;
+  const g = c.getContext('2d')!;
+  g.fillStyle = 'rgba(255,255,255,0.85)';
+  g.fillRect(0, 0, 512, 128);
+  const cols = ['#d8263a', '#2340b8', '#3fa83c'];
+  for (let i = 0; i < 18; i++) {
+    g.fillStyle = cols[i % 3];
+    g.fillRect(i * 28.4 + 6, 0, 12, 128);
+  }
+  fanTex = new THREE.CanvasTexture(c);
+  fanTex.colorSpace = THREE.SRGBColorSpace;
+  fanTex.wrapS = THREE.RepeatWrapping;
+  return fanTex;
+}
+
+let fanMat: THREE.MeshPhysicalMaterial | null = null;
+function fanMaterial(): THREE.MeshPhysicalMaterial {
+  fanMat ??= new THREE.MeshPhysicalMaterial({
+    name: 'abanico-chupetin',
+    map: fanTexture(),
+    transparent: true,
+    roughness: 0.2,
+    clearcoat: 0.8,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  return fanMat;
 }
 
 export interface ChupetinParams {
@@ -134,9 +165,10 @@ export function createChupetin(seed: number, detail: 'hero' | 'prop' = 'hero', p
 }
 
 /**
- * Envoltorio del chupetín: film transparente con líneas blancas, ceñido al palito abajo (con un poquito
- * de "pollerita") y retorcido ARRIBA en un moño. `setProgress(p)` lo saca tirando del moño: sube, se
- * abre y gira; después la mano lo deja caer.
+ * Envoltorio del chupetín (como la foto): film transparente con una red de líneas blancas que envuelve la
+ * bola, ceñido abajo contra el palito, y ARRIBA un cuello retorcido (el nudo por donde se desenvuelve) que
+ * se abre en un abanico blanco con rayas rojas, azules y verdes. `setProgress(p)` lo saca tirando del
+ * nudo: sube, se abre y gira; después la mano lo deja caer.
  */
 export class ChupetinWrapper {
   readonly object: THREE.Group;
@@ -144,63 +176,78 @@ export class ChupetinWrapper {
   constructor(seed: number, detail: 'hero' | 'prop' = 'hero', ownMaterial = true) {
     const { R, ballY } = shape(seed);
     const noise = new Simplex3(seed + 5);
-    // Material propio si se va a desvanecer (no afecta a los del vasito).
+    // Materiales propios si se va a desvanecer (no afecta a los del vasito).
     const film = ownMaterial ? filmMaterial().clone() : filmMaterial();
+    const fan = ownMaterial ? fanMaterial().clone() : fanMaterial();
     const g = (this.object = new THREE.Group());
     g.name = 'envoltorio';
+    const hero = detail === 'hero';
     const topY = ballY + R * 0.94 * 1.07;
-    // Perfil (de abajo hacia arriba): pollerita bajo la bola, ceñido al palito, abraza la bola y se
-    // junta arriba en el cuello del moño.
-    const neckLow = ballY - R * 0.94 - 0.0015;
-    const prof: THREE.Vector2[] = [];
-    for (let i = 0; i <= 4; i++) {
-      const t = i / 4;
-      prof.push(new THREE.Vector2(STICK_R * 1.3 + (1 - t) * 0.0035, neckLow - 0.004 + t * 0.004));
+    const neckY = topY + 0.003;
+    const bottomY = ballY - R * 0.94 - 0.0012;
+
+    // Film sobre la bola: de abajo (ceñido al palito) hasta el cuello de arriba.
+    const prof: THREE.Vector2[] = [new THREE.Vector2(STICK_R * 1.25, bottomY - 0.002)];
+    const steps = hero ? 30 : 12;
+    for (let i = 0; i <= steps; i++) {
+      const a = Math.PI - (i / steps) * Math.PI; // de abajo de la bola a la cima
+      prof.push(new THREE.Vector2(Math.max(STICK_R * 1.25, Math.sin(a) * R * 1.07), ballY + Math.cos(a) * R * 0.94 * 1.07));
     }
-    const steps = detail === 'hero' ? 30 : 12;
-    for (let i = 1; i <= steps; i++) {
-      const a = Math.PI - (i / steps) * Math.PI * 0.93; // desde abajo de la bola hasta casi la cima
-      prof.push(new THREE.Vector2(Math.max(STICK_R * 1.3, Math.sin(a) * R * 1.07), ballY + Math.cos(a) * R * 0.94 * 1.07));
-    }
-    prof.push(new THREE.Vector2(0.0016, topY + 0.0012));
-    const geo = new THREE.LatheGeometry(prof, detail === 'hero' ? 64 : 20);
-    // Pliegues del film: fuertes cerca del moño y en la pollerita.
+    prof.push(new THREE.Vector2(0.0018, neckY));
+    const geo = new THREE.LatheGeometry(prof, hero ? 64 : 20);
     const p = geo.getAttribute('position') as THREE.BufferAttribute;
     for (let i = 0; i < p.count; i++) {
       const x = p.getX(i);
       const y = p.getY(i);
       const z = p.getZ(i);
       const th = Math.atan2(z, x);
-      const nearTop = THREE.MathUtils.smoothstep(y - ballY, R * 0.3, R * 1.05);
-      const nearBottom = THREE.MathUtils.smoothstep(ballY - y, R * 0.6, R * 1.1);
-      const amp = 0.04 + 0.3 * nearTop + 0.15 * nearBottom;
-      const folds = 1 + amp * Math.sin(th * 12 + noise.noise(y * 300, 0, 1) * 2) + 0.03 * noise.noise(x * 600, y * 600, z * 600);
+      // Pliegues que suben hacia el nudo.
+      const nearTop = THREE.MathUtils.smoothstep(y - ballY, R * 0.35, R * 1.2);
+      const folds = 1 + (0.03 + 0.25 * nearTop) * Math.sin(th * 12 + noise.noise(y * 300, 0, 1) * 2) + 0.02 * noise.noise(x * 600, y * 600, z * 600);
       p.setX(i, x * folds);
       p.setZ(i, z * folds);
     }
     geo.computeVertexNormals();
-    const filmMesh = new THREE.Mesh(geo, film);
-    filmMesh.renderOrder = 2;
-    g.add(filmMesh);
-    // Moño arriba: el cuello retorcido y dos "orejas" de film abiertas, con pliegues.
-    const knot = new THREE.Mesh(new THREE.TorusGeometry(0.0019, 0.0011, 8, 18), film);
-    knot.rotation.x = Math.PI / 2;
-    knot.position.y = topY + 0.0012;
-    g.add(knot);
-    for (const side of [-1, 1]) {
-      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.0042, 0.0095, 14, 1, true), film);
-      ear.position.set(side * 0.0035, topY + 0.0045, 0);
-      ear.rotation.z = -side * 1.0;
-      const ep = ear.geometry.getAttribute('position') as THREE.BufferAttribute;
-      for (let i = 0; i < ep.count; i++) {
-        const th = Math.atan2(ep.getZ(i), ep.getX(i));
-        const k = 1 + 0.25 * Math.sin(th * 7);
-        ep.setX(i, ep.getX(i) * k);
-        ep.setZ(i, ep.getZ(i) * k);
-      }
-      ear.geometry.computeVertexNormals();
-      g.add(ear);
+    g.add(new THREE.Mesh(geo, film));
+
+    // Nudo: el cuello retorcido.
+    const knot = new THREE.Mesh(new THREE.CylinderGeometry(0.0017, 0.0021, 0.004, 14, 3), film);
+    const kp = knot.geometry.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < kp.count; i++) {
+      const th = Math.atan2(kp.getZ(i), kp.getX(i)) + kp.getY(i) * 900; // vueltas del retorcido
+      const k = 1 + 0.2 * Math.sin(th * 5);
+      kp.setX(i, kp.getX(i) * k);
+      kp.setZ(i, kp.getZ(i) * k);
     }
+    knot.geometry.computeVertexNormals();
+    knot.position.y = neckY + 0.0012;
+    g.add(knot);
+
+    // Abanico: el film que sobra arriba del nudo, abierto con pliegues y rayas de colores.
+    const fanProf: THREE.Vector2[] = [];
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8;
+      fanProf.push(new THREE.Vector2(0.0019 + t * t * 0.0105, neckY + 0.003 + t * 0.016));
+    }
+    const fanGeo = new THREE.LatheGeometry(fanProf, hero ? 72 : 24);
+    const fp = fanGeo.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < fp.count; i++) {
+      const x = fp.getX(i);
+      const y = fp.getY(i);
+      const z = fp.getZ(i);
+      const th = Math.atan2(z, x);
+      const t = THREE.MathUtils.clamp((y - neckY - 0.003) / 0.016, 0, 1);
+      // Abanico más ancho de costado que de frente, con pliegues marcados y el borde irregular.
+      const fold = 1 + 0.22 * t * Math.sin(th * 10 + noise.noise(th, 3, 1));
+      const sx = 1 + 0.25 * t;
+      const sz = 1 - 0.35 * t;
+      fp.setX(i, x * fold * sx);
+      fp.setZ(i, z * fold * sz);
+      fp.setY(i, y + t * 0.0015 * noise.noise(Math.cos(th) * 3, Math.sin(th) * 3, 7));
+    }
+    fanGeo.computeVertexNormals();
+    g.add(new THREE.Mesh(fanGeo, fan));
+
     g.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) {
         o.renderOrder = 2;
@@ -210,7 +257,7 @@ export class ChupetinWrapper {
     });
   }
 
-  /** 0 = envuelto; hacia 1 sale tirando del moño: sube, se abre y gira. */
+  /** 0 = envuelto; hacia 1 sale tirando del nudo: sube, se abre y gira. */
   setProgress(p: number): void {
     const k = p * p;
     this.object.position.y = k * 0.034;
