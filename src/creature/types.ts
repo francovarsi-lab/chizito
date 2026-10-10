@@ -100,6 +100,35 @@ export type Role = 'support' | 'push' | 'strike' | 'reach' | 'defend';
 /** 0..1, no excluyentes. */
 export type Caps = Record<Role, number>;
 
+/** Extremidad detectada (tanda 4), todavía sin capacidades ni movilidad (tanda 5). */
+export interface LimbDraft {
+  id: string;
+  /** Pieza que la sostiene del núcleo: la vara. */
+  rootPieceId: string;
+  end: 'tail' | 'tip' | 'whole';
+  /** Grupo rígido: la vara y todo lo que cuelga de ella (chizito ensartado, lo clavado en él, trazos). */
+  pieceIds: string[];
+  /** Piezas de segundo nivel dentro del grupo (palitos clavados en un chizito ensartado): no son extremidades propias. */
+  branchIds: string[];
+  pairedWith?: string;
+  pivot: V3;
+  tip: V3;
+  /** |punta − pivote|. */
+  length: number;
+  /** Lo que sobresale del lado libre (para la condición de largo libre). */
+  freeLength: number;
+  embedded: number;
+  tiltDeg: number;
+  anchorQuality: number;
+  /** 'own' si la sostiene su propia conexión; si no, el id del otro sólido que también atraviesa. */
+  anchoredBy: string;
+  /** Fracción de la masa de la vara que le toca (una vara pasante reparte su masa entre sus dos extremidades). */
+  massShare: number;
+  mass: number;
+  endMassRatio: number;
+  tag: 'lanza' | 'maza' | 'rama' | 'placa-con-vara';
+}
+
 export interface Limb {
   id: string;
   rootPieceId: string;

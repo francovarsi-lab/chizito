@@ -35,6 +35,8 @@ export const CREATURE_CONFIG = {
     maxTiltDeg: 70,
     /** Calidad mínima del ancla (0..1). */
     minAnchorQuality: 0.35,
+    /** Por debajo de este largo libre (m) se considera que no hay punta libre (en vez de "corta"). */
+    minVisibleFree: 0.001,
     /** Embebido que da calidad 1: esta fracción del largo de la vara. */
     anchorFullRatio: 0.35,
   },

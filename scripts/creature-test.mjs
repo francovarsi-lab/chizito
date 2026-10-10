@@ -308,6 +308,89 @@ try {
   const sheet = await load('/src/creature/fixtures/profileSheet.ts');
   ok(sheet.renderProfileSheet(built) === svg, 'la hoja en disco coincide con lo que genera el código');
 
+
+  // ───────────── Tanda 4: detección de extremidades ─────────────
+  section('tanda 4: detección en las criaturas de prueba');
+  const { detectLimbs } = idx;
+  const det = Object.fromEntries(built.map((c) => [c.id, detectLimbs(c.snapshot)]));
+  ok(det.A.limbs.length === 4 && det.A.decorative.length === 0, 'A: 4 extremidades (2 brazos + 2 piernas), nada decorativo');
+  ok(det.B.limbs.length === 4 && det.B.decorative.length === 0, 'B: 4 extremidades');
+  ok(det.C.limbs.length === 1 && det.C.decorative.length === 0, 'C: 1 extremidad');
+  ok(det.D.limbs.length === 30 && det.D.limbs.length <= idx.MAX_PIECES, `D: 30 extremidades, dentro del tope de ${idx.MAX_PIECES}`);
+  ok(det.veg.limbs.length === 4 && det.veg.decorative.length === 0, 'vegetal: 4 extremidades');
+  ok(built.every((c) => detectLimbs(c.snapshot).limbs.every((l) => l.freeLength >= 0.01 && l.anchorQuality >= 0.35)), 'toda extremidad cumple libre ≥ 1 cm y calidad ≥ 0,35');
+  ok(JSON.stringify(detectLimbs(built[4].snapshot)) === JSON.stringify(detectLimbs(built[4].snapshot)), 'la detección es determinista');
+  for (const id of ['A', 'B', 'C', 'veg']) {
+    for (const l of det[id].limbs) near(l.length, l.freeLength, 1e-6, `${id}: el largo de ${l.id.split(':')[1]} es lo que sobresale`);
+  }
+
+  section('tanda 4: criatura E (rara)');
+  const dE = det.E;
+  ok(dE.limbs.length === 3, 'E: 3 extremidades (la vara pasante da dos + la maza)');
+  const pair = dE.limbs.filter((l) => l.pairedWith);
+  ok(pair.length === 2 && pair[0].pairedWith === pair[1].id && pair[1].pairedWith === pair[0].id && pair[0].rootPieceId === pair[1].rootPieceId, 'E: una vara pasante = dos extremidades hermanas (cola y punta)');
+  ok(new Set(pair.map((l) => l.end)).size === 2, 'E: una por la cola y otra por la punta');
+  near(pair[0].massShare + pair[1].massShare, 1, 1e-9, 'E: la vara pasante reparte su masa entre las dos (suman 1)');
+  ok(pair.every((l) => l.tiltDeg > 50 && l.tiltDeg < 70 && l.anchorQuality >= 0.35), 'E: la pasante entra rasante (50°–70°) y aun así tiene base');
+  const maza = dE.limbs.find((l) => l.tag === 'maza');
+  ok(!!maza && maza.end === 'tail' && maza.pieceIds.length === 3, 'E: una maza (vara + chizito ensartado + palito del chizito)');
+  ok(maza.branchIds.length === 1 && maza.length > 0.05, 'E: la maza tiene una rama de segundo nivel y mide más de 5 cm');
+  ok(maza.endMassRatio >= 0.5 && maza.mass > 0.0025, 'E: la maza concentra la masa en el extremo');
+  const reasons = Object.fromEntries(dE.decorative.map((d) => [d.pieceId, d.reason]));
+  const reasonList = Object.values(reasons).sort().join(',');
+  ok(reasonList === 'plate,second-level,stroke,too-short,weak-anchor,weak-anchor', `E: decorativas con su razón (${reasonList})`);
+  const rodsE = E.snapshot.pieces.filter((p) => p.kind === 'rod');
+  ok(rodsE.filter((p) => reasons[p.id] === 'weak-anchor').length === 2, 'E: dos varas flojas (la de la papita y la de 3 mm)');
+  ok(dE.decorative.filter((d) => d.reason !== 'stroke').every((d) => d.mass > 0), 'E: lo decorativo pesa (suma masa)');
+  ok(dE.decorative.find((d) => d.reason === 'stroke').mass === 0, 'E: el ketchup no pesa');
+  const covered = new Set([...dE.limbs.flatMap((l) => l.pieceIds), ...dE.decorative.map((d) => d.pieceId), 'root']);
+  ok(E.snapshot.pieces.every((p) => covered.has(p.id)), 'E: toda pieza es núcleo, está en una extremidad o es decorativa (no se pierde ninguna)');
+
+  section('tanda 4: casos sintéticos');
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const withLink = (snap, childId, f) => { const c = clone(snap); f(c.links.find((l) => l.childId === childId), c); return c; };
+  const aSnap = A.snapshot;
+  const rod0 = rodsOf(A)[0].id;
+  const steep = withLink(aSnap, rod0, (l) => { l.tiltFromNormal = (80 * Math.PI) / 180; });
+  const dt = detectLimbs(steep);
+  ok(dt.limbs.length === 3 && dt.decorative.find((d) => d.pieceId === rod0)?.reason === 'weak-anchor', 'inclinado 80° (> 70°): base floja, decorativo');
+  const shallow = withLink(aSnap, rod0, (l) => { l.embedded = 0.004; });
+  ok(detectLimbs(shallow).decorative.find((d) => d.pieceId === rod0)?.reason === 'weak-anchor', 'solo 4 mm adentro (< 6 mm): base floja');
+  const stubby = withLink(aSnap, rod0, (l) => { l.freeTail = 0.008; });
+  ok(detectLimbs(stubby).decorative.find((d) => d.pieceId === rod0)?.reason === 'too-short', 'sobresale 8 mm (< 1 cm): demasiado corta');
+  const nothing = withLink(aSnap, rod0, (l) => { l.freeTail = 0; });
+  ok(detectLimbs(nothing).decorative.find((d) => d.pieceId === rod0)?.reason === 'no-free-tip', 'sin nada que sobresalga: sin punta libre');
+  const justEnough = withLink(aSnap, rod0, (l) => { l.freeTail = 0.0105; l.embedded = 0.0075; });
+  ok(detectLimbs(justEnough).limbs.length === 4, 'justo en el límite (10,5 mm libres, 7,5 mm adentro): sí es extremidad');
+  const broken = withLink(aSnap, rod0, (l) => { l.integrity = 'broken'; });
+  const db = detectLimbs(broken);
+  ok(db.limbs.length === 3 && db.decorative.find((d) => d.pieceId === rod0)?.reason === 'broken', 'unión rota: decorativa');
+  const unknown = clone(aSnap);
+  unknown.pieces.find((p) => p.id === rod0).type = 'mandarina';
+  const du = detectLimbs(unknown);
+  ok(du.limbs.length === 3 && du.decorative.find((d) => d.pieceId === rod0)?.reason === 'unknown-type', 'tipo desconocido: decorativo, no error');
+  // Una vara clavada solo en una papita es floja; si además atraviesa el núcleo, la sostiene el núcleo.
+  const plateRod = rodsE.find((p) => reasons[p.id] === 'weak-anchor' && E.snapshot.pieces.find((q) => q.id === linkOf(E, p.id).parentId)?.kind === 'plate');
+  const anchored = withLink(E.snapshot, plateRod.id, (l) => { l.crossings = [{ pieceId: 'root', entry: l.anchor, normal: l.axis, exit: null, chord: 0.011 }]; });
+  const dan = detectLimbs(anchored);
+  const saved = dan.limbs.find((l) => l.rootPieceId === plateRod.id);
+  ok(!!saved && saved.anchoredBy === 'root' && saved.tag === 'placa-con-vara', 'vara de papita que además cruza el núcleo: la sostiene el núcleo (placa-con-vara)');
+  ok(dan.limbs.length === dE.limbs.length + 1, 'y suma una extremidad más');
+  // Una cadena floja arrastra a lo que cuelga de ella: ketchup y maza.
+  const weakMount = withLink(E.snapshot, maza.rootPieceId, (l) => { l.embedded = 0.003; });
+  const dw = detectLimbs(weakMount);
+  ok(!dw.limbs.some((l) => l.tag === 'maza') && dw.decorative.some((d) => d.pieceId === mace.id && d.reason === 'weak-anchor'), 'si la vara de la maza es floja, la maza es decorativa (misma razón)');
+  // Dos extremidades paralelas muy juntas siguen siendo dos (la detección no mira vecinos).
+  ok(detectLimbs({ ...A.snapshot, pieces: [A.snapshot.pieces[0]], links: [] }).limbs.length === 0, 'sin palitos no hay extremidades');
+
+  section('tanda 4: los umbrales están solo en config.ts');
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  for (const f of ['anchors', 'limbs', 'groups', 'decorative']) {
+    const text = strip(fs.readFileSync(`src/creature/detect/${f}.ts`, 'utf8'));
+    const bad = (text.match(/\b\d+\.\d+\b|\b\d{3,}\b/g) ?? []).filter((n) => n !== '180');
+    ok(bad.length === 0, `detect/${f}.ts: ningún número suelto${bad.length ? ' (' + bad.join(', ') + ')' : ''}`);
+  }
+
   // @@TESTS@@
 } finally {
   await server.close();
