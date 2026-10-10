@@ -1,15 +1,15 @@
 # Informe del intérprete sobre las criaturas de prueba
 
-Generado por `node scripts/creature-report.mjs` (tanda 6: incluye acciones y defensa). Cajas de golpe: `docs/creature/hitboxes.svg`. Frente de combate +X, arriba +Y. Medidas en mm y gramos de juego (valores a calibrar, ver `src/creature/config.ts`).
+Generado por `node scripts/creature-report.mjs` (tanda 6: incluye acciones y defensa). Cajas de golpe: `docs/creature/hitboxes.svg`. Orientación de combate: frente a la derecha de la pantalla del constructor (−Y), arriba +X (el chizito parado). Medidas en mm y gramos de juego (valores a calibrar, ver `src/creature/config.ts`).
 
 | criatura | piezas | extremidades | decorativas | masa (g) | modo | vel. (mm/s) | freno | apoyos | en profundidad |
 |---|---|---|---|---|---|---|---|---|---|
-| A · cuerpo + 2 brazos + 2 piernas | 4 | 4 | 0 | 3.98 | walk | 22.6 | 1 | 2 | 0 |
+| A · cuerpo + 2 brazos + 2 piernas | 4 | 4 | 0 | 3.98 | walk | 22.0 | 1 | 2 | 0 |
 | B · cuerpo + 4 brazos | 4 | 4 | 0 | 3.94 | drag | 15.1 | 0.9 | 0 | 0 |
 | C · cuerpo + 1 brazo | 1 | 1 | 0 | 3.42 | drag | 15.9 | 0.9 | 0 | 1 |
-| D · erizo | 30 | 30 | 0 | 8.56 | roll | 24.7 | 0.1 | 9 | 12 |
+| D · erizo | 30 | 30 | 0 | 8.56 | roll | 24.7 | 0.1 | 6 | 12 |
 | E · asimétrica / extraña | 8 | 3 | 6 | 7.74 | drag | 10.9 | 0.9 | 0 | 2 |
-| Rival vegetal (proxy) | 4 | 4 | 0 | 4.57 | walk | 22.4 | 1 | 2 | 0 |
+| Rival vegetal (proxy) | 4 | 4 | 0 | 4.57 | walk | 21.3 | 1 | 2 | 0 |
 
 **Criterios de aceptación**
 
@@ -27,22 +27,21 @@ Generado por `node scripts/creature-report.mjs` (tanda 6: incluye acciones y def
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
-| A1 | 27.6 | 0.69 | support | 0.34 | 0.67 | 0.00 | no | -130 a -74 | no | lanza |
-| A2 | 28.4 | 0.69 | reach | 0.15 | 0.00 | 0.00 | no | 127 a 183 | no | lanza |
-| A3 | 28.6 | 0.67 | support | 0.33 | 0.65 | 0.11 | no | -105 a -51 | no | lanza |
-| A4 | 28.7 | 0.68 | strike | 0.77 | 0.00 | 0.47 | no | -3 a 53 | no | lanza |
+| A1 | 27.6 | 0.65 | reach | 0.15 | 0.00 | 0.00 | no | 131 a 185 | no | lanza |
+| A2 | 28.4 | 0.69 | support | 0.18 | 0.62 | 0.00 | no | -129 a -101 | no | lanza |
+| A3 | 28.6 | 0.63 | strike | 0.71 | 0.00 | 0.45 | no | -4 a 48 | no | lanza |
+| A4 | 28.7 | 0.68 | support | 0.17 | 0.62 | 0.22 | no | -79 a -51 | no | lanza |
 
-Locomoción: velocidad 22.6 mm/s · giro 1 · freno 1 · salto 0.0 mm · apoyos 2 · margen 16.8 mm · carga/capacidad 0.32
+Locomoción: velocidad 22.0 mm/s · giro 1 · freno 1 · salto 0.0 mm · apoyos 2 · margen 16.6 mm · carga/capacidad 0.32
 
 Acciones (una por entrada):
 
 | acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
 |---|---|---|---|---|---|---|---|
-| barrida | down+attack | 12 | 6 | 16 | 3.3 | 27.6 | 4.0 |
-| estocada | forward+attack | 13 | 6 | 17 | 9.5 | 28.7 | 4.0 |
+| estocada | forward+attack | 13 | 6 | 17 | 8.7 | 28.6 | 4.0 |
 | embestida | attack | 15 | 6 | 18 | 5.3 | 10.8 | 10.8 |
 
-Defensa: **guardia** (−28 % de daño)
+Defensa: **guardia** (−27 % de daño)
 
 ## B · cuerpo + 4 brazos
 
@@ -50,10 +49,10 @@ Defensa: **guardia** (−28 % de daño)
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
-| B1 | 26.4 | 0.73 | reach | 0.08 | 0.00 | 0.00 | no | 140 a 170 | no | lanza |
-| B2 | 26.1 | 0.73 | strike | 0.32 | 0.00 | 0.00 | no | 110 a 140 | no | lanza |
-| B3 | 27.2 | 0.71 | defend | 0.40 | 0.00 | 0.47 | no | 10 a 40 | no | lanza |
-| B4 | 26.8 | 0.72 | strike | 0.31 | 0.00 | 0.29 | no | 40 a 70 | no | lanza |
+| B1 | 26.4 | 0.69 | reach | 0.08 | 0.00 | 0.00 | no | 146 a 174 | no | lanza |
+| B2 | 26.1 | 0.47 | reach | 0.20 | 0.00 | 0.00 | no | 120 a 140 | no | lanza |
+| B3 | 27.2 | 0.68 | defend | 0.37 | 0.00 | 0.46 | no | 6 a 34 | no | lanza |
+| B4 | 26.8 | 0.46 | reach | 0.20 | 0.00 | 0.21 | no | 40 a 60 | no | lanza |
 
 Locomoción: velocidad 15.1 mm/s · giro 0.4 · freno 0.9 · salto 0.0 mm · apoyos 0 · margen 0.0 mm · carga/capacidad 0.00
 
@@ -61,8 +60,7 @@ Acciones (una por entrada):
 
 | acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
 |---|---|---|---|---|---|---|---|
-| golpe-alto | up+attack | 12 | 6 | 16 | 3.5 | 26.1 | 4.0 |
-| estocada | forward+attack | 12 | 6 | 16 | 4.9 | 27.2 | 4.0 |
+| estocada | forward+attack | 12 | 6 | 16 | 4.6 | 27.2 | 4.0 |
 | embestida | attack | 15 | 6 | 18 | 5.3 | 10.8 | 10.8 |
 
 Defensa: **guardia** (−28 % de daño)
@@ -99,9 +97,9 @@ Avisos del panel:
 
 30 piezas · 30 extremidades · 0 decorativas · masa 8.56 g · **roll**
 
-Las 30 extremidades: golpe máximo 0.19 (mínimo para contar: 0.3), giro medio 10°, 12 en profundidad.
+Las 30 extremidades: golpe máximo 0.17 (mínimo para contar: 0.3), giro medio 10°, 12 en profundidad.
 
-Locomoción: velocidad 24.7 mm/s · giro 0.2 · freno 0.1 · salto 0.0 mm · apoyos 9 · margen 35.1 mm · carga/capacidad 0.16
+Locomoción: velocidad 24.7 mm/s · giro 0.2 · freno 0.1 · salto 0.0 mm · apoyos 6 · margen 27.4 mm · carga/capacidad 0.25
 
 Acciones (una por entrada):
 
@@ -109,7 +107,7 @@ Acciones (una por entrada):
 |---|---|---|---|---|---|---|---|
 | rodada | attack | 26 | 30 | 23 | 12.0 | 40.5 | 40.5 |
 
-Defensa: **guardia** (−24 % de daño)
+Defensa: **guardia** (−29 % de daño)
 
 Avisos del panel:
 
@@ -122,9 +120,9 @@ Avisos del panel:
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
-| E1 (tail, par) | 13.5 | 0.45 | reach | 0.21 | 0.00 | 0.14 | sí | 68 a 112 | no | lanza |
+| E1 (tail, par) | 13.5 | 0.45 | reach | 0.21 | 0.00 | 0.14 | sí | 158 a 202 | no | lanza |
 | E1 (tip, par) | 11.0 | 0.45 | reach | 0.17 | 0.00 | 0.14 | sí | -23 a 23 | no | lanza |
-| E6 | 60.0 | 0.76 | strike | 0.72 | 0.00 | 0.60 | no | -15 a -10 | sí | maza |
+| E6 | 60.0 | 0.74 | strike | 0.80 | 0.00 | 0.57 | no | 10 a 15 | sí | maza |
 
 Locomoción: velocidad 10.9 mm/s · giro 0.4 · freno 0.9 · salto 0.0 mm · apoyos 0 · margen 0.0 mm · carga/capacidad 0.00
 
@@ -132,10 +130,10 @@ Acciones (una por entrada):
 
 | acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
 |---|---|---|---|---|---|---|---|
-| mazazo | hold+attack | 62 | 6 | 41 | 34.8 | 60.0 | 15.6 |
+| mazazo | hold+attack | 62 | 6 | 41 | 38.2 | 60.0 | 15.6 |
 | embestida | attack | 24 | 6 | 22 | 6.6 | 10.8 | 10.8 |
 
-Defensa: **guardia** (−36 % de daño)
+Defensa: **guardia** (−34 % de daño)
 
 Decorativas (suman masa, no son extremidades):
 
@@ -162,20 +160,19 @@ Avisos del panel:
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
-| V1 | 24.5 | 0.76 | support | 0.37 | 0.75 | 0.00 | no | -130 a -66 | no | lanza |
-| V2 | 27.7 | 0.70 | reach | 0.15 | 0.00 | 0.00 | no | 131 a 189 | no | lanza |
-| V3 | 25.1 | 0.75 | support | 0.37 | 0.74 | 0.07 | no | -113 a -51 | no | lanza |
-| V4 | 25.0 | 0.76 | strike | 0.83 | 0.00 | 0.47 | no | -12 a 52 | no | lanza |
+| V1 | 27.7 | 0.67 | reach | 0.15 | 0.00 | 0.00 | no | 135 a 189 | no | lanza |
+| V2 | 24.5 | 0.77 | support | 0.19 | 0.72 | 0.00 | no | -126 a -94 | no | lanza |
+| V3 | 25.0 | 0.72 | strike | 0.79 | 0.00 | 0.46 | no | -12 a 48 | no | lanza |
+| V4 | 25.1 | 0.75 | support | 0.19 | 0.71 | 0.17 | no | -86 a -54 | no | lanza |
 
-Locomoción: velocidad 22.4 mm/s · giro 1 · freno 1 · salto 0.0 mm · apoyos 2 · margen 15.3 mm · carga/capacidad 0.28
+Locomoción: velocidad 21.3 mm/s · giro 1 · freno 1 · salto 0.0 mm · apoyos 2 · margen 12.3 mm · carga/capacidad 0.28
 
 Acciones (una por entrada):
 
 | acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
 |---|---|---|---|---|---|---|---|
-| barrida | down+attack | 12 | 6 | 16 | 3.6 | 24.5 | 4.0 |
-| estocada | forward+attack | 12 | 6 | 16 | 10.1 | 25.0 | 4.0 |
+| estocada | forward+attack | 12 | 6 | 16 | 9.5 | 25.0 | 4.0 |
 | embestida | attack | 17 | 6 | 19 | 5.5 | 11.7 | 11.7 |
 
-Defensa: **guardia** (−28 % de daño)
+Defensa: **guardia** (−27 % de daño)
 

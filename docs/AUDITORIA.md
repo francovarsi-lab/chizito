@@ -1,9 +1,15 @@
 # AUDITORÍA — Hombrecito de chizito → intérprete de criaturas (MVP 0)
 
 > **VERSIÓN 2 (2026-10-10).** Corregida tras leer la rama 3D `claude/friendly-faraday-2lyzl2` (hoy en 91994d3):
-> la **Fase 4 ya estaba hecha ahí** (guardado/carga JSON, frente, tope de 40) y el **frente quedó FIJO en +Z** (+Y arriba).
+> la **Fase 4 ya estaba hecha ahí** (guardado/carga JSON, frente, tope de 40).
 > Las secciones 1.6, 1.9, 2, 3, 5, 7 y 8 se reescribieron; el resto se conserva. Lo que describe `main` sigue siendo
 > cierto para `main`, pero **la base de trabajo del intérprete es la rama 3D**, no `main`.
+>
+> **v2.1 (orientación de combate, decisión vigente):** el chizito del constructor arranca PARADO (eje largo +X hacia arriba) y
+> **"arriba" de combate = +X**. El **frente de combate es dato por criatura sobre el eje horizontal de la pantalla del
+> constructor, que es ±Y; la DERECHA de la pantalla es −Y** (medido en el juego), así que el frente por defecto es **−Y** y el giro
+> de 180° lo da vuelta a +Y. Con frente −Y y arriba +X la profundidad (frente × arriba) es +Z, hacia el espectador: el perfil de
+> combate es exactamente la imagen del constructor. Las decisiones anteriores (frente +Z, luego ±X con arriba +Y) quedan descartadas.
 
 Modo: solo lectura sobre el código. Fecha: 2026-10-09. Auditado: `origin/main` @ `3eec4bf` (tras `git fetch`).
 Marca **[INESTABLE]** = depende de las piezas en desarrollo (ketchup, chizito anidado, papita partida, zoom) o de
@@ -153,13 +159,17 @@ No hay hitboxes, ni AABB por pieza, ni nada 2D.
 ### 1.9 Frente / orientación global
 
 - **En `main`: no existe.**
-- **En la rama 3D: existe y es FIJO.** `Construction.front = (0,0,1)` y `Construction.up = (0,1,0)` en coordenadas del chizito
-  raíz: el costado +Z (el que mira a la cámara al empezar). Commit `78c17ae`: "frente predeterminado y fijo; F sólo lo muestra".
-  El archivo lo escribe explícito, pero **al cargar siempre vale el de fábrica**, aunque el JSON traiga otro.
-- **Choque con la visión (a decidir con evidencia):** con front = +Z el eje de profundidad de la vista lateral es el eje largo
-  del chizito (X). El cuerpo se ve "de punta" (círculo de ~2 cm) y lo clavado en las puntas ±X queda en profundidad.
-  Un palito clavado hacia +Z apunta al frente y se ve entero de costado. Decisión tomada: **(a) mantener +Z por ahora**,
-  con el frente siempre como parámetro del generador de fixtures, y decidir mirando `docs/creature/perfiles-a-vs-b.svg`.
+- **En la rama 3D hay DOS cosas distintas:**
+  1. **El lado de cara del constructor** (`BUILDER_FACE`, +Z, fijo): el costado que mira a la cámara en la pose inicial (parado). F vuelve a
+     esa pose y lo marca. No es frente de combate.
+  2. **El frente de combate**, dato por criatura que el cargador respeta (`Construction.front/up`, `creature.front` en el archivo). Hoy
+     el chat 3D lo tiene con la convención ANTERIOR (±X, por defecto +X, arriba +Y; `DEFAULT_COMBAT_FRONT`, `readCombatFront`).
+- **Decisión vigente** (más nueva que ese código): arriba de combate = arriba del constructor (**+X**); frente de combate = **±Y**, por
+  defecto a la derecha de la pantalla del constructor = **−Y** (medido: con `homeRotation` Z+90°, la cámara tiene su derecha en −Y local;
+  su arriba, en +X; y +Z apunta al espectador). Cambiar de lado = giro de 180° (un espejo exacto en x del perfil; los datos no se espejan).
+- **Dependencia abierta con el chat 3D:** `readCombatFront` convierte todo lo que no sea ±X en +X con un aviso, así que los archivos
+  nuevos (frente −Y, arriba +X) cargan igual pero con ese aviso, y `Construction.front/up` sigue en la convención vieja. Hay que pasar
+  `DEFAULT_COMBAT_FRONT/UP` a (−Y, +X) y `readCombatFront` a ±Y. El intérprete no depende de eso: lee la orientación del snapshot.
 
 ### 1.10 Piezas en desarrollo — **[INESTABLE]** (rama `friendly-faraday-2lyzl2`, leído del código de la rama)
 
@@ -246,7 +256,7 @@ interface CreatureSnapshot {
   id: string; name?: string; createdAt: string;
   rootId: string;
   /** Frente y arriba, vectores unitarios en el marco local del raíz. Obligatorios al confirmar la vista de combate. */
-  orientation: { front: V3; up: V3 };   // hoy fijo (+Z, +Y) en la rama 3D; se lee del snapshot
+  orientation: { front: V3; up: V3 };   // frente de combate (−Y por defecto) y arriba (+X); se lee del snapshot, no se supone
   pieces: SnapPiece[];            // incluye la raíz; orden padre→hijo
   connections: SnapConnection[];  // 1 por pieza no raíz
   stats: { structuralCount: number; cap: 40 };
@@ -395,7 +405,7 @@ Regla de oro: **nada de GPL** al repo.
 11. **`onChange` no cubre el hundido en curso** (se muta `PieceData` por frame sin notificar): re-analizar solo en commit/undo/redo/load.
 12. **Libertad de construcción vs jugabilidad:** una criatura "inviable" (todo palito flojo, 0 apoyos, 0 ataques) debe jugar igual (embestida/arrastre); hay que definir el mínimo garantizado.
 13. **Cálculo de ángulos en arrastre trackball:** el frente/arriba dependen de que el jugador confirme la vista; si no confirma, usar un default determinista y avisar.
-14. **Frente fijo +Z y vista lateral:** ver 1.9. Se decide con `docs/creature/perfiles-a-vs-b.svg`.
+14. **Orientación de combate:** ver 1.9. Decidida: arriba +X, frente ±Y (derecha = −Y). Depende de que el chat 3D actualice su cargador.
 15. **La rama 3D se mueve** (hoy 91994d3 y avanzando): se integra con merge periódico; los fixtures dependen del formato `CreatureFileV1`.
 16. **Palitos clavados en un chizito montado** no cuentan como extremidades propias en el MVP 0 (deuda del MVP 1); el panel lo avisa.
 17. **Matter.js:** no instalar ahora, de acuerdo; el intérprete no debe asumir física general.
@@ -416,7 +426,7 @@ Rama: `claude/creature-interpreter`, creada desde la rama 3D. Un commit + push p
 | 0 | Doc v2 | `docs/AUDITORIA.md` | Coincide con el código de la rama base. |
 | 1 | Contrato y límites | `src/creature/{limits,config,types,index}.ts` | `typecheck`; `MAX_PIECES` igual al del juego. |
 | 2 | Perfiles y matemática | `profiles.ts`, `math/{vec,shapes2d,basis,mass}.ts`, `scripts/creature-test.mjs` | Proyección, giro de 180°, colisiones 2D, masas a mano. |
-| 3 | Criaturas de prueba | `fixtures/`, `scripts/make-fixtures.mjs`, `public/assets/creatures/*.json`, `docs/creature/perfiles-a-vs-b.svg` | Los archivos cargan sin avisos; D ≤ 40; perfiles +Z vs ±X. |
+| 3 | Criaturas de prueba | `fixtures/`, `scripts/make-fixtures.mjs`, `public/assets/creatures/*.json`, `docs/creature/perfiles-a-vs-b.svg` | Los archivos cargan (con el único aviso conocido del frente viejo); D ≤ 40; perfiles de frente a la derecha, izquierda y +Z vs ±X. |
 | 4 | Detección | `detect/*` | A: 4 extremidades, B: 4, C: 1, D: muchas con tope, E: decorativas con razón. |
 | 5 | Masa, capacidades, locomoción | `analyze/*` | A camina, B salta o se arrastra, C se arrastra, **D rueda, casi sin acciones de golpe ni frenado (criterio de aceptación)**, vegetal camina. |
 | 6 | Acciones, perfil 2D, fachada | `analyze/actions`, `project/*`, `interpret.ts`, `describe.ts` | Acciones sin duplicados; 40 piezas en < 5 ms. |

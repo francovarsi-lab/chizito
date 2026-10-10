@@ -12,7 +12,7 @@ try {
   const ids = ['A', 'B', 'C', 'D', 'E', 'veg'];
   const names = { A: 'A · cuerpo + 2 brazos + 2 piernas', B: 'B · cuerpo + 4 brazos', C: 'C · cuerpo + 1 brazo', D: 'D · erizo', E: 'E · asimétrica / extraña', veg: 'Rival vegetal (proxy)' };
   let md = '# Informe del intérprete sobre las criaturas de prueba\n\n';
-  md += 'Generado por `node scripts/creature-report.mjs` (tanda 6: incluye acciones y defensa). Cajas de golpe: `docs/creature/hitboxes.svg`. Frente de combate +X, arriba +Y. Medidas en mm y gramos de juego (valores a calibrar, ver `src/creature/config.ts`).\n\n';
+  md += 'Generado por `node scripts/creature-report.mjs` (tanda 6: incluye acciones y defensa). Cajas de golpe: `docs/creature/hitboxes.svg`. Orientación de combate: frente a la derecha de la pantalla del constructor (−Y), arriba +X (el chizito parado). Medidas en mm y gramos de juego (valores a calibrar, ver `src/creature/config.ts`).\n\n';
   const rows = [];
   let body = '';
   const f2 = (x) => Number(x).toFixed(2);

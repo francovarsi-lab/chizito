@@ -13,8 +13,8 @@
     "front": {
       "direction": [
         0,
-        0,
-        1
+        -1,
+        0
       ],
       "up": [
         1,
@@ -28,31 +28,31 @@
       "id": "palito-fxV1",
       "type": "palito",
       "parentId": "root",
-      "seed": 601,
+      "seed": 603,
       "attach": {
         "mode": "pierce",
         "entryPoint": [
-          -0.012,
-          -0.01174,
+          0.012,
+          0.01174,
           0
         ],
         "direction": [
-          0.139173,
-          0.990268,
+          -0.309017,
+          -0.951057,
           0
         ],
         "depth": 0.009,
         "spin": 0
       },
       "params": {
-        "proxyDe": "apio"
+        "proxyDe": "zanahoria"
       }
     },
     {
       "id": "palito-fxV2",
       "type": "palito",
       "parentId": "root",
-      "seed": 603,
+      "seed": 601,
       "attach": {
         "mode": "pierce",
         "entryPoint": [
@@ -69,14 +69,14 @@
         "spin": 0
       },
       "params": {
-        "proxyDe": "zanahoria"
+        "proxyDe": "apio"
       }
     },
     {
       "id": "palito-fxV3",
       "type": "palito",
       "parentId": "root",
-      "seed": 602,
+      "seed": 604,
       "attach": {
         "mode": "pierce",
         "entryPoint": [
@@ -85,32 +85,8 @@
           0
         ],
         "direction": [
-          -0.139173,
-          0.990268,
-          0
-        ],
-        "depth": 0.009,
-        "spin": 0
-      },
-      "params": {
-        "proxyDe": "apio"
-      }
-    },
-    {
-      "id": "palito-fxV4",
-      "type": "palito",
-      "parentId": "root",
-      "seed": 604,
-      "attach": {
-        "mode": "pierce",
-        "entryPoint": [
-          0.024295,
-          0.004015,
-          0
-        ],
-        "direction": [
-          -0.939693,
-          -0.34202,
+          -0.309017,
+          0.951057,
           0
         ],
         "depth": 0.009,
@@ -118,6 +94,30 @@
       },
       "params": {
         "proxyDe": "zanahoria"
+      }
+    },
+    {
+      "id": "palito-fxV4",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 602,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.024295,
+          -0.004015,
+          0
+        ],
+        "direction": [
+          0.939693,
+          0.34202,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      },
+      "params": {
+        "proxyDe": "apio"
       }
     }
   ]

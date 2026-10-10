@@ -10,15 +10,17 @@ export const CREATURE_CONFIG = {
   limits: { maxPieces: MAX_PIECES, maxStrokes: MAX_STROKES },
 
   /**
-   * Orientación de COMBATE (decisión del usuario): el frente de combate es por criatura, sobre el eje ±X
-   * del chizito raíz, con +X por defecto; "arriba" es +Y salvo que el snapshot diga otra cosa. Es independiente
-   * del frente fijo del constructor (`Construction.front`, +Z), que no se toca. Cambiar de lado = girar 180°.
+   * Orientación de COMBATE (decisión del usuario): "arriba" de combate = "arriba" del constructor (+X del chizito
+   * raíz: el chizito está parado); el frente de combate es ±Y, el eje horizontal de la pantalla del constructor.
+   * Medido en el juego (cámara del constructor): la DERECHA de la pantalla es −Y, así que el frente por defecto
+   * (a la derecha) es −Y. Con frente −Y y arriba +X, el eje de profundidad (frente × arriba) es +Z, hacia el
+   * espectador: el perfil de combate es exactamente la imagen del constructor. Cambiar de lado = girar 180°.
    */
   orientation: {
-    defaultFront: [1, 0, 0] as readonly [number, number, number],
-    defaultUp: [0, 1, 0] as readonly [number, number, number],
-    /** Ejes de frente que se consideran válidos de combate (cualquiera de los dos sentidos). */
-    allowedFrontAxes: [[1, 0, 0]] as readonly (readonly [number, number, number])[],
+    defaultFront: [0, -1, 0] as readonly [number, number, number],
+    defaultUp: [1, 0, 0] as readonly [number, number, number],
+    /** Ejes de frente válidos de combate (cualquiera de los dos sentidos). */
+    allowedFrontAxes: [[0, 1, 0]] as readonly (readonly [number, number, number])[],
     /** Tolerancia angular (grados) para decir que un frente "está sobre" un eje permitido. */
     axisTolDeg: 2,
   },

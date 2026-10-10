@@ -1,10 +1,10 @@
 // Genera las criaturas de prueba (A–E y rival vegetal):
 //   public/assets/creatures/<id>.json            archivo real de criatura (Ctrl+O / arrastrar a la ventana)
 //   src/creature/fixtures/<id>.snapshot.json     snapshot de referencia (analítico)
-//   docs/creature/perfiles-a-vs-b.svg            perfiles laterales con frente +X (por defecto), −X y +Z
-//   docs/creature/hitboxes.svg                   cajas de golpe (perfil 2D) con frente +X y −X
-// El frente de COMBATE del snapshot es un PARÁMETRO (por defecto +X, arriba +Y):
-//   node scripts/make-fixtures.mjs --front=-1,0,0 --up=0,1,0
+//   docs/creature/perfiles-a-vs-b.svg            perfiles laterales con frente a la derecha (por defecto), el giro de 180° y +Z
+//   docs/creature/hitboxes.svg                   cajas de golpe (perfil 2D) con frente a la derecha y el giro de 180°
+// El frente y el arriba de COMBATE son PARÁMETROS (por defecto frente −Y = derecha de la pantalla del constructor, arriba +X):
+//   node scripts/make-fixtures.mjs --front=0,1,0 --up=1,0,0
 // Uso: node scripts/make-fixtures.mjs
 import { createServer } from 'vite';
 import fs from 'node:fs';
@@ -13,7 +13,7 @@ const arg = (name, def) => {
   const a = process.argv.find((s) => s.startsWith(`--${name}=`));
   return a ? a.split('=')[1].split(',').map(Number) : def;
 };
-const front = arg('front', undefined); // sin parámetro: el frente de combate por defecto (+X) y arriba +Y
+const front = arg('front', undefined); // sin parámetro: frente a la derecha de la pantalla del constructor (−Y) y arriba +X
 const up = arg('up', undefined);
 
 globalThis.location ??= { search: '' }; // src/config.ts lee location al cargarse

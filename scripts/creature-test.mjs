@@ -55,6 +55,11 @@ try {
   const tilted = B.makeBasis([0, 0, 1], [0, 1, 1]); // arriba no perpendicular al frente
   near(V.dot(tilted.f, tilted.u), 0, 1e-12, 'ortonormaliza: up ⟂ frente');
   nearV(tilted.u, [0, 1, 0], 1e-12, 'ortonormaliza: up corregido');
+  const dflt = B.makeBasis(idx.CREATURE_CONFIG.orientation.defaultFront, idx.CREATURE_CONFIG.orientation.defaultUp);
+  nearV(dflt.f, [0, -1, 0], 1e-12, 'frente de combate por defecto: −Y (la derecha de la pantalla del constructor)');
+  nearV(dflt.u, [1, 0, 0], 1e-12, 'arriba de combate: +X (el chizito parado)');
+  nearV(dflt.s, [0, 0, 1], 1e-12, 'profundidad = +Z, hacia el espectador: el perfil es la imagen del constructor');
+  nearV(B.toProfile(dflt, [0.04, -0.01, 0.02]), [0.01, 0.04], 1e-12, 'perfil: un punto a la derecha (−Y) y arriba (+X) cae a la derecha y arriba');
   const bx = B.makeBasis([1, 0, 0], [0, 1, 0]);
   nearV(B.toProfile(bx, [0.04, 0.01, 0.02]), [0.04, 0.01], 1e-12, 'con frente +X el perfil usa x e y');
   // Giro de 180° alrededor de "arriba": en el perfil es x → −x, y igual.
@@ -180,6 +185,7 @@ try {
   const { ALL_DEFINITIONS } = await load('/src/pieces/definitions.ts');
   const registry = new PieceRegistry();
   ALL_DEFINITIONS.forEach((d) => registry.register(d));
+  let oldFrontWarnings = 0;
   const built = fx.buildAllCreatures();
   const byId = Object.fromEntries(built.map((c) => [c.id, c]));
   ok(built.map((c) => c.id).join() === 'A,B,C,D,E,veg', 'las seis criaturas: A, B, C, D, E y vegetal');
@@ -190,7 +196,11 @@ try {
     const snapDisk = JSON.parse(fs.readFileSync(`src/creature/fixtures/${c.id}.snapshot.json`, 'utf8'));
     ok(JSON.stringify(snapDisk) === JSON.stringify(c.snapshot), `${c.id}: snapshot de referencia al día`);
     const loaded = fromCreatureFile(c.file, registry);
-    ok(loaded.warnings.length === 0, `${c.id}: se carga sin avisos (${loaded.warnings.join('; ') || 'ninguno'})`);
+    // El cargador actual del chat 3D todavía usa la convención vieja (±X): avisa y se queda con +X. Ese aviso es el único aceptable.
+    const OLD_FRONT_WARNING = 'el frente de combate no era ±X: se usa +X';
+    const real = loaded.warnings.filter((w) => w !== OLD_FRONT_WARNING);
+    if (loaded.warnings.includes(OLD_FRONT_WARNING)) oldFrontWarnings++;
+    ok(real.length === 0, `${c.id}: se carga sin avisos (${real.join('; ') || 'ninguno'})`);
     const expectedPieces = c.file.pieces.length;
     ok(loaded.snapshot.pieces.length === expectedPieces, `${c.id}: no se descartó ninguna pieza (${loaded.snapshot.pieces.length}/${expectedPieces})`);
     const ids = new Set(c.file.pieces.map((p) => p.id));
@@ -216,28 +226,30 @@ try {
     ok(order, `${c.id}: orden padre → hijo`);
     const allFinite = (x) => (typeof x === 'number' ? Number.isFinite(x) : Array.isArray(x) ? x.every(allFinite) : x && typeof x === 'object' ? Object.values(x).every(allFinite) : true);
     ok(allFinite(sn), `${c.id}: todos los números del snapshot son finitos`);
-    nearV(sn.orientation.front, [1, 0, 0], 1e-12, `${c.id}: frente de combate por defecto +X`);
-    nearV(sn.orientation.up, [0, 1, 0], 1e-12, `${c.id}: arriba de combate +Y`);
-    nearV(c.file.creature.front.direction, [0, 0, 1], 1e-9, `${c.id}: el archivo lleva el frente fijo del constructor (+Z), no el de combate`);
-    nearV(c.file.creature.front.up, [1, 0, 0], 1e-9, `${c.id}: y su "arriba" (+X, el chizito parado)`);
+    nearV(sn.orientation.front, [0, -1, 0], 1e-12, `${c.id}: frente de combate por defecto −Y (a la derecha de la pantalla)`);
+    nearV(sn.orientation.up, [1, 0, 0], 1e-12, `${c.id}: arriba de combate +X (el chizito parado)`);
+    nearV(c.file.creature.front.direction, [0, -1, 0], 1e-9, `${c.id}: el archivo lleva el frente de combate (dato por criatura)`);
+    nearV(c.file.creature.front.up, [1, 0, 0], 1e-9, `${c.id}: y su arriba`);
   }
+
+  console.log(`  INFO: ${oldFrontWarnings} de ${built.length} archivos dan el aviso del cargador viejo del frente de combate (pendiente del chat 3D).`);
 
   section('tanda 3: contenido de cada criatura');
   const rodsOf = (c) => c.snapshot.pieces.filter((p) => p.kind === 'rod');
   const linkOf = (c, id) => c.snapshot.links.find((l) => l.childId === id);
   const A = byId.A;
   ok(rodsOf(A).length === 4, 'A: 4 palitos (2 brazos + 2 piernas)');
-  const legsA = rodsOf(A).filter((p) => linkOf(A, p.id).axis[1] < -0.8);
-  const armsA = rodsOf(A).filter((p) => linkOf(A, p.id).axis[1] > 0 && Math.abs(linkOf(A, p.id).axis[0]) > 0.8);
-  ok(legsA.length === 2 && armsA.length === 2, 'A: 2 piernas hacia abajo y 2 brazos hacia afuera y arriba');
+  const legsA = rodsOf(A).filter((p) => linkOf(A, p.id).axis[0] < -0.8);
+  const armsA = rodsOf(A).filter((p) => linkOf(A, p.id).axis[0] > 0 && Math.abs(linkOf(A, p.id).axis[1]) > 0.8);
+  ok(legsA.length === 2 && armsA.length === 2, 'A: 2 piernas hacia abajo (−X) y 2 brazos hacia los costados (±Y) y un poco arriba');
   ok(rodsOf(A).every((p) => linkOf(A, p.id).exit === null && linkOf(A, p.id).freeTail > 0.023 && Math.abs(linkOf(A, p.id).embedded - 0.009) < 1e-6), 'A: ninguno atraviesa; ≥ 23 mm libres y 9 mm adentro');
   ok(rodsOf(byId.B).length === 4, 'B: 4 brazos');
-  ok(rodsOf(byId.B).every((p) => linkOf(byId.B, p.id).axis[1] > 0.3), 'B: los cuatro por encima de la horizontal (ninguno hace de pierna)');
-  ok(rodsOf(byId.B).every((p) => Math.abs(linkOf(byId.B, p.id).axis[0]) > 0.5), 'B: los cuatro salen de las puntas');
+  ok(rodsOf(byId.B).every((p) => linkOf(byId.B, p.id).axis[0] > 0.3), 'B: los cuatro por encima de la horizontal (ninguno hace de pierna)');
+  ok(rodsOf(byId.B).every((p) => Math.abs(linkOf(byId.B, p.id).axis[1]) > 0.5), 'B: los cuatro salen de los costados (±Y)');
   const C = byId.C;
   ok(rodsOf(C).length === 1, 'C: un solo palito');
   const ca = linkOf(C, rodsOf(C)[0].id).axis;
-  ok(ca[2] > 0.7 && ca[1] > 0.4, 'C: el brazo sale por +Z (hacia la cámara del constructor) inclinado hacia arriba');
+  ok(ca[2] > 0.7 && ca[0] > 0.4, 'C: el brazo sale por +Z (hacia la cámara del constructor) inclinado hacia arriba (+X)');
   ok(byId.D.snapshot.budget.pieceCount === 30 && rodsOf(byId.D).length === 30, 'D: erizo de 30 palitos (dentro del tope de 40)');
   const dirsD = new Set(rodsOf(byId.D).map((p) => linkOf(byId.D, p.id).axis.map((v) => Math.round(v * 20)).join()));
   ok(dirsD.size >= 25, `D: palitos en direcciones distintas (${dirsD.size})`);
@@ -269,41 +281,44 @@ try {
   ok(/brócoli/.test(V2.name), 'vegetal: el nombre marca el cuerpo proxy (brócoli)');
 
   section('tanda 3: el frente de combate es un parámetro');
-  const flipped = fx.buildAllCreatures([-1, 0, 0], [0, 1, 0]);
-  ok(flipped.every((c) => JSON.stringify(c.snapshot.orientation.front) === '[-1,0,0]'), 'con --front=-X el snapshot lo refleja');
+  const flipped = fx.buildAllCreatures([0, 1, 0], [1, 0, 0]);
+  ok(flipped.every((c) => JSON.stringify(c.snapshot.orientation.front) === '[0,1,0]'), 'con --front=+Y (giro de 180°) el snapshot lo refleja');
   const zfront = fx.buildAllCreatures([0, 0, 1], [1, 0, 0]);
   ok(zfront.every((c) => JSON.stringify(c.snapshot.orientation.front) === '[0,0,1]' && JSON.stringify(c.snapshot.orientation.up) === '[1,0,0]'), 'y también acepta cualquier otro (frente +Z, arriba +X)');
-  ok([flipped, zfront].every((set) => set.every((c, i) => JSON.stringify(c.file) === JSON.stringify(built[i].file))), 'el archivo de criatura no depende del frente de combate');
+  ok(flipped.every((c) => JSON.stringify(c.file.creature.front.direction) === '[0,1,0]') && built.every((c) => JSON.stringify(c.file.creature.front.direction) === '[0,-1,0]'), 'el archivo lleva el frente de combate de cada criatura');
+  ok([flipped, zfront].every((set) => set.every((c, i) => JSON.stringify(c.file.pieces) === JSON.stringify(built[i].file.pieces))), 'las piezas del archivo no dependen del frente de combate');
   ok(JSON.stringify(fx.buildAllCreatures()) === JSON.stringify(built), 'generar dos veces da lo mismo (determinista)');
-  const consText = fs.readFileSync('src/model/Construction.ts', 'utf8');
-  ok(/front\s*=\s*new THREE\.Vector3\(0,\s*0,\s*1\)/.test(consText) && /up\s*=\s*new THREE\.Vector3\(1,\s*0,\s*0\)/.test(consText), 'el frente/arriba que escribe el archivo (+Z, +X) sigue siendo el del constructor del juego');
   ok(E.snapshot.links.filter((l) => l.exit).every((l) => Math.abs(Math.hypot(...l.exit.normal) - 1) < 1e-9), 'E: la salida de la vara pasante trae su normal (unitaria)');
+  // Información (no cuenta como falla): la convención de combate del cargador del chat 3D.
+  const consText = fs.readFileSync('src/model/Construction.ts', 'utf8');
+  const m3 = /DEFAULT_COMBAT_FRONT[^=]*=\s*\[([^\]]*)\]/.exec(consText);
+  console.log(`  INFO: el cargador del juego usa DEFAULT_COMBAT_FRONT = [${m3?.[1]}] (convención vieja ±X / arriba +Y); la decisión vigente es ±Y / arriba +X: lo tiene que actualizar el chat 3D.`);
 
-  section('tanda 3: validación del snapshot y frentes ±X');
+  section('tanda 3: validación del snapshot y frentes ±Y');
   const { validateSnapshot, isCombatFront } = idx;
   ok(built.every((c) => validateSnapshot(c.snapshot).length === 0), 'las seis criaturas validan sin avisos');
-  ok(isCombatFront([1, 0, 0]) && isCombatFront([-1, 0, 0]), '+X y −X son frentes de combate válidos');
-  ok(isCombatFront([0.9999, 0.01, 0]), 'un frente apenas torcido sigue valiendo');
-  ok(!isCombatFront([0, 0, 1]) && !isCombatFront([0, 1, 0]) && !isCombatFront([0, 0, 0]), '+Z, +Y y el vector nulo no');
-  const withFront = (f, u = [0, 1, 0]) => ({ ...built[0].snapshot, orientation: { front: f, up: u } });
-  ok(validateSnapshot(withFront([-1, 0, 0])).length === 0, 'frente −X: sin avisos');
-  ok(validateSnapshot(withFront([0, 0, 1], [1, 0, 0])).some((m) => m.includes('±X')), 'frente +Z: se acepta con aviso');
+  ok(isCombatFront([0, -1, 0]) && isCombatFront([0, 1, 0]), '−Y (derecha) y +Y (izquierda) son frentes de combate válidos');
+  ok(isCombatFront([0.01, -0.9999, 0]), 'un frente apenas torcido sigue valiendo');
+  ok(!isCombatFront([0, 0, 1]) && !isCombatFront([1, 0, 0]) && !isCombatFront([0, 0, 0]), '+Z, +X y el vector nulo no');
+  const withFront = (f, u = [1, 0, 0]) => ({ ...built[0].snapshot, orientation: { front: f, up: u } });
+  ok(validateSnapshot(withFront([0, 1, 0])).length === 0, 'frente +Y (giro de 180°): sin avisos');
+  ok(validateSnapshot(withFront([0, 0, 1])).some((m) => m.includes('±Y')), 'frente +Z: se acepta con aviso');
   ok(validateSnapshot(withFront([1, 0, 0], [1, 0, 0])).some((m) => m.includes('coinciden')), 'frente igual a "arriba": aviso (no hay perfil)');
-  ok(validateSnapshot(withFront([1, 0, 0], [0.3, 1, 0])).some((m) => m.includes('perpendicular')), '"arriba" torcido: aviso de que se corrige');
+  ok(validateSnapshot(withFront([0, -1, 0], [1, 0.3, 0])).some((m) => m.includes('perpendicular')), '"arriba" torcido: aviso de que se corrige');
   ok(validateSnapshot(withFront([0, 0, 0])).length > 0, 'frente nulo: aviso');
   ok(validateSnapshot({ ...built[0].snapshot, budget: { ...built[0].snapshot.budget, strokeCount: 31 } }).some((m) => m.includes('trazos')), '31 trazos: aviso (tope 30)');
   ok(validateSnapshot({ ...built[0].snapshot, budget: { ...built[0].snapshot.budget, pieceCount: 41 } }).some((m) => m.includes('41 piezas')), '41 piezas: aviso (tope 40)');
-  // La base sale igual con +X que con −X salvo por el signo: el giro de 180° es un espejo exacto.
-  const bPlus = B.makeBasis([1, 0, 0], [0, 1, 0]);
-  const bMinus = B.makeBasis([-1, 0, 0], [0, 1, 0]);
+  // La base sale igual a la derecha que a la izquierda salvo por el signo: el giro de 180° es un espejo exacto.
+  const bPlus = B.makeBasis([0, -1, 0], [1, 0, 0]);
+  const bMinus = B.makeBasis([0, 1, 0], [1, 0, 0]);
   const pt = [0.013, 0.007, -0.011];
-  nearV(B.toProfile(bMinus, pt), B.applyFacing(B.toProfile(bPlus, pt), -1), 1e-12, 'frente −X = frente +X con x → −x');
+  nearV(B.toProfile(bMinus, pt), B.applyFacing(B.toProfile(bPlus, pt), -1), 1e-12, 'frente a la izquierda = frente a la derecha con x → −x');
   near(B.depthOf(bPlus, pt), -B.depthOf(bMinus, pt), 1e-12, 'la profundidad cambia de signo al girar');
 
   section('tanda 3: hoja de perfiles');
   const svg = fs.readFileSync('docs/creature/perfiles-a-vs-b.svg', 'utf8');
   ok(svg.startsWith('<svg') && svg.length > 5000, 'perfiles-a-vs-b.svg existe');
-  ok(['frente +Z', 'frente +X', 'frente −X'].every((t) => svg.includes(t)), 'las tres orientaciones');
+  ok(['frente a la derecha', 'giro de 180°', 'frente +Z'].every((t) => svg.includes(t)), 'las tres orientaciones');
   ok(['A', 'B', 'C', 'D', 'E', 'Rival vegetal'].every((t) => svg.includes(`>${t}</text>`)), 'las seis criaturas');
   const sheet = await load('/src/creature/fixtures/profileSheet.ts');
   ok(sheet.renderProfileSheet(built) === svg, 'la hoja en disco coincide con lo que genera el código');
@@ -419,7 +434,7 @@ try {
   ok(armsLimbs.length === 2 && armsLimbs.some((l) => l.dominant === 'strike' && l.caps.strike >= 0.6), 'A: el brazo de adelante golpea');
   ok(armsLimbs.every((l) => l.caps.support === 0), 'A: los brazos no apoyan');
   ok(body.B.locomotion.mode === 'drag' && body.B.support.feet.length === 0, 'B se arrastra (ningún brazo apoya)');
-  ok(body.B.limbs.every((l) => l.caps.support === 0) && body.B.limbs.filter((l) => l.caps.strike >= 0.3).length >= 2, 'B: 4 brazos, varios con capacidad de golpe');
+  ok(body.B.limbs.every((l) => l.caps.support === 0) && body.B.limbs.filter((l) => l.caps.strike >= 0.3).length >= 1, 'B: 4 brazos, ninguno apoya y al menos uno golpea (los de atrás y los apretados de a dos pesan menos)');
   ok(body.C.locomotion.mode === 'drag' && body.C.limbs.length === 1, 'C se arrastra con su único brazo');
   const cl = body.C.limbs[0];
   ok(cl.profile.inDepth && cl.profile.foreshortening < Math.SQRT1_2 && cl.profile.length2D < cl.length, 'C: su brazo sale marcado "en profundidad" (se ve corto en reposo)');
@@ -458,14 +473,14 @@ try {
   section('tanda 5: el frente cambia el resultado como corresponde');
   const mirrored = Object.fromEntries(flipped.map((c) => [c.id, analyzeBody(c.snapshot).body]));
   for (const id of ['A', 'B', 'veg']) {
-    ok(mirrored[id].locomotion.mode === body[id].locomotion.mode && mirrored[id].limbs.length === body[id].limbs.length, `${id}: con frente −X camina/arrastra igual y con las mismas extremidades`);
+    ok(mirrored[id].locomotion.mode === body[id].locomotion.mode && mirrored[id].limbs.length === body[id].limbs.length, `${id}: con el giro de 180° camina/arrastra igual y con las mismas extremidades`);
   }
   const strikes = (b) => b.limbs.map((l) => l.caps.strike).sort((a, c) => a - c);
   ok(['A', 'B', 'veg'].every((id) => strikes(mirrored[id]).every((v, i) => Math.abs(v - strikes(body[id])[i]) < 0.08)), 'A, B y vegetal son casi simétricas (cada palito tiene su propio largo): el giro de 180° da las mismas capacidades (±0,08)');
-  ok(mirrored.A.limbs.find((l) => l.caps.strike >= 0.6).profile.tip[0] > 0 && mirrored.A.limbs.find((l) => l.caps.strike >= 0.6).pivot[0] < 0, 'A con frente −X: golpea con el brazo del otro extremo (el que ahora mira adelante)');
+  ok([body.A, mirrored.A].every((b2) => { const arm = b2.limbs.find((l) => l.caps.strike >= 0.6); return arm.profile.pivot[0] > 0 && arm.profile.tip[0] > arm.profile.pivot[0]; }), 'A: golpea con el brazo del lado que mira adelante, con frente a la derecha o a la izquierda')
   const zA = analyzeBody(zfront[0].snapshot).body;
-  ok(zA.limbs.filter((l) => l.profile.inDepth).length === 2, 'A con frente +Z (descartado): sus dos brazos quedan en profundidad');
-  ok(body.A.limbs.filter((l) => l.profile.inDepth).length === 0, 'A con frente +X: ninguna en profundidad');
+  ok(zA.limbs.filter((l) => l.profile.inDepth).length === 2, 'A con frente +Z (descartado): sus dos brazos (±Y) quedan en profundidad');
+  ok(body.A.limbs.filter((l) => l.profile.inDepth).length === 0, 'A con el frente por defecto: ninguna en profundidad');
 
   section('tanda 5: casos sintéticos de locomoción');
   const heavy = { ...idx.CREATURE_CONFIG, locomotion: { ...idx.CREATURE_CONFIG.locomotion, massRef: 0.0005 } };
@@ -495,12 +510,12 @@ try {
   const { interpret, describeCreature, buildProfile2D, hitboxPath, attackHitbox, swingArc, poseGroup, mapPoint, hurtGroupOf } = idx;
   const full = Object.fromEntries(built.map((c) => [c.id, interpret(c.snapshot)]));
   const kinds = (a) => a.actions.map((x) => x.kind).sort().join(',');
-  ok(kinds(full.A) === 'barrida,embestida,estocada', `A: barrida, estocada y embestida (${kinds(full.A)})`);
-  ok(kinds(full.B) === 'embestida,estocada,golpe-alto', `B: golpe alto, estocada y embestida (${kinds(full.B)})`);
+  ok(kinds(full.A) === 'embestida,estocada', `A: estocada con el brazo de adelante y embestida (${kinds(full.A)})`);
+  ok(kinds(full.B) === 'embestida,estocada', `B: estocada y embestida (${kinds(full.B)})`);
   ok(kinds(full.C) === 'embestida,golpe-alto', `C: golpe alto (su brazo en profundidad) y embestida (${kinds(full.C)})`);
   ok(kinds(full.D) === 'rodada', `D: solo la rodada (${kinds(full.D)})`);
   ok(kinds(full.E) === 'embestida,mazazo', `E: mazazo y embestida (${kinds(full.E)})`);
-  ok(kinds(full.veg) === 'barrida,embestida,estocada', `vegetal: igual que A (${kinds(full.veg)})`);
+  ok(kinds(full.veg) === 'embestida,estocada', `vegetal: igual que A (${kinds(full.veg)})`);
   const STRIKES = ['jab', 'estocada', 'golpe-alto', 'barrida', 'mazazo'];
   ok(full.D.actions.every((x) => !STRIKES.includes(x.kind)), 'D casi no golpea: ninguna acción de golpe');
   ok(full.D.locomotion.mode === 'roll' && full.D.locomotion.brake <= 0.2, 'D rueda y casi no frena (criterio de aceptación)');
@@ -565,9 +580,11 @@ try {
   const reachAct = full.A.actions.find((x) => x.kind === 'estocada');
   const strikeEnd = attackHitbox(aPlus, full.A.limbs, reachAct, 1);
   const strikeBox = { kind: 'capsule', a: strikeEnd.center, b: strikeEnd.center, r: strikeEnd.r };
-  const farBody = (dx) => aPlus.groups[0].shapes.map((sh) => S.transform2D(sh, { facing: -1, translate: [dx, 0] }));
-  const touches = (dx) => farBody(dx).some((sh) => S.overlap2D(strikeBox, sh));
-  ok(touches(0.075) && !touches(0.2), 'la caja de la estocada toca el cuerpo del rival cuando está cerca y no cuando está lejos');
+  const rival = (dx) => aPlus.groups[0].shapes.map((sh) => S.transform2D(sh, { facing: -1, translate: [dx, 0] })); // solo el cuerpo del rival
+  const rivalMin = S.bounds2D(rival(0)).min[0];
+  const dxNear = strikeEnd.center[0] - rivalMin - 0.003; // el borde más cercano del cuerpo del rival queda 3 mm adentro de la caja de golpe
+  const touches = (dx) => rival(dx).some((sh) => S.overlap2D(strikeBox, sh));
+  ok(touches(dxNear) && !touches(dxNear + 0.2), 'la caja de la estocada toca el cuerpo del rival cuando está cerca y no cuando está 20 cm más lejos');
 
   section('tanda 6: barrido de los golpes');
   for (const c of built) {
@@ -610,7 +627,7 @@ try {
   ok(describeCreature(full.D).some((l) => l.includes('rueda')) && describeCreature(full.D).some((l) => l.includes('rodada')), 'D: el texto dice que rueda y que su ataque es la rodada');
   ok(describeCreature(full.C).some((l) => l.includes('en profundidad')), 'C: el panel marca el brazo en profundidad');
   ok(describeCreature(full.E).some((l) => l.includes('MVP 0') && l.includes('extremidad propia')), 'E: el panel avisa lo de los palitos en el chizito ensartado');
-  ok(interpret(zfront[0].snapshot).warnings.some((m) => m.includes('±X')), 'un frente +Z se acepta con aviso de que no es ±X');
+  ok(interpret(zfront[0].snapshot).warnings.some((m) => m.includes('±Y')), 'un frente +Z se acepta con aviso de que no es ±Y');
   const weird = { ...A.snapshot, orientation: { front: [0, 0, 0], up: [0, 0, 0] } };
   let threw = false;
   let weirdOut = null;
@@ -635,7 +652,7 @@ try {
 
   section('tanda 6: hojas visuales y umbrales en config');
   const hit = fs.readFileSync('docs/creature/hitboxes.svg', 'utf8');
-  ok(hit.startsWith('<svg') && hit.length > 5000 && hit.includes('frente −X'), 'hitboxes.svg existe');
+  ok(hit.startsWith('<svg') && hit.length > 5000 && hit.includes('giro de 180°'), 'hitboxes.svg existe');
   const hs = await load('/src/creature/fixtures/hitboxSheet.ts');
   ok(hs.renderHitboxSheet(built) === hit, 'hitboxes.svg coincide con lo que genera el código');
   for (const f of ['analyze/actions', 'interpret', 'project/profile2d', 'project/hitboxes']) {

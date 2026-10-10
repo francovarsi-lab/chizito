@@ -110,11 +110,11 @@ export function renderHitboxSheet(creatures: BuiltCreature[]): string {
   const head = [
     'Cajas de daño por extremidad, coloreadas por su rol: rojo golpea · verde apoya · azul defiende · gris alcanza.',
     'Punteado: extremidad en profundidad (se ve corta en reposo). Círculos rojos: barrido del mejor golpe, con el LARGO REAL de la extremidad.',
-    'Puntos negros: pivotes. Línea punteada: piso. Izquierda: frente +X. Derecha: el giro de 180° (frente −X); los datos no se espejan.',
+    'Puntos negros: pivotes. Línea punteada: piso. Izquierda: frente a la derecha (por defecto). Derecha: el giro de 180° (frente a la izquierda); los datos no se espejan.',
   ];
   head.forEach((t, i) => { svg += `<text x="12" y="${46 + i * 16}" font-size="12" fill="#555">${esc(t)}</text>`; });
-  svg += `<text x="${LABEL_W + CELL_W / 2}" y="${HEAD_H - 10}" font-size="14" font-weight="700" text-anchor="middle" fill="#222">frente +X</text>`;
-  svg += `<text x="${LABEL_W + CELL_W * 1.5}" y="${HEAD_H - 10}" font-size="14" font-weight="700" text-anchor="middle" fill="#222">frente −X (giro de 180°)</text>`;
+  svg += `<text x="${LABEL_W + CELL_W / 2}" y="${HEAD_H - 10}" font-size="14" font-weight="700" text-anchor="middle" fill="#222">frente a la derecha (−Y)</text>`;
+  svg += `<text x="${LABEL_W + CELL_W * 1.5}" y="${HEAD_H - 10}" font-size="14" font-weight="700" text-anchor="middle" fill="#222">giro de 180° (frente a la izquierda)</text>`;
   let y = HEAD_H;
   rows.forEach(({ c, plus, minus, h, floor }, r) => {
     svg += `<rect x="4" y="${y}" width="${W - 8}" height="${h - 4}" fill="${r % 2 ? '#fbf7ec' : '#fffdf7'}" stroke="#eee"/>`;

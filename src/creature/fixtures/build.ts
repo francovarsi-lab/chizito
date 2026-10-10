@@ -6,7 +6,7 @@
  *     tanda 7 va a comparar al resolver real.
  * Las poses salen de las MISMAS cuentas que usa el juego (`poseFromData`, `tailFrame`) y las medidas de
  * las mallas procedurales reales (por semilla), así que lo que se genera es lo que el juego dibujaría.
- * El frente es un PARÁMETRO (por defecto el de fábrica del juego: +Z, arriba +Y).
+ * El frente y el "arriba" de combate son PARÁMETROS (por defecto: frente −Y = derecha de la pantalla del constructor, arriba +X).
  */
 import * as THREE from 'three';
 import { normalizeToFrame } from '../../assets/AssetRegistry';
@@ -25,12 +25,9 @@ import type { CreatureSnapshot, Crossing, PieceKind, Shape, SnapLink, SnapPiece,
 import { SNAPSHOT_SCHEMA, SNAPSHOT_VERSION } from '../types';
 
 export const FILE_FORMAT = 'hombrecito-de-chizito/criatura';
-/** Orientación de combate por defecto (decisión: frente +X, arriba +Y). Se puede cambiar con --front / --up. */
+/** Orientación de combate por defecto (frente −Y = derecha de la pantalla del constructor, arriba +X). Se cambia con --front / --up. */
 export const DEFAULT_FRONT: V3 = CREATURE_CONFIG.orientation.defaultFront;
 export const DEFAULT_UP: V3 = CREATURE_CONFIG.orientation.defaultUp;
-/** Lo que el JUEGO escribe en `creature.front` (constructor, fijo; ver Construction.front/up). El archivo lleva esto, no el frente de combate. */
-export const GAME_FILE_FRONT: V3 = [0, 0, 1];
-export const GAME_FILE_UP: V3 = [1, 0, 0];
 const ROOT_ID = 'root';
 
 type Mode = 'pierce' | 'tail' | 'paint';
@@ -110,14 +107,20 @@ export class CreatureBuilder {
   }
 
   // ───────────── puntos sobre la superficie del chizito raíz (marco raíz) ─────────────
-  /** Punto sobre el costado: x a lo largo del eje; theta alrededor de X desde +Y hacia +Z (0 = arriba, 90 = frente, 180 = abajo). */
+  /**
+   * Punto sobre el costado: x a lo largo del eje largo (X: con el chizito parado, + es más arriba); theta alrededor de X
+   * desde +Y hacia +Z (0 = +Y, a la IZQUIERDA de la pantalla del constructor · 90 = +Z, hacia la cámara · 180 = −Y, a la DERECHA · 270 = −Z, hacia atrás).
+   */
   side(x: number, thetaDeg: number): { point: V3; n: V3 } {
     const th = rad(thetaDeg);
     const n: V3 = [0, Math.cos(th), Math.sin(th)];
     return { point: [x, this.coreR * n[1], this.coreR * n[2]], n };
   }
 
-  /** Punto sobre una tapa: `sign` ±1 (extremo ±X); `tiltDeg` se aparta del eje largo hacia `azDeg` (0 = arriba, 90 = frente). */
+  /**
+   * Punto sobre una tapa: `sign` +1 = la cabeza (arriba), −1 = los pies (abajo); `tiltDeg` se aparta del eje largo hacia
+   * `azDeg` (0 = +Y/izquierda de la pantalla, 90 = +Z/hacia la cámara, 180 = −Y/derecha).
+   */
   end(sign: 1 | -1, tiltDeg: number, azDeg: number): { point: V3; n: V3 } {
     const t = rad(tiltDeg);
     const az = rad(azDeg);
@@ -467,9 +470,8 @@ export class CreatureBuilder {
         savedAt: '2026-10-10T00:00:00.000Z',
         pieceCount,
         root: { type: 'chizito', seed: this.root.seed },
-        // El archivo lleva el frente FIJO del constructor, tal como lo escribe el juego (y lo ignora al cargar).
-        // El frente de combate vive en el snapshot (`orientation`), no en el archivo.
-        front: { direction: round3(GAME_FILE_FRONT), up: round3(GAME_FILE_UP) },
+        // Frente de combate de la criatura (dato por criatura): el mismo que lleva el snapshot.
+        front: { direction: round3(this.front), up: round3(this.up) },
       },
       pieces: this.items
         .filter((i) => i !== this.root)

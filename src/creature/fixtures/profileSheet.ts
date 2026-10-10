@@ -23,10 +23,11 @@ const COLORS: Record<string, { fill: string; line: string }> = {
   plate: { fill: '#ecdca0', line: '#9a8440' },
 };
 
+const DEFAULT_FRONT = CREATURE_CONFIG.orientation.defaultFront as V3;
 const FRONTS: { label: string; sub: string; front: V3 }[] = [
-  { label: 'frente +X', sub: 'por defecto (decisión)', front: [1, 0, 0] },
-  { label: 'frente −X', sub: 'el otro lado (giro de 180°)', front: [-1, 0, 0] },
-  { label: 'frente +Z', sub: 'descartado: el eje largo queda en profundidad', front: [0, 0, 1] },
+  { label: 'frente a la derecha (−Y)', sub: 'por defecto: es lo que ves al construir', front: DEFAULT_FRONT },
+  { label: 'giro de 180° (frente a la izquierda)', sub: 'visto del otro lado: se gira, no se espeja', front: [-DEFAULT_FRONT[0], -DEFAULT_FRONT[1], -DEFAULT_FRONT[2]] },
+  { label: 'frente +Z', sub: 'descartado: hacia la cámara', front: [0, 0, 1] },
 ];
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -83,7 +84,7 @@ function cell(snap: CreatureSnapshot, front: V3, x0: number, y0: number, cellH: 
   let body = '';
   if (cs) {
     const f = foreshortening(cs, basis);
-    body = f < 0.2 ? `cuerpo de punta (círculo Ø ${f1(cs.radius * 200)} cm)` : `cuerpo de costado (${f1(len(sub(cs.b, cs.a)) * 100)} × ${f1(cs.radius * 200)} cm)`;
+    body = f < 0.2 ? `cuerpo visto de punta (círculo Ø ${f1(cs.radius * 200)} cm)` : `cuerpo visto de costado (${f1(len(sub(cs.b, cs.a)) * 100)} × ${f1(cs.radius * 200)} cm)`;
   }
   out += `<text x="${x0 + 8}" y="${y0 + cellH - 22}" font-size="11" fill="#444">${esc(body)}</text>`;
   out += `<text x="${x0 + 8}" y="${y0 + cellH - 8}" font-size="11" fill="${deep > 0 ? '#b3261e' : '#2e7d32'}">palitos casi de frente a la cámara: ${deep} de ${rods.length}</text>`;
@@ -102,10 +103,10 @@ export function renderProfileSheet(creatures: BuiltCreature[]): string {
   const H = HEAD_H + rows.reduce((a, r) => a + r.h, 0) + 10;
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="system-ui, sans-serif">`;
   svg += `<rect width="${W}" height="${H}" fill="#fffdf7"/>`;
-  svg += `<text x="12" y="26" font-size="19" font-weight="700" fill="#222">Perfiles de combate: frente ±X (decidido) vs frente +Z (descartado)</text>`;
+  svg += `<text x="12" y="26" font-size="19" font-weight="700" fill="#222">Perfiles de combate: arriba = arriba del constructor, frente a la derecha o a la izquierda</text>`;
   svg += `<text x="12" y="46" font-size="12" fill="#555">Cada criatura vista de costado (proyección 2D de perfil, la misma que usarán las cajas de golpe). Mismo tamaño en todas las celdas (1 cm ≈ ${f1(SCALE / 100)} px).</text>`;
-  svg += `<text x="12" y="62" font-size="12" fill="#555">Con frente ±X el cuerpo se ve de costado y el cambio de lado es un giro de 180° (x → −x). Con frente +Z el eje largo del chizito queda en profundidad.</text>`;
-  svg += `<text x="12" y="78" font-size="12" fill="#555">Cuerpo acostado a lo largo de X, arriba = +Y: brazos en las puntas, piernas abajo. En rojo: palitos que casi apuntan a la cámara (se ven cortos en reposo).</text>`;
+  svg += `<text x="12" y="62" font-size="12" fill="#555">Con el frente a la derecha (−Y) el perfil de combate es la imagen del constructor; el cambio de lado es un giro de 180° (x → −x). Con frente +Z los costados quedan en profundidad.</text>`;
+  svg += `<text x="12" y="78" font-size="12" fill="#555">Chizito parado (arriba = +X): brazos en los costados, piernas abajo. En rojo: palitos que casi apuntan a la cámara (se ven cortos en reposo).</text>`;
   FRONTS.forEach((f, i) => {
     const x = LABEL_W + i * CELL_W;
     svg += `<text x="${x + CELL_W / 2}" y="${HEAD_H - 26}" font-size="14" font-weight="700" text-anchor="middle" fill="#222">${f.label}</text>`;
