@@ -60,7 +60,11 @@ await hold(40);
 await page.keyboard.press('Escape'); await frames(4);
 console.log('selva →', (await state()).nodes);
 // Chupetín.
-await click(...(await findBowl('chupetin'))); await frames(10);
+await click(...(await findBowl('chupetin')));
+await page.mouse.move(W * 0.5, H * 0.32, { steps: 3 });
+await frames(30); await shot('04a-chupetin-envuelto', 1);
+await frames(26); await shot('04b-chupetin-desenvolviendo', 1);
+await frames(50);
 pt = await screenOfLocal([-0.012, 0.004, 0.0102]);
 await page.mouse.move(pt[0], pt[1], { steps: 4 }); await frames(6);
 await shot('04-chupetin-en-la-mano', 2);

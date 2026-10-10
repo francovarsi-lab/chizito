@@ -1344,12 +1344,23 @@ export class InteractionController {
       u.obj.rotation.x += u.spin!.x * dt;
       u.obj.rotation.y += u.spin!.y * dt;
       u.obj.rotation.z += u.spin!.z * dt;
-      const mat = (u.obj as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
-      mat.opacity = Math.max(0, 1 - u.t / 1.3);
+      // Se desvanece (cada envoltorio trae sus propios materiales, no afecta a los del bowl).
+      const fade = Math.max(0, 1 - u.t / 1.3);
+      u.obj.traverse((o) => {
+        const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+        if (!m) return;
+        m.transparent = true;
+        m.userData.baseOpacity ??= m.opacity;
+        m.opacity = (m.userData.baseOpacity as number) * fade;
+      });
       if (u.t >= 1.3) {
         u.obj.removeFromParent();
-        (u.obj as THREE.Mesh).geometry.dispose();
-        mat.dispose();
+        u.obj.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          mesh.geometry.dispose();
+          (mesh.material as THREE.Material).dispose();
+        });
         this.unwraps.splice(i, 1);
       }
     }

@@ -102,10 +102,11 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   sachetDish.position.copy(BOWL_LAYOUT.ketchup);
   sachetDish.add(fillSachets(5, 81));
   // Palitos de la selva con su envoltorio (se desenrolla al agarrarlos) y chupetines en un vasito.
-  const selvaBowl = makeBowl(0.04, 0.017, ceramic);
+  // Platito playo con los paquetes acostados y prolijos (casi paralelos, apenas encimados).
+  const selvaBowl = makeBowl(0.05, 0.009, ceramic);
   selvaBowl.position.copy(BOWL_LAYOUT['palito-selva']);
-  selvaBowl.add(fillBowl(assets, 'palito-selva', 0.04, 0.017, 6, 91, { wrapped: true }));
-  const popCup = makeStandCup(assets, { type: 'chupetin', count: 7, seed: 97, h: 0.028, r0: 0.014, r1: 0.019 });
+  selvaBowl.add(fillSelvaDish(assets, 5, 91));
+  const popCup = makeStandCup(assets, { type: 'chupetin', count: 7, seed: 97, h: 0.028, r0: 0.014, r1: 0.019, params: () => ({ wrapped: true }) });
   popCup.position.copy(BOWL_LAYOUT.chupetin);
   // (El bowl de chizitos para ensartar queda en pausa: el mecanismo sigue en la interacción.)
   const strip: [string, THREE.Object3D][] = [
@@ -278,6 +279,29 @@ function restOnBowl(obj: THREE.Object3D, radius: number, height: number): void {
     }
   });
   obj.position.y += lift;
+}
+
+/** Paquetes de palitos de la selva acostados en el platito, ordenados como recién servidos. */
+function fillSelvaDish(assets: AssetRegistry, count: number, seed: number): THREE.Object3D {
+  const rnd = mulberry32(seed);
+  const pile = new THREE.Group();
+  const tmp = new THREE.Vector3();
+  for (let i = 0; i < count; i++) {
+    const obj = assets.create('palito-selva', seed * 100 + i, 'prop', { wrapped: true });
+    const inner = obj.children[0];
+    const box = new THREE.Box3().setFromObject(inner);
+    inner.position.sub(box.getCenter(tmp));
+    // Acostado con la cara de adelante (+Z) hacia arriba y el largo apuntando hacia la cámara, un poco girado.
+    const lay = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0));
+    const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.5 + (i - (count - 1) / 2) * 0.16 + (rnd() - 0.5) * 0.08);
+    obj.quaternion.copy(yaw).multiply(lay);
+    const row = i < 3 ? 0 : 1; // dos capas: tres abajo, dos encima
+    const slot = row === 0 ? i - 1 : i - 3.5;
+    obj.position.set(slot * 0.022, 0.012 + row * 0.011, (rnd() - 0.5) * 0.004 + row * 0.004);
+    restOnBowl(obj, 0.05, 0.009);
+    pile.add(obj);
+  }
+  return bakeStatic(pile, 'palitos-selva');
 }
 
 /** Sobrecitos de ketchup apilados en abanico, apenas parados contra el borde del platito. */
