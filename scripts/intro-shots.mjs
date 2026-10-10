@@ -19,8 +19,9 @@ for (const [i, style] of styles.entries()) {
   if (i === 0) {
     await page.evaluate(() => window.__chizito.startGame());
     await page.waitForTimeout(1000); // que se vaya el título
-    for (const [n, name] of [[60, '04-viaje-1'], [70, '05-viaje-2'], [80, '06-llegada']]) {
-      await page.evaluate((n) => window.__chizito.renderFrames(n), n);
+    // El viaje dura 3,2 s: se avanza en pasos de 1/15 s (el render por software es lento).
+    for (const [n, name] of [[16, '04-viaje-1'], [14, '05-viaje-2'], [30, '06-llegada']]) {
+      await page.evaluate((n) => window.__chizito.renderFrames(n, 1 / 15), n);
       await page.screenshot({ path: `${out}/${name}.png` });
       console.log(name, await page.evaluate(() => window.__chizito.interaction.enabled));
     }
