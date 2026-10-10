@@ -53,6 +53,12 @@ export interface PieceDefinition {
    */
   variants?: { id: string; label: string; /** Profundidad máxima propia de la variante (m). */ maxDepth?: number }[];
 
+  /**
+   * Envoltorio que se desenrolla al agarrar la pieza (palito de la selva): se cuelga de la pieza en la
+   * mano, `setProgress` 0→1 lo abre y después se cae. La pieza clavada nunca lo lleva.
+   */
+  wrapper?: (seed: number, piece: THREE.Object3D) => { object: THREE.Object3D; setProgress(p: number): void };
+
   /** Ayuda que se muestra al tener la pieza en la mano. */
   holdHint?: string;
 

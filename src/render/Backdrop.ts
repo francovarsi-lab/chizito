@@ -33,6 +33,9 @@ export const BOWL_LAYOUT = {
   escarbadientes: new THREE.Vector3(-0.012, 0, -0.064),
   'escarbadientes:espadita': new THREE.Vector3(0.018, 0, -0.064),
   ketchup: new THREE.Vector3(0.062, 0, -0.07),
+  // Segunda fila, a los lados del chizito: palitos de la selva envueltos y chupetines parados.
+  'palito-selva': new THREE.Vector3(-0.062, 0, -0.235),
+  chupetin: new THREE.Vector3(0.064, 0, -0.245),
 } as Record<string, THREE.Vector3>;
 
 export function buildBackdrop(assets: AssetRegistry): Backdrop {
@@ -98,6 +101,12 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   const sachetDish = makeBowl(0.03, 0.012, ceramic);
   sachetDish.position.copy(BOWL_LAYOUT.ketchup);
   sachetDish.add(fillSachets(5, 81));
+  // Palitos de la selva con su envoltorio (se desenrolla al agarrarlos) y chupetines en un vasito.
+  const selvaBowl = makeBowl(0.04, 0.017, ceramic);
+  selvaBowl.position.copy(BOWL_LAYOUT['palito-selva']);
+  selvaBowl.add(fillBowl(assets, 'palito-selva', 0.04, 0.017, 6, 91, { wrapped: true }));
+  const popCup = makeStandCup(assets, { type: 'chupetin', count: 7, seed: 97, h: 0.028, r0: 0.014, r1: 0.019 });
+  popCup.position.copy(BOWL_LAYOUT.chupetin);
   // (El bowl de chizitos para ensartar queda en pausa: el mecanismo sigue en la interacción.)
   const strip: [string, THREE.Object3D][] = [
     ['nacho', nachoBowl],
@@ -105,6 +114,8 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
     ['escarbadientes', pickCup],
     ['escarbadientes:espadita', swordCup],
     ['ketchup', sachetDish],
+    ['palito-selva', selvaBowl],
+    ['chupetin', popCup],
   ];
   for (const [type, obj] of strip) {
     obj.userData.bowlFor = type;
@@ -199,14 +210,22 @@ function bowlFloor(radius: number, height: number, rho: number): number {
  * Llena un bowl (de `makeBowl(radius, height)`) con instancias de la pieza, horneadas en pocas mallas.
  * Cada pieza se apoya: si algún vértice quedaría dentro de la cerámica, se la sube hasta que no.
  */
-function fillBowl(assets: AssetRegistry, type: string, radius: number, height: number, count: number, seed: number): THREE.Object3D {
+function fillBowl(
+  assets: AssetRegistry,
+  type: string,
+  radius: number,
+  height: number,
+  count: number,
+  seed: number,
+  params?: Record<string, unknown>,
+): THREE.Object3D {
   const innerR = radius - BOWL_WALL - 0.004;
   const rnd = mulberry32(seed);
   const pile = new THREE.Group();
   const variants = 6;
   const tmp = new THREE.Vector3();
   for (let i = 0; i < count; i++) {
-    const obj = assets.create(type, seed * 100 + (i % variants), 'prop');
+    const obj = assets.create(type, seed * 100 + (i % variants), 'prop', params);
     const a = rnd() * Math.PI * 2;
     const rr = Math.sqrt(rnd());
     const layer = i / count;

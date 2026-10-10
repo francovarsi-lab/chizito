@@ -152,6 +152,8 @@ export class InteractionController {
   private resetArmedUntil = 0;
   /** Objetos de piezas quitadas, para reutilizarlos al deshacer sin regenerar la malla. */
   private readonly graveyard = new Map<string, THREE.Object3D>();
+  /** Envoltorios que se desenrollan al agarrar (palito de la selva) y después se caen. */
+  private readonly unwraps: { obj: THREE.Object3D; setProgress(p: number): void; t: number; falling?: THREE.Vector3; spin?: THREE.Vector3 }[] = [];
   /** Piezas devueltas que se están achicando antes de desaparecer. */
   private readonly leaving: { obj: THREE.Object3D; t: number; from: number }[] = [];
   private time = 0;
@@ -513,6 +515,12 @@ export class InteractionController {
     this.hover = null;
     this.state = InteractionState.HOLDING;
     this.emit('pick', null);
+    // Envoltorio: se cuelga de la pieza (en su marco) y se desenrolla apenas sale del bowl.
+    if (def.wrapper) {
+      const w = def.wrapper(seed, object);
+      (object.children[0] ?? object).add(w.object);
+      this.unwraps.push({ obj: w.object, setProgress: w.setProgress, t: 0 });
+    }
     if (def.holdHint) overlay.hint(`holding-${type}`, def.holdHint);
     else overlay.hint('holding', 'tocá el chizito donde lo quieras clavar · Esc lo devuelve');
   }
@@ -1159,6 +1167,7 @@ export class InteractionController {
     this.updateFrontMark(dt);
     this.d.rotator.update(dt);
     this.updateLeaving(dt);
+    this.updateUnwraps(dt);
     const a = this.active;
     if (a && a.popT !== undefined) {
       // "Pop" al salir del vaso: crece con un rebote elástico (easeOutBack).
@@ -1302,6 +1311,48 @@ export class InteractionController {
 
   private emit(e: FeedbackEvent, info: FeedbackInfo | null): void {
     this.onEvent?.(e, info);
+  }
+
+  /** Desenrollado (0,3 s de espera + 0,8 s abriéndose) y caída del papel, que se desvanece. */
+  private updateUnwraps(dt: number): void {
+    for (let i = this.unwraps.length - 1; i >= 0; i--) {
+      const u = this.unwraps[i];
+      u.t += dt;
+      // Si la pieza se devolvió al bowl (o se descartó), el papel se va con ella.
+      let root: THREE.Object3D = u.obj;
+      while (root.parent) root = root.parent;
+      if (root !== this.d.scene) {
+        this.unwraps.splice(i, 1);
+        continue;
+      }
+      if (!u.falling) {
+        const p = THREE.MathUtils.clamp((u.t - 0.3) / 0.8, 0, 1);
+        u.setProgress(p * p * (3 - 2 * p));
+        if (p >= 1) {
+          // Suelto: queda en la escena y planea hacia la mesa.
+          this.d.scene.attach(u.obj);
+          u.falling = new THREE.Vector3((Math.random() - 0.5) * 0.06, 0.03, 0.02 + Math.random() * 0.03);
+          u.spin = new THREE.Vector3(Math.random() * 2, Math.random() * 3, Math.random() * 2);
+          u.t = 0;
+          this.emit('drop', null);
+        }
+        continue;
+      }
+      u.falling.y -= 0.35 * dt;
+      u.falling.multiplyScalar(Math.exp(-dt * 1.5));
+      u.obj.position.addScaledVector(u.falling, dt);
+      u.obj.rotation.x += u.spin!.x * dt;
+      u.obj.rotation.y += u.spin!.y * dt;
+      u.obj.rotation.z += u.spin!.z * dt;
+      const mat = (u.obj as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
+      mat.opacity = Math.max(0, 1 - u.t / 1.3);
+      if (u.t >= 1.3) {
+        u.obj.removeFromParent();
+        (u.obj as THREE.Mesh).geometry.dispose();
+        mat.dispose();
+        this.unwraps.splice(i, 1);
+      }
+    }
   }
 
   private updateLeaving(dt: number): void {

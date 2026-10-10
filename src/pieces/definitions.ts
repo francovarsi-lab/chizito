@@ -12,6 +12,9 @@ import {
   type EscarbadientesParams,
 } from '../assets/procedural/escarbadientes';
 import { createKetchupStroke, KETCHUP_RADIUS, type KetchupParams } from '../assets/procedural/ketchup';
+import { createPalitoSelva, SELVA_LENGTH, SELVA_WIDTH, SelvaWrapper, type PalitoSelvaParams } from '../assets/procedural/palitoSelva';
+import { CHUPETIN_BALL_R, CHUPETIN_STICK, createChupetin } from '../assets/procedural/chupetin';
+import * as THREE from 'three';
 import type { PieceDefinition } from './PieceDefinition';
 
 const CRUNCHY = { pick: 'pick', drop: 'drop', contact: 'crack', insert: 'crunch' };
@@ -123,4 +126,50 @@ export const KETCHUP: PieceDefinition = {
   sounds: {},
 };
 
-export const ALL_DEFINITIONS: PieceDefinition[] = [CHIZITO, PALITO, PAPITA, ACEITUNA, NACHO, ESCARBADIENTES, KETCHUP];
+/**
+ * Palito de la selva: viene envuelto en el bowl; al agarrarlo el papel se desenrolla y se cae, y se clava
+ * sin papel por una punta (es blando: entra hasta la mitad). Mitad rosa, mitad blanco.
+ * (Más adelante: un dato curioso de un animal cada vez que se usa.)
+ */
+export const PALITO_SELVA: PieceDefinition = {
+  type: 'palito-selva',
+  displayName: 'Palito de la selva',
+  dimensions: { length: SELVA_LENGTH, thickness: SELVA_WIDTH },
+  frame: 'tip',
+  keepOrientation: true,
+  procedural: (seed, detail, params) => createPalitoSelva(seed, detail, params as PalitoSelvaParams),
+  wrapper: (seed, piece) => {
+    // Largo real del caramelo (varía con la semilla), medido en su propia malla.
+    let h = SELVA_LENGTH;
+    piece.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.name !== 'palito-selva') return;
+      m.geometry.computeBoundingBox();
+      h = m.geometry.boundingBox!.max.y - m.geometry.boundingBox!.min.y;
+    });
+    const w = new SelvaWrapper(seed, h);
+    return { object: w.mesh, setProgress: (p) => w.setProgress(p) };
+  },
+  canPierce: true,
+  canBePierced: false,
+  maxDepth: SELVA_LENGTH * 0.5,
+  holdHint: 'tocá el chizito donde lo quieras clavar · Esc lo devuelve',
+  sounds: CRUNCHY,
+};
+
+/** Chupetín (tipo Mister Pop), con su envoltorio transparente puesto: se clava por la punta del palito. */
+export const CHUPETIN: PieceDefinition = {
+  type: 'chupetin',
+  displayName: 'Chupetín',
+  dimensions: { length: CHUPETIN_STICK + CHUPETIN_BALL_R * 1.8, thickness: CHUPETIN_BALL_R * 2 },
+  frame: 'tip',
+  keepOrientation: true,
+  procedural: (seed, detail) => createChupetin(seed, detail),
+  canPierce: true,
+  canBePierced: false,
+  // Queda afuera la bola y un tramo de palito.
+  maxDepth: CHUPETIN_STICK * 0.7,
+  sounds: CRUNCHY,
+};
+
+export const ALL_DEFINITIONS: PieceDefinition[] = [CHIZITO, PALITO, PAPITA, ACEITUNA, NACHO, ESCARBADIENTES, KETCHUP, PALITO_SELVA, CHUPETIN];
