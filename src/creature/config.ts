@@ -131,18 +131,36 @@ export const CREATURE_CONFIG = {
 
   /** Acciones ofensivas (tanda 6). */
   actions: {
-    /** Cuadros a 60 fps: startup = base + k · masa de la punta normalizada. */
+    /** Cuadros a 60 fps: arranque = base + k · masa de la punta normalizada (con tope). */
     startupBase: 6,
     startupPerMass: 14,
+    /** Tope de la masa normalizada (masa / masa de referencia de extremidad) para los tiempos y el daño. */
+    maxMassNorm: 4,
     activeFrames: 6,
+    rollActiveFrames: 30,
     recoveryBase: 10,
-    /** Una vara cuenta como "larga y rígida" desde este largo libre. */
+    /** Una vara cuenta como "larga y rígida" (estocada) desde este largo (m). */
     longRodMin: 0.022,
     /** Maza: fracción de masa en el extremo y relación con la vara. */
     maceEndRatio: 0.5,
     maceMassVsRod: 1.5,
     /** Fracción de la extremidad (desde la punta) que se considera "extremo". */
     endFraction: 0.4,
+    /** En profundidad: la extremidad es "alta" o "baja" si su componente vertical pasa esta fracción del largo. */
+    verticalRatio: 0.3,
+    /** Daño = base · multiplicador del tipo · capacidad de golpe · (1 + ganancia · masa normalizada). */
+    damageBase: 10,
+    damageMassGain: 0.5,
+    kindDamage: { jab: 0.6, estocada: 1, 'golpe-alto': 0.9, barrida: 0.8, mazazo: 1.6, rodada: 0.7, embestida: 0.4 } as Record<string, number>,
+    /** Radio de la caja de golpe = radio de la vara · mult (mínimo en m). */
+    hitRadiusMult: 1.5,
+    hitRadiusMin: 0.004,
+  },
+
+  /** Defensa (tanda 6): reducción máxima de daño con guardia y al encogerse. */
+  defense: {
+    guardMax: 0.6,
+    curlReduction: 0.25,
   },
 
   /** Perfil 2D (tanda 2 y 6). */

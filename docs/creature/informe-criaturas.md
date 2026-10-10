@@ -1,6 +1,6 @@
 # Informe del intérprete sobre las criaturas de prueba
 
-Generado por `node scripts/creature-report.mjs`. Frente de combate +X, arriba +Y. Medidas en mm y gramos de juego (valores a calibrar, ver `src/creature/config.ts`).
+Generado por `node scripts/creature-report.mjs` (tanda 6: incluye acciones y defensa). Cajas de golpe: `docs/creature/hitboxes.svg`. Frente de combate +X, arriba +Y. Medidas en mm y gramos de juego (valores a calibrar, ver `src/creature/config.ts`).
 
 | criatura | piezas | extremidades | decorativas | masa (g) | modo | vel. (mm/s) | freno | apoyos | en profundidad |
 |---|---|---|---|---|---|---|---|---|---|
@@ -17,6 +17,7 @@ Generado por `node scripts/creature-report.mjs`. Frente de combate +X, arriba +Y
 - ✅ B se arrastra
 - ✅ C se arrastra y su brazo sale marcado "en profundidad"
 - ✅ D rueda, casi no golpea y casi no frena
+- ✅ D: su única acción es la rodada
 - ✅ E: 3 extremidades y el aviso de segundo nivel
 - ✅ el vegetal camina
 
@@ -33,6 +34,16 @@ Generado por `node scripts/creature-report.mjs`. Frente de combate +X, arriba +Y
 
 Locomoción: velocidad 22.6 mm/s · giro 1 · freno 1 · salto 0.0 mm · apoyos 2 · margen 16.8 mm · carga/capacidad 0.32
 
+Acciones (una por entrada):
+
+| acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
+|---|---|---|---|---|---|---|---|
+| barrida | down+attack | 12 | 6 | 16 | 3.3 | 27.6 | 4.0 |
+| estocada | forward+attack | 13 | 6 | 17 | 9.5 | 28.7 | 4.0 |
+| embestida | attack | 15 | 6 | 18 | 5.3 | 10.8 | 10.8 |
+
+Defensa: **guardia** (−28 % de daño)
+
 ## B · cuerpo + 4 brazos
 
 4 piezas · 4 extremidades · 0 decorativas · masa 3.94 g · **drag**
@@ -45,6 +56,16 @@ Locomoción: velocidad 22.6 mm/s · giro 1 · freno 1 · salto 0.0 mm · apoyos 
 | B4 | 26.8 | 0.72 | strike | 0.31 | 0.00 | 0.29 | no | 40 a 70 | no | lanza |
 
 Locomoción: velocidad 15.1 mm/s · giro 0.4 · freno 0.9 · salto 0.0 mm · apoyos 0 · margen 0.0 mm · carga/capacidad 0.00
+
+Acciones (una por entrada):
+
+| acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
+|---|---|---|---|---|---|---|---|
+| golpe-alto | up+attack | 12 | 6 | 16 | 3.5 | 26.1 | 4.0 |
+| estocada | forward+attack | 12 | 6 | 16 | 4.9 | 27.2 | 4.0 |
+| embestida | attack | 15 | 6 | 18 | 5.3 | 10.8 | 10.8 |
+
+Defensa: **guardia** (−28 % de daño)
 
 Avisos del panel:
 
@@ -60,6 +81,15 @@ Avisos del panel:
 
 Locomoción: velocidad 15.9 mm/s · giro 0.4 · freno 0.9 · salto 0.0 mm · apoyos 0 · margen 0.0 mm · carga/capacidad 0.00
 
+Acciones (una por entrada):
+
+| acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
+|---|---|---|---|---|---|---|---|
+| golpe-alto | up+attack | 13 | 6 | 17 | 4.4 | 28.5 | 4.0 |
+| embestida | attack | 14 | 6 | 17 | 5.1 | 10.8 | 10.8 |
+
+Defensa: **se encoge** (−25 % de daño)
+
 Avisos del panel:
 
 - 1 extremidad en profundidad: se ve corta en reposo, ataca con su largo real al girar al plano
@@ -72,6 +102,14 @@ Avisos del panel:
 Las 30 extremidades: golpe máximo 0.19 (mínimo para contar: 0.3), giro medio 10°, 12 en profundidad.
 
 Locomoción: velocidad 24.7 mm/s · giro 0.2 · freno 0.1 · salto 0.0 mm · apoyos 9 · margen 35.1 mm · carga/capacidad 0.16
+
+Acciones (una por entrada):
+
+| acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
+|---|---|---|---|---|---|---|---|
+| rodada | attack | 26 | 30 | 23 | 12.0 | 40.5 | 40.5 |
+
+Defensa: **guardia** (−24 % de daño)
 
 Avisos del panel:
 
@@ -89,6 +127,15 @@ Avisos del panel:
 | E6 | 60.0 | 0.76 | strike | 0.72 | 0.00 | 0.60 | no | -15 a -10 | sí | maza |
 
 Locomoción: velocidad 10.9 mm/s · giro 0.4 · freno 0.9 · salto 0.0 mm · apoyos 0 · margen 0.0 mm · carga/capacidad 0.00
+
+Acciones (una por entrada):
+
+| acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
+|---|---|---|---|---|---|---|---|
+| mazazo | hold+attack | 62 | 6 | 41 | 34.8 | 60.0 | 15.6 |
+| embestida | attack | 24 | 6 | 22 | 6.6 | 10.8 | 10.8 |
+
+Defensa: **guardia** (−36 % de daño)
 
 Decorativas (suman masa, no son extremidades):
 
@@ -121,4 +168,14 @@ Avisos del panel:
 | V4 | 25.0 | 0.76 | strike | 0.83 | 0.00 | 0.47 | no | -12 a 52 | no | lanza |
 
 Locomoción: velocidad 22.4 mm/s · giro 1 · freno 1 · salto 0.0 mm · apoyos 2 · margen 15.3 mm · carga/capacidad 0.28
+
+Acciones (una por entrada):
+
+| acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
+|---|---|---|---|---|---|---|---|
+| barrida | down+attack | 12 | 6 | 16 | 3.6 | 24.5 | 4.0 |
+| estocada | forward+attack | 12 | 6 | 16 | 10.1 | 25.0 | 4.0 |
+| embestida | attack | 17 | 6 | 19 | 5.5 | 11.7 | 11.7 |
+
+Defensa: **guardia** (−28 % de daño)
 

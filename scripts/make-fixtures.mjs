@@ -2,6 +2,7 @@
 //   public/assets/creatures/<id>.json            archivo real de criatura (Ctrl+O / arrastrar a la ventana)
 //   src/creature/fixtures/<id>.snapshot.json     snapshot de referencia (analítico)
 //   docs/creature/perfiles-a-vs-b.svg            perfiles laterales con frente +X (por defecto), −X y +Z
+//   docs/creature/hitboxes.svg                   cajas de golpe (perfil 2D) con frente +X y −X
 // El frente de COMBATE del snapshot es un PARÁMETRO (por defecto +X, arriba +Y):
 //   node scripts/make-fixtures.mjs --front=-1,0,0 --up=0,1,0
 // Uso: node scripts/make-fixtures.mjs
@@ -20,6 +21,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 try {
   const { buildAllCreatures } = await server.ssrLoadModule('/src/creature/fixtures/creatures.ts');
   const { renderProfileSheet } = await server.ssrLoadModule('/src/creature/fixtures/profileSheet.ts');
+  const { renderHitboxSheet } = await server.ssrLoadModule('/src/creature/fixtures/hitboxSheet.ts');
   const creatures = buildAllCreatures(front, up);
   fs.mkdirSync('public/assets/creatures', { recursive: true });
   fs.mkdirSync('src/creature/fixtures', { recursive: true });
@@ -32,6 +34,8 @@ try {
   // Los perfiles siempre se dibujan con las tres orientaciones, sea cual sea el frente del snapshot.
   fs.writeFileSync('docs/creature/perfiles-a-vs-b.svg', renderProfileSheet(creatures));
   console.log('docs/creature/perfiles-a-vs-b.svg');
+  fs.writeFileSync('docs/creature/hitboxes.svg', renderHitboxSheet(creatures));
+  console.log('docs/creature/hitboxes.svg');
 } finally {
   await server.close();
 }

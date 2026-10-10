@@ -26,3 +26,4 @@ export { completeLimbs } from './limbs';
 export { computeSupport } from './support';
 export { computeLocomotion, angularCoverageDeg } from './locomotion';
 export { buildWarnings } from './warnings';
+export { computeActions, computeDefense, classifyStrike } from './actions';

@@ -489,6 +489,161 @@ try {
     ok(bad.length === 0, `analyze/${f}.ts: ningún número suelto${bad.length ? ' (' + bad.join(', ') + ')' : ''}`);
   }
 
+
+  // ───────────── Tanda 6: acciones, perfil 2D, fachada ─────────────
+  section('tanda 6: acciones ofensivas');
+  const { interpret, describeCreature, buildProfile2D, hitboxPath, attackHitbox, swingArc, poseGroup, mapPoint, hurtGroupOf } = idx;
+  const full = Object.fromEntries(built.map((c) => [c.id, interpret(c.snapshot)]));
+  const kinds = (a) => a.actions.map((x) => x.kind).sort().join(',');
+  ok(kinds(full.A) === 'barrida,embestida,estocada', `A: barrida, estocada y embestida (${kinds(full.A)})`);
+  ok(kinds(full.B) === 'embestida,estocada,golpe-alto', `B: golpe alto, estocada y embestida (${kinds(full.B)})`);
+  ok(kinds(full.C) === 'embestida,golpe-alto', `C: golpe alto (su brazo en profundidad) y embestida (${kinds(full.C)})`);
+  ok(kinds(full.D) === 'rodada', `D: solo la rodada (${kinds(full.D)})`);
+  ok(kinds(full.E) === 'embestida,mazazo', `E: mazazo y embestida (${kinds(full.E)})`);
+  ok(kinds(full.veg) === 'barrida,embestida,estocada', `vegetal: igual que A (${kinds(full.veg)})`);
+  const STRIKES = ['jab', 'estocada', 'golpe-alto', 'barrida', 'mazazo'];
+  ok(full.D.actions.every((x) => !STRIKES.includes(x.kind)), 'D casi no golpea: ninguna acción de golpe');
+  ok(full.D.locomotion.mode === 'roll' && full.D.locomotion.brake <= 0.2, 'D rueda y casi no frena (criterio de aceptación)');
+  ok(full.D.actions[0].input === 'attack' && full.D.actions[0].kind === 'rodada', 'D: la rodada es su ataque');
+  for (const c of built) {
+    const a = full[c.id];
+    const inputs = a.actions.map((x) => x.input);
+    ok(new Set(inputs).size === inputs.length, `${c.id}: una acción por entrada (sin duplicados)`);
+    ok(new Set(a.actions.map((x) => x.id)).size === a.actions.length, `${c.id}: ids de acción únicos`);
+    ok(a.actions.length >= 1 && a.actions.some((x) => x.input === 'attack'), `${c.id}: siempre tiene un ataque`);
+    ok(a.actions.every((x) => Number.isInteger(x.startup) && x.startup > 0 && x.active > 0 && x.recovery > 0 && x.damage > 0 && x.reach > 0 && x.hitRadius > 0), `${c.id}: tiempos, daño, alcance y radio positivos`);
+    ok(a.actions.every((x) => !x.limbId || a.limbs.some((l) => l.id === x.limbId)), `${c.id}: cada acción apunta a una extremidad que existe`);
+    ok(a.actions.every((x) => !x.limbId || a.limbs.find((l) => l.id === x.limbId).caps.strike >= idx.CREATURE_CONFIG.capabilities.minRole), `${c.id}: solo golpean las extremidades con capacidad de golpe`);
+  }
+  const em = (a) => a.actions.find((x) => x.kind === 'embestida');
+  ok(['A', 'B', 'C', 'E', 'veg'].every((id) => !!em(full[id])) && !em(full.D), 'la embestida cubre el ataque neutral salvo en el que rueda');
+  const mazazo = full.E.actions.find((x) => x.kind === 'mazazo');
+  const estocada = full.A.actions.find((x) => x.kind === 'estocada');
+  ok(mazazo.damage > 2 * estocada.damage && mazazo.startup > estocada.startup && mazazo.input === 'hold+attack', 'el mazazo pega mucho más que la estocada pero arranca más lento');
+  ok(full.C.actions.find((x) => x.kind === 'golpe-alto').reach > full.C.limbs[0].profile.length2D, 'C: su golpe tiene el largo real de la extremidad, mayor que lo que se ve en reposo');
+  ok(full.A.defense.kind === 'guard' && full.A.limbs.some((l) => l.id === full.A.defense.limbId), 'A: defiende con guardia usando una extremidad');
+  ok(full.C.defense.kind === 'curl' && full.C.defense.reduction > 0, 'C: sin extremidad que defienda, se encoge');
+  ok(Object.values(full).every((a) => a.defense.reduction > 0 && a.defense.reduction < 1), 'la defensa reduce daño sin anularlo');
+  const heavyEnd = (x) => x.kind === 'mazazo' ? x.startup : 0;
+  ok(heavyEnd(mazazo) <= 6 + 14 * idx.CREATURE_CONFIG.actions.maxMassNorm, 'el arranque está acotado por el tope de masa');
+
+  section('tanda 6: perfil 2D y cajas de golpe');
+  for (const c of built) {
+    const a = full[c.id];
+    const pf = a.profile2D;
+    ok(pf.groups.length === 1 + a.limbs.length && pf.groups[0].owner === 'core', `${c.id}: un grupo de cajas por extremidad más el del cuerpo`);
+    ok(pf.groups[0].shapes.length >= 1, `${c.id}: el cuerpo tiene caja`);
+    const all = pf.groups.flatMap((g) => g.shapes);
+    const bb = S.bounds2D(all);
+    nearV(bb.min, pf.bounds.min, 1e-9, `${c.id}: bounds mínimos`);
+    nearV(bb.max, pf.bounds.max, 1e-9, `${c.id}: bounds máximos`);
+    near(pf.bounds.min[1], 0, 1e-6, `${c.id}: el piso está en y = 0`);
+    ok(a.limbs.every((l) => !!hurtGroupOf(pf, l.id)?.pivot), `${c.id}: cada extremidad tiene su pivote`);
+    ok(pf.groups.every((g) => g.shapes.every((sh) => allFin(sh))), `${c.id}: formas finitas`);
+  }
+  ok(!full.E.profile2D.groups.some((g) => g.shapes.length === 0), 'E: ningún grupo vacío (el ketchup no entra)');
+  // Cambio de lado: espejo exacto en x, los datos no cambian.
+  const mirrorFull = Object.fromEntries(built.map((c) => [c.id, interpret(c.snapshot, { facing: -1 })]));
+  for (const c of built) {
+    const a = full[c.id];
+    const b = mirrorFull[c.id];
+    const { profile2D: pa, ...restA } = a;
+    const { profile2D: pb, ...restB } = b;
+    ok(JSON.stringify(restA) === JSON.stringify(restB), `${c.id}: girar 180° no cambia nada del análisis (solo el perfil)`);
+    nearV([pb.bounds.min[0], pb.bounds.max[0]], [-pa.bounds.max[0], -pa.bounds.min[0]], 1e-9, `${c.id}: los límites del perfil se espejan en x`);
+    near(pb.bounds.max[1], pa.bounds.max[1], 1e-12, `${c.id}: la altura no cambia`);
+    pa.groups.forEach((g, i) => {
+      const h = pb.groups[i];
+      if (g.pivot) nearV(h.pivot, [-g.pivot[0], g.pivot[1]], 1e-9, `${c.id}: el pivote se espeja`);
+      const ca = g.shapes.find((x) => x.kind === 'capsule');
+      const cb = h.shapes.find((x) => x.kind === 'capsule');
+      if (ca) { nearV(cb.a, [-ca.a[0], ca.a[1]], 1e-9, `${c.id}: capsula.a espejada`); near(cb.r, ca.r, 1e-15, `${c.id}: mismo radio`); }
+    });
+  }
+  // Colisiones: dos A enfrentadas, la estocada de una llega al cuerpo de la otra.
+  const aPlus = full.A.profile2D;
+  const reachAct = full.A.actions.find((x) => x.kind === 'estocada');
+  const strikeEnd = attackHitbox(aPlus, full.A.limbs, reachAct, 1);
+  const strikeBox = { kind: 'capsule', a: strikeEnd.center, b: strikeEnd.center, r: strikeEnd.r };
+  const farBody = (dx) => aPlus.groups[0].shapes.map((sh) => S.transform2D(sh, { facing: -1, translate: [dx, 0] }));
+  const touches = (dx) => farBody(dx).some((sh) => S.overlap2D(strikeBox, sh));
+  ok(touches(0.075) && !touches(0.2), 'la caja de la estocada toca el cuerpo del rival cuando está cerca y no cuando está lejos');
+
+  section('tanda 6: barrido de los golpes');
+  for (const c of built) {
+    const a = full[c.id];
+    for (const act of a.actions.filter((x) => x.limbId)) {
+      const limb = a.limbs.find((l) => l.id === act.limbId);
+      const pivot = mapPoint(a.profile2D, limb.profile.pivot);
+      const path = hitboxPath(a.profile2D, a.limbs, act, 9);
+      ok(path.length === 9 && path.every((h) => Math.abs(Math.hypot(h.center[0] - pivot[0], h.center[1] - pivot[1]) - limb.length) < 1e-9 && h.r === act.hitRadius), `${c.id}/${act.kind}: el barrido conserva el largo real de la extremidad`);
+      const arc = swingArc(limb);
+      ok(arc.from >= limb.mobility.minDeg - 1e-9 && arc.from <= limb.mobility.maxDeg + 1e-9 && arc.to >= limb.mobility.minDeg - 1e-9 && arc.to <= limb.mobility.maxDeg + 1e-9, `${c.id}/${act.kind}: el arco queda dentro del rango de giro`);
+    }
+  }
+  const frontArm = full.A.limbs.find((l) => l.caps.strike >= 0.6);
+  const t0 = attackHitbox(aPlus, full.A.limbs, reachAct, 0);
+  nearV(t0.center, mapPoint(aPlus, frontArm.profile.tip), 1e-9, 'A: el golpe arranca en la punta de la extremidad en reposo');
+  const cLimb = full.C.limbs[0];
+  const cAct = full.C.actions.find((x) => x.limbId);
+  const cEnd = attackHitbox(full.C.profile2D, full.C.limbs, cAct, 1);
+  const cPivot = mapPoint(full.C.profile2D, cLimb.profile.pivot);
+  ok(Math.hypot(cEnd.center[0] - cPivot[0], cEnd.center[1] - cPivot[1]) > 1.5 * cLimb.profile.length2D, 'C: al girar al plano, su golpe llega 1,5× más lejos que lo que se ve en reposo');
+  const mirroredHit = attackHitbox(mirrorFull.A.profile2D, full.A.limbs, reachAct, 1);
+  nearV(mirroredHit.center, [-strikeEnd.center[0], strikeEnd.center[1]], 1e-9, 'el golpe girado 180° es el espejo exacto');
+  const grp = hurtGroupOf(aPlus, frontArm.id);
+  const unrot = poseGroup(aPlus, grp, 0);
+  ok(JSON.stringify(unrot) === JSON.stringify(grp.shapes), 'girar 0° no mueve nada');
+  const rot90 = poseGroup(aPlus, grp, 90);
+  const capR = rot90.find((x) => x.kind === 'capsule');
+  const capG = grp.shapes.find((x) => x.kind === 'capsule');
+  near(Math.hypot(capR.b[0] - grp.pivot[0], capR.b[1] - grp.pivot[1]), Math.hypot(capG.b[0] - grp.pivot[0], capG.b[1] - grp.pivot[1]), 1e-9, 'girar una extremidad conserva su distancia al pivote');
+  ok(Math.abs(capR.b[0] - capG.b[0]) > 0.01, 'y la mueve de lugar');
+
+  section('tanda 6: fachada interpret() y texto del panel');
+  ok(JSON.stringify(interpret(built[4].snapshot)) === JSON.stringify(full.E), 'interpret es determinista');
+  ok(Object.values(full).every(allFin), 'ningún NaN ni infinito en ningún resultado');
+  for (const c of built) {
+    const lines = describeCreature(full[c.id]);
+    ok(lines.length >= 5 && lines.every((l) => l.length > 0 && !/undefined|NaN|\[object/.test(l)), `${c.id}: el texto del panel está completo y limpio`);
+  }
+  ok(describeCreature(full.D).some((l) => l.includes('rueda')) && describeCreature(full.D).some((l) => l.includes('rodada')), 'D: el texto dice que rueda y que su ataque es la rodada');
+  ok(describeCreature(full.C).some((l) => l.includes('en profundidad')), 'C: el panel marca el brazo en profundidad');
+  ok(describeCreature(full.E).some((l) => l.includes('MVP 0') && l.includes('extremidad propia')), 'E: el panel avisa lo de los palitos en el chizito ensartado');
+  ok(interpret(zfront[0].snapshot).warnings.some((m) => m.includes('±X')), 'un frente +Z se acepta con aviso de que no es ±X');
+  const weird = { ...A.snapshot, orientation: { front: [0, 0, 0], up: [0, 0, 0] } };
+  let threw = false;
+  let weirdOut = null;
+  try { weirdOut = interpret(weird); } catch { threw = true; }
+  ok(!threw && allFin(weirdOut), 'un frente nulo no tira y no da NaN (se avisa)');
+  ok(!interpret({ ...A.snapshot, pieces: [A.snapshot.pieces[0]], links: [] }).actions.some((x) => x.limbId), 'sin extremidades: solo acciones del cuerpo');
+
+  section('tanda 6: rendimiento con 40 piezas');
+  const { CreatureBuilder } = await load('/src/creature/fixtures/build.ts');
+  const big = new CreatureBuilder('X', 'X · 40 palitos', 3);
+  for (let i = 0; i < 40; i++) {
+    const sd = big.side(-0.018 + (i % 8) * 0.0051, (Math.floor(i / 8) * 72 + (i % 2) * 36) % 360);
+    big.rod(big.root, sd.point, sd.n, 0.009, { seed: 900 + i });
+  }
+  const bigSnap = big.build().snapshot;
+  ok(bigSnap.budget.pieceCount === 40, 'criatura de prueba de rendimiento: 40 piezas');
+  interpret(bigSnap);
+  const t1 = performance.now();
+  for (let i = 0; i < 30; i++) interpret(bigSnap);
+  const ms = (performance.now() - t1) / 30;
+  ok(ms < 5, `interpretar 40 piezas tarda ${ms.toFixed(2)} ms (< 5 ms)`);
+
+  section('tanda 6: hojas visuales y umbrales en config');
+  const hit = fs.readFileSync('docs/creature/hitboxes.svg', 'utf8');
+  ok(hit.startsWith('<svg') && hit.length > 5000 && hit.includes('frente −X'), 'hitboxes.svg existe');
+  const hs = await load('/src/creature/fixtures/hitboxSheet.ts');
+  ok(hs.renderHitboxSheet(built) === hit, 'hitboxes.svg coincide con lo que genera el código');
+  for (const f of ['analyze/actions', 'interpret', 'project/profile2d', 'project/hitboxes']) {
+    const text = strip(fs.readFileSync(`src/creature/${f}.ts`, 'utf8'));
+    const bad = (text.match(/\b\d+\.\d+\b|\b\d{3,}\b/g) ?? []).filter((n) => n !== '180');
+    ok(bad.length === 0, `${f}.ts: ningún número suelto${bad.length ? ' (' + bad.join(', ') + ')' : ''}`);
+  }
+
   // @@TESTS@@
 } finally {
   await server.close();

@@ -10,3 +10,6 @@ export * from './math/ray';
 export * from './validate';
 export * from './detect';
 export * from './analyze';
+export * from './project';
+export * from './interpret';
+export * from './describe';

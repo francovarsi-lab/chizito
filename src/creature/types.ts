@@ -176,6 +176,8 @@ export interface HurtGroup {
   /** 'core' o el id de la extremidad dueña. */
   owner: string;
   shapes: Shape2D[];
+  /** Pivote de la extremidad en el perfil (ya con el origen y el lado aplicados). */
+  pivot?: V2;
 }
 
 export interface Profile2D {
