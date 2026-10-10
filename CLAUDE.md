@@ -1,8 +1,9 @@
 # Hombrecito de chizito — decisiones del proyecto
 
 MVP para validar UNA cosa: que clavar palitos salados (y papitas) en un chizito, eligiendo punto y ángulo,
-sea divertido, satisfactorio y se vea fotográficamente real. Nada de combate, stats, progresión, economía,
-rarezas, puntuación ni desafíos (ni UI preparada para eso).
+sea divertido, satisfactorio y se vea fotográficamente real. En el CONSTRUCTOR no hay combate, stats, progresión,
+economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive en el intérprete de criaturas (rama
+`claude/creature-interpreter`), que lee el archivo de criatura; de este lado sólo se guarda su frente de combate.
 
 ## Stack
 - Vite + TypeScript + Three.js (sin React). `postprocessing` (pmndrs) + `n8ao` para el AO.
@@ -147,9 +148,14 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   Supr/Backspace = quitar, Esc = soltar.
 - Ctrl+Z / Ctrl+Shift+Z (o Ctrl+Y): deshacer / rehacer. R dos veces (en 2,5 s) reinicia; también se deshace.
   H oculta ayudas. El chizito ARRANCA PARADO (eje largo X local hacia arriba) y DE FRENTE (`CONFIG.creature.homeRotation`).
-  FRENTE fijo y predeterminado: el costado +Z del chizito raíz, con su eje largo +X como "arriba"; no se cambia.
-  F devuelve el chizito suave (0,7 s, leve rebote, `TrackballRotator.goHome`) a esa posición inicial y muestra el
-  frente (aro + punto que late 2,6 s). Al cargar un archivo vale siempre el frente fijo. Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
+  Lado de cara del CONSTRUCTOR (`BUILDER_FACE`, fijo): el costado +Z del chizito raíz, el que mira a la cámara parado.
+  F devuelve el chizito suave (0,7 s, leve rebote, `TrackballRotator.goHome`) a esa posición inicial y marca ese lado
+  (aro + punto que late 2,6 s). El constructor y su cámara NO dependen del frente de combate.
+  FRENTE DE COMBATE (`Construction.front/up`): dato POR CRIATURA, ±X del chizito raíz (por defecto +X), "arriba" +Y.
+  Lo elige la "vista de combate" del intérprete (rama `claude/creature-interpreter`); el constructor no lo cambia:
+  lo conserva (también en deshacer), lo guarda en `creature.front` y el cargador lo RESPETA (`readCombatFront`:
+  ±X por el signo de X; el +Z viejo, la falta de dato o algo que no sea ±X valen +X, esto último con aviso).
+  Prueba: `node scripts/combat-front-test.mjs`. Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
   (se deshace con Ctrl+Z). Al abrir (o recargar) SIEMPRE arranca un chizito nuevo con forma al azar (`?seed=N` la fija;
   `?capture` usa la 3). La última criatura se autoguarda en el navegador y sólo vuelve con `?recuperar`.
   R R también da un chizito de otra forma.
@@ -196,8 +202,9 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
 - `{ format: "hombrecito-de-chizito/criatura", version: 1, units: "m", creature: { name, savedAt, pieceCount,
   root: { type, seed }, front: { direction, up } }, pieces: [ { id, type, parentId, seed, attach: { mode, entryPoint,
   direction, depth, spin }, params? } ] }`, piezas en orden padre → hijo. NO guarda matrices ni posiciones sueltas.
-- Frente/arriba en coordenadas del chizito raíz (`Construction.front/up`), parte del `Snapshot` (deshacer) junto con
-  la semilla de la raíz.
+- `creature.front` = frente de COMBATE (±X del chizito raíz, por defecto `[1,0,0]`, `up` `[0,1,0]`), parte del
+  `Snapshot` (deshacer) junto con la semilla de la raíz. Se respeta al cargar. Versión del formato: sigue en 1
+  (los archivos con el +Z anterior se leen como +X).
 - Al cargar: se valida todo (formato, versión, tipos, padres, conexión posible según canPierce/canBePierced/tailMount,
   profundidad ≤ maxDepth, tope de 40); lo inválido se descarta con aviso. Versiones nuevas: migraciones en `fromCreatureFile`.
 
@@ -210,7 +217,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
    Ketchup / vasitos / sacudida a 20 fps: `node scripts/ketchup-test.mjs <dir>`.
    Correcciones (borrar ketchup, nacho, bowls, recarga, aceituna en palito): `node scripts/fixes-test.mjs <dir>`.
 4. Guardado/carga JSON versionado, frente, tope de 40. ← hecha (prueba: `node scripts/phase4-test.mjs <dir>`). Requisitos del usuario (las construcciones son CRIATURAS para jugar):
-   - Cada criatura tiene un "frente" explícito (dirección guardada en el marco local del chizito raíz).
+   - Cada criatura tiene un "frente" explícito: el FRENTE DE COMBATE, ±X (por defecto +X), elegido en la vista de
+     combate del intérprete, guardado en el marco local del chizito raíz y respetado por el cargador.
    - El JSON guarda, por pieza, el punto de clavado, la dirección y la jerarquía (parentId): la pose se
      RECONSTRUYE desde esos datos (entryPoint, direction, depth, spin, mount, params). Nada de guardar sólo
      posiciones/matrices sueltas (`localMatrix` es un derivado, no la fuente de verdad).

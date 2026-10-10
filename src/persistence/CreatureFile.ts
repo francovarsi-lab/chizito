@@ -1,7 +1,7 @@
 import type { Snapshot, Vec3 } from '../commands/CommandStack';
 import { CONFIG } from '../config';
 import { attachModeOf, type AttachMode } from '../interaction/attach';
-import type { PieceData } from '../model/Construction';
+import { DEFAULT_COMBAT_FRONT, DEFAULT_COMBAT_UP, type PieceData } from '../model/Construction';
 import type { PieceRegistry } from '../pieces/PieceRegistry';
 import { maxDepthOf } from '../pieces/PieceDefinition';
 
@@ -16,7 +16,7 @@ import { maxDepthOf } from '../pieces/PieceDefinition';
  *     "creature": {
  *       "name": "…", "savedAt": "2026-10-09T…", "pieceCount": 12,
  *       "root":  { "type": "chizito", "seed": 3 },
- *       "front": { "direction": [0, 0, 1], "up": [1, 0, 0] }        ← en coordenadas del chizito raíz
+ *       "front": { "direction": [1, 0, 0], "up": [0, 1, 0] }        ← FRENTE DE COMBATE: ±X del chizito raíz
  *     },
  *     "pieces": [
  *       { "id": "palito-…", "type": "palito", "parentId": "root", "seed": 4711,
@@ -120,10 +120,10 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
   if (!isObj(cr) || !isObj(cr.root) || !num(cr.root.seed)) throw new CreatureFileError('a la criatura le falta el chizito raíz');
   const warnings: string[] = [];
 
-  // El frente es fijo y predeterminado (el costado +Z del chizito raíz, su eje largo +X arriba): se escribe en el
-  // archivo para que quede explícito, pero al cargar siempre vale el de fábrica.
-  const front: Vec3 = [0, 0, 1];
-  const up: Vec3 = [1, 0, 0];
+  // Frente de combate: dato por criatura, ±X del chizito raíz (por defecto +X), "arriba" +Y. Se RESPETA el
+  // del archivo; lo que no sea ±X (p. ej. el +Z que escribía el constructor antes de esta decisión) vale +X.
+  const { front, up, warning } = readCombatFront(cr.front);
+  if (warning) warnings.push(warning);
 
   const list = Array.isArray(json.pieces) ? json.pieces : [];
   const accepted = new Map<string, PieceData>(); // id → pieza aceptada (para validar padres)
@@ -174,6 +174,20 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
     name: typeof cr.name === 'string' ? cr.name : 'Criatura',
     warnings,
   };
+}
+
+/**
+ * Lee `creature.front`: la dirección se lleva al ±X más cercano por el signo de su componente X (debe ser
+ * dominante); el "arriba" es +Y. Sin dato, o con el +Z viejo del constructor, vale +X sin aviso.
+ */
+export function readCombatFront(raw: unknown): { front: Vec3; up: Vec3; warning?: string } {
+  const up = [...DEFAULT_COMBAT_UP] as Vec3;
+  const dflt = { front: [...DEFAULT_COMBAT_FRONT] as Vec3, up };
+  if (!isObj(raw) || !vec(raw.direction) || len(raw.direction) < 1e-6) return dflt;
+  const d = unit(raw.direction);
+  if (Math.abs(d[0]) >= 0.9) return { front: [Math.sign(d[0]), 0, 0], up };
+  const oldBuilderFace = Math.abs(d[2]) >= 0.9 && Math.abs(d[0]) < 0.1;
+  return oldBuilderFace ? dflt : { ...dflt, warning: 'el frente de combate no era ±X: se usa +X' };
 }
 
 function toPieceData(raw: Record<string, unknown>, pieces: PieceRegistry, parentType: string | undefined, accepted: Map<string, PieceData>): PieceData | null {

@@ -3,7 +3,7 @@ import type { AssetRegistry } from '../assets/AssetRegistry';
 import { CommandStack, cloneSnapshot, clonePieces, type Snapshot } from '../commands/CommandStack';
 import { CONFIG } from '../config';
 import type { Input } from '../input/Input';
-import { newPieceId, type Construction, type PieceData, type PieceNode } from '../model/Construction';
+import { BUILDER_FACE, DEFAULT_COMBAT_FRONT, DEFAULT_COMBAT_UP, newPieceId, type Construction, type PieceData, type PieceNode } from '../model/Construction';
 import { maxDepthOf, type PieceDefinition } from '../pieces/PieceDefinition';
 import type { PieceRegistry } from '../pieces/PieceRegistry';
 import { markHero } from '../render/ContactShadow';
@@ -1014,12 +1014,13 @@ export class InteractionController {
       if ((o as THREE.Mesh).isMesh && !o.userData.noPick && this.d.picker.ownerNode(o) === c.root) meshes.push(o);
     });
     const centerW = pivot.getWorldPosition(new THREE.Vector3());
-    const dirW = c.front.clone().transformDirection(pivot.matrixWorld);
+    const face = new THREE.Vector3().fromArray(BUILDER_FACE);
+    const dirW = face.clone().transformDirection(pivot.matrixWorld);
     const ray = new THREE.Raycaster(centerW.clone().addScaledVector(dirW, 0.08), dirW.clone().negate());
     const hit = ray.intersectObjects(meshes, false)[0];
-    const local = hit ? pivot.worldToLocal(hit.point.clone()) : c.front.clone().multiplyScalar(0.012);
-    this.frontMark.position.copy(local).addScaledVector(c.front, 0.0012);
-    this.frontMark.quaternion.setFromUnitVectors(Z_UP, c.front);
+    const local = hit ? pivot.worldToLocal(hit.point.clone()) : face.clone().multiplyScalar(0.012);
+    this.frontMark.position.copy(local).addScaledVector(face, 0.0012);
+    this.frontMark.quaternion.setFromUnitVectors(Z_UP, face);
     this.frontT = 2.6;
     this.frontMark.visible = true;
   }
@@ -1109,7 +1110,7 @@ export class InteractionController {
     const before = this.snapshot();
     // Chizito nuevo de verdad: otra forma (otra semilla) y sin piezas. Se puede deshacer.
     const rootSeed = this.d.setRootSeed ? 1 + Math.floor(Math.random() * 1e5) : before.rootSeed;
-    this.restore({ pieces: [], front: [0, 0, 1], up: [1, 0, 0], rootSeed });
+    this.restore({ pieces: [], front: [...DEFAULT_COMBAT_FRONT], up: [...DEFAULT_COMBAT_UP], rootSeed });
     this.record('reiniciar', before);
     this.onReset?.();
     this.d.overlay.flash('chizito nuevo', 1200);
@@ -1125,10 +1126,9 @@ export class InteractionController {
       this.d.setRootSeed(s.rootSeed);
       c.root.data.seed = s.rootSeed;
     }
-    const frontChanged = c.front.distanceTo(new THREE.Vector3().fromArray(s.front)) > 1e-6;
+    // Frente de combate: dato de la criatura (lo elige la vista de combate); acá sólo se conserva.
     c.front.fromArray(s.front).normalize();
     c.up.fromArray(s.up).normalize();
-    if (frontChanged) this.showFront();
     const pieces = clonePieces(s.pieces);
     const pose = fromConnections ? (d: PieceData, parent: THREE.Object3D) => poseFromData(d, this.d.pieces.get(d.type), parent) : undefined;
     const removed = c.restore(pieces, (d) => {
