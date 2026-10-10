@@ -58,7 +58,7 @@ function materials(color: string) {
   return { stick: stickMat, candy };
 }
 
-/** Film transparente sobre la bola: red de líneas blancas que se cruzan en diagonal (como la foto). */
+/** Film transparente sobre la bola: líneas blancas que bajan curvándose, sin cruzarse (como la foto). */
 let filmTex: THREE.CanvasTexture | null = null;
 function filmTexture(): THREE.CanvasTexture {
   if (filmTex) return filmTex;
@@ -69,17 +69,16 @@ function filmTexture(): THREE.CanvasTexture {
   g.fillStyle = 'rgba(255,255,255,0.08)';
   g.fillRect(0, 0, 512, 256);
   g.strokeStyle = 'rgba(255,255,255,0.95)';
-  g.lineWidth = 3.5;
-  for (const dir of [1, -1]) {
-    for (let i = -10; i < 22; i++) {
-      g.beginPath();
-      for (let y = 0; y <= 256; y += 8) {
-        const x = i * 32 + dir * y * 0.9 + Math.sin(y / 18 + i) * 4;
-        if (y === 0) g.moveTo(x, y);
-        else g.lineTo(x, y);
-      }
-      g.stroke();
+  g.lineWidth = 4;
+  // Todas en la misma dirección y con la misma curva (paralelas): giran como un remolino suave.
+  for (let i = -8; i < 24; i++) {
+    g.beginPath();
+    for (let y = 0; y <= 256; y += 6) {
+      const x = i * 26 + 70 * Math.sin((y / 256) * Math.PI * 0.9);
+      if (y === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
     }
+    g.stroke();
   }
   filmTex = new THREE.CanvasTexture(c);
   filmTex.colorSpace = THREE.SRGBColorSpace;
@@ -172,9 +171,16 @@ export function createChupetin(seed: number, detail: 'hero' | 'prop' = 'hero', p
  */
 export class ChupetinWrapper {
   readonly object: THREE.Group;
+  private filmMesh!: THREE.Mesh;
+  private filmBase!: Float32Array;
+  private top: THREE.Object3D[] = [];
+  private ballY = 0;
+  private R = 0;
 
   constructor(seed: number, detail: 'hero' | 'prop' = 'hero', ownMaterial = true) {
     const { R, ballY } = shape(seed);
+    this.R = R;
+    this.ballY = ballY;
     const noise = new Simplex3(seed + 5);
     // Materiales propios si se va a desvanecer (no afecta a los del vasito).
     const film = ownMaterial ? filmMaterial().clone() : filmMaterial();
@@ -208,7 +214,9 @@ export class ChupetinWrapper {
       p.setZ(i, z * folds);
     }
     geo.computeVertexNormals();
-    g.add(new THREE.Mesh(geo, film));
+    this.filmMesh = new THREE.Mesh(geo, film);
+    this.filmBase = (geo.getAttribute('position').array as Float32Array).slice();
+    g.add(this.filmMesh);
 
     // Nudo: el cuello retorcido.
     const knot = new THREE.Mesh(new THREE.CylinderGeometry(0.0017, 0.0021, 0.004, 14, 3), film);
@@ -222,6 +230,7 @@ export class ChupetinWrapper {
     knot.geometry.computeVertexNormals();
     knot.position.y = neckY + 0.0012;
     g.add(knot);
+    this.top.push(knot);
 
     // Abanico: el film que sobra arriba del nudo, abierto con pliegues y rayas de colores.
     const fanProf: THREE.Vector2[] = [];
@@ -246,7 +255,9 @@ export class ChupetinWrapper {
       fp.setY(i, y + t * 0.0015 * noise.noise(Math.cos(th) * 3, Math.sin(th) * 3, 7));
     }
     fanGeo.computeVertexNormals();
-    g.add(new THREE.Mesh(fanGeo, fan));
+    const fanMesh = new THREE.Mesh(fanGeo, fan);
+    g.add(fanMesh);
+    this.top.push(fanMesh);
 
     g.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) {
@@ -257,12 +268,38 @@ export class ChupetinWrapper {
     });
   }
 
-  /** 0 = envuelto; hacia 1 sale tirando del nudo: sube, se abre y gira. */
+  /**
+   * 0 = envuelto. Se abre DESDE ARRIBA: primero se desata el nudo (el abanico sube un poco, gira y se
+   * suelta, 0 → 0,35) y después el film se abre como una flor, de la cima hacia abajo, despegándose de
+   * la bola (0,25 → 1). La mano después lo deja caer.
+   */
   setProgress(p: number): void {
-    const k = p * p;
-    this.object.position.y = k * 0.034;
-    this.object.scale.set(1 + p * 0.35, 1 + p * 0.15, 1 + p * 0.35);
-    this.object.rotation.y = p * 1.2;
-    this.object.rotation.z = p * 0.25;
+    const untie = THREE.MathUtils.smoothstep(p, 0, 0.35);
+    for (const o of this.top) {
+      o.position.y = (o.userData.y0 ??= o.position.y) + untie * 0.006;
+      o.rotation.y = untie * 1.4;
+      o.scale.setScalar(1 + untie * 0.3);
+    }
+    const open = THREE.MathUtils.smoothstep(p, 0.25, 1);
+    const pos = this.filmMesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const arr = pos.array as Float32Array;
+    const base = this.filmBase;
+    const R = this.R;
+    for (let i = 0; i < arr.length; i += 3) {
+      const x = base[i];
+      const y = base[i + 1];
+      const z = base[i + 2];
+      // Cuánto "arriba" está el punto (0 = base de la bola, 1 = cima): la cima se abre primero.
+      const h = THREE.MathUtils.clamp((y - (this.ballY - R)) / (2.2 * R), 0, 1);
+      const k = THREE.MathUtils.smoothstep(open * 1.4 - (1 - h) * 0.6, 0, 1);
+      const len = Math.hypot(x, z) || 1e-6;
+      // Pétalos: el film se abre hacia afuera y se dobla hacia abajo alrededor de la bola.
+      const push = k * R * (0.9 + h * 0.8);
+      arr[i] = x + (x / len) * push;
+      arr[i + 1] = y - k * h * R * 0.9;
+      arr[i + 2] = z + (z / len) * push;
+    }
+    pos.needsUpdate = true;
+    this.filmMesh.geometry.computeVertexNormals();
   }
 }

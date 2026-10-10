@@ -45,8 +45,8 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
 - Mesa en y = 0. Chizito flotando con centro en y = 10 cm (`CONFIG.chizitoCenter`): la mesa queda más lejos y despejada.
 - Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, a 30 cm del chizito, con zoom por
   dolly (rueda del mouse) entre 16 y 50 cm, suave. 50 mm sobre film de 36 mm. Nunca orbita.
-- Composición despejada: bowl de papitas (izq.) y vasito de palitos (der.) simétricos a los costados, a media
-  distancia; pocos objetos al fondo y lejos.
+- Composición despejada: bowl de papitas (izq., x −0,15 para dejar ver el platito de palitos de la selva) y vasito
+  de palitos (der.) a los costados, a media distancia; pocos objetos al fondo y lejos.
 
 ## Estética
 - Base fotográfica (sigue valiendo, pero al servicio de lo divertido). Fuentes del realismo: IBL + luz direccional cálida de ventana con sombras suaves
@@ -131,16 +131,17 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   CILÍNDRICO, MITAD ROSA / MITAD BLANCO con la división RECTA a lo largo (sin hélice; acostado: rosa abajo, blanco
   arriba), puntas cortadas con borde redondeado. En el platito vienen envueltos y ordenados (`params.wrapped` sólo
   para los del platito): papel ajustado en tubito, rosado claro con una franja amarilla de borde rojo (en lugar del
-  logo) y una libélula, y las PUNTAS RETORCIDAS verde selva. Al agarrarlo (`PieceDefinition.wrapper`,
+  logo) y una libélula, y las PUNTAS verde selva: cuello retorcido pasado el caramelo y de ahí un abanico chato y
+  triangular con el borde arrugado. Al agarrarlo (`PieceDefinition.wrapper`,
   `SelvaWrapper.setProgress`): primero se destuercen las puntas (0 → 0,4), después el papel se desenrolla desde el
   borde suelto (0,4 → 1), y se cae planeando y desvaneciéndose. Se clava SIN papel por una punta, hasta la mitad.
   Pendiente: un dato curioso de un animal cada vez que se usa.
 - Chupetín (`chupetin`, vasito a la derecha), según la foto: bola brillante TRANSLÚCIDA de color al azar (frutilla,
   naranja, limón, uva, manzana, chicle y COLA: casi negro, a contraluz marrón translúcido; `attenuationColor`) en palito
-  blanco. En el vasito viene envuelto (`ChupetinWrapper`): film transparente con una RED de líneas blancas sobre la
-  bola, ceñido al palito abajo y ARRIBA un cuello retorcido (el nudo) que se abre en un abanico blanco con rayas
-  rojas, azules y verdes. Al agarrarlo se desenvuelve desde el nudo (sube, se abre, gira y se cae); en la mano y
-  clavado va pelado, sin líneas. Se clava por la punta del palito (máx. 70 %). Sin marca.
+  blanco. En el vasito viene envuelto (`ChupetinWrapper`): film transparente con LÍNEAS BLANCAS CURVAS PARALELAS (no
+  se cruzan) sobre la bola, ceñido al palito abajo y ARRIBA un cuello retorcido (el nudo) que se abre en un abanico
+  blanco con rayas rojas, azules y verdes. Al agarrarlo se abre DESDE ARRIBA: se desata el nudo y el film se abre
+  como una flor de la cima hacia abajo, y se cae; en la mano y clavado va pelado, sin líneas. Se clava por la punta del palito (máx. 70 %). Sin marca.
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
 - Chizito extra (EN PAUSA por pedido del usuario: el bowl no está en la mesa; el mecanismo `mountsOnTail` lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);

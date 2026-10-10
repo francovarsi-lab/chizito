@@ -25,7 +25,7 @@ export interface Backdrop {
 
 export const BOWL_LAYOUT = {
   palito: new THREE.Vector3(0.115, 0, -0.17),
-  papita: new THREE.Vector3(-0.115, 0, -0.17),
+  papita: new THREE.Vector3(-0.15, 0, -0.17), // corrido a la izquierda: deja ver el platito de palitos de la selva
   // Tira de recipientes chicos al frente: nachos, aceitunas, escarbadientes, espaditas y sobrecitos de
   // ketchup. La clave es el tipo de pieza o `tipo:variante`.
   nacho: new THREE.Vector3(-0.098, 0, -0.074),

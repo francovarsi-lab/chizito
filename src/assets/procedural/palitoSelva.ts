@@ -188,7 +188,7 @@ export class SelvaWrapper {
   private readonly cols: number;
   private readonly rows: number;
   private readonly L: number;
-  private readonly ext = 0.0085; // papel que sobra en cada punta (se retuerce)
+  private readonly ext = 0.0105; // papel que sobra en cada punta (cuello retorcido + abanico)
   private readonly A = SELVA_RADIUS * 1.1 + 0.0002;
   private readonly turns = 1.15;
   private readonly twistSign: number;
@@ -255,20 +255,27 @@ export class SelvaWrapper {
     const total = this.arc[cols];
     for (let r = 0; r <= rows; r++) {
       const y = -ext + (r / rows) * (L + 2 * ext);
-      // Más allá del caramelo el papel se junta y se retuerce (hasta casi un hilo en la punta).
+      // Puntas como en la foto: pasado el caramelo el papel se junta en un cuello retorcido (out ≈ 0,3) y
+      // de ahí se abre en un abanico chato y triangular, con el borde arrugado.
       const out = y < 0 ? -y / ext : y > L ? (y - L) / ext : 0;
       const side = y < L / 2 ? -1 : 1;
-      const pinch = 1 - 0.85 * THREE.MathUtils.smoothstep(out, 0, 0.85) * (1 - untwist);
-      const twist = out * 2.6 * this.twistSign * side * (1 - untwist);
-      // Al destorcer, las puntas quedan abiertas en una pollerita.
-      const flare = 1 + 0.35 * out * untwist;
+      const closed = 1 - untwist;
+      const neck = THREE.MathUtils.smoothstep(out, 0, 0.3); // 0 → cuello
+      const fanT = THREE.MathUtils.smoothstep(out, 0.3, 1); // 0 → 1 en el abanico
+      const twist = Math.min(out, 0.32) * 5.5 * this.twistSign * side * closed;
       for (let c = 0; c <= cols; c++) {
         const i = (r * (cols + 1) + c) * 3;
         const t = c / cols;
         const th = t * turns * Math.PI * 2 + twist;
-        const rad = A * pinch * flare * (1 + t * 0.04);
-        let x = Math.cos(th) * rad;
-        let z = Math.sin(th) * rad;
+        const base = A * (1 + t * 0.04);
+        // Cerrado: tubo → cuello (0,22 A) → abanico ancho (2,3 A) y chato (0,18 A), con arrugas.
+        const crinkle = 1 + 0.12 * fanT * Math.sin(th * 7 + y * 2000);
+        const wx = THREE.MathUtils.lerp(THREE.MathUtils.lerp(1, 0.22, neck), 2.3 * crinkle, fanT);
+        const wz = THREE.MathUtils.lerp(THREE.MathUtils.lerp(1, 0.22, neck), 0.18 * crinkle, fanT);
+        // Abierto (destorcido): las puntas quedan como una pollerita redonda.
+        const open = 1 + 0.35 * out;
+        let x = Math.cos(th) * base * THREE.MathUtils.lerp(open, wx, closed);
+        let z = Math.sin(th) * base * THREE.MathUtils.lerp(open, wz, closed);
         // Desenrollar: cada columna pasa de su lugar en el tubo a una hoja plana tangente (borde suelto primero).
         const k = THREE.MathUtils.smoothstep((unroll - (1 - t) * 0.55) / 0.45, 0, 1);
         if (k > 0) {
