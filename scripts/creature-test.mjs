@@ -216,7 +216,10 @@ try {
     ok(order, `${c.id}: orden padre → hijo`);
     const allFinite = (x) => (typeof x === 'number' ? Number.isFinite(x) : Array.isArray(x) ? x.every(allFinite) : x && typeof x === 'object' ? Object.values(x).every(allFinite) : true);
     ok(allFinite(sn), `${c.id}: todos los números del snapshot son finitos`);
-    nearV(sn.orientation.front, [0, 0, 1], 1e-12, `${c.id}: frente de fábrica +Z`);
+    nearV(sn.orientation.front, [1, 0, 0], 1e-12, `${c.id}: frente de combate por defecto +X`);
+    nearV(sn.orientation.up, [0, 1, 0], 1e-12, `${c.id}: arriba de combate +Y`);
+    nearV(c.file.creature.front.direction, [0, 0, 1], 1e-9, `${c.id}: el archivo lleva el frente fijo del constructor (+Z), no el de combate`);
+    nearV(c.file.creature.front.up, [1, 0, 0], 1e-9, `${c.id}: y su "arriba" (+X, el chizito parado)`);
   }
 
   section('tanda 3: contenido de cada criatura');
@@ -228,8 +231,9 @@ try {
   const armsA = rodsOf(A).filter((p) => linkOf(A, p.id).axis[1] > 0 && Math.abs(linkOf(A, p.id).axis[0]) > 0.8);
   ok(legsA.length === 2 && armsA.length === 2, 'A: 2 piernas hacia abajo y 2 brazos hacia afuera y arriba');
   ok(rodsOf(A).every((p) => linkOf(A, p.id).exit === null && linkOf(A, p.id).freeTail > 0.023 && Math.abs(linkOf(A, p.id).embedded - 0.009) < 1e-6), 'A: ninguno atraviesa; ≥ 23 mm libres y 9 mm adentro');
-  ok(rodsOf(byId.B).length === 4 && rodsOf(byId.B).every((p) => linkOf(byId.B, p.id).axis[1] !== 0), 'B: 4 brazos (dos arriba y dos abajo, nada que apoye en el suelo)');
-  ok(rodsOf(byId.B).every((p) => Math.abs(linkOf(byId.B, p.id).axis[0]) > 0.8), 'B: los cuatro salen de las puntas');
+  ok(rodsOf(byId.B).length === 4, 'B: 4 brazos');
+  ok(rodsOf(byId.B).every((p) => linkOf(byId.B, p.id).axis[1] > 0.3), 'B: los cuatro por encima de la horizontal (ninguno hace de pierna)');
+  ok(rodsOf(byId.B).every((p) => Math.abs(linkOf(byId.B, p.id).axis[0]) > 0.5), 'B: los cuatro salen de las puntas');
   const C = byId.C;
   ok(rodsOf(C).length === 1, 'C: un solo palito');
   const ca = linkOf(C, rodsOf(C)[0].id).axis;
@@ -264,11 +268,37 @@ try {
   ok(V2.snapshot.pieces.every((p) => p.stability === 'stable'), 'vegetal: todo estable');
   ok(/brócoli/.test(V2.name), 'vegetal: el nombre marca el cuerpo proxy (brócoli)');
 
-  section('tanda 3: el frente es un parámetro');
-  const sideways = fx.buildAllCreatures([1, 0, 0], [0, 1, 0]);
-  ok(sideways.every((c) => JSON.stringify(c.snapshot.orientation.front) === '[1,0,0]'), 'con --front=+X el snapshot lo refleja');
-  ok(sideways.every((c, i) => JSON.stringify(c.file.pieces) === JSON.stringify(built[i].file.pieces)), 'las piezas del archivo no dependen del frente');
+  section('tanda 3: el frente de combate es un parámetro');
+  const flipped = fx.buildAllCreatures([-1, 0, 0], [0, 1, 0]);
+  ok(flipped.every((c) => JSON.stringify(c.snapshot.orientation.front) === '[-1,0,0]'), 'con --front=-X el snapshot lo refleja');
+  const zfront = fx.buildAllCreatures([0, 0, 1], [1, 0, 0]);
+  ok(zfront.every((c) => JSON.stringify(c.snapshot.orientation.front) === '[0,0,1]' && JSON.stringify(c.snapshot.orientation.up) === '[1,0,0]'), 'y también acepta cualquier otro (frente +Z, arriba +X)');
+  ok([flipped, zfront].every((set) => set.every((c, i) => JSON.stringify(c.file) === JSON.stringify(built[i].file))), 'el archivo de criatura no depende del frente de combate');
   ok(JSON.stringify(fx.buildAllCreatures()) === JSON.stringify(built), 'generar dos veces da lo mismo (determinista)');
+  const consText = fs.readFileSync('src/model/Construction.ts', 'utf8');
+  ok(/front\s*=\s*new THREE\.Vector3\(0,\s*0,\s*1\)/.test(consText) && /up\s*=\s*new THREE\.Vector3\(1,\s*0,\s*0\)/.test(consText), 'el frente/arriba que escribe el archivo (+Z, +X) sigue siendo el del constructor del juego');
+  ok(E.snapshot.links.filter((l) => l.exit).every((l) => Math.abs(Math.hypot(...l.exit.normal) - 1) < 1e-9), 'E: la salida de la vara pasante trae su normal (unitaria)');
+
+  section('tanda 3: validación del snapshot y frentes ±X');
+  const { validateSnapshot, isCombatFront } = idx;
+  ok(built.every((c) => validateSnapshot(c.snapshot).length === 0), 'las seis criaturas validan sin avisos');
+  ok(isCombatFront([1, 0, 0]) && isCombatFront([-1, 0, 0]), '+X y −X son frentes de combate válidos');
+  ok(isCombatFront([0.9999, 0.01, 0]), 'un frente apenas torcido sigue valiendo');
+  ok(!isCombatFront([0, 0, 1]) && !isCombatFront([0, 1, 0]) && !isCombatFront([0, 0, 0]), '+Z, +Y y el vector nulo no');
+  const withFront = (f, u = [0, 1, 0]) => ({ ...built[0].snapshot, orientation: { front: f, up: u } });
+  ok(validateSnapshot(withFront([-1, 0, 0])).length === 0, 'frente −X: sin avisos');
+  ok(validateSnapshot(withFront([0, 0, 1], [1, 0, 0])).some((m) => m.includes('±X')), 'frente +Z: se acepta con aviso');
+  ok(validateSnapshot(withFront([1, 0, 0], [1, 0, 0])).some((m) => m.includes('coinciden')), 'frente igual a "arriba": aviso (no hay perfil)');
+  ok(validateSnapshot(withFront([1, 0, 0], [0.3, 1, 0])).some((m) => m.includes('perpendicular')), '"arriba" torcido: aviso de que se corrige');
+  ok(validateSnapshot(withFront([0, 0, 0])).length > 0, 'frente nulo: aviso');
+  ok(validateSnapshot({ ...built[0].snapshot, budget: { ...built[0].snapshot.budget, strokeCount: 31 } }).some((m) => m.includes('trazos')), '31 trazos: aviso (tope 30)');
+  ok(validateSnapshot({ ...built[0].snapshot, budget: { ...built[0].snapshot.budget, pieceCount: 41 } }).some((m) => m.includes('41 piezas')), '41 piezas: aviso (tope 40)');
+  // La base sale igual con +X que con −X salvo por el signo: el giro de 180° es un espejo exacto.
+  const bPlus = B.makeBasis([1, 0, 0], [0, 1, 0]);
+  const bMinus = B.makeBasis([-1, 0, 0], [0, 1, 0]);
+  const pt = [0.013, 0.007, -0.011];
+  nearV(B.toProfile(bMinus, pt), B.applyFacing(B.toProfile(bPlus, pt), -1), 1e-12, 'frente −X = frente +X con x → −x');
+  near(B.depthOf(bPlus, pt), -B.depthOf(bMinus, pt), 1e-12, 'la profundidad cambia de signo al girar');
 
   section('tanda 3: hoja de perfiles');
   const svg = fs.readFileSync('docs/creature/perfiles-a-vs-b.svg', 'utf8');

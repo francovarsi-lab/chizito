@@ -32,6 +32,7 @@ export type PieceKind = 'core' | 'blob' | 'rod' | 'plate' | 'stroke';
 /**
  * Forma 3D de una pieza. En 'capsule', `a` y `b` son los EXTREMOS REALES del objeto (punta y cola, o las dos
  * puntas del chizito), no los centros de las tapas; el largo total es |b − a|.
+ * Convención de las varas (palito, escarbadientes): `a` es la PUNTA (el extremo que entra) y `b` la COLA.
  */
 export type Shape =
   | { kind: 'capsule'; a: V3; b: V3; radius: number }
@@ -59,6 +60,8 @@ export type LinkMode = 'pierce' | 'tail' | 'paint';
 export interface Crossing {
   pieceId: string;
   entry: V3;
+  /** Normal saliente de ese sólido en el punto de entrada. */
+  normal: V3;
   exit: V3 | null;
   chord: number;
 }
@@ -85,7 +88,7 @@ export interface SnapLink {
   /** Largo libre del lado de entrada (0 si está empotrada en un chizito). */
   freeTail: number;
   /** Si atraviesa y sale. */
-  exit: { point: V3; freeTip: number } | null;
+  exit: { point: V3; freeTip: number; normal: V3 } | null;
   /** OTROS sólidos que el hijo también atraviesa (cierra el hueco árbol vs grafo). */
   crossings: Crossing[];
   integrity: 'ok' | 'damaged' | 'broken';
@@ -118,7 +121,15 @@ export interface Limb {
   durability: number;
   anchorQuality: number;
   mobility: { restDeg: number; minDeg: number; maxDeg: number; droops: boolean };
-  profile: { pivot: V2; tip: V2; angleDeg: number; length2D: number; foreshortening: number };
+  profile: {
+    pivot: V2;
+    tip: V2;
+    angleDeg: number;
+    length2D: number;
+    foreshortening: number;
+    /** Componente de profundidad dominante: se ve corta en reposo, ataca con su largo real al girar al plano. */
+    inDepth: boolean;
+  };
 }
 
 export type DecorativeReason = 'no-free-tip' | 'weak-anchor' | 'too-short' | 'plate' | 'stroke' | 'broken' | 'unknown-type' | 'second-level';

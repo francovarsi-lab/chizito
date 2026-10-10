@@ -24,9 +24,9 @@ const COLORS: Record<string, { fill: string; line: string }> = {
 };
 
 const FRONTS: { label: string; sub: string; front: V3 }[] = [
-  { label: 'frente +Z', sub: 'decisión actual del juego', front: [0, 0, 1] },
-  { label: 'frente +X', sub: 'igual que la cámara del constructor', front: [1, 0, 0] },
-  { label: 'frente −X', sub: 'el espejo de +X', front: [-1, 0, 0] },
+  { label: 'frente +X', sub: 'por defecto (decisión)', front: [1, 0, 0] },
+  { label: 'frente −X', sub: 'el otro lado (giro de 180°)', front: [-1, 0, 0] },
+  { label: 'frente +Z', sub: 'descartado: el eje largo queda en profundidad', front: [0, 0, 1] },
 ];
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -102,10 +102,10 @@ export function renderProfileSheet(creatures: BuiltCreature[]): string {
   const H = HEAD_H + rows.reduce((a, r) => a + r.h, 0) + 10;
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="system-ui, sans-serif">`;
   svg += `<rect width="${W}" height="${H}" fill="#fffdf7"/>`;
-  svg += `<text x="12" y="26" font-size="19" font-weight="700" fill="#222">Perfiles de combate: frente +Z vs frente ±X</text>`;
+  svg += `<text x="12" y="26" font-size="19" font-weight="700" fill="#222">Perfiles de combate: frente ±X (decidido) vs frente +Z (descartado)</text>`;
   svg += `<text x="12" y="46" font-size="12" fill="#555">Cada criatura vista de costado (proyección 2D de perfil, la misma que usarán las cajas de golpe). Mismo tamaño en todas las celdas (1 cm ≈ ${f1(SCALE / 100)} px).</text>`;
-  svg += `<text x="12" y="62" font-size="12" fill="#555">Con frente ±X el combate se ve igual que la cámara del constructor (mira hacia −Z). Con frente +Z el eje largo del chizito queda en profundidad.</text>`;
-  svg += `<text x="12" y="78" font-size="12" fill="#555">Las criaturas están armadas como las armaría un jugador mirando el constructor: brazos en las puntas (±X), piernas abajo. En rojo: palitos que casi apuntan a la cámara (se ven cortos).</text>`;
+  svg += `<text x="12" y="62" font-size="12" fill="#555">Con frente ±X el cuerpo se ve de costado y el cambio de lado es un giro de 180° (x → −x). Con frente +Z el eje largo del chizito queda en profundidad.</text>`;
+  svg += `<text x="12" y="78" font-size="12" fill="#555">Cuerpo acostado a lo largo de X, arriba = +Y: brazos en las puntas, piernas abajo. En rojo: palitos que casi apuntan a la cámara (se ven cortos en reposo).</text>`;
   FRONTS.forEach((f, i) => {
     const x = LABEL_W + i * CELL_W;
     svg += `<text x="${x + CELL_W / 2}" y="${HEAD_H - 26}" font-size="14" font-weight="700" text-anchor="middle" fill="#222">${f.label}</text>`;

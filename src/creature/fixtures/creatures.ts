@@ -1,8 +1,8 @@
 /**
- * Las seis criaturas de prueba del MVP 0. Están armadas como las armaría un jugador mirando el chizito
- * desde la cámara del constructor (que mira hacia −Z desde +Z): ve el costado largo, con los extremos a
- * izquierda y derecha, "arriba" y "abajo". Por eso los brazos salen de las puntas (±X) y las piernas de
- * abajo. El frente es un parámetro del generador.
+ * Las seis criaturas de prueba del MVP 0, con el cuerpo acostado a lo largo de X (el eje largo del chizito) y
+ * "arriba" = +Y: los brazos salen de las puntas (±X) y las piernas de abajo (−Y). El frente de combate es un
+ * parámetro del generador (por defecto +X). Ojo: son coordenadas del marco raíz, así que valen igual aunque el
+ * constructor muestre el chizito parado.
  */
 import { addScaled, norm, scale, sub } from '../math/vec';
 import type { V3 } from '../types';
@@ -25,13 +25,16 @@ const makeA: Maker = (front, up) => {
   return b.build();
 };
 
-/** B) cuerpo + 4 brazos + 0 piernas. */
+/**
+ * B) cuerpo + 4 brazos + 0 piernas. Dos brazos por punta, los dos por ENCIMA de la horizontal (a 25° y a 55°):
+ * ninguno apunta hacia abajo, así que ninguno hace de pierna (un brazo que baja y toca el piso es una pierna).
+ */
 const makeB: Maker = (front, up) => {
   const b = new CreatureBuilder('B', 'B · cuerpo + 4 brazos, sin piernas', 3, front, up);
   let seed = 201;
   for (const s of [-1, 1] as const) {
-    for (const az of [0, 180]) {
-      const e = b.end(s, 28, az);
+    for (const tilt of [25, 55]) {
+      const e = b.end(s, tilt, 0);
       b.rod(b.root, e.point, e.n, D, { seed: seed++ });
     }
   }

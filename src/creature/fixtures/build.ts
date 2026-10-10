@@ -16,6 +16,7 @@ import { buildPapitaGeometry } from '../../assets/procedural/papita';
 import { poseFromData } from '../../interaction/attach';
 import type { PieceData } from '../../model/Construction';
 import { CHIZITO, PALITO, PAPITA } from '../../pieces/definitions';
+import { CREATURE_CONFIG } from '../config';
 import { MAX_PIECES, MAX_STROKES } from '../limits';
 import { stabilityOf } from '../profiles';
 import { clipToSegment, rayCapsule, rayDisc } from '../math/ray';
@@ -24,8 +25,12 @@ import type { CreatureSnapshot, Crossing, PieceKind, Shape, SnapLink, SnapPiece,
 import { SNAPSHOT_SCHEMA, SNAPSHOT_VERSION } from '../types';
 
 export const FILE_FORMAT = 'hombrecito-de-chizito/criatura';
-export const DEFAULT_FRONT: V3 = [0, 0, 1];
-export const DEFAULT_UP: V3 = [0, 1, 0];
+/** Orientación de combate por defecto (decisión: frente +X, arriba +Y). Se puede cambiar con --front / --up. */
+export const DEFAULT_FRONT: V3 = CREATURE_CONFIG.orientation.defaultFront;
+export const DEFAULT_UP: V3 = CREATURE_CONFIG.orientation.defaultUp;
+/** Lo que el JUEGO escribe en `creature.front` (constructor, fijo; ver Construction.front/up). El archivo lleva esto, no el frente de combate. */
+export const GAME_FILE_FRONT: V3 = [0, 0, 1];
+export const GAME_FILE_UP: V3 = [1, 0, 0];
 const ROOT_ID = 'root';
 
 type Mode = 'pierce' | 'tail' | 'paint';
@@ -410,7 +415,11 @@ export class CreatureBuilder {
       const iv = this.hit(addScaled(entryRoot, dirIn, 1e-5), dirIn, pShape);
       const chord = iv ? Math.max(0, iv[1] + 1e-5) : null;
       const embedded = chord === null ? it.depth : Math.min(it.depth, chord);
-      const exit = chord !== null && it.depth > chord + 1e-6 ? { point: addScaled(entryRoot, dirIn, chord), freeTip: it.depth - chord } : null;
+      const exitPoint = chord !== null ? addScaled(entryRoot, dirIn, chord) : null;
+      const exit =
+        exitPoint && chord !== null && it.depth > chord + 1e-6
+          ? { point: exitPoint, freeTip: it.depth - chord, normal: this.surfaceNormal(pShape, exitPoint, dirIn) }
+          : null;
       // Cola libre del lado de entrada. Si hay un chizito ensartado en la cola, solo cuenta el tramo de vara a la vista.
       const mounted = this.items.find((c) => c.mode === 'tail' && c.parent === it);
       const L = rodShape ? len(sub(rodShape.b, rodShape.a)) : 0;
@@ -426,7 +435,10 @@ export class CreatureBuilder {
           if (other === it || other === parent || mine2.has(other) || other.type === 'ketchup') continue;
           const sh = shapes.get(other)!;
           const seg = clipToSegment(this.hit(tipPt, segDir, sh), L);
-          if (seg) crossings.push({ pieceId: other.id, entry: addScaled(tipPt, segDir, seg.tIn), exit: addScaled(tipPt, segDir, seg.tOut), chord: seg.chord });
+          if (seg) {
+            const entryPt = addScaled(tipPt, segDir, seg.tIn);
+            crossings.push({ pieceId: other.id, entry: entryPt, normal: this.surfaceNormal(sh, entryPt, scale(segDir, -1)), exit: addScaled(tipPt, segDir, seg.tOut), chord: seg.chord });
+          }
         }
       }
       links.push({ ...base, anchor: entryRoot, normal, axis: axisOut, tiltFromNormal: tilt, embedded, chord, freeTail, exit, crossings });
@@ -455,8 +467,9 @@ export class CreatureBuilder {
         savedAt: '2026-10-10T00:00:00.000Z',
         pieceCount,
         root: { type: 'chizito', seed: this.root.seed },
-        // El juego ignora este frente al cargar (siempre usa el de fábrica) pero lo escribe explícito.
-        front: { direction: round3(this.front), up: round3(this.up) },
+        // El archivo lleva el frente FIJO del constructor, tal como lo escribe el juego (y lo ignora al cargar).
+        // El frente de combate vive en el snapshot (`orientation`), no en el archivo.
+        front: { direction: round3(GAME_FILE_FRONT), up: round3(GAME_FILE_UP) },
       },
       pieces: this.items
         .filter((i) => i !== this.root)

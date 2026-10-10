@@ -9,6 +9,20 @@ import { MAX_PIECES, MAX_STROKES } from './limits';
 export const CREATURE_CONFIG = {
   limits: { maxPieces: MAX_PIECES, maxStrokes: MAX_STROKES },
 
+  /**
+   * Orientación de COMBATE (decisión del usuario): el frente de combate es por criatura, sobre el eje ±X
+   * del chizito raíz, con +X por defecto; "arriba" es +Y salvo que el snapshot diga otra cosa. Es independiente
+   * del frente fijo del constructor (`Construction.front`, +Z), que no se toca. Cambiar de lado = girar 180°.
+   */
+  orientation: {
+    defaultFront: [1, 0, 0] as readonly [number, number, number],
+    defaultUp: [0, 1, 0] as readonly [number, number, number],
+    /** Ejes de frente que se consideran válidos de combate (cualquiera de los dos sentidos). */
+    allowedFrontAxes: [[1, 0, 0]] as readonly (readonly [number, number, number])[],
+    /** Tolerancia angular (grados) para decir que un frente "está sobre" un eje permitido. */
+    axisTolDeg: 2,
+  },
+
   /** Cuándo un extremo libre de una vara cuenta como extremidad (tanda 4). */
   limb: {
     /** Largo libre mínimo: el mayor entre el absoluto y la fracción del largo de la vara. */
@@ -94,8 +108,14 @@ export const CREATURE_CONFIG = {
     discRimPoints: 12,
     /** Grosor mínimo de cualquier forma proyectada. */
     minShapeThickness: 0.0015,
-    /** Por debajo de este cociente (largo 2D / largo 3D) una vara está "en profundidad". */
+    /** Por debajo de este cociente (largo 2D / largo 3D) una vara está "casi de frente a la cámara" (hoja de perfiles). */
     foreshortenWarn: 0.35,
+    /**
+     * Una extremidad está "en profundidad" cuando su componente de profundidad domina sobre las del plano de
+     * perfil: |z| > hypot(x, y), es decir largo 2D / largo 3D < 0,7071. Se ve corta en reposo, pero ataca con su
+     * largo real al girar al plano.
+     */
+    inDepthMaxRatio: Math.SQRT1_2,
   },
 
   /** Densidades en kg/m³ por tipo de pieza (valores de juego, a calibrar). */
