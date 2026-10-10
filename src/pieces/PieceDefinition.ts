@@ -7,6 +7,12 @@ export type PieceParams = Record<string, unknown>;
  * Definición de un tipo de pieza, basada en datos. Agregar un snack nuevo = agregar una definición
  * (ver definitions.ts), sin tocar la lógica de interacción.
  */
+/** Profundidad máxima de una pieza concreta: la de su variante si la tiene, si no la del tipo. */
+export function maxDepthOf(def: PieceDefinition, params?: PieceParams): number {
+  const v = def.variants?.find((x) => x.id === params?.variant);
+  return v?.maxDepth ?? def.maxDepth;
+}
+
 export interface PieceDefinition {
   /** Identificador estable; también nombra el GLB opcional: public/assets/models/<type>.glb */
   type: string;
@@ -45,7 +51,7 @@ export interface PieceDefinition {
    * Variantes elegibles al agarrar la pieza (tecla V en la mano). Se guardan en `params.variant`;
    * la primera es la de fábrica. GLB opcional por variante: public/assets/models/<type>-<variant>.glb
    */
-  variants?: { id: string; label: string }[];
+  variants?: { id: string; label: string; /** Profundidad máxima propia de la variante (m). */ maxDepth?: number }[];
 
   /** Ayuda que se muestra al tener la pieza en la mano. */
   holdHint?: string;
@@ -62,7 +68,7 @@ export interface PieceDefinition {
   canPierce: boolean;
   /** Puede ser atravesada por otras piezas. */
   canBePierced: boolean;
-  /** Profundidad máxima de inserción (m). */
+  /** Profundidad máxima de inserción (m). Una variante puede tener la suya (ver `maxDepthOf`). */
   maxDepth: number;
 
   /** Ids de sonidos del AudioManager. */

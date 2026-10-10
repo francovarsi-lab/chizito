@@ -3,6 +3,7 @@ import { CONFIG } from '../config';
 import { attachModeOf, type AttachMode } from '../interaction/attach';
 import type { PieceData } from '../model/Construction';
 import type { PieceRegistry } from '../pieces/PieceRegistry';
+import { maxDepthOf } from '../pieces/PieceDefinition';
 
 /**
  * Archivo de una criatura (JSON versionado). Se guarda CÓMO está conectada cada pieza, no dónde
@@ -15,7 +16,7 @@ import type { PieceRegistry } from '../pieces/PieceRegistry';
  *     "creature": {
  *       "name": "…", "savedAt": "2026-10-09T…", "pieceCount": 12,
  *       "root":  { "type": "chizito", "seed": 3 },
- *       "front": { "direction": [0, 0, 1], "up": [0, 1, 0] }        ← en coordenadas del chizito raíz
+ *       "front": { "direction": [0, 0, 1], "up": [1, 0, 0] }        ← en coordenadas del chizito raíz
  *     },
  *     "pieces": [
  *       { "id": "palito-…", "type": "palito", "parentId": "root", "seed": 4711,
@@ -119,10 +120,10 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
   if (!isObj(cr) || !isObj(cr.root) || !num(cr.root.seed)) throw new CreatureFileError('a la criatura le falta el chizito raíz');
   const warnings: string[] = [];
 
-  // El frente es fijo y predeterminado (el costado +Z del chizito raíz, +Y arriba): se escribe en el
+  // El frente es fijo y predeterminado (el costado +Z del chizito raíz, su eje largo +X arriba): se escribe en el
   // archivo para que quede explícito, pero al cargar siempre vale el de fábrica.
   const front: Vec3 = [0, 0, 1];
-  const up: Vec3 = [0, 1, 0];
+  const up: Vec3 = [1, 0, 0];
 
   const list = Array.isArray(json.pieces) ? json.pieces : [];
   const accepted = new Map<string, PieceData>(); // id → pieza aceptada (para validar padres)
@@ -206,7 +207,7 @@ function toPieceData(raw: Record<string, unknown>, pieces: PieceRegistry, parent
     mount: mode === 'tail' ? 'tail' : undefined,
     entryPoint: [...at.entryPoint] as Vec3,
     direction: unit(at.direction),
-    depth: mode === 'pierce' ? Math.min(depth, def.maxDepth) : depth,
+    depth: mode === 'pierce' ? Math.min(depth, maxDepthOf(def, params)) : depth,
     spin: num(at.spin) ? at.spin : 0,
     localMatrix: [], // se reconstruye al cargar
   };

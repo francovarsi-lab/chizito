@@ -77,5 +77,12 @@ export const CONFIG = {
   bloom: { intensity: 0.16, threshold: 0.86, smoothing: 0.25, radius: 0.7 },
   pixelRatioMax: 1.5,
   /** Criaturas: tope de piezas clavadas (los trazos de ketchup no cuentan). */
-  creature: { maxPieces: 40 },
+  creature: {
+    maxPieces: 40,
+    /**
+     * Posición inicial ("de casa") del chizito raíz: PARADO (su eje largo, X local, hacia arriba) y con
+     * el frente (+Z local) mirando a la cámara. F vuelve a esta posición.
+     */
+    homeRotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 2)),
+  },
 };

@@ -4,7 +4,7 @@ import { CommandStack, cloneSnapshot, clonePieces, type Snapshot } from '../comm
 import { CONFIG } from '../config';
 import type { Input } from '../input/Input';
 import { newPieceId, type Construction, type PieceData, type PieceNode } from '../model/Construction';
-import type { PieceDefinition } from '../pieces/PieceDefinition';
+import { maxDepthOf, type PieceDefinition } from '../pieces/PieceDefinition';
 import type { PieceRegistry } from '../pieces/PieceRegistry';
 import { markHero } from '../render/ContactShadow';
 import { createSachetInHand } from '../assets/procedural/ketchup';
@@ -413,9 +413,10 @@ export class InteractionController {
       return;
     }
     // F: muestra dónde está el frente de la criatura (es fijo: siempre el mismo lado del chizito).
+    // F: el chizito vuelve suave a su posición inicial (parado y de frente) y se marca el frente.
     if (e.code === 'KeyF') {
-      this.showFront();
-      this.d.overlay.flash('este es el frente de la criatura', 1600);
+      this.d.rotator.goHome(() => this.showFront());
+      this.d.overlay.flash('de frente', 1200);
       return;
     }
     if (e.code === 'Escape') {
@@ -718,7 +719,7 @@ export class InteractionController {
 
   /** Profundidad máxima: la propia de la pieza o, ensartando, lo que queda del palito afuera. */
   private maxDepth(a: ActivePiece): number {
-    if (!a.mount) return a.def.maxDepth;
+    if (!a.mount) return maxDepthOf(a.def, a.params);
     const tailY = new THREE.Vector3().setFromMatrixPosition(tailFrame(a.mount.object)).y;
     return Math.max(0.004, tailY - a.mount.data.depth - 0.003);
   }
@@ -1108,7 +1109,7 @@ export class InteractionController {
     const before = this.snapshot();
     // Chizito nuevo de verdad: otra forma (otra semilla) y sin piezas. Se puede deshacer.
     const rootSeed = this.d.setRootSeed ? 1 + Math.floor(Math.random() * 1e5) : before.rootSeed;
-    this.restore({ pieces: [], front: [0, 0, 1], up: [0, 1, 0], rootSeed });
+    this.restore({ pieces: [], front: [0, 0, 1], up: [1, 0, 0], rootSeed });
     this.record('reiniciar', before);
     this.onReset?.();
     this.d.overlay.flash('chizito nuevo', 1200);

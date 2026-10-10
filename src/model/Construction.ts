@@ -52,10 +52,10 @@ export class Construction {
   /**
    * "Frente" explícito de la criatura y su "arriba", unitarios, en coordenadas locales del chizito
    * raíz (giran con él). Es FIJO y predeterminado: el costado +Z del chizito (el que mira a la cámara
-   * al empezar), con +Y arriba. No se cambia jugando; F sólo lo muestra.
+   * al empezar), con el eje largo +X arriba (la criatura está parada). No se cambia jugando; F sólo lo muestra.
    */
   readonly front = new THREE.Vector3(0, 0, 1);
-  readonly up = new THREE.Vector3(0, 1, 0);
+  readonly up = new THREE.Vector3(1, 0, 0); // el chizito se para sobre su eje largo
 
   constructor(rootType: string, rootSeed: number, rootObject: THREE.Object3D) {
     const data: PieceData = {

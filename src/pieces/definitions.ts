@@ -3,7 +3,14 @@ import { CHIZITO_REF_LENGTH, createPalito, PALITO_LENGTH, PALITO_RADIUS } from '
 import { createPapita, PAPITA_RADIUS, PAPITA_THICKNESS, type PapitaParams } from '../assets/procedural/papita';
 import { ACEITUNA_DIAMETER, ACEITUNA_LENGTH, createAceituna } from '../assets/procedural/aceituna';
 import { createNacho, NACHO_RADIUS, NACHO_THICKNESS } from '../assets/procedural/nacho';
-import { createEscarbadientes, ESCARBADIENTES_LENGTH, ESCARBADIENTES_RADIUS, type EscarbadientesParams } from '../assets/procedural/escarbadientes';
+import {
+  createEscarbadientes,
+  ESCARBADIENTES_LENGTH,
+  ESCARBADIENTES_RADIUS,
+  ESPADITA_BLADE,
+  ESPADITA_GUARD_R,
+  type EscarbadientesParams,
+} from '../assets/procedural/escarbadientes';
 import { createKetchupStroke, KETCHUP_RADIUS, type KetchupParams } from '../assets/procedural/ketchup';
 import type { PieceDefinition } from './PieceDefinition';
 
@@ -90,7 +97,8 @@ export const ESCARBADIENTES: PieceDefinition = {
   procedural: (seed, detail, params) => createEscarbadientes(seed, detail, params as EscarbadientesParams),
   variants: [
     { id: 'liso', label: 'escarbadientes' },
-    { id: 'espadita', label: 'espadita de cotillón' },
+    // La guarda en cruz es el tope: entra (y atraviesa) sólo la hoja.
+    { id: 'espadita', label: 'espadita de cotillón', maxDepth: ESPADITA_BLADE - ESPADITA_GUARD_R - 0.0001 },
   ],
   canPierce: true,
   canBePierced: false,
