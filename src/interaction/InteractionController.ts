@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { AssetRegistry } from '../assets/AssetRegistry';
 import { CommandStack, cloneSnapshot, clonePieces, type Snapshot } from '../commands/CommandStack';
 import { CONFIG } from '../config';
+import { MAX_STROKES } from '../creature/limits';
 import type { Input } from '../input/Input';
 import { BUILDER_FACE, DEFAULT_COMBAT_FRONT, DEFAULT_COMBAT_UP, newPieceId, type Construction, type PieceData, type PieceNode } from '../model/Construction';
 import { maxDepthOf, type PieceDefinition } from '../pieces/PieceDefinition';
@@ -140,6 +141,7 @@ export class InteractionController {
   /** Sobrecito de ketchup en la mano (modo DRAWING) y el trazo que se está dibujando. */
   private sachet: THREE.Object3D | null = null;
   private drawPress = false;
+  private strokeLimitWarned = false;
   /** Goma (Shift + mantener con el sobrecito): estado antes de borrar, para deshacer de una vez. */
   private eraseBefore: Snapshot | null = null;
   private erased = 0;
@@ -315,6 +317,7 @@ export class InteractionController {
     if (this.press && !input.buttons.left) this.stopPress();
     if (this.drawPress && !input.buttons.left) {
       this.drawPress = false;
+      this.strokeLimitWarned = false;
       this.endStroke();
       this.endErase();
     }
@@ -929,7 +932,20 @@ export class InteractionController {
   }
 
   /** Arranca un trazo sobre la pieza tocada: es un nodo hijo de ella (así se deshace y se guarda). */
+  /** Trazos de ketchup en la criatura (tope aparte de las piezas: `MAX_STROKES`). */
+  strokeCount(): number {
+    let n = 0;
+    for (const node of this.d.construction.nodes.values()) if (node.parent && this.isStroke(node)) n++;
+    return n;
+  }
+
   private beginStroke(hit: SurfaceHit): void {
+    // Tope de trazos (el 31 no arranca): se avisa una vez por pasada.
+    if (this.strokeCount() >= MAX_STROKES) {
+      if (!this.strokeLimitWarned) this.d.overlay.flash(`ya hay ${MAX_STROKES} trazos de ketchup (el máximo) · Shift + mantener borra`, 2600);
+      this.strokeLimitWarned = true;
+      return;
+    }
     const before = this.snapshot();
     const parent = hit.node;
     const seed = this.seedCounter++ * 7 + 100;

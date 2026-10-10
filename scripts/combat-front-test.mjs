@@ -11,13 +11,35 @@ const r = await page.evaluate(() => {
   const out = [];
   const base = JSON.parse(c.persistence.toJSON());
   out.push(`nueva: front ${JSON.stringify(base.creature.front)}`);
-  for (const [label, front] of [['−X', { direction: [-1, 0, 0], up: [0, 1, 0] }], ['+Z viejo', { direction: [0, 0, 1], up: [0, 1, 0] }], ['inválido +Y', { direction: [0, 1, 0] }], ['sin frente', undefined], ['−X casi', { direction: [-0.97, 0.1, 0.2] }]]) {
+  const cases = [
+    ['−Y (defecto)', { direction: [0, -1, 0], up: [1, 0, 0] }],
+    ['+Y con arriba −X', { direction: [0, 1, 0], up: [-1, 0, 0] }],
+    ['+X', { direction: [1, 0, 0], up: [0, 1, 0] }],
+    ['−X sin arriba', { direction: [-1, 0, 0] }],
+    ['−Y con arriba inválido (+Y)', { direction: [0, -1, 0], up: [0, 1, 0] }],
+    ['+Z viejo', { direction: [0, 0, 1], up: [0, 1, 0] }],
+    ['diagonal inválida', { direction: [0.6, 0.6, 0.5] }],
+    ['sin frente', undefined],
+    ['−X casi', { direction: [-0.97, 0.1, 0.2] }],
+  ];
+  for (const [label, front] of cases) {
     const f = structuredClone(base);
     if (front) f.creature.front = front; else delete f.creature.front;
     const warns = c.persistence.loadText(JSON.stringify(f));
-    const again = JSON.parse(c.persistence.toJSON()).creature.front.direction;
-    out.push(`${label} → cargado ${JSON.stringify(c.construction.front.toArray())} · se vuelve a guardar ${JSON.stringify(again)}${warns.length ? ' · aviso: ' + warns.join(' | ') : ''}`);
+    const again = JSON.parse(c.persistence.toJSON()).creature.front;
+    out.push(`${label} → frente ${JSON.stringify(c.construction.front.toArray())} arriba ${JSON.stringify(c.construction.up.toArray())} · se guarda ${JSON.stringify(again)}${warns.length ? ' · aviso: ' + warns.join(' | ') : ''}`);
   }
+  // Tope de trazos: un archivo con 35 trazos carga 30.
+  const k = structuredClone(base);
+  k.pieces = Array.from({ length: 35 }, (_, i) => ({ id: `k${i}`, type: 'ketchup', parentId: 'root', seed: i + 1,
+    attach: { mode: 'paint', entryPoint: [0, 0.01, 0], direction: [0, -1, 0], depth: 0, spin: 0 },
+    params: { points: [0, 0.0105, i * 0.0005, 0.002, 0.0105, i * 0.0005], normals: [0, 1, 0, 0, 1, 0] } }));
+  const kw = c.persistence.loadText(JSON.stringify(k));
+  out.push(`35 trazos → ${c.interaction.strokeCount()} cargados · aviso: ${kw.join(' | ')}`);
+  // En el juego, el trazo 31 no arranca.
+  const hit = c.picker.pickAnyPiece(0, 0);
+  if (hit) c.interaction['beginStroke'](hit);
+  out.push(`intentar el trazo 31 → ${c.interaction.strokeCount()} trazos · ${document.getElementById('help').textContent}`);
   // Deshacer/rehacer conserva el frente de cada criatura cargada.
   c.interaction.undo();
   out.push(`deshacer → ${JSON.stringify(c.construction.front.toArray())}`);

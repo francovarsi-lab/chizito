@@ -167,15 +167,19 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   Lado de cara del CONSTRUCTOR (`BUILDER_FACE`, fijo): el costado +Z del chizito raíz, el que mira a la cámara parado.
   F devuelve el chizito suave (0,7 s, leve rebote, `TrackballRotator.goHome`) a esa posición inicial y marca ese lado
   (aro + punto que late 2,6 s). El constructor y su cámara NO dependen del frente de combate.
-  FRENTE DE COMBATE (`Construction.front/up`): dato POR CRIATURA, ±X del chizito raíz (por defecto +X), "arriba" +Y.
-  Lo elige la "vista de combate" del intérprete (rama `claude/creature-interpreter`); el constructor no lo cambia:
-  lo conserva (también en deshacer), lo guarda en `creature.front` y el cargador lo RESPETA (`readCombatFront`:
-  ±X por el signo de X; el +Z viejo, la falta de dato o algo que no sea ±X valen +X, esto último con aviso).
+  FRENTE DE COMBATE (`Construction.front/up`): dato POR CRIATURA, ±X o ±Y del chizito raíz; por defecto frente −Y
+  con "arriba" +X (`DEFAULT_COMBAT_FRONT/UP`, pedido del intérprete). Lo elige la "vista de combate" del intérprete
+  (rama `claude/creature-interpreter`); el constructor no lo cambia: lo conserva (también en deshacer), lo guarda en
+  `creature.front` y el cargador lo RESPETA sin reescribirlo (`readCombatFront`: ±X y ±Y se aceptan tal cual, el
+  "arriba" del archivo si es un eje perpendicular, si no +X para ±Y y +Y para ±X; el +Z viejo o la falta de dato
+  valen el de fábrica; otra cosa, el de fábrica con aviso).
   Prueba: `node scripts/combat-front-test.mjs`. Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
   (se deshace con Ctrl+Z). Al abrir (o recargar) SIEMPRE arranca un chizito nuevo con forma al azar (`?seed=N` la fija;
   `?capture` usa la 3). La última criatura se autoguarda en el navegador y sólo vuelve con `?recuperar`.
   R R también da un chizito de otra forma.
-  Tope de 40 piezas por criatura (`CONFIG.creature.maxPieces`; el ketchup no cuenta): con 40 no deja agarrar más.
+  Topes (`src/creature/limits.ts`, archivo COMPARTIDO con el intérprete, idéntico en las dos ramas y sin imports):
+  `MAX_PIECES = 40` piezas clavadas (el ketchup no cuenta; con 40 no deja agarrar más) y `MAX_STROKES = 30` trazos
+  de ketchup (el 31 no arranca, con aviso; el cargador descarta los de más con aviso).
 
 ## Intro
 - Al abrir: plano general de la mesita de cumpleaños (`CameraRig.startIntro`, deriva lenta) con guirnaldas de
@@ -214,13 +218,22 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
 - `interaction/attach.ts`: modos de conexión ('pierce', 'tail', 'paint') y `poseFromData`: la pose de cada pieza se
   deriva de punto de clavado + dirección + profundidad + giro (la misma cuenta que `Aim.pose`). `tailFrame` también vive acá.
 
+## Contrato con el intérprete de combate (rama `claude/creature-interpreter`)
+- **AVISAR ANTES** de cambiar el formato `CreatureFileV1` (campos, semántica, versión) o la orientación inicial del
+  chizito en el constructor (`CONFIG.creature.homeRotation`, `BUILDER_FACE`): los fixtures y los tests de carga del
+  intérprete dependen de que se mantengan estables. Cambios de geometría de piezas (medidas, marco 'tip') también se
+  avisan, porque mueven las poses reconstruidas.
+- `PieceDefinition.structure` describe cada pieza para el intérprete (vara/bulto/placa, masa aprox. en gramos, masa
+  en la punta). Hoy: palito de la selva = vara blanda 2,3 g; chupetín = vara rígida 7,6 g con maza de 7,3 g en la
+  punta libre (bola).
+
 ## Archivo de criatura (Fase 4)
 - `{ format: "hombrecito-de-chizito/criatura", version: 1, units: "m", creature: { name, savedAt, pieceCount,
   root: { type, seed }, front: { direction, up } }, pieces: [ { id, type, parentId, seed, attach: { mode, entryPoint,
   direction, depth, spin }, params? } ] }`, piezas en orden padre → hijo. NO guarda matrices ni posiciones sueltas.
-- `creature.front` = frente de COMBATE (±X del chizito raíz, por defecto `[1,0,0]`, `up` `[0,1,0]`), parte del
-  `Snapshot` (deshacer) junto con la semilla de la raíz. Se respeta al cargar. Versión del formato: sigue en 1
-  (los archivos con el +Z anterior se leen como +X).
+- `creature.front` = frente de COMBATE (±X o ±Y del chizito raíz, por defecto `[0,-1,0]`, `up` `[1,0,0]`), parte
+  del `Snapshot` (deshacer) junto con la semilla de la raíz. Se respeta al cargar. Versión del formato: sigue en 1
+  (los archivos con el +Z anterior se leen como el de fábrica).
 - Al cargar: se valida todo (formato, versión, tipos, padres, conexión posible según canPierce/canBePierced/tailMount,
   profundidad ≤ maxDepth, tope de 40); lo inválido se descarta con aviso. Versiones nuevas: migraciones en `fromCreatureFile`.
 

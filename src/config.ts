@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MAX_PIECES } from './creature/limits';
 
 /** Parámetros de puesta en escena (metros). Centralizados para ajustar el look sin tocar la lógica. */
 export const CONFIG = {
@@ -78,7 +79,7 @@ export const CONFIG = {
   pixelRatioMax: 1.5,
   /** Criaturas: tope de piezas clavadas (los trazos de ketchup no cuentan). */
   creature: {
-    maxPieces: 40,
+    maxPieces: MAX_PIECES, // el tope compartido con el intérprete (src/creature/limits.ts)
     /**
      * Posición inicial ("de casa") del chizito raíz: PARADO (su eje largo, X local, hacia arriba) y con
      * el frente (+Z local) mirando a la cámara. F vuelve a esta posición.
