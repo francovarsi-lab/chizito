@@ -204,7 +204,8 @@ export interface CreatureAnalysis {
   /** Suman masa, NO son extremidades; el panel lo avisa. */
   decorative: DecorativePiece[];
   support: { feet: string[]; intervalX: [number, number] | null; margin: number; loadRatio: number };
-  locomotion: { mode: 'walk' | 'hop' | 'drag' | 'roll' | 'immobile'; speed: number; jump: number; turn: number };
+  /** brake: capacidad de frenar y detenerse (0..1); un erizo que rueda casi no frena. */
+  locomotion: { mode: 'walk' | 'hop' | 'drag' | 'roll' | 'immobile'; speed: number; jump: number; turn: number; brake: number };
   actions: AttackAction[];
   defense: { kind: 'guard' | 'curl'; limbId?: string; reduction: number };
   profile2D: Profile2D;

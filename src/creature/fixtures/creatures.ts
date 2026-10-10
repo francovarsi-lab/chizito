@@ -63,8 +63,9 @@ const makeD: Maker = (front, up) => {
       b.rod(b.root, s.point, fan, dd, { seed: seed++ });
     }
   });
+  // Las púas de las puntas también se abren (30° hacia arriba / hacia abajo): un erizo no tiene una púa de nariz aislada.
   for (const sign of [-1, 1] as const) {
-    const e = b.end(sign, 0, 0);
+    const e = b.end(sign, 30, sign === 1 ? 0 : 180);
     b.rod(b.root, e.point, e.n, dd, { seed: seed++ });
   }
   for (const [x, th] of [[-0.004, 45], [0.004, 225], [0, 315]] as const) {

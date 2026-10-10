@@ -9,3 +9,4 @@ export * from './math/mass';
 export * from './math/ray';
 export * from './validate';
 export * from './detect';
+export * from './analyze';

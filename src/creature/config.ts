@@ -41,51 +41,92 @@ export const CREATURE_CONFIG = {
     anchorFullRatio: 0.35,
   },
 
-  /** Capacidades (tanda 5). */
+  /** Capacidades de cada extremidad (tanda 5). */
   capabilities: {
-    /** Peso de la heurística "arriba = brazos, abajo = piernas" (sesgo, no regla). */
+    /** Peso de la heurística "arriba = brazos, abajo = piernas": un SESGO, no una regla (manda la geometría). */
     anthropoBias: 0.3,
-    /** Por debajo de este valor una extremidad queda "sin rol". */
+    /** Por debajo de este valor una capacidad no cuenta como rol. */
     minRole: 0.3,
-    /** Una punta cuenta como apoyada si está a menos de esta fracción de la altura del suelo. */
+    /** Una punta cuenta como apoyada si está a menos de esta fracción de la altura del punto más bajo. */
     groundTolRatio: 0.15,
-    /** Mínima componente hacia abajo para ser apoyo. */
+    /** Mínima componente hacia abajo (0..1) para poder ser apoyo. */
     supportMinDown: 0.45,
-    /** Zonas angulares de ataque en el perfil (grados). */
+    /** Golpe hacia el frente dentro de ± esta apertura (grados): factor pleno. */
     strikeFrontDeg: 40,
+    /** Hasta ± este ángulo (grados) el golpe es de arco (alto o bajo); más allá, hacia atrás. */
+    strikeArcDeg: 140,
     strikeArcFactor: 0.7,
     strikeBackFactor: 0.2,
-    /** Referencias de normalización. */
+    /** Una extremidad en profundidad puede girar al plano en cualquier sentido: factor de arco. */
+    inDepthStrikeFactor: 0.7,
+    /** Largo (m) desde el que una extremidad golpea con todo su alcance. */
+    strikeRefLen: 0.02,
+    /** Largo (m) de referencia para el alcance. */
     reachRef: 0.035,
-    areaRef: 0.0004,
+    /** Defensa: largo de referencia, escala y factor para las que están en profundidad. */
+    defendRefLen: 0.03,
+    defendScale: 0.8,
+    defendDepthFactor: 0.3,
+    /** Empuje = apoyo × (base + ganancia · distancia al centro de masa normalizada). */
+    pushBase: 0.4,
+    pushGain: 0.6,
+  },
+
+  /** Fuerza y resistencia de cada extremidad (tanda 5). */
+  strength: {
+    /** Radio y largo libre de referencia (un palito de fábrica clavado 9 mm): da fuerza 1. */
+    refRadius: 0.0017,
+    refFree: 0.0287,
+    material: 1,
+    /** Puntos de integridad de referencia de una vara de fábrica. */
+    baseHp: 100,
+    /** Parte de la integridad que aporta la unión (el resto es de la vara). */
+    jointShare: 0.5,
   },
 
   /** Movilidad por extremidad (tanda 5). */
   mobility: {
     /** Giro total posible desde el pivote antes de descontar (grados). */
     swingDeg: 120,
-    /** Separación angular (grados) a la que un vecino empieza a recortar el arco. */
-    neighbourDeg: 20,
-    /** Masa de referencia de una extremidad (kg): la mitad de rango a esta masa. */
+    /** Otra extremidad cuenta como "vecina" si su pivote está a menos de esta distancia (m) y apunta a menos de este ángulo. */
+    crowdRadius: 0.013,
+    crowdAngleDeg: 60,
+    /** Masa de referencia de una extremidad (kg): a esta masa el giro se reduce a la mitad. */
     limbMassRef: 0.0004,
+    /** Momento máximo (N·m) que aguanta una unión = k · r³ · calidad. Si lo supera, la extremidad "cuelga". */
+    anchorMomentK: 1.0e5,
+    /** Paso (grados) con el que se recorta el giro para que la punta no entre en el cuerpo. */
+    clipStepDeg: 5,
   },
 
   /** Apoyos y locomoción (tanda 5). */
   locomotion: {
     /** Separación mínima entre dos apoyos para caminar. */
     minFeetGap: 0.008,
-    /** Extremidades radiales mínimas para rodar y cobertura angular mínima (grados). */
+    /** Extremidades mínimas y cobertura angular mínima (grados) para rodar. */
     rollMinLimbs: 6,
     rollMinCoverageDeg: 270,
-    /** Pandeo simplificado: capacidad = bucklingK · r⁴ / libre². */
-    bucklingK: 3.0e6,
+    /** Pandeo simplificado: capacidad de un apoyo = bucklingK · r⁴ / largo². */
+    bucklingK: 6.0e6,
     /** Aceleración de juego usada para el peso. */
     gravity: 9.8,
-    /** Velocidades (m/s) y referencia de masa (kg). */
+    /** Velocidades (m/s) y masa de referencia (kg). */
     baseSpeed: 0.05,
     minSpeed: 0.008,
     maxSpeed: 0.09,
     massRef: 0.006,
+    /** Con más de esta cantidad de masaRef la criatura queda casi inmóvil, y a esa velocidad (m/s). */
+    immobileMassMult: 3,
+    immobileSpeed: 0.002,
+    /** Suma de empuje a la que el avance es pleno, y fracción de avance con empuje cero. */
+    pushSaturation: 2,
+    pushFloor: 0.5,
+    /** Altura de salto (m) de un saltarín liviano. */
+    jumpHeight: 0.012,
+    /** Cuánto se mueve, gira y frena según el modo (1 = lo normal). Rodar: rápido pero casi sin control ni freno. */
+    modeSpeed: { walk: 1, hop: 0.8, drag: 0.5, roll: 1.2, immobile: 0 } as Record<string, number>,
+    modeTurn: { walk: 1, hop: 0.7, drag: 0.4, roll: 0.2, immobile: 0.1 } as Record<string, number>,
+    modeBrake: { walk: 1, hop: 0.7, drag: 0.9, roll: 0.1, immobile: 1 } as Record<string, number>,
   },
 
   /** Acciones ofensivas (tanda 6). */

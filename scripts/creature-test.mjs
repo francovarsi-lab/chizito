@@ -391,6 +391,104 @@ try {
     ok(bad.length === 0, `detect/${f}.ts: ningún número suelto${bad.length ? ' (' + bad.join(', ') + ')' : ''}`);
   }
 
+
+  // ───────────── Tanda 5: masa, capacidades, apoyos y locomoción ─────────────
+  section('tanda 5: masa');
+  const { analyzeBody } = idx;
+  const body = Object.fromEntries(built.map((c) => [c.id, analyzeBody(c.snapshot).body]));
+  for (const c of built) {
+    const m = body[c.id].mass;
+    near(Object.values(m.byPiece).reduce((a, b) => a + b, 0), m.total, 1e-12, `${c.id}: la masa total es la suma de las piezas`);
+    ok(m.total > 0 && Object.values(m.byPiece).every((x) => x >= 0), `${c.id}: masas positivas`);
+    near(m.core, m.byPiece.root, 1e-15, `${c.id}: masa del núcleo`);
+  }
+  near(body.A.mass.comProfile[0], 0, 0.0015, 'A: simétrica, el centro de masa cae a menos de 1,5 mm del centro');
+  ok(body.D.mass.total > 2 * body.A.mass.total, 'D (erizo de 30 palitos) pesa más del doble que A');
+  ok(body.E.mass.total > body.E.mass.core + 0.003, 'E: lo decorativo y la maza suman masa');
+  near(body.E.mass.byPiece[stroke.id], 0, 0, 'E: el ketchup no pesa');
+  const decoMass = dE.decorative.reduce((a, d) => a + d.mass, 0);
+  ok(decoMass > 0 && body.E.mass.total >= body.E.mass.core + decoMass, 'E: la masa decorativa está dentro del total');
+
+  section('tanda 5: criaturas (criterios de aceptación)');
+  const bA = body.A;
+  ok(bA.locomotion.mode === 'walk', 'A camina');
+  ok(bA.support.feet.length === 2 && bA.support.margin > 0 && bA.support.loadRatio < 1, 'A: 2 apoyos, centro de masa entre ellos, aguantan su peso');
+  const legsLimbs = bA.limbs.filter((l) => bA.support.feet.includes(l.id));
+  ok(legsLimbs.length === 2 && legsLimbs.every((l) => l.dominant === 'support' && l.profile.angleDeg < -60), 'A: las dos piernas apoyan');
+  const armsLimbs = bA.limbs.filter((l) => !bA.support.feet.includes(l.id));
+  ok(armsLimbs.length === 2 && armsLimbs.some((l) => l.dominant === 'strike' && l.caps.strike >= 0.6), 'A: el brazo de adelante golpea');
+  ok(armsLimbs.every((l) => l.caps.support === 0), 'A: los brazos no apoyan');
+  ok(body.B.locomotion.mode === 'drag' && body.B.support.feet.length === 0, 'B se arrastra (ningún brazo apoya)');
+  ok(body.B.limbs.every((l) => l.caps.support === 0) && body.B.limbs.filter((l) => l.caps.strike >= 0.3).length >= 2, 'B: 4 brazos, varios con capacidad de golpe');
+  ok(body.C.locomotion.mode === 'drag' && body.C.limbs.length === 1, 'C se arrastra con su único brazo');
+  const cl = body.C.limbs[0];
+  ok(cl.profile.inDepth && cl.profile.foreshortening < Math.SQRT1_2 && cl.profile.length2D < cl.length, 'C: su brazo sale marcado "en profundidad" (se ve corto en reposo)');
+  ok(cl.caps.strike >= 0.3 && cl.dominant === 'strike', 'C: aun en profundidad, ataca (con su largo real al girar al plano)');
+  ok(body.C.warnings.some((w) => w.includes('en profundidad') && w.includes('se ve corta en reposo') && w.includes('largo real al girar al plano')), 'C: el aviso del panel dice lo acordado');
+  const bD = body.D;
+  const cov = idx.angularCoverageDeg(bD.limbs, idx.CREATURE_CONFIG.profile.minShapeThickness);
+  ok(bD.locomotion.mode === 'roll', 'D RUEDA');
+  ok(bD.limbs.length >= idx.CREATURE_CONFIG.locomotion.rollMinLimbs && cov >= idx.CREATURE_CONFIG.locomotion.rollMinCoverageDeg, `D: muchas extremidades en todas direcciones (${bD.limbs.length}, cobertura ${cov.toFixed(0)}°)`);
+  ok(bD.limbs.every((l) => l.caps.strike < idx.CREATURE_CONFIG.capabilities.minRole), 'D casi no golpea: ninguna extremidad llega al mínimo de golpe');
+  ok(bD.locomotion.brake <= 0.2 && bD.locomotion.turn <= 0.25, 'D casi no frena ni gira');
+  const swingMean = bD.limbs.reduce((a, l) => a + (l.mobility.maxDeg - l.mobility.minDeg), 0) / bD.limbs.length;
+  ok(swingMean < 0.25 * idx.CREATURE_CONFIG.mobility.swingDeg, `D: sus púas casi no se mueven (giro medio ${swingMean.toFixed(0)}°)`);
+  ok(bD.warnings.some((w) => w.includes('rueda') && w.includes('casi no golpea')), 'D: el aviso lo dice');
+  ok(body.veg.locomotion.mode === 'walk' && body.veg.support.feet.length === 2, 'el vegetal camina (2 apoyos)');
+  ok(body.veg.limbs.length === 4 && body.veg.decorative.length === 0, 'vegetal: 4 extremidades, nada decorativo');
+  ok(body.E.locomotion.mode === 'drag', 'E se arrastra (nada que apoye hacia abajo)');
+  const mz = body.E.limbs.find((l) => l.tag === 'maza');
+  ok(mz.mobility.droops && mz.mobility.maxDeg <= mz.mobility.restDeg + 1e-9, 'E: la maza cuelga, solo puede bajar');
+  ok(mz.mobility.maxDeg - mz.mobility.minDeg < 0.25 * idx.CREATURE_CONFIG.mobility.swingDeg, 'E: la maza casi no se mueve (pesa mucho)');
+  ok(body.E.limbs.filter((l) => l.pairedWith).every((l) => l.profile.inDepth), 'E: las dos mitades de la vara pasante están en profundidad (apuntan a ±Z)');
+  ok(body.E.warnings.some((w) => w.includes('MVP 0') && w.includes('extremidad propia')), 'E: avisa que el palito del chizito ensartado no cuenta como extremidad propia (deuda del MVP 1)');
+  ok(body.E.warnings.some((w) => w.includes('decorativa')), 'E: avisa de las piezas decorativas');
+
+  section('tanda 5: invariantes');
+  const allFin = (x) => (typeof x === 'number' ? Number.isFinite(x) : Array.isArray(x) ? x.every(allFin) : x && typeof x === 'object' ? Object.values(x).every(allFin) : true);
+  ok(Object.values(body).every(allFin), 'ningún NaN ni infinito en ninguna criatura');
+  const lc = idx.CREATURE_CONFIG.locomotion;
+  ok(Object.values(body).every((b) => b.locomotion.mode === 'immobile' || (b.locomotion.speed >= lc.minSpeed - 1e-12 && b.locomotion.speed <= lc.maxSpeed + 1e-12)), 'velocidades dentro de [mínima, máxima]');
+  ok(Object.values(body).every((b) => b.limbs.every((l) => Object.values(l.caps).every((v) => v >= 0 && v <= 1))), 'capacidades entre 0 y 1');
+  ok(Object.values(body).every((b) => b.limbs.every((l) => l.mobility.minDeg <= l.mobility.restDeg + 1e-9 && l.mobility.restDeg <= l.mobility.maxDeg + 1e-9)), 'el reposo está dentro del rango de giro');
+  ok(Object.values(body).every((b) => b.limbs.every((l) => l.strength >= 0 && l.strength <= 1 && l.durability > 0)), 'fuerza entre 0 y 1, resistencia positiva');
+  ok(JSON.stringify(analyzeBody(built[4].snapshot).body) === JSON.stringify(body.E), 'el análisis es determinista');
+  ok(Object.values(body).every((b) => b.limbs.every((l) => l.mass > 0)), 'toda extremidad pesa');
+
+  section('tanda 5: el frente cambia el resultado como corresponde');
+  const mirrored = Object.fromEntries(flipped.map((c) => [c.id, analyzeBody(c.snapshot).body]));
+  for (const id of ['A', 'B', 'veg']) {
+    ok(mirrored[id].locomotion.mode === body[id].locomotion.mode && mirrored[id].limbs.length === body[id].limbs.length, `${id}: con frente −X camina/arrastra igual y con las mismas extremidades`);
+  }
+  const strikes = (b) => b.limbs.map((l) => l.caps.strike).sort((a, c) => a - c);
+  ok(['A', 'B', 'veg'].every((id) => strikes(mirrored[id]).every((v, i) => Math.abs(v - strikes(body[id])[i]) < 0.08)), 'A, B y vegetal son casi simétricas (cada palito tiene su propio largo): el giro de 180° da las mismas capacidades (±0,08)');
+  ok(mirrored.A.limbs.find((l) => l.caps.strike >= 0.6).profile.tip[0] > 0 && mirrored.A.limbs.find((l) => l.caps.strike >= 0.6).pivot[0] < 0, 'A con frente −X: golpea con el brazo del otro extremo (el que ahora mira adelante)');
+  const zA = analyzeBody(zfront[0].snapshot).body;
+  ok(zA.limbs.filter((l) => l.profile.inDepth).length === 2, 'A con frente +Z (descartado): sus dos brazos quedan en profundidad');
+  ok(body.A.limbs.filter((l) => l.profile.inDepth).length === 0, 'A con frente +X: ninguna en profundidad');
+
+  section('tanda 5: casos sintéticos de locomoción');
+  const heavy = { ...idx.CREATURE_CONFIG, locomotion: { ...idx.CREATURE_CONFIG.locomotion, massRef: 0.0005 } };
+  const hv = analyzeBody(A.snapshot, heavy).body;
+  ok(hv.locomotion.mode === 'immobile' && hv.locomotion.speed <= lc.immobileSpeed + 1e-12, 'con masa de referencia chica, A queda casi inmóvil');
+  const legId = bA.support.feet[0].split(':')[1];
+  const oneLeg = { ...A.snapshot, pieces: A.snapshot.pieces.filter((p) => p.id !== legId), links: A.snapshot.links.filter((l) => l.childId !== legId) };
+  const hop = analyzeBody(oneLeg).body;
+  ok(hop.locomotion.mode === 'hop' && hop.support.feet.length === 1 && hop.locomotion.jump > 0, 'A con una sola pierna salta');
+  ok(hop.support.margin < 0, 'con un solo apoyo el centro de masa queda fuera del intervalo');
+  const stubbyCfg = { ...idx.CREATURE_CONFIG, limb: { ...idx.CREATURE_CONFIG.limb, minFreeAbs: 0.05 } };
+  ok(analyzeBody(A.snapshot, stubbyCfg).body.limbs.length === 0, 'subir minFreeAbs en config.ts (a 5 cm) deja a A sin extremidades: el umbral vive ahí');
+  const noLimbs = analyzeBody({ ...A.snapshot, pieces: [A.snapshot.pieces[0]], links: [] }).body;
+  ok(noLimbs.limbs.length === 0 && noLimbs.locomotion.mode === 'drag' && noLimbs.locomotion.speed >= lc.minSpeed, 'sin extremidades: el cuerpo se arrastra (mínimo garantizado)');
+  ok(noLimbs.warnings.some((w) => w.includes('arrastra')), 'y avisa');
+
+  section('tanda 5: los umbrales están solo en config.ts');
+  for (const f of ['context', 'mass', 'limbs', 'support', 'locomotion', 'warnings', 'index']) {
+    const text = strip(fs.readFileSync(`src/creature/analyze/${f}.ts`, 'utf8'));
+    const bad = (text.match(/\b\d+\.\d+\b|\b\d{3,}\b/g) ?? []).filter((n) => n !== '180');
+    ok(bad.length === 0, `analyze/${f}.ts: ningún número suelto${bad.length ? ' (' + bad.join(', ') + ')' : ''}`);
+  }
+
   // @@TESTS@@
 } finally {
   await server.close();
