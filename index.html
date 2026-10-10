@@ -81,8 +81,9 @@
       #title[data-style="globo"] .logo span {
         background: radial-gradient(circle at 35% 28%, #fff 0 8%, var(--c) 34%, color-mix(in srgb, var(--c) 70%, #5a2440) 100%);
         -webkit-background-clip: text; background-clip: text; color: transparent;
-        -webkit-text-stroke: 0.035em rgba(255, 255, 255, 0.9);
-        filter: drop-shadow(0 0.06em 0.05em rgba(120, 40, 70, 0.35));
+        /* Contorno blanco con sombras (el text-stroke marcaba los solapes internos de Baloo como rayas). */
+        filter: drop-shadow(0.025em 0 0 #fff) drop-shadow(-0.025em 0 0 #fff) drop-shadow(0 0.025em 0 #fff)
+          drop-shadow(0 -0.025em 0 #fff) drop-shadow(0 0.07em 0.05em rgba(120, 40, 70, 0.35));
       }
       /* neon: tubos de neón pastel que titilan apenas. */
       #title[data-style="neon"] .logo { font-family: "Bungee", sans-serif; }
