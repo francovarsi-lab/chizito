@@ -661,6 +661,19 @@ try {
     ok(bad.length === 0, `${f}.ts: ningún número suelto${bad.length ? ' (' + bad.join(', ') + ')' : ''}`);
   }
 
+
+  // ───────────── Tanda 7: aislamiento del resolver ─────────────
+  section('tanda 7: solo resolve/ conoce three.js y el juego');
+  const walkTs = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkTs(`${dir}/${e.name}`) : e.name.endsWith('.ts') ? [`${dir}/${e.name}`] : []));
+  const outside = walkTs('src/creature').filter((f) => !f.includes('/resolve/') && !f.includes('/fixtures/'));
+  const leaks = outside.filter((f) => /from ['"]three['"]|from ['"]\.\.\/\.\.\/|from ['"]three\//.test(fs.readFileSync(f, 'utf8')));
+  ok(outside.length > 20 && leaks.length === 0, `el intérprete (${outside.length} archivos) no importa three.js ni nada del juego${leaks.length ? ': ' + leaks.join(', ') : ''}`);
+  const resolveFiles = walkTs('src/creature/resolve');
+  ok(resolveFiles.length >= 4 && resolveFiles.every((f) => !/from ['"]\.\.\/\.\.\/(render|ui|audio|fx|input)\//.test(fs.readFileSync(f, 'utf8'))), 'resolve/ solo lee modelo, piezas y attach del juego (nada de render, ui, audio, fx ni input)');
+  const idxRes = fs.readFileSync('src/creature/index.ts', 'utf8');
+  ok(!/resolve/.test(idxRes), 'index.ts del intérprete no reexporta el resolver (se importa aparte)');
+  ok(fs.existsSync('scripts/creature-resolve-test.mjs'), 'la prueba del resolver en el juego real existe (scripts/creature-resolve-test.mjs)');
+
   // @@TESTS@@
 } finally {
   await server.close();

@@ -417,6 +417,18 @@ Regla de oro: **nada de GPL** al repo.
 
 ---
 
+### 7b. Hallazgos de la tanda 7 (resolver, medido en el juego real)
+
+- El resolver (`src/creature/resolve/`, el único código del intérprete que usa three.js) mide las mallas reales y calcula con rayos la cuerda,
+  la salida y las demás piezas que cruza cada vara. Lo que depende de la **pose** coincide con la referencia analítica al milímetro y a 2°
+  (máximo medido: 0,9 mm y 0,14°). Lo que depende de la **superficie** no: el chizito real es grumoso y apenas curvo, y la referencia usaba
+  una cápsula ideal (cuerda hasta ±3 mm, normales hasta ±22°). Ahí manda el resolver.
+- Consecuencia de diseño: una vara pasante con palitos de 3,5 cm sobre un chizito de ~2 cm deja ~1 cm libre por lado, justo en el umbral de
+  extremidad (10 mm). Es una propiedad real de las piezas, no un defecto del resolver: solo da dos extremidades si entra centrada, poco
+  rasante y con el palito más largo de su familia. La criatura E se rearmó así, midiendo contra la malla real.
+- Los dos tipos nuevos del chat 3D (`palito-selva`, `chupetin`) todavía no tienen perfil en `profiles.ts`: se resuelven como bulto de tipo
+  desconocido (decorativo, inestable) hasta que se les dé uno.
+
 ## 8. ORDEN EXACTO DE IMPLEMENTACIÓN (aprobado; v2)
 
 Rama: `claude/creature-interpreter`, creada desde la rama 3D. Un commit + push por tanda. Tandas 0–3 aprobadas; se frena tras la 3.
@@ -430,6 +442,6 @@ Rama: `claude/creature-interpreter`, creada desde la rama 3D. Un commit + push p
 | 4 | Detección | `detect/*` | A: 4 extremidades, B: 4, C: 1, D: muchas con tope, E: decorativas con razón. |
 | 5 | Masa, capacidades, locomoción | `analyze/*` | A camina, B salta o se arrastra, C se arrastra, **D rueda, casi sin acciones de golpe ni frenado (criterio de aceptación)**, vegetal camina. |
 | 6 | Acciones, perfil 2D, fachada | `analyze/actions`, `project/*`, `interpret.ts`, `describe.ts` | Acciones sin duplicados; 40 piezas en < 5 ms. |
-| 7 | Resolver (three.js) | `resolve/*` | Archivo cargado en la app = snapshot de referencia (1 mm, 2°). |
+| 7 | Resolver (three.js) | `resolve/*`, `scripts/creature-resolve-test.mjs` | Archivo cargado en la app = snapshot de referencia: pose a 1 mm / 2°; superficie (cuerda, normales) a la rugosidad del chizito; mismas extremidades, modo y acciones. **Hecha.** |
 | 8 | Panel y selector | `ui/*` | Panel, resaltado, selector A–E, perfil 2D; avisa que los palitos en un chizito montado no cuentan como extremidades. |
 | 9 | Instalación y cierre | `install.ts`, `docs/CREATURE_CONTRACT.md`, bloque en `main.ts`, sección en `CLAUDE.md` | Flag apagado = app idéntica; build limpio. |

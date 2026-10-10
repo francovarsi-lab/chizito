@@ -165,6 +165,12 @@ export const CREATURE_CONFIG = {
     curlReduction: 0.25,
   },
 
+  /** Resolver (tanda 7): rayos contra las mallas reales. */
+  resolve: {
+    /** Largo (m) de los rayos de cuerda: más que cualquier pieza. */
+    rayMaxLen: 0.15,
+  },
+
   /** Perfil 2D (tanda 2 y 6). */
   profile: {
     /** Puntos del borde de un disco (papita, nacho) para su casco convexo. */

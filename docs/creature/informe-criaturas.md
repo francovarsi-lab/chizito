@@ -8,7 +8,7 @@ Generado por `node scripts/creature-report.mjs` (tanda 6: incluye acciones y def
 | B · cuerpo + 4 brazos | 4 | 4 | 0 | 3.94 | drag | 15.1 | 0.9 | 0 | 0 |
 | C · cuerpo + 1 brazo | 1 | 1 | 0 | 3.42 | drag | 15.9 | 0.9 | 0 | 1 |
 | D · erizo | 30 | 30 | 0 | 8.56 | roll | 24.7 | 0.1 | 6 | 12 |
-| E · asimétrica / extraña | 8 | 3 | 6 | 7.74 | drag | 10.9 | 0.9 | 0 | 2 |
+| E · asimétrica / extraña | 8 | 3 | 6 | 7.75 | drag | 10.9 | 0.9 | 0 | 2 |
 | Rival vegetal (proxy) | 4 | 4 | 0 | 4.57 | walk | 21.3 | 1 | 2 | 0 |
 
 **Criterios de aceptación**
@@ -116,12 +116,12 @@ Avisos del panel:
 
 ## E · asimétrica / extraña
 
-8 piezas · 3 extremidades · 6 decorativas · masa 7.74 g · **drag**
+8 piezas · 3 extremidades · 6 decorativas · masa 7.75 g · **drag**
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
-| E1 (tail, par) | 13.5 | 0.45 | reach | 0.21 | 0.00 | 0.14 | sí | 158 a 202 | no | lanza |
-| E1 (tip, par) | 11.0 | 0.45 | reach | 0.17 | 0.00 | 0.14 | sí | -23 a 23 | no | lanza |
+| E1 (tail, par) | 12.7 | 0.59 | reach | 0.26 | 0.00 | 0.18 | sí | 152 a 208 | no | lanza |
+| E1 (tip, par) | 12.1 | 0.59 | reach | 0.25 | 0.00 | 0.18 | sí | -29 a 29 | no | lanza |
 | E6 | 60.0 | 0.74 | strike | 0.80 | 0.00 | 0.57 | no | 10 a 15 | sí | maza |
 
 Locomoción: velocidad 10.9 mm/s · giro 0.4 · freno 0.9 · salto 0.0 mm · apoyos 0 · margen 0.0 mm · carga/capacidad 0.00

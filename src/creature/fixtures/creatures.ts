@@ -79,17 +79,19 @@ const makeD: Maker = (front, up) => {
 };
 
 /**
- * E) asimétrica y rara: vara pasante, papita con vara, palito flojo, palito casi enterrado, un arma (maza = chizito
+ * E) asimétrica y rara: vara pasante (justa), papita con vara, palito flojo, palito casi enterrado, un arma (maza = chizito
  * ensartado en la cola de un palito, con otro palito clavado en él) del lado derecho de la pantalla, y ketchup.
  */
 const makeE: Maker = (front, up) => {
   const b = new CreatureBuilder('E', 'E · asimétrica / extraña', 3, front, up);
   const R = b.coreR;
-  // 1) Vara pasante rasante: entra por el frente (+Z) y sale por atrás con punta libre.
-  const y0 = 0.86 * R;
+  // 1) Vara pasante: entra por el frente (+Z) en el medio del chizito y sale por atrás. Un palito de 3,5 cm cruza el chizito
+  //    (cuerda de ~1,3 cm) y quedan ~1,2 cm por lado: apenas arriba del umbral de 1 cm. Valores elegidos MIDIENDO contra la
+  //    malla real (barrido en el juego): palito más largo de su familia (semilla 588, 3,8 cm), entrada al 80 % del radio y
+  //    clavado de 25 mm dan dos extremidades con ~3 mm de margen por lado, con la forma ideal y con la malla grumosa.
+  const y0 = 0.8 * R;
   const z0 = Math.sqrt(R * R - y0 * y0);
-  const chord = 2 * z0;
-  b.rod(b.root, [-0.008, y0, z0], [0, 0, 1], chord + 0.011, { seed: 501 });
+  b.rod(b.root, [0, y0, z0], [0, 0, 1], 0.025, { seed: 588 });
   // 2) Papita clavada en el costado izquierdo con un palito que la atraviesa (ancla débil: solo agarra la papita).
   const top = b.side(0.012, 20);
   const pap = b.plate(b.root, top.point, top.n, 0.006, { seed: 502, spin: 0.6 });
