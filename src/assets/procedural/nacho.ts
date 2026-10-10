@@ -25,6 +25,8 @@ const NACHO_STYLE: ChipStyle = {
   colors: { base: '#eac46c', light: '#f5dc9a', toast: '#c58a3a' },
   edgeToast: 0.35,
   spots: 0.6,
+  // Una punta hacia −X (en el plano XZ del generador).
+  rotation: Math.PI / 3,
 };
 
 let sharedMaterial: THREE.MeshPhysicalMaterial | null = null;
@@ -39,8 +41,16 @@ function nachoMaterial(): THREE.MeshPhysicalMaterial {
   return sharedMaterial;
 }
 
+/**
+ * Ya en el marco 'tip' (la definición usa `keepOrientation`): la PUNTA del triángulo abajo (−Y, por
+ * donde se clava), el lado opuesto arriba, la cara del chip hacia ±X.
+ */
 export function createNacho(seed: number, detail: 'hero' | 'prop' = 'hero', params: PapitaParams = {}): THREE.Mesh {
-  const mesh = new THREE.Mesh(buildChipGeometry(seed + 9001, detail, params, NACHO_STYLE), nachoMaterial());
+  const geo = buildChipGeometry(seed + 9001, detail, params, NACHO_STYLE);
+  geo.rotateZ(Math.PI / 2); // punta −X → −Y; el espesor (Y) queda en X
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geo, nachoMaterial());
   mesh.name = 'nacho';
   mesh.castShadow = true;
   mesh.receiveShadow = true;

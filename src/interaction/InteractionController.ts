@@ -125,6 +125,8 @@ export class InteractionController {
   onReset: (() => void) | null = null;
 
   readonly commands: CommandStack;
+  /** false durante la intro: el juego no responde al mouse ni al teclado. */
+  enabled = true;
   private active: ActivePiece | null = null;
   private rotating = false;
   private press: 'push' | 'pull' | null = null;
@@ -211,6 +213,7 @@ export class InteractionController {
   // ───────────────────────────── entrada ─────────────────────────────
 
   private onDown(button: number): void {
+    if (!this.enabled) return;
     const { input, picker, overlay } = this.d;
     overlay.dismissHint();
     if (button === 2 || (button === 0 && input.keys.has('Space'))) {
@@ -333,6 +336,7 @@ export class InteractionController {
    * apuntar y con una pieza clavada o seleccionada. Cada giro se anima suave hacia el objetivo.
    */
   private onWheel(dy: number): void {
+    if (!this.enabled) return;
     const a = this.active;
     const s = this.state;
     const ok = s === InteractionState.AIMING || s === InteractionState.PLACED || s === InteractionState.SELECTED_PLACED_PIECE;
@@ -385,6 +389,7 @@ export class InteractionController {
   }
 
   private onKey(e: KeyboardEvent): void {
+    if (!this.enabled) return;
     const { overlay } = this.d;
     const ctrl = e.ctrlKey || e.metaKey;
     if (ctrl && e.code === 'KeyZ') {
@@ -407,9 +412,10 @@ export class InteractionController {
       this.requestReset();
       return;
     }
-    // F: el lado de la criatura que mira a la cámara pasa a ser su frente.
+    // F: muestra dónde está el frente de la criatura (es fijo: siempre el mismo lado del chizito).
     if (e.code === 'KeyF') {
-      this.setFrontFromCamera();
+      this.showFront();
+      this.d.overlay.flash('este es el frente de la criatura', 1600);
       return;
     }
     if (e.code === 'Escape') {
@@ -995,26 +1001,6 @@ export class InteractionController {
   }
 
   // ───────────────────────────── frente de la criatura ─────────────────────────────
-
-  /** F: el lado del chizito raíz que mira a la cámara pasa a ser el frente (con su "arriba"). */
-  private setFrontFromCamera(): void {
-    const c = this.d.construction;
-    const pivot = c.root.object;
-    pivot.updateMatrixWorld(true);
-    const inv = pivot.getWorldQuaternion(new THREE.Quaternion()).invert();
-    const center = pivot.getWorldPosition(new THREE.Vector3());
-    const front = this.d.camera.position.clone().sub(center).normalize().applyQuaternion(inv);
-    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(inv);
-    up.addScaledVector(front, -up.dot(front));
-    if (up.lengthSq() < 1e-6) up.set(0, 0, 1).applyQuaternion(this.d.camera.quaternion).applyQuaternion(inv);
-    up.normalize();
-    const before = this.snapshot();
-    c.front.copy(front);
-    c.up.copy(up);
-    this.record('frente', before);
-    this.showFront();
-    this.d.overlay.flash('este lado es el frente de la criatura', 1600);
-  }
 
   /** Muestra la marca del frente un rato, apoyada sobre la superficie del chizito raíz. */
   showFront(): void {

@@ -51,7 +51,8 @@ export class Construction {
   root: PieceNode;
   /**
    * "Frente" explícito de la criatura y su "arriba", unitarios, en coordenadas locales del chizito
-   * raíz (giran con él). Por defecto el lado +Z, que al empezar mira a la cámara.
+   * raíz (giran con él). Es FIJO y predeterminado: el costado +Z del chizito (el que mira a la cámara
+   * al empezar), con +Y arriba. No se cambia jugando; F sólo lo muestra.
    */
   readonly front = new THREE.Vector3(0, 0, 1);
   readonly up = new THREE.Vector3(0, 1, 0);

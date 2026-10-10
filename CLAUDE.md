@@ -80,7 +80,9 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   medida y al marco de la definición); si no, el procedural. Los archivos opcionales se detectan por su firma
   (`glTF`, `#?`), porque Vite devuelve index.html con 200 para rutas inexistentes.
 - Marcos locales: `centered` (chizito raíz: centrado, eje largo en X); `tip` (piezas que se clavan: punta/borde en
-  el origen, cuerpo hacia +Y; la inserción avanza en −Y local).
+  el origen, cuerpo hacia +Y; la inserción avanza en −Y local). En 'tip' el origen es el punto REAL más bajo
+  (promedio de los vértices a < 0,4 mm del mínimo), no el centro de la caja: con el centro de la caja el nacho se
+  "clavaba" por un punto vacío y quedaba flotando, como si tuviera un disco transparente.
 - Ojo con el winding: las caras de `buildTube` deben quedar CCW vistas desde afuera (un error ahí hace que se
   renderice el interior y el chizito se vea oscuro con patrón de sombra).
 - Variantes (`PieceDefinition.variants`, p. ej. escarbadientes liso / espadita): se guardan en
@@ -115,7 +117,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   arrancan al azar en cada sesión: no hay dos papitas iguales ni entre partidas. Una papita colocada puede ser
   atravesada: el palito que entra en ella queda como hijo de la papita en el árbol.
 - Nacho: igual que la papita (de canto, máx. 6 mm, Q/E, B lo parte; mismo generador `buildChipGeometry` con otro
-  `ChipStyle`): TRIÁNGULO de lados rectos con puntas apenas redondeadas (smin con tope 0,96).
+  `ChipStyle`): TRIÁNGULO de lados rectos con puntas apenas redondeadas (smin con tope 0,96). Se clava POR UNA PUNTA,
+  derecho (`keepOrientation`: el procedural ya viene con la punta en −Y; contorno con giro fijo).
   Aceituna: NO se clava en el chizito; se ensarta en la punta libre de un palito o escarbadientes (`mountsOnTail`,
   mismo flujo que el chizito extra: clic en el palito → se presenta → clic en la aceituna = por dónde entra →
   ángulo → mantener). Se puede atravesar. Escarbadientes: como el palito (80 % del
@@ -141,12 +144,23 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),
   Supr/Backspace = quitar, Esc = soltar.
 - Ctrl+Z / Ctrl+Shift+Z (o Ctrl+Y): deshacer / rehacer. R dos veces (en 2,5 s) reinicia; también se deshace.
-  H oculta ayudas. F: el lado de la criatura que mira a la cámara pasa a ser su FRENTE (marca de aro + punto que
-  late 2,6 s; se puede deshacer). Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
+  H oculta ayudas. FRENTE fijo y predeterminado: el costado +Z del chizito raíz (+Y arriba), el que mira a la cámara
+  al empezar; F sólo lo MUESTRA (aro + punto que late 2,6 s), no lo cambia. Al cargar un archivo vale siempre el fijo. Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
   (se deshace con Ctrl+Z). Al abrir (o recargar) SIEMPRE arranca un chizito nuevo con forma al azar (`?seed=N` la fija;
   `?capture` usa la 3). La última criatura se autoguarda en el navegador y sólo vuelve con `?recuperar`.
   R R también da un chizito de otra forma.
   Tope de 40 piezas por criatura (`CONFIG.creature.maxPieces`; el ketchup no cuenta): con 40 no deja agarrar más.
+
+## Intro
+- Al abrir: plano general de la mesita de cumpleaños (`CameraRig.startIntro`, deriva lenta) con guirnaldas de
+  banderines, globos atados a la mesa, torta con velitas y serpentinas (`render/Party.ts`, animado; dentro de
+  `farProps`) y el título "Cumpleañitos" (`ui/Title.ts` + CSS `#title` en index.html) con confeti y "tocá para
+  empezar". Clic o tecla → el título salta y se va, la cámara viaja en curva (3,2 s, ease in-out) hasta la pose de
+  juego, recién ahí se habilita el juego (`interaction.enabled`), el chizito salta y se muestra el frente.
+- Estética del título en exploración (el usuario está en proceso creativo: "arcade pero no 8 bits"): tres estilos
+  comparables con `?titulo=arcade` (Bungee, caramelo con borde blanco y relieve; por defecto) | `globo` (Baloo 2
+  inflado y brillante) | `neon` (neón pastel). `?sinintro` la saltea; en `?capture` sólo con `&intro`
+  (`__chizito.startGame()` la dispara). Capturas: `node scripts/intro-shots.mjs <dir>`.
 
 ## Feedback (fase 3)
 - Al primer contacto: micro-sacudida del chizito (resorte amortiguado, ~3 mm, `fx/Shake.ts`) + "crack" + 2 migas.

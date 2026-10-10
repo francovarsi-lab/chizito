@@ -5,6 +5,7 @@ import { mulberry32 } from '../util/noise';
 import { PALITO_LENGTH } from '../assets/procedural/palito';
 import { bakeStatic } from '../util/merge';
 import { createSachet, SACHET_H } from '../assets/procedural/ketchup';
+import { buildParty, type Party } from './Party';
 
 /**
  * Set de cumpleaños: mesa de madera con mantel, bowls de snacks en primer plano lateral
@@ -18,6 +19,8 @@ export interface Backdrop {
   surfaces: THREE.Mesh[];
   /** Objetos modelados del fondo (se ocultan si hay foto de fondo). */
   farProps: THREE.Group;
+  /** Decoración de cumpleaños (guirnaldas, globos, torta…), animada. */
+  party: Party;
 }
 
 export const BOWL_LAYOUT = {
@@ -129,6 +132,8 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   farProps.add(makeCup('#b9d8f2', -0.5, -0.95));
   farProps.add(makeBottle(0.22, -1.05));
   farProps.add(makePartyHat(-0.16, -0.9));
+  const party = buildParty();
+  farProps.add(party.group);
 
   root.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) {
@@ -138,7 +143,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   });
   table.castShadow = false;
   cloth.castShadow = false;
-  return { root, bowls, surfaces: [table, cloth], farProps };
+  return { root, bowls, surfaces: [table, cloth], farProps, party };
 }
 
 function makeBowl(radius: number, height: number, mat: THREE.Material): THREE.Group {

@@ -30,6 +30,12 @@ export interface PieceDefinition {
   frame: 'centered' | 'tip' | 'free';
 
   /**
+   * El procedural ya viene orientado (punta de entrada hacia −Y): no se gira el eje más largo a Y,
+   * sólo se ubica el origen en la punta. Ej.: el nacho entra por una de sus puntas, derecho.
+   */
+  keepOrientation?: boolean;
+
+  /**
    * Generador procedural (fallback cuando no hay GLB). `seed` da variación entre instancias y `params`
    * guarda decisiones del jugador sobre la forma (p. ej. mordiscos de la papita, variante).
    */

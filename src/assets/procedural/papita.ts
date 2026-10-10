@@ -67,6 +67,8 @@ export interface ChipStyle {
   /** Cuánto se tuesta el borde y cuántas manchas tiene (0..1). */
   edgeToast: number;
   spots: number;
+  /** Giro fijo del contorno (rad); si falta, cada pieza sale girada al azar. */
+  rotation?: number;
 }
 
 export const PAPITA_STYLE: ChipStyle = {
@@ -95,7 +97,8 @@ export function buildChipGeometry(seed: number, detail: 'hero' | 'prop', params:
   const ox = rnd() * 100;
   const waveAmp = style.wave[0] + rnd() * style.wave[1];
   const cup = (rnd() - 0.3) * 0.004;
-  const rot = rnd() * Math.PI * 2;
+  const randomRot = rnd() * Math.PI * 2;
+  const rot = style.rotation ?? randomRot;
 
   // Mordiscos ("partir con los dedos"): muescas irregulares del borde, deterministas por semilla.
   const bites = (params.bites ?? []).map((b) => {

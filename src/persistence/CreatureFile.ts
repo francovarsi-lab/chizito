@@ -119,19 +119,10 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
   if (!isObj(cr) || !isObj(cr.root) || !num(cr.root.seed)) throw new CreatureFileError('a la criatura le falta el chizito raíz');
   const warnings: string[] = [];
 
-  let front: Vec3 = [0, 0, 1];
-  let up: Vec3 = [0, 1, 0];
-  if (isObj(cr.front) && vec(cr.front.direction) && len(cr.front.direction) > 1e-6) {
-    front = unit(cr.front.direction);
-    if (vec(cr.front.up) && len(cr.front.up) > 1e-6) {
-      const u = cr.front.up;
-      const d = u[0] * front[0] + u[1] * front[1] + u[2] * front[2];
-      const o: Vec3 = [u[0] - d * front[0], u[1] - d * front[1], u[2] - d * front[2]];
-      if (len(o) > 1e-6) up = unit(o);
-    }
-  } else {
-    warnings.push('no traía frente: se usa el de fábrica');
-  }
+  // El frente es fijo y predeterminado (el costado +Z del chizito raíz, +Y arriba): se escribe en el
+  // archivo para que quede explícito, pero al cargar siempre vale el de fábrica.
+  const front: Vec3 = [0, 0, 1];
+  const up: Vec3 = [0, 1, 0];
 
   const list = Array.isArray(json.pieces) ? json.pieces : [];
   const accepted = new Map<string, PieceData>(); // id → pieza aceptada (para validar padres)

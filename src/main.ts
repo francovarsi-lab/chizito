@@ -19,6 +19,7 @@ import { CameraRig } from './render/CameraRig';
 import { ContactShadow, markHero } from './render/ContactShadow';
 import { addPhotoFade, loadPhotoBackdrop, updatePhotoResolution } from './render/PhotoBackdrop';
 import { Persistence } from './persistence/Persistence';
+import { Title, type TitleStyle } from './ui/Title';
 
 async function main() {
   const canvas = document.createElement('canvas');
@@ -152,22 +153,51 @@ async function main() {
   const frame = (dt: number) => {
     rig.update(dt);
     if (rig.moved && photo) photo.layout();
+    backdrop.party.update(dt);
     interaction.update(dt);
     shake.busy = interaction.busy;
     shake.update(dt);
     crumbs.update(dt);
-    stage.focusTarget.copy(CONFIG.chizitoCenter);
+    stage.focusTarget.copy(rig.focus);
     contactShadow.update(stage.renderer);
     stage.render(dt);
   };
 
+  // ── Intro: plano general de la mesa con el título; un clic o una tecla viaja hasta el chizito. ──
+  const INTRO_SHOT = { position: new THREE.Vector3(0.06, 0.44, 0.92), target: new THREE.Vector3(0, 0.1, -0.42) };
+  let title: Title | null = null;
+  let started = false;
+  const startIntro = () => {
+    interaction.enabled = false;
+    rig.startIntro(INTRO_SHOT);
+    document.getElementById('help')?.classList.add('hidden');
+    const style = (params.get('titulo') ?? 'arcade') as TitleStyle;
+    title = new Title('Cumpleañitos', 'hombrecito de chizito', ['arcade', 'globo', 'neon'].includes(style) ? style : 'arcade');
+  };
+  const startGame = () => {
+    if (started) return;
+    started = true;
+    audio.play('pick');
+    void title?.hide();
+    rig.flyIn(3.2, () => {
+      interaction.enabled = true;
+      // Al llegar, el chizito "salta" a escena y se muestra dónde está su frente.
+      shake.intro(0.03);
+      interaction.showFront();
+      overlay.flash('tocá un recipiente para agarrar un snack · F muestra el frente', 3600);
+    });
+  };
+  const wantsIntro = params.has('capture') ? params.has('intro') : !params.has('sinintro');
+
   if (params.has('capture')) {
     // Modo captura (Playwright con WebGL por software): se renderiza bajo demanda.
+    if (wantsIntro) startIntro();
     Object.assign((window as unknown as { __chizito: object }).__chizito, {
       renderFrames: (n: number, dt = 1 / 60) => {
         for (let i = 0; i < n; i++) frame(dt);
         return canvas.toDataURL('image/png');
       },
+      startGame,
     });
     frame(1 / 60);
     document.body.dataset.ready = '1';
@@ -178,8 +208,21 @@ async function main() {
   // navegador y se recupera a pedido con ?recuperar (para guardarla de verdad: Ctrl+S).
   if (params.has('recuperar')) persistence.restoreAutosave();
 
-  // Entrada: el chizito cae desde arriba con un rebote y el velo blanco se disuelve.
-  shake.intro(0.045);
+  // Entrada: con intro, plano general + título hasta el primer clic o tecla (?sinintro la saltea);
+  // sin intro, el chizito cae desde arriba con un rebote. El velo cremoso se disuelve.
+  if (wantsIntro) {
+    startIntro();
+    const go = (e: Event) => {
+      if (e instanceof KeyboardEvent && (e.ctrlKey || e.metaKey)) return;
+      window.removeEventListener('pointerdown', go, true);
+      window.removeEventListener('keydown', go, true);
+      startGame();
+    };
+    window.addEventListener('pointerdown', go, true);
+    window.addEventListener('keydown', go, true);
+  } else {
+    shake.intro(0.045);
+  }
   document.body.classList.add('ready');
   let frames = 0;
   const loop = (t: number) => {

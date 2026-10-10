@@ -104,6 +104,29 @@ export function prepareGlb(root: THREE.Object3D): void {
 
 const AXES = ['x', 'y', 'z'] as const;
 
+/** Promedio (x, z) de los vértices a menos de 0,4 mm del mínimo en Y (en el marco de `root`). */
+function lowestPoint(root: THREE.Object3D, minY: number): THREE.Vector3 {
+  root.updateMatrixWorld(true);
+  const inv = root.parent ? root.parent.matrixWorld.clone().invert() : new THREE.Matrix4();
+  const acc = new THREE.Vector3();
+  const v = new THREE.Vector3();
+  let n = 0;
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const toRoot = inv.clone().multiply(m.matrixWorld);
+    const pos = m.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(toRoot);
+      if (v.y < minY + 0.0004) {
+        acc.add(v);
+        n++;
+      }
+    }
+  });
+  return n ? acc.divideScalar(n) : new THREE.Vector3();
+}
+
 /**
  * Envuelve `obj` en un grupo que lo lleva al marco de la definición:
  *  - centered: eje más largo → X, centro del bbox en el origen.
@@ -124,7 +147,8 @@ export function normalizeToFrame(obj: THREE.Object3D, def: PieceDefinition, resc
   const size = box.getSize(new THREE.Vector3());
   const longest = AXES.reduce((a, b) => (size[b] > size[a] ? b : a), 'x' as (typeof AXES)[number]);
   const want = def.frame === 'centered' ? 'x' : 'y';
-  if (longest !== want) {
+  // Un procedural ya orientado se respeta; un GLB siempre se reorienta por su eje más largo.
+  if (longest !== want && !(def.keepOrientation && !rescale)) {
     const from = new THREE.Vector3().setComponent(AXES.indexOf(longest), 1);
     const to = new THREE.Vector3().setComponent(AXES.indexOf(want), 1);
     inner.quaternion.setFromUnitVectors(from, to);
@@ -134,7 +158,13 @@ export function normalizeToFrame(obj: THREE.Object3D, def: PieceDefinition, resc
   const b2 = new THREE.Box3().setFromObject(inner);
   const c = b2.getCenter(new THREE.Vector3());
   if (def.frame === 'centered') inner.position.sub(c);
-  else inner.position.set(-c.x, -b2.min.y, -c.z);
+  else {
+    // Marco 'tip': el origen va en el punto REAL más bajo (la punta o el borde por donde entra), no en
+    // el centro de la caja: en un triángulo la parte más baja es una punta corrida hacia un costado, y
+    // la pieza quedaba "clavada" por un punto vacío, flotando sobre la superficie.
+    const low = lowestPoint(inner, b2.min.y);
+    inner.position.set(-low.x, -b2.min.y, -low.z);
+  }
   const outer = new THREE.Group();
   outer.name = def.type;
   outer.add(inner);

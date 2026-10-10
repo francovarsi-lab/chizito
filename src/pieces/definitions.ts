@@ -73,6 +73,7 @@ export const NACHO: PieceDefinition = {
   dimensions: { length: NACHO_RADIUS * 1.5, thickness: NACHO_THICKNESS },
   frame: 'tip',
   procedural: (seed, detail, params) => createNacho(seed, detail, params as { bites?: number[] }),
+  keepOrientation: true,
   breakable: true,
   canPierce: true,
   canBePierced: true,
