@@ -1,0 +1,259 @@
+{
+  "format": "hombrecito-de-chizito/criatura",
+  "version": 1,
+  "units": "m",
+  "creature": {
+    "name": "E · asimétrica / extraña",
+    "savedAt": "2026-10-10T00:00:00.000Z",
+    "pieceCount": 8,
+    "root": {
+      "type": "chizito",
+      "seed": 3
+    },
+    "front": {
+      "direction": [
+        0,
+        0,
+        1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ]
+    }
+  },
+  "pieces": [
+    {
+      "id": "palito-fxE1",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 501,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.008,
+          0.00928,
+          0.005507
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "depth": 0.022013,
+        "spin": 0
+      }
+    },
+    {
+      "id": "papita-fxE2",
+      "type": "papita",
+      "parentId": "root",
+      "seed": 502,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.012,
+          0.01014,
+          0.003691
+        ],
+        "direction": [
+          0,
+          -0.939693,
+          -0.34202
+        ],
+        "depth": 0.006,
+        "spin": 0.6
+      }
+    },
+    {
+      "id": "palito-fxE3",
+      "type": "palito",
+      "parentId": "papita-fxE2",
+      "seed": 503,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.003193,
+          0.024235,
+          -0.003108
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "depth": 0.004,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxE4",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 504,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.015,
+          0,
+          -0.010791
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "depth": 0.003,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxE5",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 505,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.016,
+          -0.01014,
+          -0.003691
+        ],
+        "direction": [
+          0,
+          0.939693,
+          0.34202
+        ],
+        "depth": 0.028,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxE6",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 506,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.024222,
+          -0.001874,
+          0
+        ],
+        "direction": [
+          -0.984808,
+          0.173648,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "chizito-fxE7",
+      "type": "chizito",
+      "parentId": "palito-fxE6",
+      "seed": 7,
+      "attach": {
+        "mode": "tail",
+        "entryPoint": [
+          -0.021656,
+          0,
+          0
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "depth": 0.008,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxE8",
+      "type": "palito",
+      "parentId": "chizito-fxE7",
+      "seed": 507,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0,
+          0.010379,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "ketchup-fxE9",
+      "type": "ketchup",
+      "parentId": "root",
+      "seed": 9008,
+      "attach": {
+        "mode": "paint",
+        "entryPoint": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 0,
+        "spin": 0
+      },
+      "params": {
+        "points": [
+          -0.015,
+          0.010791,
+          0,
+          -0.009,
+          0.010791,
+          0,
+          -0.003,
+          0.010791,
+          0,
+          0.003,
+          0.010791,
+          0,
+          0.009,
+          0.010791,
+          0,
+          0.015,
+          0.010791,
+          0
+        ],
+        "normals": [
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0
+        ]
+      }
+    }
+  ]
+}

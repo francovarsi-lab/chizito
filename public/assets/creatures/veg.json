@@ -1,0 +1,124 @@
+{
+  "format": "hombrecito-de-chizito/criatura",
+  "version": 1,
+  "units": "m",
+  "creature": {
+    "name": "Rival vegetal (proxy: cuerpo = brócoli, brazos = zanahoria, piernas = apio)",
+    "savedAt": "2026-10-10T00:00:00.000Z",
+    "pieceCount": 4,
+    "root": {
+      "type": "chizito",
+      "seed": 11
+    },
+    "front": {
+      "direction": [
+        0,
+        0,
+        1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ]
+    }
+  },
+  "pieces": [
+    {
+      "id": "palito-fxV1",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 601,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.012,
+          -0.01174,
+          0
+        ],
+        "direction": [
+          0.139173,
+          0.990268,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      },
+      "params": {
+        "proxyDe": "apio"
+      }
+    },
+    {
+      "id": "palito-fxV2",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 603,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.024295,
+          0.004015,
+          0
+        ],
+        "direction": [
+          0.939693,
+          -0.34202,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      },
+      "params": {
+        "proxyDe": "zanahoria"
+      }
+    },
+    {
+      "id": "palito-fxV3",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 602,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.012,
+          -0.01174,
+          0
+        ],
+        "direction": [
+          -0.139173,
+          0.990268,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      },
+      "params": {
+        "proxyDe": "apio"
+      }
+    },
+    {
+      "id": "palito-fxV4",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 604,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.024295,
+          0.004015,
+          0
+        ],
+        "direction": [
+          -0.939693,
+          -0.34202,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      },
+      "params": {
+        "proxyDe": "zanahoria"
+      }
+    }
+  ]
+}

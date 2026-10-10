@@ -1,0 +1,120 @@
+{
+  "schema": "chizito.creature-snapshot",
+  "version": 1,
+  "source": {
+    "fileFormat": "hombrecito-de-chizito/criatura",
+    "fileVersion": 1,
+    "name": "C · cuerpo + 1 brazo, sin piernas"
+  },
+  "orientation": {
+    "front": [
+      0,
+      0,
+      1
+    ],
+    "up": [
+      0,
+      1,
+      0
+    ]
+  },
+  "coreId": "root",
+  "pieces": [
+    {
+      "id": "root",
+      "type": "chizito",
+      "seed": 3,
+      "kind": "core",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.02438567578792572,
+          0,
+          0
+        ],
+        "b": [
+          0.02438567578792572,
+          0,
+          0
+        ],
+        "radius": 0.010790929198265076
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxC1",
+      "type": "palito",
+      "seed": 301,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.004,
+          -0.005162185479276083,
+          0.0034186298873733183
+        ],
+        "b": [
+          0.004,
+          0.016359735805578344,
+          0.034155140592722004
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    }
+  ],
+  "links": [
+    {
+      "id": "link-palito-fxC1",
+      "parentId": "root",
+      "childId": "palito-fxC1",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.004,
+          0,
+          0.010791
+        ],
+        "direction": [
+          0,
+          -0.573576,
+          -0.819152
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.004,
+        0,
+        0.010791
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0.5735761643640092,
+        0.8191522347362981
+      ],
+      "tiltFromNormal": 0.6108649061631908,
+      "embedded": 0.009,
+      "chord": 0.01767885709700102,
+      "freeTail": 0.02852234249259345,
+      "exit": null,
+      "crossings": []
+    }
+  ],
+  "budget": {
+    "pieceCount": 1,
+    "maxPieces": 40,
+    "strokeCount": 0,
+    "maxStrokes": 30
+  },
+  "warnings": []
+}

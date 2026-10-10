@@ -1,0 +1,49 @@
+{
+  "format": "hombrecito-de-chizito/criatura",
+  "version": 1,
+  "units": "m",
+  "creature": {
+    "name": "C · cuerpo + 1 brazo, sin piernas",
+    "savedAt": "2026-10-10T00:00:00.000Z",
+    "pieceCount": 1,
+    "root": {
+      "type": "chizito",
+      "seed": 3
+    },
+    "front": {
+      "direction": [
+        0,
+        0,
+        1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ]
+    }
+  },
+  "pieces": [
+    {
+      "id": "palito-fxC1",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 301,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.004,
+          0,
+          0.010791
+        ],
+        "direction": [
+          0,
+          -0.573576,
+          -0.819152
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    }
+  ]
+}

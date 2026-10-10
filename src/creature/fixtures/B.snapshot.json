@@ -1,0 +1,315 @@
+{
+  "schema": "chizito.creature-snapshot",
+  "version": 1,
+  "source": {
+    "fileFormat": "hombrecito-de-chizito/criatura",
+    "fileVersion": 1,
+    "name": "B · cuerpo + 4 brazos, sin piernas"
+  },
+  "orientation": {
+    "front": [
+      0,
+      0,
+      1
+    ],
+    "up": [
+      0,
+      1,
+      0
+    ]
+  },
+  "coreId": "root",
+  "pieces": [
+    {
+      "id": "root",
+      "type": "chizito",
+      "seed": 3,
+      "kind": "core",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.02438567578792572,
+          0,
+          0
+        ],
+        "b": [
+          0.02438567578792572,
+          0,
+          0
+        ],
+        "radius": 0.010790929198265076
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxB1",
+      "type": "palito",
+      "seed": 201,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.015176472487752467,
+          0.0008407543861814349,
+          0
+        ],
+        "b": [
+          -0.04641741510026447,
+          0.017451866037355927,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxB2",
+      "type": "palito",
+      "seed": 202,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.015176472487752467,
+          -0.0008407543861814349,
+          0
+        ],
+        "b": [
+          -0.046154209105578964,
+          -0.01731191686171142,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxB3",
+      "type": "palito",
+      "seed": 203,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.015176472487752467,
+          0.0008407543861814349,
+          0
+        ],
+        "b": [
+          0.047133733634610424,
+          0.017832739537218284,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxB4",
+      "type": "palito",
+      "seed": 204,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.015176472487752467,
+          -0.0008407543861814349,
+          0
+        ],
+        "b": [
+          0.04682171412207304,
+          -0.01766683574153617,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    }
+  ],
+  "links": [
+    {
+      "id": "link-palito-fxB1",
+      "parentId": "root",
+      "childId": "palito-fxB1",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.023123,
+          0.005066,
+          0
+        ],
+        "direction": [
+          0.882948,
+          -0.469472,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.023123,
+        0.005066,
+        0
+      ],
+      "normal": [
+        -0.8829576645848329,
+        0.4694526201342343,
+        0
+      ],
+      "axis": [
+        -0.882947501360837,
+        0.4694717348687294,
+        0
+      ],
+      "tiltFromNormal": 0.00002164865909491057,
+      "embedded": 0.009,
+      "chord": 0.03377611051003718,
+      "freeTail": 0.026382559624849825,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxB2",
+      "parentId": "root",
+      "childId": "palito-fxB2",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.023123,
+          -0.005066,
+          0
+        ],
+        "direction": [
+          0.882948,
+          0.469472,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.023123,
+        -0.005066,
+        0
+      ],
+      "normal": [
+        -0.8829576645848329,
+        -0.4694526201342343,
+        0
+      ],
+      "axis": [
+        -0.882947501360837,
+        -0.4694717348687294,
+        0
+      ],
+      "tiltFromNormal": 0.00002164865909491057,
+      "embedded": 0.009,
+      "chord": 0.03377611051003718,
+      "freeTail": 0.02608446036721579,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxB3",
+      "parentId": "root",
+      "childId": "palito-fxB3",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.023123,
+          0.005066,
+          0
+        ],
+        "direction": [
+          -0.882948,
+          -0.469472,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.023123,
+        0.005066,
+        0
+      ],
+      "normal": [
+        0.8829576645848329,
+        0.4694526201342343,
+        0
+      ],
+      "axis": [
+        0.882947501360837,
+        0.4694717348687294,
+        0
+      ],
+      "tiltFromNormal": 0.00002164865909491057,
+      "embedded": 0.009,
+      "chord": 0.03377611051003718,
+      "freeTail": 0.02719384062767495,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxB4",
+      "parentId": "root",
+      "childId": "palito-fxB4",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.023123,
+          -0.005066,
+          0
+        ],
+        "direction": [
+          -0.882948,
+          0.469472,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.023123,
+        -0.005066,
+        0
+      ],
+      "normal": [
+        0.8829576645848329,
+        -0.4694526201342343,
+        0
+      ],
+      "axis": [
+        0.882947501360837,
+        -0.4694717348687294,
+        0
+      ],
+      "tiltFromNormal": 0.00002164865909491057,
+      "embedded": 0.009,
+      "chord": 0.03377611051003718,
+      "freeTail": 0.026840456635924055,
+      "exit": null,
+      "crossings": []
+    }
+  ],
+  "budget": {
+    "pieceCount": 4,
+    "maxPieces": 40,
+    "strokeCount": 0,
+    "maxStrokes": 30
+  },
+  "warnings": []
+}

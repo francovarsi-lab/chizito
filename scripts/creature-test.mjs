@@ -154,6 +154,130 @@ try {
   nearV(M.centerOfMass([]), [0, 0, 0], 1e-12, 'centro de masa sin piezas');
   nearV(M.shapeCenter(rodFwd), [0, 0, 0.0175], 1e-12, 'centro de la vara');
 
+
+  // ───────────── Tanda 3: criaturas de prueba ─────────────
+  section('tanda 3: rayos (cuerda atravesada)');
+  const R = await load('/src/creature/math/ray.ts');
+  const ivC = R.rayCapsule([0, 0.01, 0], [0, -1, 0], [-0.02, 0, 0], [0.02, 0, 0], 0.01);
+  near(ivC[1] - ivC[0], 0.02, 1e-9, 'rayo por el centro de una cápsula: cuerda = diámetro');
+  const ivG = R.rayCapsule([0, 0.005, 0.2], [0, 0, -1], [-0.02, 0, 0], [0.02, 0, 0], 0.01);
+  near(ivG[1] - ivG[0], 2 * Math.sqrt(0.01 ** 2 - 0.005 ** 2), 1e-9, 'rayo desplazado: cuerda de un círculo');
+  ok(R.rayCapsule([0, 0.02, 0], [0, 0, -1], [-0.02, 0, 0], [0.02, 0, 0], 0.01) === null, 'rayo que pasa de largo');
+  const ivCap = R.rayCapsule([0.05, 0, 0], [-1, 0, 0], [-0.02, 0, 0], [0.02, 0, 0], 0.01);
+  near(ivCap[1] - ivCap[0], 0.04 + 0.02, 1e-9, 'rayo a lo largo del eje: largo total con las dos tapas');
+  const ivD = R.rayDisc([0, 0, 0.05], [0, 0, -1], [0, 0, 0], [0, 0, 1], 0.0015, 0.025);
+  near(ivD[1] - ivD[0], 0.0015, 1e-12, 'rayo perpendicular a un disco: cuerda = espesor');
+  ok(R.rayDisc([0.04, 0, 0.05], [0, 0, -1], [0, 0, 0], [0, 0, 1], 0.0015, 0.025) === null, 'rayo fuera del radio del disco');
+  const clip = R.clipToSegment([-0.01, 0.02], 0.012);
+  near(clip.chord, 0.012, 1e-12, 'recorte al largo del segmento');
+  ok(R.clipToSegment([0.02, 0.03], 0.01) === null, 'intervalo fuera del segmento');
+
+  section('tanda 3: archivos de criatura (cargador real del juego)');
+  globalThis.location ??= { search: '' };
+  const fx = await load('/src/creature/fixtures/creatures.ts');
+  const { fromCreatureFile } = await load('/src/persistence/CreatureFile.ts');
+  const { PieceRegistry } = await load('/src/pieces/PieceRegistry.ts');
+  const { ALL_DEFINITIONS } = await load('/src/pieces/definitions.ts');
+  const registry = new PieceRegistry();
+  ALL_DEFINITIONS.forEach((d) => registry.register(d));
+  const built = fx.buildAllCreatures();
+  const byId = Object.fromEntries(built.map((c) => [c.id, c]));
+  ok(built.map((c) => c.id).join() === 'A,B,C,D,E,veg', 'las seis criaturas: A, B, C, D, E y vegetal');
+  for (const c of built) {
+    // Lo que está commiteado en disco es lo que genera el código hoy.
+    const onDisk = JSON.parse(fs.readFileSync(`public/assets/creatures/${c.id}.json`, 'utf8'));
+    ok(JSON.stringify(onDisk) === JSON.stringify(c.file), `${c.id}: public/assets/creatures/${c.id}.json está al día`);
+    const snapDisk = JSON.parse(fs.readFileSync(`src/creature/fixtures/${c.id}.snapshot.json`, 'utf8'));
+    ok(JSON.stringify(snapDisk) === JSON.stringify(c.snapshot), `${c.id}: snapshot de referencia al día`);
+    const loaded = fromCreatureFile(c.file, registry);
+    ok(loaded.warnings.length === 0, `${c.id}: se carga sin avisos (${loaded.warnings.join('; ') || 'ninguno'})`);
+    const expectedPieces = c.file.pieces.length;
+    ok(loaded.snapshot.pieces.length === expectedPieces, `${c.id}: no se descartó ninguna pieza (${loaded.snapshot.pieces.length}/${expectedPieces})`);
+    const ids = new Set(c.file.pieces.map((p) => p.id));
+    ok(ids.size === c.file.pieces.length, `${c.id}: ids únicos`);
+    ok(c.snapshot.budget.pieceCount <= idx.MAX_PIECES, `${c.id}: ${c.snapshot.budget.pieceCount} piezas ≤ ${idx.MAX_PIECES}`);
+    ok(c.snapshot.budget.strokeCount <= idx.MAX_STROKES, `${c.id}: trazos ≤ ${idx.MAX_STROKES}`);
+    ok(c.file.creature.pieceCount === c.snapshot.budget.pieceCount, `${c.id}: pieceCount del archivo = del snapshot`);
+    // La conexión se guarda tal cual: lo que lee el cargador es lo que escribió el generador.
+    c.file.pieces.forEach((fp, i) => {
+      const lp = loaded.snapshot.pieces[i];
+      nearV(lp.entryPoint, fp.attach.entryPoint, 1e-6, `${c.id}/${fp.id} entryPoint`);
+      near(lp.depth, Math.min(fp.attach.depth, registry.get(fp.type).maxDepth || fp.attach.depth), 1e-6, `${c.id}/${fp.id} profundidad`);
+      ok((lp.mount === 'tail') === (fp.attach.mode === 'tail'), `${c.id}/${fp.id} modo de conexión`);
+    });
+    // Invariantes del snapshot.
+    const sn = c.snapshot;
+    ok(sn.schema === idx.SNAPSHOT_SCHEMA && sn.version === 1, `${c.id}: esquema del snapshot`);
+    ok(sn.pieces[0].id === 'root' && sn.pieces[0].kind === 'core', `${c.id}: el núcleo es el chizito raíz`);
+    ok(sn.links.length === sn.pieces.length - 1, `${c.id}: una conexión por pieza no raíz`);
+    const seen = new Set(['root']);
+    let order = true;
+    for (const l of sn.links) { if (!seen.has(l.parentId)) order = false; seen.add(l.childId); }
+    ok(order, `${c.id}: orden padre → hijo`);
+    const allFinite = (x) => (typeof x === 'number' ? Number.isFinite(x) : Array.isArray(x) ? x.every(allFinite) : x && typeof x === 'object' ? Object.values(x).every(allFinite) : true);
+    ok(allFinite(sn), `${c.id}: todos los números del snapshot son finitos`);
+    nearV(sn.orientation.front, [0, 0, 1], 1e-12, `${c.id}: frente de fábrica +Z`);
+  }
+
+  section('tanda 3: contenido de cada criatura');
+  const rodsOf = (c) => c.snapshot.pieces.filter((p) => p.kind === 'rod');
+  const linkOf = (c, id) => c.snapshot.links.find((l) => l.childId === id);
+  const A = byId.A;
+  ok(rodsOf(A).length === 4, 'A: 4 palitos (2 brazos + 2 piernas)');
+  const legsA = rodsOf(A).filter((p) => linkOf(A, p.id).axis[1] < -0.8);
+  const armsA = rodsOf(A).filter((p) => linkOf(A, p.id).axis[1] > 0 && Math.abs(linkOf(A, p.id).axis[0]) > 0.8);
+  ok(legsA.length === 2 && armsA.length === 2, 'A: 2 piernas hacia abajo y 2 brazos hacia afuera y arriba');
+  ok(rodsOf(A).every((p) => linkOf(A, p.id).exit === null && linkOf(A, p.id).freeTail > 0.023 && Math.abs(linkOf(A, p.id).embedded - 0.009) < 1e-6), 'A: ninguno atraviesa; ≥ 23 mm libres y 9 mm adentro');
+  ok(rodsOf(byId.B).length === 4 && rodsOf(byId.B).every((p) => linkOf(byId.B, p.id).axis[1] !== 0), 'B: 4 brazos (dos arriba y dos abajo, nada que apoye en el suelo)');
+  ok(rodsOf(byId.B).every((p) => Math.abs(linkOf(byId.B, p.id).axis[0]) > 0.8), 'B: los cuatro salen de las puntas');
+  const C = byId.C;
+  ok(rodsOf(C).length === 1, 'C: un solo palito');
+  const ca = linkOf(C, rodsOf(C)[0].id).axis;
+  ok(ca[2] > 0.7 && ca[1] > 0.4, 'C: el brazo sale por +Z (hacia la cámara del constructor) inclinado hacia arriba');
+  ok(byId.D.snapshot.budget.pieceCount === 30 && rodsOf(byId.D).length === 30, 'D: erizo de 30 palitos (dentro del tope de 40)');
+  const dirsD = new Set(rodsOf(byId.D).map((p) => linkOf(byId.D, p.id).axis.map((v) => Math.round(v * 20)).join()));
+  ok(dirsD.size >= 25, `D: palitos en direcciones distintas (${dirsD.size})`);
+  const E = byId.E;
+  const eRods = rodsOf(E);
+  ok(eRods.length === 6, 'E: 6 palitos (pasante, en papita, flojo, enterrado, de la maza y del chizito ensartado)');
+  const through = eRods.find((p) => linkOf(E, p.id).exit !== null && linkOf(E, p.id).parentId === 'root' && linkOf(E, p.id).freeTail > 0.01);
+  ok(!!through && linkOf(E, through.id).exit.freeTip >= 0.0105 && linkOf(E, through.id).freeTail >= 0.0105, 'E: vara pasante con más de 1 cm libre de cada lado');
+  const onPlate = eRods.find((p) => E.snapshot.pieces.find((q) => q.id === linkOf(E, p.id).parentId)?.kind === 'plate');
+  ok(!!onPlate && linkOf(E, onPlate.id).embedded < 0.002, 'E: palito clavado en una papita (solo ~1,5 mm de sostén)');
+  ok(E.snapshot.links.some((l) => l.mode === 'pierce' && l.parentId === 'root' && l.embedded < 0.004 && l.embedded > 0.002), 'E: palito flojo (3 mm adentro)');
+  const buried = eRods.find((p) => { const l = linkOf(E, p.id); return l.exit && l.exit.freeTip < 0.01 && l.freeTail < 0.01; });
+  ok(!!buried, 'E: palito casi enterrado (menos de 1 cm libre de cada lado)');
+  const tailLink = E.snapshot.links.find((l) => l.mode === 'tail');
+  ok(!!tailLink && tailLink.attach.frame === 'child', 'E: un chizito ensartado en la cola (mount:tail, marco del hijo)');
+  const mace = E.snapshot.pieces.find((p) => p.id === tailLink.childId);
+  ok(mace.type === 'chizito' && mace.kind === 'blob' && mace.stability === 'unstable', 'E: el chizito ensartado es un bulto inestable, no un núcleo');
+  ok(E.snapshot.pieces.filter((p) => p.kind === 'core').length === 1, 'E: un solo núcleo');
+  const secondLevel = eRods.find((p) => linkOf(E, p.id).parentId === mace.id);
+  ok(!!secondLevel, 'E: un palito clavado en el chizito ensartado (segundo nivel)');
+  const holder = eRods.find((p) => p.id === tailLink.parentId);
+  ok(linkOf(E, holder.id).freeTail > 0 && linkOf(E, holder.id).freeTail < 0.035 - 0.009 - 0.0079, 'E: el palito de la maza solo muestra el tramo de vara a la vista');
+  const stroke = E.snapshot.pieces.find((p) => p.kind === 'stroke');
+  ok(!!stroke && stroke.cosmetic && stroke.stability === 'unstable' && E.snapshot.budget.strokeCount === 1, 'E: un trazo de ketchup cosmético que no suma a las piezas');
+  ok(E.snapshot.budget.pieceCount === 8, 'E: 8 piezas (el ketchup no cuenta)');
+  const V2 = byId.veg;
+  ok(rodsOf(V2).filter((p) => p.proxyDe === 'zanahoria').length === 2 && rodsOf(V2).filter((p) => p.proxyDe === 'apio').length === 2, 'vegetal: 2 zanahorias (proxyDe) y 2 apios (proxyDe)');
+  ok(V2.snapshot.pieces.every((p) => p.stability === 'stable'), 'vegetal: todo estable');
+  ok(/brócoli/.test(V2.name), 'vegetal: el nombre marca el cuerpo proxy (brócoli)');
+
+  section('tanda 3: el frente es un parámetro');
+  const sideways = fx.buildAllCreatures([1, 0, 0], [0, 1, 0]);
+  ok(sideways.every((c) => JSON.stringify(c.snapshot.orientation.front) === '[1,0,0]'), 'con --front=+X el snapshot lo refleja');
+  ok(sideways.every((c, i) => JSON.stringify(c.file.pieces) === JSON.stringify(built[i].file.pieces)), 'las piezas del archivo no dependen del frente');
+  ok(JSON.stringify(fx.buildAllCreatures()) === JSON.stringify(built), 'generar dos veces da lo mismo (determinista)');
+
+  section('tanda 3: hoja de perfiles');
+  const svg = fs.readFileSync('docs/creature/perfiles-a-vs-b.svg', 'utf8');
+  ok(svg.startsWith('<svg') && svg.length > 5000, 'perfiles-a-vs-b.svg existe');
+  ok(['frente +Z', 'frente +X', 'frente −X'].every((t) => svg.includes(t)), 'las tres orientaciones');
+  ok(['A', 'B', 'C', 'D', 'E', 'Rival vegetal'].every((t) => svg.includes(`>${t}</text>`)), 'las seis criaturas');
+  const sheet = await load('/src/creature/fixtures/profileSheet.ts');
+  ok(sheet.renderProfileSheet(built) === svg, 'la hoja en disco coincide con lo que genera el código');
+
   // @@TESTS@@
 } finally {
   await server.close();

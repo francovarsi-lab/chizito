@@ -6,3 +6,4 @@ export * from './math/vec';
 export * from './math/basis';
 export * from './math/shapes2d';
 export * from './math/mass';
+export * from './math/ray';
