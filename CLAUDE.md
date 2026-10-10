@@ -41,6 +41,7 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
 - Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
 - Palito: 3,5 cm, Ø 3,4 mm. Papita: Ø ~5 cm, 1,5 mm. Nacho: triángulo de ~4,5 cm de lado, 1,8 mm.
   Aceituna: 2 × 1,5 cm (rellena de morrón). Escarbadientes: 3 cm × Ø 2 mm (variante espadita de cotillón, 3 cm).
+  Palito de la selva: 5,5 cm × 1,05 × 0,78 cm. Chupetín: palito 5,5 cm × Ø 3,4 mm + bola Ø 2,1 cm.
 - Mesa en y = 0. Chizito flotando con centro en y = 10 cm (`CONFIG.chizitoCenter`): la mesa queda más lejos y despejada.
 - Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, a 30 cm del chizito, con zoom por
   dolly (rueda del mouse) entre 16 y 50 cm, suave. 50 mm sobre film de 36 mm. Nunca orbita.
@@ -126,6 +127,16 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   largo); escarbadientes y espadita salen de vasitos distintos (`escarbadientes` / `escarbadientes:espadita`).
   La guarda en cruz de la espadita es el TOPE: sólo entra (y atraviesa) la hoja (`variants[].maxDepth`, ver
   `maxDepthOf`; vale también para Ctrl + rueda y al cargar archivos).
+- Palito de la selva (`palito-selva`, bowl a la izquierda del chizito): caramelo masticable, sección de rectángulo
+  redondeado, MITAD ROSA / MITAD BLANCO a lo ancho (la costura corre por el medio de las caras anchas). En el bowl
+  viene envuelto (`params.wrapped` sólo para los del bowl); al agarrarlo el papel se desenrolla (empieza por el borde
+  suelto) y se cae planeando y desvaneciéndose (`PieceDefinition.wrapper` + `SelvaWrapper.setProgress`). Se clava
+  SIN papel por una punta, hasta la mitad. Envoltorio aproximado sin marca (amarillo, hojas, franja roja, monitos).
+  Pendiente: un dato curioso de un animal cada vez que se usa.
+- Chupetín (`chupetin`, vasito a la derecha): tipo Mister Pop, bola brillante de color al azar (frutilla, naranja,
+  limón, uva, manzana, chicle) en palito blanco, con el film transparente puesto (líneas blancas, nudo retorcido y
+  pollerita). Se clava por la punta del palito (máx. 70 % del palito). Aproximación sin marca.
+- Las dos se afinan con fotos de referencia del usuario (colores exactos de envoltorios).
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
 - Chizito extra (EN PAUSA por pedido del usuario: el bowl no está en la mesa; el mecanismo `mountsOnTail` lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
@@ -216,6 +227,7 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
    Prueba automatizada: `node scripts/phase3-test.mjs <dir>`. Piezas nuevas: `node scripts/pieces-test.mjs <dir>`.
    Ketchup / vasitos / sacudida a 20 fps: `node scripts/ketchup-test.mjs <dir>`.
    Correcciones (borrar ketchup, nacho, bowls, recarga, aceituna en palito): `node scripts/fixes-test.mjs <dir>`.
+   Golosinas (palito de la selva que se desenvuelve, chupetín): `node scripts/golosinas-test.mjs <dir>`.
 4. Guardado/carga JSON versionado, frente, tope de 40. ← hecha (prueba: `node scripts/phase4-test.mjs <dir>`). Requisitos del usuario (las construcciones son CRIATURAS para jugar):
    - Cada criatura tiene un "frente" explícito: el FRENTE DE COMBATE, ±X (por defecto +X), elegido en la vista de
      combate del intérprete, guardado en el marco local del chizito raíz y respetado por el cargador.

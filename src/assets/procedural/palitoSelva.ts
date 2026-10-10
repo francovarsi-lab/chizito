@@ -69,7 +69,8 @@ export function createPalitoSelva(seed: number, detail: 'hero' | 'prop' = 'hero'
     displace: (p) => noise.noise(p.x * 900, p.y * 700, p.z * 900) * 0.000025,
     color: (p, _n, _u, th, _d, out) => {
       // Mitad rosa / mitad blanco a lo largo (la costura se ve apenas fundida y ondulada).
-      const seam = Math.sin(th) + 0.08 * noise.noise(p.y * 160, 0.5, 2);
+      // La costura corre por el medio de las caras anchas: de frente se ven las dos mitades.
+      const seam = Math.cos(th) + 0.08 * noise.noise(p.y * 160, 0.5, 2);
       const k = THREE.MathUtils.smoothstep(seam, -0.06, 0.06);
       out.copy(WHITE).lerp(PINK, k);
       out.lerp(PINK_DEEP, k * THREE.MathUtils.smoothstep(noise.noise(p.x * 400, p.y * 220, p.z * 400), 0.4, 0.95) * 0.35);
