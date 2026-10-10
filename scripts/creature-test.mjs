@@ -665,14 +665,90 @@ try {
   // ───────────── Tanda 7: aislamiento del resolver ─────────────
   section('tanda 7: solo resolve/ conoce three.js y el juego');
   const walkTs = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkTs(`${dir}/${e.name}`) : e.name.endsWith('.ts') ? [`${dir}/${e.name}`] : []));
-  const outside = walkTs('src/creature').filter((f) => !f.includes('/resolve/') && !f.includes('/fixtures/'));
+  const IMPURE = ['/resolve/', '/fixtures/', '/ui/highlight.ts', '/ui/mount.ts', '/ui/panel.ts', '/ui/index.ts'];
+  const outside = walkTs('src/creature').filter((f) => !IMPURE.some((x) => f.includes(x)));
   const leaks = outside.filter((f) => /from ['"]three['"]|from ['"]\.\.\/\.\.\/|from ['"]three\//.test(fs.readFileSync(f, 'utf8')));
-  ok(outside.length > 20 && leaks.length === 0, `el intérprete (${outside.length} archivos) no importa three.js ni nada del juego${leaks.length ? ': ' + leaks.join(', ') : ''}`);
+  ok(outside.length > 20 && leaks.length === 0, `el intérprete y el modelo del panel (${outside.length} archivos) no importan three.js ni nada del juego${leaks.length ? ': ' + leaks.join(', ') : ''}`);
   const resolveFiles = walkTs('src/creature/resolve');
   ok(resolveFiles.length >= 4 && resolveFiles.every((f) => !/from ['"]\.\.\/\.\.\/(render|ui|audio|fx|input)\//.test(fs.readFileSync(f, 'utf8'))), 'resolve/ solo lee modelo, piezas y attach del juego (nada de render, ui, audio, fx ni input)');
   const idxRes = fs.readFileSync('src/creature/index.ts', 'utf8');
   ok(!/resolve/.test(idxRes), 'index.ts del intérprete no reexporta el resolver (se importa aparte)');
   ok(fs.existsSync('scripts/creature-resolve-test.mjs'), 'la prueba del resolver en el juego real existe (scripts/creature-resolve-test.mjs)');
+
+
+  // ───────────── Tanda 8: panel (modelo y dibujo del perfil) ─────────────
+  section('tanda 8: modelo del panel');
+  const UI = await load('/src/creature/ui/model.ts');
+  const PS = await load('/src/creature/ui/profileSvg.ts');
+  const models = Object.fromEntries(built.map((c) => [c.id, UI.buildPanelModel(c.snapshot, full[c.id])]));
+  const txt = (m) => JSON.stringify(m);
+  ok(/4,9 × 2,2 cm/.test(models.A.core.sizeText) && models.A.core.label === 'Chizito raíz', `núcleo: ${models.A.core.label} ${models.A.core.sizeText}`);
+  ok(models.A.budget.pieces.n === 4 && models.A.budget.pieces.max === 40 && models.A.budget.strokes.max === 30, 'A: 4 / 40 piezas, tope de trazos 30');
+  ok(models.E.budget.pieces.n === 8 && models.E.budget.strokes.n === 1, 'E: 8 / 40 piezas y 1 / 30 trazos');
+  ok(models.D.budget.pieces.n === 30 && !models.D.warnings.some((w) => w.kind === 'budget'), 'D: 30 / 40 piezas, todavía lejos del tope');
+  ok(Object.values(models).every((m) => m.limbs.length === 0 || m.limbs.every((l) => l.label && l.role && Number.isFinite(l.freeMm) && Number.isFinite(l.embeddedMm))), 'cada extremidad trae rol, cuánto sobresale y cuánto está embebida');
+  for (const c of built) {
+    const m = models[c.id];
+    ok(m.limbs.length === full[c.id].limbs.length && m.decorative.length === full[c.id].decorative.length, `${c.id}: el panel muestra todas las extremidades (${m.limbs.length}) y decorativas (${m.decorative.length})`);
+  }
+  const rowsA = models.A.limbs;
+  ok(rowsA.every((r) => r.ok.free && r.ok.embedded && r.ok.tilt && r.ok.quality && r.freeMm > 25 && Math.abs(r.embeddedMm - 9) < 0.01), 'A: cada vara sobresale más de 25 mm, está 9 mm adentro y cumple los cuatro umbrales');
+  ok(rowsA.every((r) => Math.abs(r.minFreeMm - Math.max(10, 0.25 * r.rodMm)) < 1e-6 && Math.abs(r.minEmbeddedMm - Math.max(6, 0.2 * r.rodMm)) < 1e-6), 'A: se muestran los mínimos que se le exigen a cada vara (10 mm / 25 % y 6 mm / 20 %)');
+  const linkA = A.snapshot.links.find((l) => l.childId === full.A.limbs[0].rootPieceId);
+  near(rowsA[0].freeMm, linkA.freeTail * 1000, 0.01, 'A: "sobresale" es el largo libre de la conexión');
+  const decoE = models.E.decorative;
+  ok(decoE.length === 6 && decoE.every((d) => d.reason && d.label), 'E: 6 decorativas, cada una con su razón');
+  const weak = decoE.filter((d) => d.reasonKey === 'weak-anchor');
+  ok(weak.length === 2 && weak.every((d) => d.rod && !d.rod.embeddedOk), 'E: las dos varas flojas muestran que lo embebido no llega al mínimo');
+  ok(weak.some((d) => Math.abs(d.rod.embeddedMm - 3) < 0.01), 'E: el palito flojo muestra 3,0 mm adentro');
+  const shortRod = decoE.find((d) => d.reasonKey === 'too-short');
+  ok(!!shortRod && !shortRod.rod.freeOk && shortRod.rod.freeTailMm < 10 && shortRod.rod.freeTipMm < 10 && shortRod.rod.embeddedOk, 'E: el palito casi enterrado muestra que le sobra poco de los dos lados pero está bien clavado');
+  ok(decoE.filter((d) => d.rod).length === 4 && decoE.filter((d) => !d.rod).every((d) => ['plate', 'stroke'].includes(d.reasonKey)), 'E: las varas muestran sus medidas; la papita y el ketchup, no');
+  ok(txt(models.E.thresholds).includes('10 mm') && txt(models.E.thresholds).includes('25 %') && txt(models.E.thresholds).includes('6 mm') && txt(models.E.thresholds).includes('20 %') && txt(models.E.thresholds).includes('70°') && txt(models.E.thresholds).includes('0,35'), 'los umbrales vigentes se muestran (10 mm, 25 %, 6 mm, 20 %, 70°, 0,35)');
+  ok(models.A.limbs.length === 4 && models.A.support.feet === 2 && /2 apoyos/.test(models.A.support.text) && /camina/.test(models.A.locomotion.text), 'A: 2 apoyos y camina, en texto');
+  ok(/rueda/.test(models.D.locomotion.text) && models.D.actions.length === 1 && models.D.actions[0].kind === 'rodada', 'D: rueda y su única acción es la rodada');
+  ok(models.A.actions.some((x) => x.kind === 'estocada' && x.inputText === '→ + ataque' && x.by.includes('palito')), 'A: la estocada dice con qué palito y con qué entrada');
+  ok(models.E.mass.totalG > models.E.mass.coreG && models.E.mass.decorativeG > 0 && /aproximados/.test(models.E.mass.text), 'E: masa total mayor que la del cuerpo, con las decorativas aparte');
+  ok(models.A.reach.maxCm > 2.5 && /cm/.test(models.A.reach.text), 'A: alcance en cm');
+
+  section('tanda 8: avisos visibles');
+  const warnOf = (id, kind) => models[id].warnings.find((w) => w.kind === kind);
+  const wC = warnOf('C', 'depth');
+  ok(!!wC && wC.level === 'info' && wC.text.includes('se ve corta en reposo') && wC.text.includes('ataca con su largo real al girar al plano'), 'C: aviso "en profundidad" con el texto acordado');
+  ok(warnOf('A', 'depth') === undefined && warnOf('B', 'depth') === undefined, 'A y B: sin aviso de profundidad');
+  const wE2 = warnOf('E', 'second-level');
+  ok(!!wE2 && wE2.level === 'debt' && wE2.text.includes('chizito montado') && wE2.text.includes('MVP 0') && wE2.text.includes('deuda del MVP 1'), 'E: aviso de palitos en un chizito montado (deuda del MVP 1)');
+  ok(!!warnOf('E', 'depth') && !!warnOf('E', 'decorative') && !!warnOf('E', 'droop'), 'E: también avisa profundidad, decorativas y la maza que cuelga');
+  const unknownSnap = clone(A.snapshot);
+  unknownSnap.pieces.find((p) => p.id === rodsOf(A)[0].id).type = 'mandarina';
+  const unknownModel = UI.buildPanelModel(unknownSnap, interpret(unknownSnap));
+  const wU = unknownModel.warnings.find((w) => w.kind === 'unknown-type');
+  ok(!!wU && wU.level === 'warn' && wU.text.includes('tipo desconocido') && wU.text.includes('mandarina') && wU.text.includes('tratada como decorativa'), 'pieza de tipo desconocido: aviso que dice que se trata como decorativa');
+  ok(unknownModel.decorative.some((d) => d.reasonKey === 'unknown-type'), 'y aparece en la lista de decorativas con su razón');
+  const bigModel = UI.buildPanelModel(bigSnap, interpret(bigSnap));
+  ok(bigModel.budget.pieces.n === 40 && bigModel.warnings.some((w) => w.kind === 'budget' && w.text.includes('40 de 40')), '40 / 40 piezas: aviso de tope');
+  ok(models.D.warnings.some((w) => w.kind === 'mode' && w.text.includes('rueda')), 'D: aviso de que rueda y casi no golpea ni frena');
+  ok(UI.buildPanelModel(zfront[0].snapshot, interpret(zfront[0].snapshot)).warnings.some((w) => w.kind === 'orientation'), 'un frente fuera de ±Y: aviso de orientación');
+  ok(JSON.stringify(UI.buildPanelModel(E.snapshot, full.E)) === JSON.stringify(models.E), 'el modelo del panel es determinista');
+  const labels = UI.pieceLabels(E.snapshot);
+  ok(labels.get('root') === 'chizito raíz' && [...labels.values()].includes('chizito ensartado 1') && [...labels.values()].filter((l) => l.startsWith('palito ')).length === 6, 'nombres de piezas: palito 1…6, chizito ensartado 1, chizito raíz');
+
+  section('tanda 8: dibujo del perfil con cartel de frente');
+  const svgR = PS.renderProfileSvg(interpret(A.snapshot, { facing: 1 }));
+  const svgL = PS.renderProfileSvg(interpret(A.snapshot, { facing: -1 }));
+  ok(svgR.startsWith('<svg') && svgR.includes('FRENTE →') && svgR.includes('data-facing="1"') && !svgR.includes('FRENTE ←'), 'perfil con frente a la derecha: cartel "FRENTE →"');
+  ok(svgL.includes('FRENTE ←') && svgL.includes('data-facing="-1"') && !svgL.includes('FRENTE →'), 'giro de 180°: cartel "FRENTE ←"');
+  ok((svgR.match(/data-limb="/g) ?? []).length === 1 + full.A.limbs.length, 'un grupo por extremidad más el cuerpo (para resaltar al pasar el mouse)');
+  ok(!/NaN|undefined|Infinity/.test(svgR + svgL), 'el SVG no tiene NaN ni undefined');
+  const vb = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svgR);
+  ok(!!vb && Number(vb[1]) > 200 && Number(vb[2]) > 100, 'viewBox con tamaño real');
+  const hi = PS.renderProfileSvg(full.A, { highlightLimbId: full.A.limbs[0].id });
+  ok(hi.includes('" opacity="0.35"') && !svgR.includes('" opacity="0.35"'), 'resaltar una extremidad atenúa a las demás');
+  ok(PS.renderProfileSvg(full.D).length > 5000 && PS.renderProfileSvg(full.E).includes('data-limb'), 'D y E también se dibujan');
+  ok(PS.renderProfileSvg(full.A) === PS.renderProfileSvg(full.A), 'el dibujo es determinista');
+  ok(['A', 'B', 'C', 'D', 'E', 'veg'].every((id) => PS.renderProfileSvg(full[id]).includes('FRENTE')), 'las seis criaturas llevan cartel de frente');
+  const colorsMod = await load('/src/creature/ui/colors.ts');
+  ok(Object.keys(colorsMod.ROLE_COLOR).length >= 6 && /^#[0-9a-f]{6}$/i.test(colorsMod.ROLE_COLOR.strike), 'colores por rol definidos');
 
   // @@TESTS@@
 } finally {

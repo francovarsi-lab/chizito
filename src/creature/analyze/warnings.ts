@@ -1,6 +1,6 @@
 import type { CreatureAnalysis, DecorativeReason } from '../types';
 
-const REASON_TEXT: Record<DecorativeReason, string> = {
+export const REASON_TEXT: Record<DecorativeReason, string> = {
   'no-free-tip': 'sin punta libre',
   'too-short': 'sobresale muy poco',
   'weak-anchor': 'base floja (poco adentro o muy inclinada)',

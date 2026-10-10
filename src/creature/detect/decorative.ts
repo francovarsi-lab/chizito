@@ -1,5 +1,6 @@
 import { CREATURE_CONFIG } from '../config';
 import { pieceMass } from '../math/mass';
+import { len, sub } from '../math/vec';
 import { isKnownType } from '../profiles';
 import type { CreatureSnapshot, DecorativePiece, DecorativeReason, LimbDraft } from '../types';
 
@@ -20,7 +21,22 @@ export function collectDecorative(
   const out: DecorativePiece[] = [];
   const add = (pieceId: string, reason: DecorativeReason) => {
     const p = byId.get(pieceId)!;
-    out.push({ pieceId, reason, mass: pieceMass(p, cfg) });
+    const link = links.get(pieceId);
+    const entry: DecorativePiece = { pieceId, reason, mass: pieceMass(p, cfg) };
+    // De una vara se muestran sus medidas, para ver contra qué umbral falló (calibración).
+    if (p.kind === 'rod' && p.shape.kind === 'capsule' && link && link.mode === 'pierce') {
+      const L = len(sub(p.shape.b, p.shape.a));
+      entry.detail = {
+        rodLength: L,
+        freeTail: link.freeTail,
+        freeTip: link.exit ? link.exit.freeTip : 0,
+        embedded: link.embedded,
+        tiltDeg: (link.tiltFromNormal * 180) / Math.PI,
+        minFree: Math.max(cfg.limb.minFreeAbs, cfg.limb.minFreeRatio * L),
+        minEmbedded: Math.max(cfg.limb.minEmbeddedAbs, cfg.limb.minEmbeddedRatio * L),
+      };
+    }
+    out.push(entry);
   };
   for (const p of s.pieces) {
     if (p.id === s.coreId) continue;

@@ -149,6 +149,14 @@ export interface Limb {
   strength: number;
   durability: number;
   anchorQuality: number;
+  /** Datos de la condición de extremidad (para calibrar los umbrales): lo que sobresale, lo que está adentro y la inclinación. */
+  freeLength: number;
+  embedded: number;
+  tiltDeg: number;
+  /** Largo de la vara que la sostiene. */
+  rodLength: number;
+  /** 'own' si la sostiene su propia conexión; si no, el id del otro sólido que también atraviesa. */
+  anchoredBy: string;
   mobility: { restDeg: number; minDeg: number; maxDeg: number; droops: boolean };
   profile: {
     pivot: V2;
@@ -162,10 +170,25 @@ export interface Limb {
 }
 
 export type DecorativeReason = 'no-free-tip' | 'weak-anchor' | 'too-short' | 'plate' | 'stroke' | 'broken' | 'unknown-type' | 'second-level';
+/** Medidas de una vara que no llegó a extremidad (para ver contra qué umbral falló). */
+export interface RodDetail {
+  rodLength: number;
+  /** Lo que sobresale por la cola y por la punta (0 si no atraviesa). */
+  freeTail: number;
+  freeTip: number;
+  embedded: number;
+  tiltDeg: number;
+  /** Mínimos que se le exigían: max(absoluto, fracción del largo). */
+  minFree: number;
+  minEmbedded: number;
+}
+
 export interface DecorativePiece {
   pieceId: string;
   reason: DecorativeReason;
   mass: number;
+  /** Solo en varas (palitos, escarbadientes) clavadas en otra pieza. */
+  detail?: RodDetail;
 }
 
 /** En 2D, 'capsule' es el segmento a→b (centros de las tapas) engrosado en `r`. */

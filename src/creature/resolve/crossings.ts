@@ -1,22 +1,19 @@
 import * as THREE from 'three';
 import type { V3 } from '../types';
+import { nearestHit } from './bvh';
 
 export interface Chord {
   /** Distancia a lo largo del rayo donde entra y donde sale del sólido. */
   tIn: number;
   tOut: number;
-  /** Normales salientes en cada punto (suavizadas). */
+  /** Normales salientes de la cara tocada (sin suavizar) y punto de salida (mundo). */
   entryNormal: V3 | null;
   exitNormal: V3;
+  exitPoint: V3;
 }
 
-const ray = new THREE.Raycaster();
 const T = (v: V3) => new THREE.Vector3(v[0], v[1], v[2]);
 const arr = (v: THREE.Vector3): V3 => [v.x, v.y, v.z];
-
-function faceNormal(h: THREE.Intersection): THREE.Vector3 {
-  return (h.face?.normal ?? new THREE.Vector3(0, 1, 0)).clone().transformDirection(h.object.matrixWorld);
-}
 
 /**
  * Normal saliente en un punto de la superficie. La superficie de un chizito es grumosa: se promedian las
@@ -30,14 +27,8 @@ export function smoothNormal(meshes: THREE.Mesh[], point: V3, hint: V3): V3 {
   const r = 0.0018;
   for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
     const origin = T(point).addScaledVector(n, 0.006).addScaledVector(t1, a * r).addScaledVector(t2, b * r);
-    ray.set(origin, n.clone().negate());
-    ray.near = 0;
-    ray.far = 0.012;
-    const hit = ray.intersectObjects(meshes, false)[0];
-    if (hit) {
-      const fn = faceNormal(hit);
-      if (fn.dot(n) > 0) acc.add(fn);
-    }
+    const hit = nearestHit(meshes, origin, n.clone().negate(), 0.012);
+    if (hit && hit.normal.dot(n) > 0) acc.add(hit.normal);
   }
   return arr(acc.normalize());
 }
@@ -47,30 +38,24 @@ export function smoothNormal(meshes: THREE.Mesh[], point: V3, hint: V3): V3 {
  * `origin` y hacia atrás desde el otro extremo `origin + dir·maxLen`) porque las mallas solo se ven de afuera:
  * así se encuentra la salida aunque el origen esté adentro. Con `startsInside` el origen ya está sobre la
  * superficie de entrada (una vara que entra) y el tramo arranca en 0.
+ * Las normales salen SIN suavizar (baratas); quien las necesite llama a `smoothNormal` en el punto que quiera.
  */
 export function chordAlong(meshes: THREE.Mesh[], origin: V3, dir: V3, maxLen: number, startsInside = false): Chord | null {
   const o = T(origin);
   const d = T(dir).normalize();
-  let fwd: THREE.Intersection | undefined;
+  let fwd: ReturnType<typeof nearestHit> = null;
   if (!startsInside) {
-    ray.set(o, d);
-    ray.near = 0;
-    ray.far = maxLen;
-    fwd = ray.intersectObjects(meshes, false)[0];
+    fwd = nearestHit(meshes, o, d, maxLen);
     if (!fwd) return null;
   }
-  ray.set(o.clone().addScaledVector(d, maxLen), d.clone().negate());
-  ray.near = 0;
-  ray.far = maxLen;
-  const rev = ray.intersectObjects(meshes, false)[0];
+  const rev = nearestHit(meshes, o.clone().addScaledVector(d, maxLen), d.clone().negate(), maxLen);
   if (!rev) return null;
   const tOut = maxLen - rev.distance;
   const tIn = fwd ? fwd.distance : 0;
   if (tOut <= tIn + 1e-9) return null;
-  let en = fwd ? faceNormal(fwd) : null;
+  const en = fwd ? fwd.normal.clone() : null;
   if (en && en.dot(d) > 0) en.negate();
-  const ex = faceNormal(rev);
+  const ex = rev.normal.clone();
   if (ex.dot(d) < 0) ex.negate();
-  const entryNormal = en && fwd ? smoothNormal(meshes, arr(fwd.point), arr(en)) : null;
-  return { tIn, tOut, entryNormal, exitNormal: smoothNormal(meshes, arr(rev.point), arr(ex)) };
+  return { tIn, tOut, entryNormal: en ? arr(en) : null, exitNormal: arr(ex), exitPoint: arr(rev.point) };
 }

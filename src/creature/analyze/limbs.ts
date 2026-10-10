@@ -104,6 +104,11 @@ export function completeLimbs(ctx: Ctx, drafts: LimbDraft[]): Limb[] {
       strength,
       durability,
       anchorQuality: q,
+      freeLength: d.freeLength,
+      embedded: d.embedded,
+      tiltDeg: d.tiltDeg,
+      rodLength: root && root.shape.kind === 'capsule' ? len(sub(root.shape.b, root.shape.a)) : d.length,
+      anchoredBy: d.anchoredBy,
       mobility: { restDeg: angleDeg, minDeg, maxDeg, droops },
       profile: { pivot: pivot2, tip: tip2, angleDeg, length2D: len2, foreshortening, inDepth },
     };

@@ -143,10 +143,15 @@ export function resolveSnapshot(input: ResolveInput, cfg = CREATURE_CONFIG): Cre
     const analytic = analyticChord(parent.shape, entryRoot, dirIn);
     const chord = real ? real.tOut / sc : analytic ? analytic.chord : null;
     const normal = smoothOrAnalytic(parent, entryW, entryRoot, dirIn, inv);
-    const exitNormal = real ? toRootD(T3(real.exitNormal)) : analytic ? analytic.exitNormal : dirIn;
     const tilt = Math.acos(Math.min(1, Math.max(-1, dot(norm(axisOut), norm(normal)))));
     const embedded = chord === null ? d.depth : Math.min(d.depth, chord);
-    const exit = chord !== null && d.depth > chord + 1e-6 ? { point: addScaled(entryRoot, dirIn, chord), freeTip: d.depth - chord, normal: exitNormal } : null;
+    // La normal de salida (suavizada con rayos vecinos) solo se calcula si la vara de verdad sale.
+    let exit: SnapLink['exit'] = null;
+    if (chord !== null && d.depth > chord + 1e-6) {
+      let exitNormal: V3 = analytic ? analytic.exitNormal : dirIn;
+      if (real) exitNormal = toRootD(T3(smoothNormal(parent.meshes, real.exitPoint, real.exitNormal)));
+      exit = { point: addScaled(entryRoot, dirIn, chord), freeTip: d.depth - chord, normal: exitNormal };
+    }
 
     const rod = me.shape.kind === 'capsule' ? me.shape : null;
     const L = rod ? len(sub(rod.b, rod.a)) : 0;
@@ -159,17 +164,12 @@ export function resolveSnapshot(input: ResolveInput, cfg = CREATURE_CONFIG): Cre
       const mine = descendants(node);
       const tipPt = addScaled(entryRoot, dirIn, d.depth);
       const segDir = norm(sub(addScaled(entryRoot, dirIn, -(L - d.depth)), tipPt));
-      const tipW = T3(tipPt).applyMatrix4(root.object.matrixWorld);
-      const segW = T3(segDir).transformDirection(root.object.matrixWorld);
       for (const other of ordered) {
         const o = rn.get(other.data.id)!;
-        if (other === node || other === node.parent || mine.has(other) || o.kind === 'stroke' || o.meshes.length === 0) continue;
-        const hit = chordAlong(o.meshes, arr(tipW), arr(segW), L * sc);
-        const seg = hit ? clipToSegment([hit.tIn / sc, hit.tOut / sc], L) : null;
-        if (hit && seg) {
-          const entry = addScaled(tipPt, segDir, seg.tIn);
-          crossings.push({ pieceId: other.data.id, entry, normal: hit.entryNormal ? toRootD(T3(hit.entryNormal)) : scale(segDir, -1), exit: addScaled(tipPt, segDir, seg.tOut), chord: seg.chord });
-        }
+        if (other === node || other === node.parent || mine.has(other) || o.kind === 'stroke') continue;
+        // Con las formas ya medidas (cápsula o disco): barato, y alcanza para saber QUÉ otros sólidos cruza.
+        const hit = shapeChord(o.shape, tipPt, segDir, L);
+        if (hit) crossings.push({ pieceId: other.data.id, entry: addScaled(tipPt, segDir, hit.tIn), normal: analyticNormal(o.shape, addScaled(tipPt, segDir, hit.tIn), segDir), exit: addScaled(tipPt, segDir, hit.tOut), chord: hit.chord });
       }
     }
     links.push({ ...base, anchor: entryRoot, normal, axis: axisOut, tiltFromNormal: tilt, embedded, chord, freeTail, exit, crossings });
@@ -234,6 +234,19 @@ function measureShape(node: PieceNode, def: PieceDefinition, kind: PieceKind, me
 
 function toDir(v: THREE.Vector3, M: THREE.Matrix4): V3 {
   return arr(v.clone().transformDirection(M));
+}
+
+/** Tramo de un segmento (origen, dirección unitaria, largo) que está dentro de una forma medida. */
+function shapeChord(shape: Shape, origin: V3, dir: V3, segLen: number): { tIn: number; tOut: number; chord: number } | null {
+  let iv: [number, number] | null = null;
+  if (shape.kind === 'capsule') {
+    const ax = sub(shape.b, shape.a);
+    const L = len(ax);
+    const k = Math.min(shape.radius, L / 2);
+    const u: V3 = L < 1e-12 ? [0, 0, 0] : scale(ax, 1 / L);
+    iv = rayCapsule(origin, dir, addScaled(shape.a, u, k), addScaled(shape.b, u, -k), shape.radius);
+  } else if (shape.kind === 'disc') iv = rayDisc(origin, dir, shape.center, shape.normal, shape.thickness, shape.radius);
+  return clipToSegment(iv, segLen);
 }
 
 /** Cuerda y normal de salida con la forma analítica (respaldo cuando el rayo contra la malla no encuentra nada). */
