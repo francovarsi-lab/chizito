@@ -1,5 +1,10 @@
 # AUDITORÍA — Hombrecito de chizito → intérprete de criaturas (MVP 0)
 
+> **VERSIÓN 2 (2026-10-10).** Corregida tras leer la rama 3D `claude/friendly-faraday-2lyzl2` (hoy en 91994d3):
+> la **Fase 4 ya estaba hecha ahí** (guardado/carga JSON, frente, tope de 40) y el **frente quedó FIJO en +Z** (+Y arriba).
+> Las secciones 1.6, 1.9, 2, 3, 5, 7 y 8 se reescribieron; el resto se conserva. Lo que describe `main` sigue siendo
+> cierto para `main`, pero **la base de trabajo del intérprete es la rama 3D**, no `main`.
+
 Modo: solo lectura sobre el código. Fecha: 2026-10-09. Auditado: `origin/main` @ `3eec4bf` (tras `git fetch`).
 Marca **[INESTABLE]** = depende de las piezas en desarrollo (ketchup, chizito anidado, papita partida, zoom) o de
 cosas que cambian en la otra rama. Marca **[A VERIFICAR]** = no pude comprobarlo.
@@ -109,10 +114,18 @@ No hay bus de eventos: `InteractionController` expone callbacks sueltos (`onEven
 
 ### 1.6 Guardado / carga
 
-**No existe.** Verificado: no hay `localStorage`, `JSON.stringify` de la construcción, ni `Ctrl+S`; el CLAUDE.md lo anuncia como Fase 4.
-Lo que sí existe y sirve de base: `Construction.list()` (piezas en orden padre→hijo, "apto para serializar"),
-`Construction.restore(list, factory)` (reconstruye por id) y `InteractionController.onChange` (callback comentado como "autoguardado", **nadie lo conecta**).
-No hay versión de esquema, ni frente, ni nombre de criatura.
+- **En `main`: no existe.** (Verificado en su momento: sin `localStorage`, sin JSON, Ctrl+S sin implementar.)
+- **En la rama 3D: SÍ existe (Fase 4 hecha)**, en `src/persistence/`:
+  - `CreatureFile.ts`: formato **`hombrecito-de-chizito/criatura`, `version: 1`, unidades en metros**. Guarda por pieza
+    `id, type, parentId, seed, attach{mode, entryPoint, direction, depth, spin}, params?` y por criatura
+    `name, savedAt, pieceCount, root{type, seed}, front{direction, up}`. La pose se RECONSTRUYE al cargar
+    (`poseFromData`); `localMatrix` no se guarda. `fromCreatureFile` valida (tipos conocidos, padre existente, conexión posible
+    según `canPierce/canBePierced/tailMount/mountsOnTail`, tope de piezas) y descarta con aviso lo inválido.
+  - `Persistence.ts`: Ctrl+S descarga el `.json`, Ctrl+O o arrastrar un archivo lo carga (`loadText`, público), autoguardado
+    en `localStorage` (se recupera solo con `?recuperar`). Cargar se puede deshacer.
+  - `interaction/attach.ts`: modos de conexión `pierce | tail | paint`, `tipPose`, `poseFromData`, `tailFrame` (desde la malla).
+- **Consecuencia:** NO se propone un formato nuevo. `CreatureFileV1` es la fuente de verdad persistida y pertenece al chat 3D.
+  El intérprete usa un `CreatureSnapshot` DERIVADO (archivo + geometría resuelta) que nunca se persiste.
 
 ### 1.7 Colisiones, físicas, joints, raycasts, bounding boxes
 
@@ -139,9 +152,14 @@ No hay hitboxes, ni AABB por pieza, ni nada 2D.
 
 ### 1.9 Frente / orientación global
 
-**No existe.** El chizito raíz tiene eje largo en X local y ninguna noción de "frente" ni de "arriba". El pivot arranca con una
-rotación arbitraria (`Euler(0.18,−0.38,0.06)`) y el jugador lo gira libremente con el trackball; esa rotación **no se guarda**.
-Consecuencia: hoy es imposible saber "qué es arriba" de la criatura, solo "qué es arriba en pantalla en este momento".
+- **En `main`: no existe.**
+- **En la rama 3D: existe y es FIJO.** `Construction.front = (0,0,1)` y `Construction.up = (0,1,0)` en coordenadas del chizito
+  raíz: el costado +Z (el que mira a la cámara al empezar). Commit `78c17ae`: "frente predeterminado y fijo; F sólo lo muestra".
+  El archivo lo escribe explícito, pero **al cargar siempre vale el de fábrica**, aunque el JSON traiga otro.
+- **Choque con la visión (a decidir con evidencia):** con front = +Z el eje de profundidad de la vista lateral es el eje largo
+  del chizito (X). El cuerpo se ve "de punta" (círculo de ~2 cm) y lo clavado en las puntas ±X queda en profundidad.
+  Un palito clavado hacia +Z apunta al frente y se ve entero de costado. Decisión tomada: **(a) mantener +Z por ahora**,
+  con el frente siempre como parámetro del generador de fixtures, y decidir mirando `docs/creature/perfiles-a-vs-b.svg`.
 
 ### 1.10 Piezas en desarrollo — **[INESTABLE]** (rama `friendly-faraday-2lyzl2`, leído del código de la rama)
 
@@ -170,20 +188,20 @@ Cambios al contrato de datos que ya existen en esa rama:
 6. `Construction.restore()` que reconstruye una construcción desde datos (base para cargar criaturas de prueba).
 7. Escala real (1 u = 1 m) y mesa en y=0: sirve para el escenario "a ras de mesa".
 8. HUD DOM (`Overlay`) y entradas normalizadas (`Input`), tests de navegador con Playwright (`scripts/*-test.mjs`).
-9. Estilo visual y escenografía (bowls, mantel, guirnaldas del fondo se pueden reusar en la arena).
+9. **(Rama 3D)** Guardado/carga JSON versionado, frente fijo y tope de 40 piezas (el ketchup no cuenta).
+10. Estilo visual y escenografía (bowls, mantel, guirnaldas del fondo se pueden reusar en la arena).
 
-## 3. QUÉ NOS FALTA PARA EL MVP 0
+## 3. QUÉ NOS FALTA PARA EL MVP 0 (sobre la rama 3D)
 
-1. **Contrato `CreatureSnapshot`** (no existe) y un adaptador `Construction → CreatureSnapshot`.
-2. **Frente y arriba** de la criatura (guardados en el marco local del chizito raíz) + botón/vista de combate.
-3. **Datos físicos por tipo:** masa, material, resistencia (hoy ninguno).
-4. **Geometría de conexión derivada:** punto de salida, largo de punta libre (cola y punta), ancho de cuerda atravesada.
-5. **Intérprete puro** (snapshot → análisis: extremidades, capacidades, masa, centro de masa, apoyos, locomoción, ataques).
-6. **Proyección 2D de perfil** (cápsulas) para hitboxes/hurtboxes.
-7. **Panel "ESTRUCTURA DETECTADA"**, resaltado de extremidades en 3D y selector de criaturas A–E + rival vegetal.
-8. **Guardado/carga JSON** (Fase 4 mínima) para persistir y para cargar fixtures.
-9. **Tope de 40 piezas**: no existe; hay que decidir qué cuenta (ketchup).
-10. Rival vegetal: hay que crear piezas nuevas (brócoli/tomate/zanahoria/apio) — es 3D, queda en el otro chat.
+1. **Contrato `CreatureSnapshot`** derivado del archivo + un resolver que calcule la geometría (salida, cuerda, punta libre, anclas).
+2. **Configuración única de umbrales y densidades** (`src/creature/config.ts`).
+3. **Intérprete puro** (extremidades, masa, apoyos, locomoción, acciones) y **proyección 2D de perfil**.
+4. **Criaturas de prueba** A–E y rival vegetal (con piezas proxy marcadas con `proxyDe`).
+5. **Panel "ESTRUCTURA DETECTADA"**, resaltado de extremidades en 3D, selector y dibujo de perfil.
+6. **Tope de 30 trazos de ketchup**: la constante vive en `src/creature/limits.ts`; el cumplimiento lo hace el chat 3D.
+7. Decidir el **frente de combate** mirando los perfiles (ver 1.9).
+8. Rival vegetal real (brócoli/tomate/zanahoria/apio): piezas del chat 3D.
+(Ya resueltos por la rama 3D: guardado/carga, frente, tope de 40.)
 
 ## 4. QUÉ PARTES SE PUEDEN REUTILIZAR
 
@@ -206,21 +224,14 @@ Cambios al contrato de datos que ya existen en esa rama:
 
 ## 5. CAMBIOS DE ARQUITECTURA NECESARIOS (mínimos, sin romper lo que funciona)
 
-1. **Capa de contrato aislada** `src/creature/` (tipos + adaptador). El intérprete **nunca importa three.js ni `Construction`**;
-   solo `CreatureSnapshot`. Así los cambios del otro chat (ketchup, anidado, partida) solo tocan el *adaptador*, no el intérprete.
-2. **Tabla de perfiles físicos fuera de `PieceDefinition`** (`creature/pieceProfiles.ts`, por `type`/`variant`): masa, material, resistencia,
-   rol. Justificación: `definitions.ts` y `PieceDefinition.ts` los está tocando el otro chat; una tabla aparte evita conflictos de merge.
-   Más adelante se puede migrar a un campo opcional `physical?` de la definición (aditivo).
-3. **`onChange` → emisor multicast** (`construction.onChanged(cb)`), disparado en commit/undo/redo/load. Cambio chico y local.
-4. **Orientación de criatura guardada:** `front` y `up` en el marco local del chizito raíz. Se fija con el botón "vista de combate".
-5. **Punto de salida/cuerda como dato derivado** (cálculo al snapshotear con raycast), no como estado vivo — así `PieceData` no cambia.
-6. **Cámara de combate separada** (`render/CombatView`), no se modifica `Stage`/`CameraRig`.
-7. **Tope de 40 piezas** en el punto de entrada de `grab/commit`, contando **piezas estructurales** (ketchup y decoración excluidos — decisión pendiente, ver §7).
-8. **Persistencia JSON** (`persistence/`) con `version`, fuente de verdad = `entryPoint/direction/depth/spin/mount/params` (nunca `localMatrix`), como ya pide CLAUDE.md de la rama.
-
-**Qué NO se toca:** `InteractionController` salvo el emisor (3), `Picker`, `Aim`, render, assets.
-
----
+1. Carpeta nueva `src/creature/` con el intérprete **puro** (sin three.js ni `Construction`) y un **resolver** como única parte que toca three.js.
+2. **Un solo archivo de configuración** (`src/creature/config.ts`) con todos los umbrales y densidades. `limits.ts` (40 piezas, 30 trazos) queda
+   aparte, sin imports, para que el chat 3D lo importe.
+3. **No se crea un formato nuevo**: se lee `CreatureFileV1`. No hace falta emisor multicast: el panel encadena `interaction.onChange`
+   como ya hace `Persistence`.
+4. Un solo bloque en `main.ts` detrás del flag `?creature` (import dinámico; apagado = sin cambios de comportamiento) y una sección
+   nueva al final de `CLAUDE.md`. Nada más de lo existente se toca.
+5. El frente es parámetro: el contrato lee `orientation` del snapshot, no lo da por fijo.
 
 ## 6. PROPUESTA CONCRETA DEL INTÉRPRETE
 
@@ -235,7 +246,7 @@ interface CreatureSnapshot {
   id: string; name?: string; createdAt: string;
   rootId: string;
   /** Frente y arriba, vectores unitarios en el marco local del raíz. Obligatorios al confirmar la vista de combate. */
-  orientation: { front: V3; up: V3; confirmed: boolean };
+  orientation: { front: V3; up: V3 };   // hoy fijo (+Z, +Y) en la rama 3D; se lee del snapshot
   pieces: SnapPiece[];            // incluye la raíz; orden padre→hijo
   connections: SnapConnection[];  // 1 por pieza no raíz
   stats: { structuralCount: number; cap: 40 };
@@ -384,7 +395,10 @@ Regla de oro: **nada de GPL** al repo.
 11. **`onChange` no cubre el hundido en curso** (se muta `PieceData` por frame sin notificar): re-analizar solo en commit/undo/redo/load.
 12. **Libertad de construcción vs jugabilidad:** una criatura "inviable" (todo palito flojo, 0 apoyos, 0 ataques) debe jugar igual (embestida/arrastre); hay que definir el mínimo garantizado.
 13. **Cálculo de ángulos en arrastre trackball:** el frente/arriba dependen de que el jugador confirme la vista; si no confirma, usar un default determinista y avisar.
-14. **Matter.js:** no instalar ahora, de acuerdo; el intérprete no debe asumir física general.
+14. **Frente fijo +Z y vista lateral:** ver 1.9. Se decide con `docs/creature/perfiles-a-vs-b.svg`.
+15. **La rama 3D se mueve** (hoy 91994d3 y avanzando): se integra con merge periódico; los fixtures dependen del formato `CreatureFileV1`.
+16. **Palitos clavados en un chizito montado** no cuentan como extremidades propias en el MVP 0 (deuda del MVP 1); el panel lo avisa.
+17. **Matter.js:** no instalar ahora, de acuerdo; el intérprete no debe asumir física general.
 
 **Choques entre tu visión y el código real (para que decidas):**
 - "Lo construido es 100 % utilizable": hoy cualquier palito clavado en cualquier ángulo es válido; hay piezas "flojas" y piezas hacia la cámara que no podrán usarse como extremidades → habrá una categoría "decorativa" y avisos en el panel.
@@ -393,23 +407,19 @@ Regla de oro: **nada de GPL** al repo.
 
 ---
 
-## 8. ORDEN EXACTO DE IMPLEMENTACIÓN (cuando apruebes)
+## 8. ORDEN EXACTO DE IMPLEMENTACIÓN (aprobado; v2)
 
-Rama de trabajo sugerida: `claude/creature-interpreter` (sale de `main`; solo carpetas nuevas hasta el paso 7). Un commit + push por tanda.
+Rama: `claude/creature-interpreter`, creada desde la rama 3D. Un commit + push por tanda. Tandas 0–3 aprobadas; se frena tras la 3.
 
-**Tanda 0 — decisiones (sin código):** ¿qué rama es la base? ¿ketchup cuenta para el tope? ¿URL de 2DFighting? ¿qué hacemos con el borrado de `deploy.yml`/`vite.config.ts` en la rama 3D?
-
-**Tanda 1 — Contrato y tipos** (`src/creature/types.ts`, `README`): `CreatureSnapshot`, validador mínimo, `version`. *Commit:* "Contrato CreatureSnapshot v1".
-**Tanda 2 — Perfiles físicos y matemática** (`pieceProfiles.ts`, `math2d.ts`, sin three): masa, cápsulas, CoM. *Commit:* "Perfiles de pieza y utilidades".
-**Tanda 3 — Fixtures A–E + rival vegetal** (`fixtures/*.json`, escritas a mano en el contrato) y test en Node (`node scripts/interpret-test.mjs`). *Commit:* "Criaturas de prueba".
-**Tanda 4 — Intérprete, parte 1:** extremidades candidatas (cola/punta), condiciones de anclaje. *Commit:* "Detección de extremidades".
-**Tanda 5 — Intérprete, parte 2:** capacidades, masa/alcance/apoyos/locomoción. *Commit:* "Capacidades y locomoción".
-**Tanda 6 — Intérprete, parte 3:** acciones ofensivas y proyección 2D. *Commit:* "Acciones y perfil 2D".
- (Verificación: el test debe producir resultados esperables para A–E: A camina, B arrastra/salta con 4 brazos, C 1 brazo sin piernas, D erizo rueda, E con avisos.)
-**Tanda 7 — Adaptador `Construction → CreatureSnapshot`** (único archivo que toca `Construction`) + `onChanged` multicast. *Commit:* "Adaptador y eventos".
-**Tanda 8 — Orientación:** `front/up` en el marco del raíz + botón "vista de combate" (cartel/flecha). *Commit:* "Frente de la criatura".
-**Tanda 9 — Panel + selector + resaltado 3D:** `ui/StructurePanel.ts`, cargar fixtures vía `restore`, `setHighlight` con color. *Commit:* "Panel ESTRUCTURA DETECTADA".
-**Tanda 10 — JSON persistente mínimo** (Ctrl+S / cargar) compatible con el contrato. *Commit:* "Guardado de criaturas".
-**Tanda 11 — Integración con la rama 3D:** actualizar adaptador para `mount/params/ketchup`; retirar los `unstable` que ya estén estables. *Commit:* "Integración con piezas nuevas".
-
-Después del paso 11 se cierra el MVP 0 y se evalúa el MVP 1 (física/Matter.js, combate, cámara y arena).
+| # | Tanda | Archivos | Verifica |
+|---|---|---|---|
+| 0 | Doc v2 | `docs/AUDITORIA.md` | Coincide con el código de la rama base. |
+| 1 | Contrato y límites | `src/creature/{limits,config,types,index}.ts` | `typecheck`; `MAX_PIECES` igual al del juego. |
+| 2 | Perfiles y matemática | `profiles.ts`, `math/{vec,shapes2d,basis,mass}.ts`, `scripts/creature-test.mjs` | Proyección, giro de 180°, colisiones 2D, masas a mano. |
+| 3 | Criaturas de prueba | `fixtures/`, `scripts/make-fixtures.mjs`, `public/assets/creatures/*.json`, `docs/creature/perfiles-a-vs-b.svg` | Los archivos cargan sin avisos; D ≤ 40; perfiles +Z vs ±X. |
+| 4 | Detección | `detect/*` | A: 4 extremidades, B: 4, C: 1, D: muchas con tope, E: decorativas con razón. |
+| 5 | Masa, capacidades, locomoción | `analyze/*` | A camina, B salta o se arrastra, C se arrastra, **D rueda, casi sin acciones de golpe ni frenado (criterio de aceptación)**, vegetal camina. |
+| 6 | Acciones, perfil 2D, fachada | `analyze/actions`, `project/*`, `interpret.ts`, `describe.ts` | Acciones sin duplicados; 40 piezas en < 5 ms. |
+| 7 | Resolver (three.js) | `resolve/*` | Archivo cargado en la app = snapshot de referencia (1 mm, 2°). |
+| 8 | Panel y selector | `ui/*` | Panel, resaltado, selector A–E, perfil 2D; avisa que los palitos en un chizito montado no cuentan como extremidades. |
+| 9 | Instalación y cierre | `install.ts`, `docs/CREATURE_CONTRACT.md`, bloque en `main.ts`, sección en `CLAUDE.md` | Flag apagado = app idéntica; build limpio. |
