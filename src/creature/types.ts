@@ -29,6 +29,10 @@ export interface CreatureSnapshot {
 
 export type PieceKind = 'core' | 'blob' | 'rod' | 'plate' | 'stroke';
 
+/**
+ * Forma 3D de una pieza. En 'capsule', `a` y `b` son los EXTREMOS REALES del objeto (punta y cola, o las dos
+ * puntas del chizito), no los centros de las tapas; el largo total es |b − a|.
+ */
 export type Shape =
   | { kind: 'capsule'; a: V3; b: V3; radius: number }
   | { kind: 'disc'; center: V3; normal: V3; radius: number; thickness: number; solidFraction: number }
@@ -124,6 +128,7 @@ export interface DecorativePiece {
   mass: number;
 }
 
+/** En 2D, 'capsule' es el segmento a→b (centros de las tapas) engrosado en `r`. */
 export type Shape2D = { kind: 'capsule'; a: V2; b: V2; r: number } | { kind: 'poly'; pts: V2[] };
 
 export interface HurtGroup {
