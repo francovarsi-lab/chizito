@@ -59,8 +59,8 @@ async function main() {
   pivot.position.copy(CONFIG.chizitoCenter);
   let chizitoModel = assets.create(CHIZITO.type, rootSeed, 'hero');
   pivot.add(chizitoModel);
-  // Orientación inicial: levemente girado, como si lo hubieran dejado así.
-  pivot.quaternion.setFromEuler(new THREE.Euler(0.18, -0.38, 0.06));
+  // Orientación inicial: parado y de frente a la cámara (F vuelve acá).
+  pivot.quaternion.copy(CONFIG.creature.homeRotation);
   stage.scene.add(pivot);
   markHero(pivot);
   const contactShadow = new ContactShadow(stage.scene, CONFIG.chizitoCenter);
@@ -74,7 +74,7 @@ async function main() {
   input.onWheel((e) => {
     if (!e.ctrl) rig.zoom(e.dy);
   });
-  const rotator = new TrackballRotator(pivot, stage.camera);
+  const rotator = new TrackballRotator(pivot, stage.camera, CONFIG.creature.homeRotation);
   const overlay = new Overlay();
   const picker = new Picker(stage.camera, construction, pieces, backdrop.bowls);
   const interaction = new InteractionController({

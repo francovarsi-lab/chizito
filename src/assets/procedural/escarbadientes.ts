@@ -9,6 +9,10 @@ import { buildTube } from './tube';
  */
 export const ESCARBADIENTES_LENGTH = 0.03;
 export const ESCARBADIENTES_RADIUS = 0.001;
+/** Largo de la hoja de la espadita (desde la punta hasta la guarda en cruz). */
+export const ESPADITA_BLADE = ESCARBADIENTES_LENGTH * 0.7;
+/** Radio de la barra de la guarda. */
+export const ESPADITA_GUARD_R = 0.0007;
 
 export interface EscarbadientesParams {
   variant?: 'liso' | 'espadita';
@@ -94,7 +98,7 @@ function createEspadita(seed: number, detail: 'hero' | 'prop'): THREE.Group {
   const rnd = mulberry32(seed * 4243 + 1);
   const mat = plastic(PASTELES[Math.floor(rnd() * PASTELES.length)]);
   const L = ESCARBADIENTES_LENGTH;
-  const bladeL = L * 0.7;
+  const bladeL = ESPADITA_BLADE;
   const tip = 0.006;
   const g = new THREE.Group();
   g.name = 'espadita';
@@ -117,7 +121,7 @@ function createEspadita(seed: number, detail: 'hero' | 'prop'): THREE.Group {
   g.add(bladeMesh);
 
   // Guarda en cruz con los extremos redondeados.
-  const guard = new THREE.Mesh(new THREE.CapsuleGeometry(0.0007, 0.0062, 4, 12), mat);
+  const guard = new THREE.Mesh(new THREE.CapsuleGeometry(ESPADITA_GUARD_R, 0.0062, 4, 12), mat);
   guard.rotation.z = Math.PI / 2;
   guard.position.y = bladeL;
   g.add(guard);

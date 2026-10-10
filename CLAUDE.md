@@ -123,6 +123,8 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   mismo flujo que el chizito extra: clic en el palito → se presenta → clic en la aceituna = por dónde entra →
   ángulo → mantener). Se puede atravesar. Escarbadientes: como el palito (80 % del
   largo); escarbadientes y espadita salen de vasitos distintos (`escarbadientes` / `escarbadientes:espadita`).
+  La guarda en cruz de la espadita es el TOPE: sólo entra (y atraviesa) la hoja (`variants[].maxDepth`, ver
+  `maxDepthOf`; vale también para Ctrl + rueda y al cargar archivos).
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
 - Chizito extra (EN PAUSA por pedido del usuario: el bowl no está en la mesa; el mecanismo `mountsOnTail` lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
@@ -144,8 +146,10 @@ rarezas, puntuación ni desafíos (ni UI preparada para eso).
   Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),
   Supr/Backspace = quitar, Esc = soltar.
 - Ctrl+Z / Ctrl+Shift+Z (o Ctrl+Y): deshacer / rehacer. R dos veces (en 2,5 s) reinicia; también se deshace.
-  H oculta ayudas. FRENTE fijo y predeterminado: el costado +Z del chizito raíz (+Y arriba), el que mira a la cámara
-  al empezar; F sólo lo MUESTRA (aro + punto que late 2,6 s), no lo cambia. Al cargar un archivo vale siempre el fijo. Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
+  H oculta ayudas. El chizito ARRANCA PARADO (eje largo X local hacia arriba) y DE FRENTE (`CONFIG.creature.homeRotation`).
+  FRENTE fijo y predeterminado: el costado +Z del chizito raíz, con su eje largo +X como "arriba"; no se cambia.
+  F devuelve el chizito suave (0,7 s, leve rebote, `TrackballRotator.goHome`) a esa posición inicial y muestra el
+  frente (aro + punto que late 2,6 s). Al cargar un archivo vale siempre el frente fijo. Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
   (se deshace con Ctrl+Z). Al abrir (o recargar) SIEMPRE arranca un chizito nuevo con forma al azar (`?seed=N` la fija;
   `?capture` usa la 3). La última criatura se autoguarda en el navegador y sólo vuelve con `?recuperar`.
   R R también da un chizito de otra forma.
