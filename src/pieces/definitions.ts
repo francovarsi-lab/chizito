@@ -13,7 +13,7 @@ import {
 } from '../assets/procedural/escarbadientes';
 import { createKetchupStroke, KETCHUP_RADIUS, type KetchupParams } from '../assets/procedural/ketchup';
 import { createPalitoSelva, SELVA_LENGTH, SELVA_WIDTH, SelvaWrapper, type PalitoSelvaParams } from '../assets/procedural/palitoSelva';
-import { CHUPETIN_BALL_R, CHUPETIN_STICK, createChupetin } from '../assets/procedural/chupetin';
+import { CHUPETIN_BALL_R, CHUPETIN_STICK, ChupetinWrapper, createChupetin, type ChupetinParams } from '../assets/procedural/chupetin';
 import * as THREE from 'three';
 import type { PieceDefinition } from './PieceDefinition';
 
@@ -148,7 +148,7 @@ export const PALITO_SELVA: PieceDefinition = {
       h = m.geometry.boundingBox!.max.y - m.geometry.boundingBox!.min.y;
     });
     const w = new SelvaWrapper(seed, h);
-    return { object: w.mesh, setProgress: (p) => w.setProgress(p) };
+    return { object: w.object, setProgress: (p) => w.setProgress(p) };
   },
   canPierce: true,
   canBePierced: false,
@@ -157,14 +157,21 @@ export const PALITO_SELVA: PieceDefinition = {
   sounds: CRUNCHY,
 };
 
-/** Chupetín (tipo Mister Pop), con su envoltorio transparente puesto: se clava por la punta del palito. */
+/**
+ * Chupetín (tipo Mister Pop): en el vasito viene envuelto (moño arriba); al agarrarlo se desenvuelve
+ * desde el moño y se clava pelado por la punta del palito.
+ */
 export const CHUPETIN: PieceDefinition = {
   type: 'chupetin',
   displayName: 'Chupetín',
   dimensions: { length: CHUPETIN_STICK + CHUPETIN_BALL_R * 1.8, thickness: CHUPETIN_BALL_R * 2 },
   frame: 'tip',
   keepOrientation: true,
-  procedural: (seed, detail) => createChupetin(seed, detail),
+  procedural: (seed, detail, params) => createChupetin(seed, detail, params as ChupetinParams),
+  wrapper: (seed) => {
+    const w = new ChupetinWrapper(seed);
+    return { object: w.object, setProgress: (p) => w.setProgress(p) };
+  },
   canPierce: true,
   canBePierced: false,
   // Queda afuera la bola y un tramo de palito.

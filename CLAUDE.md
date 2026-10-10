@@ -41,12 +41,12 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
 - Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
 - Palito: 3,5 cm, Ø 3,4 mm. Papita: Ø ~5 cm, 1,5 mm. Nacho: triángulo de ~4,5 cm de lado, 1,8 mm.
   Aceituna: 2 × 1,5 cm (rellena de morrón). Escarbadientes: 3 cm × Ø 2 mm (variante espadita de cotillón, 3 cm).
-  Palito de la selva: 5,5 cm × 1,05 × 0,78 cm. Chupetín: palito 5,5 cm × Ø 3,4 mm + bola Ø 2,1 cm.
+  Palito de la selva: 4,5 cm × Ø 8,5 mm. Chupetín: palito 5,5 cm × Ø 3,4 mm + bola Ø 2,1 cm.
 - Mesa en y = 0. Chizito flotando con centro en y = 10 cm (`CONFIG.chizitoCenter`): la mesa queda más lejos y despejada.
 - Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, a 30 cm del chizito, con zoom por
   dolly (rueda del mouse) entre 16 y 50 cm, suave. 50 mm sobre film de 36 mm. Nunca orbita.
-- Composición despejada: bowl de papitas (izq.) y vasito de palitos (der.) simétricos a los costados, a media
-  distancia; pocos objetos al fondo y lejos.
+- Composición despejada: bowl de papitas (izq., x −0,15 para dejar ver el platito de palitos de la selva) y vasito
+  de palitos (der.) a los costados, a media distancia; pocos objetos al fondo y lejos.
 
 ## Estética
 - Base fotográfica (sigue valiendo, pero al servicio de lo divertido). Fuentes del realismo: IBL + luz direccional cálida de ventana con sombras suaves
@@ -127,16 +127,21 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   largo); escarbadientes y espadita salen de vasitos distintos (`escarbadientes` / `escarbadientes:espadita`).
   La guarda en cruz de la espadita es el TOPE: sólo entra (y atraviesa) la hoja (`variants[].maxDepth`, ver
   `maxDepthOf`; vale también para Ctrl + rueda y al cargar archivos).
-- Palito de la selva (`palito-selva`, bowl a la izquierda del chizito): caramelo masticable, sección de rectángulo
-  redondeado, MITAD ROSA / MITAD BLANCO a lo ancho (la costura corre por el medio de las caras anchas). En el bowl
-  viene envuelto (`params.wrapped` sólo para los del bowl); al agarrarlo el papel se desenrolla (empieza por el borde
-  suelto) y se cae planeando y desvaneciéndose (`PieceDefinition.wrapper` + `SelvaWrapper.setProgress`). Se clava
-  SIN papel por una punta, hasta la mitad. Envoltorio aproximado sin marca (amarillo, hojas, franja roja, monitos).
+- Palito de la selva (`palito-selva`, platito a la izquierda del chizito), según las fotos del usuario: caramelo
+  CILÍNDRICO, MITAD ROSA / MITAD BLANCO con la división RECTA a lo largo (sin hélice; acostado: rosa abajo, blanco
+  arriba), puntas cortadas con borde redondeado. En el platito vienen envueltos y ordenados (`params.wrapped` sólo
+  para los del platito): papel ajustado en tubito, rosado claro con una franja amarilla de borde rojo (en lugar del
+  logo) y una libélula, y las PUNTAS verde selva: cuello retorcido pasado el caramelo y de ahí un abanico chato y
+  triangular con el borde arrugado. Al agarrarlo (`PieceDefinition.wrapper`,
+  `SelvaWrapper.setProgress`): primero se destuercen las puntas (0 → 0,4), después el papel se desenrolla desde el
+  borde suelto (0,4 → 1), y se cae planeando y desvaneciéndose. Se clava SIN papel por una punta, hasta la mitad.
   Pendiente: un dato curioso de un animal cada vez que se usa.
-- Chupetín (`chupetin`, vasito a la derecha): tipo Mister Pop, bola brillante de color al azar (frutilla, naranja,
-  limón, uva, manzana, chicle) en palito blanco, con el film transparente puesto (líneas blancas, nudo retorcido y
-  pollerita). Se clava por la punta del palito (máx. 70 % del palito). Aproximación sin marca.
-- Las dos se afinan con fotos de referencia del usuario (colores exactos de envoltorios).
+- Chupetín (`chupetin`, vasito a la derecha), según la foto: bola brillante TRANSLÚCIDA de color al azar (frutilla,
+  naranja, limón, uva, manzana, chicle y COLA: casi negro, a contraluz marrón translúcido; `attenuationColor`) en palito
+  blanco. En el vasito viene envuelto (`ChupetinWrapper`): film transparente con LÍNEAS BLANCAS CURVAS PARALELAS (no
+  se cruzan) sobre la bola, ceñido al palito abajo y ARRIBA un cuello retorcido (el nudo) que se abre en un abanico
+  blanco con rayas rojas, azules y verdes. Al agarrarlo se abre DESDE ARRIBA: se desata el nudo y el film se abre
+  como una flor de la cima hacia abajo, y se cae; en la mano y clavado va pelado, sin líneas. Se clava por la punta del palito (máx. 70 %). Sin marca.
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
 - Chizito extra (EN PAUSA por pedido del usuario: el bowl no está en la mesa; el mecanismo `mountsOnTail` lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
