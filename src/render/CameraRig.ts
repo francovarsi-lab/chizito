@@ -10,6 +10,8 @@ import * as THREE from 'three';
 export interface IntroShot {
   position: THREE.Vector3;
   target: THREE.Vector3;
+  /** Lente del plano general (mm); vuelve a la del juego durante el viaje. */
+  focalLength: number;
 }
 export class CameraRig {
   private readonly dir = new THREE.Vector3();
@@ -20,6 +22,7 @@ export class CameraRig {
   /** Punto de foco (el chizito en el juego; el centro de la mesa en el plano general). */
   readonly focus = new THREE.Vector3();
   private intro: { shot: IntroShot; t: number; fly: number; duration: number; onDone?: () => void } | null = null;
+  private baseFocal = 50;
 
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
@@ -40,6 +43,7 @@ export class CameraRig {
   }
 
   startIntro(shot: IntroShot): void {
+    this.baseFocal = this.camera.getFocalLength();
     this.intro = { shot, t: 0, fly: -1, duration: 3.2 };
     this.applyIntro();
   }
@@ -70,6 +74,7 @@ export class CameraRig {
       if (this.intro.fly >= 1) {
         const done = this.intro.onDone;
         this.intro = null;
+        this.camera.setFocalLength(this.baseFocal);
         this.apply();
         done?.();
       }
@@ -103,6 +108,7 @@ export class CameraRig {
     const b = ctrl.clone().lerp(end, k);
     this.camera.position.copy(a.lerp(b, k));
     const look = wideTarget.clone().lerp(this.target, k * k * (3 - 2 * k));
+    this.camera.setFocalLength(THREE.MathUtils.lerp(it.shot.focalLength, this.baseFocal, k));
     this.camera.lookAt(look);
     this.camera.updateMatrixWorld();
     this.focus.copy(look);

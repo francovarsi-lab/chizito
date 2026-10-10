@@ -121,10 +121,14 @@ function buildRoom(): THREE.Scene {
   const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.3, 20), rad('#ffd7a0', 4.5));
   shade.position.set(2.0, 0.85, -2.3);
   s.add(shade);
-  // Planta
-  const plant = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 12), rad('#3f5a2c', 0.3));
-  plant.position.set(0.45, floorY + 1.15, back + 0.4);
-  s.add(plant);
+  // Abanico de papel de cumpleaños colgado en la pared (antes una planta: una mancha oscura enorme
+  // detrás de las guirnaldas en el plano general de la intro).
+  const fan = new THREE.Mesh(new THREE.CircleGeometry(0.34, 24), rad('#ffc9d6', 0.85));
+  fan.position.set(0.45, floorY + 1.3, back + 0.06);
+  s.add(fan);
+  const fanCenter = new THREE.Mesh(new THREE.CircleGeometry(0.12, 20), rad('#fff1c9', 0.95));
+  fanCenter.position.set(0.45, floorY + 1.3, back + 0.07);
+  s.add(fanCenter);
 
   // Banderines de cumpleaños cruzando la pared del fondo.
   const colors = ['#ffb7c8', '#ffe29a', '#b8dcf5', '#bfe8cf', '#d8c8f5', '#ffd0b0'];

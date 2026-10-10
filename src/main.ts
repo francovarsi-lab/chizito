@@ -164,7 +164,7 @@ async function main() {
   };
 
   // ── Intro: plano general de la mesa con el título; un clic o una tecla viaja hasta el chizito. ──
-  const INTRO_SHOT = { position: new THREE.Vector3(0.06, 0.44, 0.92), target: new THREE.Vector3(0, 0.1, -0.42) };
+  const INTRO_SHOT = { position: new THREE.Vector3(-0.13, 0.34, 0.98), target: new THREE.Vector3(0.04, 0.2, -0.6), focalLength: 28 };
   let title: Title | null = null;
   let started = false;
   const startIntro = () => {
