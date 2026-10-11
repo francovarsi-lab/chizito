@@ -7,7 +7,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 const { interpret } = await server.ssrLoadModule('/src/creature/index.ts');
 const r = (x, n = 5) => Math.round(x * 10 ** n) / 10 ** n;
 const out = {};
-for (const id of ['A', 'B', 'C', 'D', 'E', 'veg']) {
+for (const id of ['A', 'B', 'C', 'D', 'E', 'veg', 'P']) {
   const snap = JSON.parse(fs.readFileSync(`src/creature/fixtures/${id}.snapshot.json`, 'utf8'));
   for (const facing of [1, -1]) {
     const a = interpret(snap, { facing });

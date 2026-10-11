@@ -780,6 +780,18 @@ try {
     ok(!aC.decorative.some((d) => d.reason === 'unknown-type') && aC.limbs.length === aP.limbs.length, 'chupetín: sin tipo desconocido y el resto de las extremidades igual');
   }
 
+  section('estocada en profundidad');
+  {
+    const mk = (over) => ({ tag: 'lanza', length: 0.03, caps: { strike: 0.6 }, profile: { inDepth: true, pivot: [0, 0], tip: [0, 0], angleDeg: 0 }, ...over });
+    const L = idx.CREATURE_CONFIG.actions.longRodMin;
+    ok(idx.classifyStrike(mk({ length: L, profile: { inDepth: true, pivot: [0, 0], tip: [0, 0.001], angleDeg: 0 } })) === 'estocada', 'en profundidad, vara larga y poca inclinación vertical: estocada');
+    ok(idx.classifyStrike(mk({ length: L * 0.9 })) === 'jab', 'en profundidad, vara corta y poca inclinación vertical: jab');
+    ok(idx.classifyStrike(mk({ profile: { inDepth: true, pivot: [0, 0], tip: [0, 0.02], angleDeg: 0 } })) === 'golpe-alto', 'en profundidad, hacia arriba: golpe alto (igual que antes)');
+    ok(idx.classifyStrike(mk({ profile: { inDepth: true, pivot: [0, 0], tip: [0, -0.02], angleDeg: 0 } })) === 'barrida', 'en profundidad, hacia abajo: barrida (igual que antes)');
+    ok(idx.classifyStrike(mk({ caps: { strike: idx.CREATURE_CONFIG.capabilities.minRole * 0.9 } })) === null, 'sin capacidad de golpe suficiente no hay acción (el umbral no cambió)');
+    ok(idx.classifyStrike(mk({ tag: 'maza' })) === 'mazazo', 'la maza sigue siendo mazazo');
+  }
+
   section('masa sin doble conteo y campos por extremidad');
   for (const c of built) {
     const a = full[c.id];

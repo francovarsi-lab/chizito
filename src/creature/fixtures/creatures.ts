@@ -154,3 +154,18 @@ export const CREATURE_MAKERS: { id: string; make: Maker }[] = [
 export function buildAllCreatures(front: V3 = DEFAULT_FRONT, up: V3 = DEFAULT_UP): BuiltCreature[] {
   return CREATURE_MAKERS.map((m) => ({ ...m.make(front, up), id: m.id }));
 }
+
+/**
+ * P) demostración: 7 palitos clavados desde la CARA del chizito (hacia la cámara del constructor), como los pone quien arma la criatura
+ * mirándola de frente: todos quedan en profundidad. No es una de las seis criaturas de referencia (no entra en `buildAllCreatures`).
+ */
+export function buildDepthDemo(front: V3 = DEFAULT_FRONT, up: V3 = DEFAULT_UP): BuiltCreature {
+  const b = new CreatureBuilder('P', 'P · 7 palitos en profundidad', 3, front, up);
+  const xs = [-0.018, -0.012, -0.006, 0, 0.006, 0.012, 0.018];
+  const lifts = [-25, 10, -10, 0, 20, -5, 15];
+  xs.forEach((x, i) => {
+    const a = b.side(x, 90);
+    b.rod(b.root, a.point, b.lean(a.n, UP, lifts[i]), D, { seed: 701 + i });
+  });
+  return { ...b.build(), id: 'P' };
+}

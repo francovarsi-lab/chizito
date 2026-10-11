@@ -1,0 +1,175 @@
+{
+  "format": "hombrecito-de-chizito/criatura",
+  "version": 1,
+  "units": "m",
+  "creature": {
+    "name": "P · 7 palitos en profundidad",
+    "savedAt": "2026-10-10T00:00:00.000Z",
+    "pieceCount": 7,
+    "root": {
+      "type": "chizito",
+      "seed": 3
+    },
+    "front": {
+      "direction": [
+        0,
+        -1,
+        0
+      ],
+      "up": [
+        1,
+        0,
+        0
+      ]
+    }
+  },
+  "pieces": [
+    {
+      "id": "palito-fxP1",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 701,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.018,
+          0,
+          0.010815
+        ],
+        "direction": [
+          0.422618,
+          0,
+          -0.906308
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxP2",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 702,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.012,
+          0,
+          0.010815
+        ],
+        "direction": [
+          -0.173648,
+          0,
+          -0.984808
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxP3",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 703,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.006,
+          0,
+          0.010815
+        ],
+        "direction": [
+          0.173648,
+          0,
+          -0.984808
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxP4",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 704,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0,
+          0,
+          0.010815
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxP5",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 705,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.006,
+          0,
+          0.010815
+        ],
+        "direction": [
+          -0.34202,
+          0,
+          -0.939693
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxP6",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 706,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.012,
+          0,
+          0.010815
+        ],
+        "direction": [
+          0.087156,
+          0,
+          -0.996195
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxP7",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 707,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.018,
+          0,
+          0.010815
+        ],
+        "direction": [
+          -0.258819,
+          0,
+          -0.965926
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    }
+  ]
+}

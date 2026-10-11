@@ -19,7 +19,8 @@ const SLOT: Record<Kind, Input> = {
 /**
  * Tipo de golpe de una extremidad, o null si no golpea (no llega al mínimo, o apunta hacia atrás):
  *  maza → mazazo · al frente: estocada (vara larga) o jab · alta → golpe alto · baja → barrida.
- * Una extremidad en profundidad puede girar al plano: se clasifica por su inclinación vertical.
+ * Una extremidad en profundidad puede girar al plano: se clasifica por su inclinación vertical (golpe alto, barrida) y, con poca
+ * inclinación, igual que las normales: estocada si es una vara larga, jab si no.
  */
 export function classifyStrike(l: Limb, cfg = CREATURE_CONFIG): Kind | null {
   const a = cfg.actions;
@@ -29,7 +30,7 @@ export function classifyStrike(l: Limb, cfg = CREATURE_CONFIG): Kind | null {
   if (l.profile.inDepth) {
     if (y > a.verticalRatio * l.length) return 'golpe-alto';
     if (y < -a.verticalRatio * l.length) return 'barrida';
-    return 'jab';
+    return l.length >= a.longRodMin ? 'estocada' : 'jab';
   }
   const abs = Math.abs(l.profile.angleDeg);
   if (abs <= cfg.capabilities.strikeFrontDeg) return l.length >= a.longRodMin ? 'estocada' : 'jab';
