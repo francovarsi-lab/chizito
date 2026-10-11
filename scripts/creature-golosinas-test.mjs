@@ -17,9 +17,12 @@ let bad = 0;
 const ok = (c, msg) => { if (!c) bad++; console.log(`${c ? 'OK ' : 'FALLA'} ${msg}`); };
 
 const base = JSON.parse(fs.readFileSync('public/assets/creatures/A.json', 'utf8'));
+// El juego reutiliza objetos por id: cada escenario usa ids propios (si no, un id que cambia de tipo conserva su malla vieja).
+let scenario = 0;
 const mk = (changes) => {
   const d = JSON.parse(JSON.stringify(base));
-  d.pieces = d.pieces.filter((p) => changes[p.id]).map((p) => ({ ...p, ...changes[p.id].set, attach: { ...p.attach, ...(changes[p.id].attach ?? {}) } }));
+  const tag = `s${++scenario}`;
+  d.pieces = d.pieces.filter((p) => changes[p.id]).map((p) => ({ ...p, ...changes[p.id].set, id: `${p.id}-${tag}`, attach: { ...p.attach, ...(changes[p.id].attach ?? {}) } }));
   d.creature.pieceCount = d.pieces.length;
   return JSON.stringify(d);
 };
@@ -55,7 +58,7 @@ const chup = await run(mk({ 'palito-fxA3': { set: { type: 'chupetin' }, attach: 
 ok(chup.ball.length === 1 && chup.types.includes('chupetin-caramelo'), 'chupetín: la bola de caramelo llega como pieza propia');
 ok(chup.ball.length === 1 && chup.ball[0].r > 0.0100 && chup.ball[0].r < 0.0115, `chupetín: bola real Ø ${(chup.ball[0]?.r * 2000).toFixed(1)} mm`);
 const mz = chup.limbs.find((l) => l.tag === 'maza');
-ok(!!mz && mz.root === 'palito-fxA3' && mz.pieces.some((p) => p.endsWith('~caramelo')), 'chupetín: una maza (palito + caramelo)');
+ok(!!mz && mz.root.startsWith('palito-fxA3') && mz.pieces.some((p) => p.endsWith('~caramelo')), 'chupetín: una maza (palito + caramelo)');
 ok(chup.deco.every((d) => d[1] !== 'unknown-type') && !/desconocid/i.test(chup.text), 'chupetín: sin aviso de tipo desconocido');
 console.log('   chupetín:', JSON.stringify({ limbs: chup.limbs.map((l) => [l.id, l.tag, +(l.mass * 1000).toFixed(2), +l.freeMm.toFixed(1), +l.strike.toFixed(2)]), deco: chup.deco, actions: chup.actions, stick: chup.stick }));
 await page.screenshot({ path: `${out}/panel-chupetin.png` });
