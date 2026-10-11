@@ -748,6 +748,38 @@ try {
   ok(hi.includes('" opacity="0.35"') && !svgR.includes('" opacity="0.35"'), 'resaltar una extremidad atenúa a las demás');
   ok(PS.renderProfileSvg(full.D).length > 5000 && PS.renderProfileSvg(full.E).includes('data-limb'), 'D y E también se dibujan');
 
+  section('perfiles: palito de la selva y chupetín');
+  {
+    const cl = (x) => JSON.parse(JSON.stringify(x));
+    ok(idx.isKnownType('palito-selva') && idx.isKnownType('chupetin') && idx.isKnownType('chupetin-caramelo'), 'palito-selva, chupetin y su caramelo son tipos conocidos');
+    ok(idx.densityOf('palito-selva') === idx.densityOf('palito') && idx.densityOf('chupetin') === idx.densityOf('palito'), 'palito de la selva y palito del chupetín pesan como el palito (550 kg/m³)');
+    ok(idx.CREATURE_CONFIG.densities['chupetin-caramelo'] === 1300, 'el caramelo del chupetín está en 1300 kg/m³ (en config.ts)');
+    // Palitos de la selva en vez de palitos comunes: mismas extremidades.
+    const base = A.snapshot;
+    const selva = cl(base);
+    for (const p of selva.pieces) if (p.type === 'palito') p.type = 'palito-selva';
+    const aS = interpret(selva);
+    const aP = full.A;
+    ok(aS.limbs.length === aP.limbs.length && aS.limbs.every((l, i) => l.id === aP.limbs[i].id && l.end === aP.limbs[i].end && l.tag === aP.limbs[i].tag), 'A con palitos de la selva: las mismas extremidades que con palitos comunes');
+    ok(!aS.decorative.some((d) => d.reason === 'unknown-type') && !aS.warnings.some((w) => /desconoc/.test(w)), 'palitos de la selva: sin aviso de tipo desconocido');
+    near(aS.mass.total, aP.mass.total, 1e-12, 'la masa no cambia (misma densidad, misma forma)');
+    // Chupetín: palito + caramelo en la punta libre = maza.
+    const chup = cl(base);
+    const rod = chup.pieces.find((p) => p.id === 'palito-fxA3'); // el brazo que apunta al frente (22°)
+    rod.type = 'chupetin';
+    const u = idx.norm(idx.sub(rod.shape.b, rod.shape.a));
+    const R = 0.0105;
+    const ballId = rod.id + '~caramelo';
+    chup.pieces.splice(chup.pieces.indexOf(rod) + 1, 0, { id: ballId, type: 'chupetin-caramelo', seed: rod.seed, kind: 'blob', shape: { kind: 'capsule', a: rod.shape.b, b: idx.addScaled(rod.shape.b, u, 2 * R), radius: R }, cosmetic: false, stability: 'stable' });
+    chup.links.push({ id: 'link-' + ballId, parentId: rod.id, childId: ballId, mode: 'tail', attach: { entryPoint: [0, 0, 0], direction: [0, 0, 0], depth: 0, spin: 0, frame: 'child' }, integrity: 'ok', anchor: rod.shape.b, normal: u, axis: u, tiltFromNormal: 0, embedded: 0, chord: null, freeTail: 0, exit: null, crossings: [] });
+    const aC = interpret(chup);
+    const mz = aC.limbs.filter((l) => l.tag === 'maza');
+    ok(mz.length === 1 && mz[0].rootPieceId === rod.id && mz[0].pieceIds.includes(ballId), 'chupetín: da una maza (palito + caramelo)');
+    ok(mz[0].endMassRatio >= 0.5 && mz[0].mass > 10 * (aP.limbs.find((l) => l.rootPieceId === rod.id).mass), 'chupetín: la masa se concentra en la punta libre');
+    ok(aC.actions.some((x) => x.kind === 'mazazo' && x.limbId === mz[0].id), 'chupetín: genera un mazazo');
+    ok(!aC.decorative.some((d) => d.reason === 'unknown-type') && aC.limbs.length === aP.limbs.length, 'chupetín: sin tipo desconocido y el resto de las extremidades igual');
+  }
+
   section('masa sin doble conteo y campos por extremidad');
   for (const c of built) {
     const a = full[c.id];

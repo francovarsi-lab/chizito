@@ -191,6 +191,11 @@ export const CREATURE_CONFIG = {
   densities: {
     chizito: 250,
     palito: 550,
+    /** Caramelo cilíndrico (palito de la selva): igual que el palito. */
+    'palito-selva': 550,
+    /** Chupetín: el palito de papel pesa como el palito; la bola de caramelo es otra pieza (maza). */
+    chupetin: 550,
+    'chupetin-caramelo': 1300,
     escarbadientes: 600,
     papita: 350,
     nacho: 500,

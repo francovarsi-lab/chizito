@@ -104,6 +104,9 @@ const TYPE_NAME: Record<string, string> = {
   nacho: 'nacho',
   aceituna: 'aceituna',
   escarbadientes: 'escarbadientes',
+  'palito-selva': 'palito de la selva',
+  chupetin: 'chupetín',
+  'chupetin-caramelo': 'caramelo del chupetín',
   ketchup: 'ketchup',
 };
 

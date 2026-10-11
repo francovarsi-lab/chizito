@@ -6,7 +6,7 @@ import type { PieceRegistry } from '../../pieces/PieceRegistry';
 import { CREATURE_CONFIG } from '../config';
 import { clipToSegment, rayCapsule, rayDisc } from '../math/ray';
 import { addScaled, dot, len, mid, norm, scale, sub } from '../math/vec';
-import { kindOfType, stabilityOf } from '../profiles';
+import { kindOfType, ROD_STRUCTURE, stabilityOf } from '../profiles';
 import type { CreatureSnapshot, Crossing, PieceKind, Shape, SnapLink, SnapPiece, V3 } from '../types';
 import { SNAPSHOT_SCHEMA, SNAPSHOT_VERSION } from '../types';
 import { isCombatFront } from '../validate';
@@ -79,11 +79,11 @@ export function resolveSnapshot(input: ResolveInput, cfg = CREATURE_CONFIG): Cre
     rn.set(node.data.id, { node, def, kind, M, meshes, shape: measureShape(node, def, kind, meshes, M) });
   }
 
-  const snapPieces: SnapPiece[] = ordered.map((node) => {
+  const snapPieces: SnapPiece[] = ordered.flatMap((node) => {
     const r = rn.get(node.data.id)!;
     const mode = node === root ? undefined : attachModeOf(node.data, r.def);
     const params = node.data.params ? (JSON.parse(JSON.stringify(node.data.params)) as Record<string, unknown>) : undefined;
-    return {
+    const piece: SnapPiece = {
       id: node.data.id,
       type: node.data.type,
       seed: node.data.seed,
@@ -95,6 +95,9 @@ export function resolveSnapshot(input: ResolveInput, cfg = CREATURE_CONFIG): Cre
       ...(params?.proxyDe ? { proxyDe: String(params.proxyDe) } : {}),
       ...(params ? { params } : {}),
     };
+    // Una vara con un bulto en el extremo libre (chupetín): el bulto es una pieza más, soldada a la cola de la vara.
+    const bulb = bulbOf(node, r);
+    return bulb ? [piece, { id: bulbId(node.data.id), type: bulb.type, seed: node.data.seed, kind: 'blob' as const, shape: bulb.shape, cosmetic: false, stability: 'stable' as const }] : [piece];
   });
 
   const descendants = (n: PieceNode): Set<PieceNode> => {
@@ -175,6 +178,31 @@ export function resolveSnapshot(input: ResolveInput, cfg = CREATURE_CONFIG): Cre
     links.push({ ...base, anchor: entryRoot, normal, axis: axisOut, tiltFromNormal: tilt, embedded, chord, freeTail, exit, crossings });
   }
 
+  // Soldadura rígida vara ↔ bulto (como un chizito ensartado en la cola): el bulto sale por donde termina la vara.
+  for (const node of ordered) {
+    const r = rn.get(node.data.id)!;
+    const bulb = bulbOf(node, r);
+    if (!bulb || r.shape.kind !== 'capsule' || bulb.shape.kind !== 'capsule') continue;
+    const axis = norm(sub(r.shape.b, r.shape.a));
+    links.push({
+      id: `link-${bulbId(node.data.id)}`,
+      parentId: node.data.id,
+      childId: bulbId(node.data.id),
+      mode: 'tail',
+      attach: { entryPoint: [0, 0, 0], direction: [0, 0, 0], depth: 0, spin: 0, frame: 'child' },
+      integrity: 'ok',
+      anchor: r.shape.b,
+      normal: axis,
+      axis,
+      tiltFromNormal: 0,
+      embedded: 0,
+      chord: null,
+      freeTail: 0,
+      exit: null,
+      crossings: [],
+    });
+  }
+
   let orientation: Orientation;
   if (input.orientation === 'construction') orientation = orientationFrom(construction, cfg);
   else orientation = input.orientation ?? { front: cfg.orientation.defaultFront, up: cfg.orientation.defaultUp };
@@ -216,7 +244,17 @@ function measureShape(node: PieceNode, def: PieceDefinition, kind: PieceKind, me
     const solid = Math.min(1, projectedArea(node, meshes, normal) / (Math.PI * radius * radius));
     return { kind: 'disc', center: P(c.x, c.y, c.z), normal: toDir(normal, M), radius, thickness: def.dimensions.thickness, solidFraction: solid };
   }
-  if (kind === 'rod') return { kind: 'capsule', a: P(0, box.min.y, 0), b: P(0, box.max.y, 0), radius: radiusNominal };
+  if (kind === 'rod') {
+    const prof = ROD_STRUCTURE[def.type];
+    if (!prof) return { kind: 'capsule', a: P(0, box.min.y, 0), b: P(0, box.max.y, 0), radius: radiusNominal };
+    // Vara medida de la malla real: sin el bulto, el palito llega hasta donde empieza; el radio es el de la malla.
+    const bulbMesh = prof.bulb ? meshes.find((m) => m.name === prof.bulb!.mesh) : undefined;
+    const stick = bulbMesh ? meshes.filter((m) => m !== bulbMesh) : meshes;
+    const sb = localBox(node, stick);
+    const ss = sb.getSize(new THREE.Vector3());
+    const top = bulbMesh ? Math.max(sb.min.y, bulbBox(node, bulbMesh).center.y - bulbBox(node, bulbMesh).r) : sb.max.y;
+    return { kind: 'capsule', a: P(0, sb.min.y, 0), b: P(0, top, 0), radius: Math.max(ss.x, ss.z) / 2 };
+  }
   if (kind === 'core' || def.frame === 'centered') {
     return { kind: 'capsule', a: P(c.x - size.x / 2, c.y, c.z), b: P(c.x + size.x / 2, c.y, c.z), radius: (size.y + size.z) / 4 };
   }
@@ -230,6 +268,25 @@ function measureShape(node: PieceNode, def: PieceDefinition, kind: PieceKind, me
   va[long] -= h;
   vb[long] += h;
   return { kind: 'capsule', a: P(va[0], va[1], va[2]), b: P(vb[0], vb[1], vb[2]), radius: (others[0] + others[1]) / 4 };
+}
+
+const bulbId = (rodId: string): string => `${rodId}~caramelo`;
+
+/** Esfera del bulto en el marco local de la pieza: centro y radio (la mitad de su dimensión mayor). */
+function bulbBox(node: PieceNode, mesh: THREE.Mesh): { center: THREE.Vector3; r: number } {
+  const b = localBox(node, [mesh]);
+  const size = b.getSize(new THREE.Vector3());
+  return { center: b.getCenter(new THREE.Vector3()), r: Math.max(size.x, size.y, size.z) / 2 };
+}
+
+/** El bulto de una vara con perfil de bulto (chupetín), como esfera a lo largo del eje de la vara; si no tiene, null. */
+function bulbOf(node: PieceNode, r: Rn): { type: string; shape: Shape } | null {
+  const prof = ROD_STRUCTURE[node.data.type]?.bulb;
+  const mesh = prof ? r.meshes.find((m) => m.name === prof.mesh) : undefined;
+  if (!prof || !mesh) return null;
+  const { center, r: R } = bulbBox(node, mesh);
+  const P = (x: number, y: number, z: number): V3 => arr(new THREE.Vector3(x, y, z).applyMatrix4(r.M));
+  return { type: prof.type, shape: { kind: 'capsule', a: P(center.x, center.y - R, center.z), b: P(center.x, center.y + R, center.z), radius: R } };
 }
 
 function toDir(v: THREE.Vector3, M: THREE.Matrix4): V3 {
