@@ -32,7 +32,6 @@ for (const id of ['A', 'D']) {
   await page.evaluate((id) => window.__panel.loadCreature(id), id);
   const data = await page.evaluate(() => window.__chizito.renderFrames(8));
   fs.writeFileSync(`${out}/resaltado3d-${id}.png`, Buffer.from(data.split(',')[1], 'base64'));
-  await page.screenshot({ path: `${out}/resaltado3d-${id}-pagina.png` });
   const n = await page.evaluate(() => window.__panel.state().analysis.limbs.length);
   ok(n > 0 && (await tinted()) >= n, `${id}: ${n} extremidades resaltadas en la escena (${await tinted()} mallas teñidas)`);
 }

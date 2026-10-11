@@ -238,3 +238,6 @@ main().catch((err) => {
   console.error(err);
   document.body.dataset.error = String(err);
 });
+
+// ── Intérprete de criaturas (?creature): panel "ESTRUCTURA DETECTADA". Todo vive en src/creature/; sin el flag no se carga nada. ──
+if (new URLSearchParams(location.search).has('creature')) void import('./creature/install').then((m) => m.installCreature());

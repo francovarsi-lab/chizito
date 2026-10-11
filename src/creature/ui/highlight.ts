@@ -26,7 +26,7 @@ export class LimbHighlighter {
       const strong = hover === limb.id;
       for (const id of limb.pieceIds) {
         const node = construction.get(id);
-        if (node) for (const m of ownMeshes(node)) this.tint(m, color, strong ? 0.9 : 0.5, strong ? 0.55 : 0.3);
+        if (node) for (const m of ownMeshes(node)) this.tint(m, color, strong ? 0.9 : 0.6, strong ? 0.7 : 0.5);
       }
     }
     if (hover) {
