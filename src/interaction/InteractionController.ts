@@ -155,7 +155,7 @@ export class InteractionController {
   /** Objetos de piezas quitadas, para reutilizarlos al deshacer sin regenerar la malla. */
   private readonly graveyard = new Map<string, THREE.Object3D>();
   /** Envoltorios que se desenrollan al agarrar (palito de la selva) y después se caen. */
-  private readonly unwraps: { obj: THREE.Object3D; setProgress(p: number): void; t: number; falling?: THREE.Vector3; spin?: THREE.Vector3 }[] = [];
+  private readonly unwraps: { obj: THREE.Object3D; setProgress(p: number): void; t: number; falling?: THREE.Vector3; spin?: THREE.Vector3; curiosity?: () => string }[] = [];
   /** Piezas devueltas que se están achicando antes de desaparecer. */
   private readonly leaving: { obj: THREE.Object3D; t: number; from: number }[] = [];
   private time = 0;
@@ -522,7 +522,7 @@ export class InteractionController {
     if (def.wrapper) {
       const w = def.wrapper(seed, object);
       (object.children[0] ?? object).add(w.object);
-      this.unwraps.push({ obj: w.object, setProgress: w.setProgress, t: 0 });
+      this.unwraps.push({ obj: w.object, setProgress: w.setProgress, t: 0, curiosity: def.curiosity });
     }
     if (def.holdHint) overlay.hint(`holding-${type}`, def.holdHint);
     else overlay.hint('holding', 'tocá el chizito donde lo quieras clavar · Esc lo devuelve');
@@ -1351,6 +1351,11 @@ export class InteractionController {
           u.spin = new THREE.Vector3(Math.random() * 2, Math.random() * 3, Math.random() * 2);
           u.t = 0;
           this.emit('drop', null);
+          if (u.curiosity) {
+            // El papel "se da vuelta" hacia la pantalla: el cartel sale de donde quedó el papel.
+            const sp = u.obj.getWorldPosition(new THREE.Vector3()).project(this.d.camera);
+            this.d.overlay.fact(u.curiosity(), (sp.x * 0.5 + 0.5) * window.innerWidth, (-sp.y * 0.5 + 0.5) * window.innerHeight);
+          }
         }
         continue;
       }
@@ -1361,7 +1366,9 @@ export class InteractionController {
       u.obj.rotation.y += u.spin!.y * dt;
       u.obj.rotation.z += u.spin!.z * dt;
       // Se desvanece (cada envoltorio trae sus propios materiales, no afecta a los del bowl).
-      const fade = Math.max(0, 1 - u.t / 1.3);
+      // (el papel con dato curioso se va rápido: lo que se lee es el cartel)
+      const life = u.curiosity ? 0.35 : 1.3;
+      const fade = Math.max(0, 1 - u.t / life);
       u.obj.traverse((o) => {
         const m = (o as THREE.Mesh).material as THREE.Material | undefined;
         if (!m) return;
@@ -1369,7 +1376,7 @@ export class InteractionController {
         m.userData.baseOpacity ??= m.opacity;
         m.opacity = (m.userData.baseOpacity as number) * fade;
       });
-      if (u.t >= 1.3) {
+      if (u.t >= life) {
         u.obj.removeFromParent();
         u.obj.traverse((o) => {
           const mesh = o as THREE.Mesh;

@@ -60,6 +60,12 @@ export interface PieceDefinition {
   wrapper?: (seed: number, piece: THREE.Object3D) => { object: THREE.Object3D; setProgress(p: number): void };
 
   /**
+   * Dato curioso que trae el papel del envoltorio: cuando termina de desenrollarse, el papel se pone de
+   * frente a la pantalla con este texto y queda unos segundos para poder leerlo.
+   */
+  curiosity?: () => string;
+
+  /**
    * Para el intérprete de combate: qué es la pieza geométricamente y cuánto pesa (aprox., gramos).
    * `rod` = vara (palito), `blob` = bulto (aceituna, chizito), `plate` = placa (papita, nacho).
    * `tipMassGrams`/`tipAt`: masa concentrada en una punta (p. ej. la bola del chupetín, a `tipAt` metros

@@ -12,6 +12,7 @@ import {
   type EscarbadientesParams,
 } from '../assets/procedural/escarbadientes';
 import { createKetchupStroke, KETCHUP_RADIUS, type KetchupParams } from '../assets/procedural/ketchup';
+import { nextCuriosidad } from '../ui/datosCuriosos';
 import { createPalitoSelva, SELVA_LENGTH, SELVA_WIDTH, SelvaWrapper, type PalitoSelvaParams } from '../assets/procedural/palitoSelva';
 import { CHUPETIN_BALL_R, CHUPETIN_STICK, ChupetinWrapper, createChupetin, type ChupetinParams } from '../assets/procedural/chupetin';
 import * as THREE from 'three';
@@ -129,7 +130,7 @@ export const KETCHUP: PieceDefinition = {
 /**
  * Palito de la selva: viene envuelto en el bowl; al agarrarlo el papel se desenrolla y se cae, y se clava
  * sin papel por una punta (es blando: entra hasta la mitad). Mitad rosa, mitad blanco.
- * (Más adelante: un dato curioso de un animal cada vez que se usa.)
+ * El papel trae un dato curioso de un animal (`curiosity`).
  */
 export const PALITO_SELVA: PieceDefinition = {
   type: 'palito-selva',
@@ -150,6 +151,7 @@ export const PALITO_SELVA: PieceDefinition = {
     const w = new SelvaWrapper(seed, h);
     return { object: w.object, setProgress: (p) => w.setProgress(p) };
   },
+  curiosity: nextCuriosidad,
   canPierce: true,
   canBePierced: false,
   maxDepth: SELVA_LENGTH * 0.5,

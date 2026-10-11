@@ -23,7 +23,7 @@ lo hace el intérprete (otra rama), que lee ese JSON.
   (Supr o Shift = goma; tope 30 trazos), palito de la selva (se desenvuelve al agarrarlo), chupetín tipo Mister Pop
   (se desenvuelve desde el nudo; colores verde, rojo, naranja, cola).
 - Chizito: arranca PARADO y de frente; F lo devuelve a esa pose. Porosidad según foto del usuario.
-- Intro: plano general de una habitación simple (mesa con mantel celeste, piso, 3 paredes lisas, guirnaldas
+- Intro: plano general de una habitación simple (mesa con mantel celeste PEGADA a la pared del fondo, piso, 3 paredes lisas, guirnaldas
   clavadas, globos), título **CUMPLEAÑITO** (estilos `?titulo=arcade|globo|neon`), viaje de cámara al chizito.
 - Contrato con el intérprete: frente de combate por criatura (por defecto −Y, arriba +X; acepta ±X/±Y),
   `src/creature/limits.ts` compartido (MAX_PIECES 40, MAX_STROKES 30), `PieceDefinition.structure` (vara/bulto/placa +
@@ -33,9 +33,9 @@ lo hace el intérprete (otra rama), que lee ese JSON.
 ## Pendiente / decisiones abiertas
 1. **Merge a `main`**: esta rama no comparte historia con `main` → elegir: reemplazar `main` por esta rama, o merge
    con `--allow-unrelated-histories` resolviendo conflictos. El usuario todavía no decidió.
-2. **Dato curioso de un animal** en cada palito de la selva (el envoltorio ya tiene la "ficha"): pedido para más adelante.
+2. ~~Dato curioso del animal~~ HECHO: el papel del palito de la selva sale de frente con uno de 18 datos (ver CLAUDE.md).
 3. Estética del título en exploración ("arcade pero no 8 bits"): el usuario elige entre los 3 estilos o pide otro.
-4. Chizito extra para ensartar: EN PAUSA (el mecanismo existe; el bowl no está en la mesa).
+4. Chizito extra para ensartar: DESCARTADO (el mecanismo `mountsOnTail` queda sólo para la aceituna).
 5. Envoltorios sin logos ni nombres de marca (decisión tomada); se afinan con fotos del usuario si las manda.
 
 ## Cómo trabajar (reglas del usuario)

@@ -69,12 +69,14 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
 - Sombra del chizito: `ContactShadow` (silueta de las piezas héroe vista desde la luz, desenfocada y proyectada sobre
   la mesa). El chizito y lo clavado están en `HERO_LAYER` y NO proyectan la sombra dura del sol.
 - Habitación real y simple (`render/Room.ts`, medidas lógicas): mesa de cumpleaños 1,9 × 1,5 m (x ±0,95, z −1,2…+0,3)
-  con patas y el mantel cayendo 30 cm por los cuatro lados, piso a −0,75 m, pared del fondo a z −1,85, paredes
+  con patas y el mantel cayendo 30 cm por los cuatro lados, piso a −0,75 m, pared del fondo a z −1,23 (PEGADA a la mesa: el borde de atrás queda contra la pared), paredes
   laterales a x ±1,7, techo a 1,6 m, zócalo blanco. Paredes LISAS; las guirnaldas cuelgan de chinches clavadas en la
   pared del fondo (catenaria a 2 cm de la pared, los banderines se mecen sólo hacia adelante). Globos: dos racimos
   de tres atados a las esquinas del fondo de la mesa, separados (distancia entre centros > suma de radios). La
   tapa y el mantel de arriba siguen visibles con foto de fondo; el resto está en `farProps`. Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
   el vaso = un palito). Bowl de cerámica blanca con papitas abajo a la izquierda.
+  SOMBRAS DE LOS RECIPIENTES: no proyectan la sombra dura del sol (`markBowl`, capa `BOWL_LAYER`); comparten UNA sombra
+  suave de grupo (`ContactShadow` estática, misma dirección de luz y misma intensidad para todos), aparte de la del chizito.
   Tira de recipientes chicos al frente (mismo lenguaje: cerámica blanca y vasito descartable): nachos, aceitunas,
   vasito de escarbadientes, vasito de espaditas y platito con sobrecitos de ketchup (genéricos, sin marca).
   Las claves de `bowls`/`BOWL_LAYOUT` son `tipo` o `tipo:variante` (el recipiente decide la variante).
@@ -141,7 +143,11 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   triangular con el borde arrugado. Al agarrarlo (`PieceDefinition.wrapper`,
   `SelvaWrapper.setProgress`): primero se destuercen las puntas (0 → 0,4), después el papel se desenrolla desde el
   borde suelto (0,4 → 1), y se cae planeando y desvaneciéndose. Se clava SIN papel por una punta, hasta la mitad.
-  Pendiente: un dato curioso de un animal cada vez que se usa.
+  DATO CURIOSO (`PieceDefinition.curiosity`, `ui/datosCuriosos.ts`, `Overlay.fact`): al terminar de desenrollarse, el
+  papel se "da vuelta" hacia la pantalla: un cartel HTML (papel rosado con franja amarilla y puntas verdes) sale
+  volando desde donde quedó el papel 3D, queda de frente 3,2 s + 0,05 s por letra (≈ 6–7 s) y se va; no bloquea
+  el mouse. 18 datos de animales en bolsa barajada (no se repite ninguno hasta salir los 18). Prueba:
+  `node scripts/datos-test.mjs <dir>`.
 - Chupetín (`chupetin`, vasito a la derecha), según la foto: bola brillante TRANSLÚCIDA de color al azar (frutilla,
   naranja, limón, uva, manzana, chicle y COLA: casi negro, a contraluz marrón translúcido; `attenuationColor`) en palito
   blanco. En el vasito viene envuelto (`ChupetinWrapper`): film transparente con LÍNEAS BLANCAS CURVAS PARALELAS (no
@@ -149,7 +155,7 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   blanco con rayas rojas, azules y verdes. Al agarrarlo se abre DESDE ARRIBA: se desata el nudo y el film se abre
   como una flor de la cima hacia abajo, y se cae; en la mano y clavado va pelado, sin líneas. Se clava por la punta del palito (máx. 70 %). Sin marca.
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
-- Chizito extra (EN PAUSA por pedido del usuario: el bowl no está en la mesa; el mecanismo `mountsOnTail` lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
+- Chizito extra (DESCARTADO por el usuario como pieza suelta: no hay bowl ni se va a agregar; el mecanismo `mountsOnTail` queda porque lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
   pasar el mouse muestra el anillo; clic en el chizito = punto de entrada → AIMING (mouse = ángulo, invertido porque se
   mueve el chizito), mantener / Ctrl + rueda = ensartar, Esc vuelve a la presentación. Matemática: la cola del palito es

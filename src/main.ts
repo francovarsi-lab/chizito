@@ -16,7 +16,7 @@ import { AudioManager } from './audio/AudioManager';
 import { Crumbs } from './fx/Crumbs';
 import { Shake } from './fx/Shake';
 import { CameraRig } from './render/CameraRig';
-import { ContactShadow, markHero } from './render/ContactShadow';
+import { BOWL_LAYER, ContactShadow, markBowl, markHero } from './render/ContactShadow';
 import { addPhotoFade, loadPhotoBackdrop, updatePhotoResolution } from './render/PhotoBackdrop';
 import { Persistence } from './persistence/Persistence';
 import { Title, type TitleStyle } from './ui/Title';
@@ -65,6 +65,19 @@ async function main() {
   markHero(pivot);
   const contactShadow = new ContactShadow(stage.scene, CONFIG.chizitoCenter);
   stage.scene.add(contactShadow.decal);
+  // Los recipientes de la mesa comparten UNA sombra suave (misma dirección de luz, misma intensidad),
+  // en vez de sombras duras de distinto largo y oscuridad cada uno. Es estática: no se mueven.
+  for (const bowl of backdrop.bowls.values()) markBowl(bowl);
+  const bowlShadow = new ContactShadow(stage.scene, new THREE.Vector3(0, 0.02, -0.15), {
+    layer: BOWL_LAYER,
+    halfExtent: 0.27,
+    size: 512,
+    opacity: 0.5,
+    softness: 0.008,
+    decal: { x: 0, z: -0.2, size: 0.7 },
+    isStatic: true,
+  });
+  stage.scene.add(bowlShadow.decal);
   const construction = new Construction(CHIZITO.type, rootSeed, pivot);
 
   // Cámara casi fija con zoom (rueda): se acerca/aleja en línea recta hacia el chizito.
@@ -146,7 +159,7 @@ async function main() {
 
   // Exponer para depuración y capturas automáticas.
   Object.assign(window as unknown as Record<string, unknown>, {
-    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, interaction, input, picker, assets, crumbs, audio, rig, persistence },
+    __chizito: { stage, construction, pivot, rotator, envKind, THREE, contactShadow, bowlShadow, interaction, input, picker, assets, crumbs, audio, rig, persistence },
   });
 
   const timer = new THREE.Timer();
@@ -160,6 +173,7 @@ async function main() {
     crumbs.update(dt);
     stage.focusTarget.copy(rig.focus);
     contactShadow.update(stage.renderer);
+    bowlShadow.update(stage.renderer);
     stage.render(dt);
   };
 
