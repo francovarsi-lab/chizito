@@ -68,6 +68,7 @@ ok(hl.hover === hl.id, 'pasar el mouse por una fila resalta esa extremidad');
 await snap('A-resaltado');
 
 // Clavar → deshacer → rehacer actualizan el panel.
+await page.evaluate(async () => { await window.__panel.loadCreature('C'); await window.__panel.loadCreature('A'); });
 const n0 = await page.evaluate(() => window.__panel.state().snapshot.pieces.length);
 await page.evaluate(() => window.__chizito.interaction.undo());
 await page.waitForTimeout(600);
