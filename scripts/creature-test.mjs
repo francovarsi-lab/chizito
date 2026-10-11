@@ -745,6 +745,32 @@ try {
   const hi = PS.renderProfileSvg(full.A, { highlightLimbId: full.A.limbs[0].id });
   ok(hi.includes('" opacity="0.35"') && !svgR.includes('" opacity="0.35"'), 'resaltar una extremidad atenúa a las demás');
   ok(PS.renderProfileSvg(full.D).length > 5000 && PS.renderProfileSvg(full.E).includes('data-limb'), 'D y E también se dibujan');
+
+  section('masa sin doble conteo y campos por extremidad');
+  for (const c of built) {
+    const a = full[c.id];
+    // Todas las extremidades cuentan; la vara pasante se reparte (massShare) y su subárbol cuelga de un solo lado.
+    const sumLimbs = a.limbs.reduce((acc, l) => acc + l.mass, 0);
+    const sumFree = a.decorative.filter((d) => !d.heldBy).reduce((acc, d) => acc + d.mass, 0);
+    near(a.mass.core + sumLimbs + sumFree, a.mass.total, 1e-12, `${c.id}: cuerpo + extremidades + decorativas sueltas = masa total`);
+    const seen = new Map();
+    for (const l of a.limbs) for (const id of l.pieceIds) if (id !== l.rootPieceId) seen.set(id, (seen.get(id) ?? 0) + 1);
+    ok([...seen.values()].every((n) => n === 1), `${c.id}: cada pieza colgada cuenta en una sola extremidad`);
+    ok(a.decorative.every((d) => !d.heldBy || a.limbs.some((l) => l.id === d.heldBy && l.pieceIds.includes(d.pieceId))), `${c.id}: lo decorativo que cuelga de una extremidad dice de cuál`);
+    for (const l of a.limbs) {
+      ok(Number.isFinite(l.comDistance) && l.comDistance >= 0 && l.comDistance <= l.length + 1e-9, `${c.id} ${l.id}: distancia pivote→centro de masa dentro del largo (${(l.comDistance * 1000).toFixed(1)} mm de ${(l.length * 1000).toFixed(1)})`);
+      ok(l.embeddedFraction >= 0 && l.embeddedFraction <= 1 && Math.abs(l.embeddedFraction - Math.min(1, l.embedded / l.rodLength)) < 1e-9, `${c.id} ${l.id}: fracción embebida = embebida / largo de la vara`);
+      ok(!l.pairedWith || l.atraviesa, `${c.id} ${l.id}: una mitad de vara pasante siempre marca atraviesa`);
+    }
+  }
+  {
+    const e = full.E;
+    const pr = e.limbs.filter((l) => l.pairedWith);
+    ok(pr.length === 2 && pr.every((l) => l.atraviesa), 'E: la vara pasante marca atraviesa en sus dos mitades');
+    ok(e.limbs.filter((l) => !l.pairedWith).every((l) => !l.atraviesa), 'E: lo que no es pasante no atraviesa');
+    const mz = e.limbs.find((l) => l.tag === 'maza');
+    ok(mz.comDistance > 0.5 * mz.length * 0.5, 'E: la maza tiene su centro de masa lejos del pivote');
+  }
   ok(PS.renderProfileSvg(full.A) === PS.renderProfileSvg(full.A), 'el dibujo es determinista');
   ok(['A', 'B', 'C', 'D', 'E', 'veg'].every((id) => PS.renderProfileSvg(full[id]).includes('FRENTE')), 'las seis criaturas llevan cartel de frente');
   const colorsMod = await load('/src/creature/ui/colors.ts');

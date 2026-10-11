@@ -126,6 +126,12 @@ export interface LimbDraft {
   massShare: number;
   mass: number;
   endMassRatio: number;
+  /** Distancia pivote → centro de masa de la extremidad (m). */
+  comDistance: number;
+  /** Fracción de la vara que está adentro del sólido que la sostiene (0..1). */
+  embeddedFraction: number;
+  /** La vara atraviesa el sólido y sale por el otro lado. */
+  atraviesa: boolean;
   tag: 'lanza' | 'maza' | 'rama' | 'placa-con-vara';
 }
 
@@ -140,8 +146,15 @@ export interface Limb {
   pivot: V3;
   tip: V3;
   length: number;
+  /** kg de juego: la vara (su parte) y TODO lo que cuelga de este lado; cada pieza cuenta en una sola extremidad. */
   mass: number;
   endMassRatio: number;
+  /** Distancia pivote → centro de masa de la extremidad (m). */
+  comDistance: number;
+  /** Fracción de la vara que está adentro del sólido que la sostiene (0..1). */
+  embeddedFraction: number;
+  /** La vara atraviesa el sólido y sale por el otro lado (es la mitad de una vara pasante). */
+  atraviesa: boolean;
   tag: 'lanza' | 'maza' | 'rama' | 'placa-con-vara';
   caps: Caps;
   dominant: Role | null;
@@ -187,6 +200,8 @@ export interface DecorativePiece {
   pieceId: string;
   reason: DecorativeReason;
   mass: number;
+  /** Si cuelga de una extremidad, su id: esa masa YA está en `Limb.mass` (no se suma dos veces). */
+  heldBy?: string;
   /** Solo en varas (palitos, escarbadientes) clavadas en otra pieza. */
   detail?: RodDetail;
 }

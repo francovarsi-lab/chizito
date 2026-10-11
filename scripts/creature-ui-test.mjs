@@ -50,9 +50,9 @@ for (const id of ['A', 'B', 'C', 'D', 'E', 'veg']) {
 
 // Frente: giro de 180° cambia el cartel y la locomoción/acciones se espejan.
 await page.evaluate(() => window.__panel.loadCreature('A'));
-const f1 = await page.evaluate(() => window.__panel.state().analysis.facing);
+const f1 = await page.evaluate(() => window.__panel.state().analysis.profile2D.facing);
 await page.click('button[data-facing="-1"]');
-const f2 = await page.evaluate(() => window.__panel.state().analysis.facing);
+const f2 = await page.evaluate(() => window.__panel.state().analysis.profile2D.facing);
 ok(f1 === 1 && f2 === -1, 'el selector de frente cambia el frente (1 → −1)');
 ok(/FRENTE ←/.test(await page.evaluate(() => document.querySelector('.cs-profilebox').innerHTML)), 'cartel "FRENTE ←" tras el giro');
 await snap('A-giro180');
@@ -69,12 +69,11 @@ await snap('A-resaltado');
 
 // Clavar → deshacer → rehacer actualizan el panel.
 const n0 = await page.evaluate(() => window.__panel.state().snapshot.pieces.length);
-await page.evaluate(() => { window.__panel.panel.root?.querySelector('.cs-select'); });
-await page.keyboard.press('Control+z');
-await page.waitForTimeout(400);
+await page.evaluate(() => window.__chizito.interaction.undo());
+await page.waitForTimeout(600);
 const n1 = await page.evaluate(() => window.__panel.state().snapshot.pieces.length);
-await page.keyboard.press('Control+Shift+z');
-await page.waitForTimeout(400);
+await page.evaluate(() => window.__chizito.interaction.redo());
+await page.waitForTimeout(600);
 const n2 = await page.evaluate(() => window.__panel.state().snapshot.pieces.length);
 ok(n1 !== n0 || n0 <= 1, `deshacer actualiza el panel (${n0} → ${n1})`);
 ok(n2 === n0, `rehacer lo restituye (${n2})`);

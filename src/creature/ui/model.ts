@@ -204,7 +204,7 @@ export function buildPanelModel(s: CreatureSnapshot, a: CreatureAnalysis, cfg = 
   const core = pieces.get(s.coreId);
   const coreShape = core && core.shape.kind === 'capsule' ? core.shape : null;
   const coreLen = coreShape ? len(sub(coreShape.b, coreShape.a)) : 0;
-  const decoG = a.decorative.reduce((acc, d) => acc + d.mass, 0) * 1000;
+  const decoG = a.decorative.reduce((acc, d) => acc + (d.heldBy ? 0 : d.mass), 0) * 1000;
   const maxReach = Math.max(0, ...a.limbs.map((l) => l.length)) * 100;
   const strikeReach = Math.max(0, ...a.actions.filter((x) => x.limbId).map((x) => x.reach)) * 100;
   const sup = a.support;

@@ -1,4 +1,5 @@
 import { CREATURE_CONFIG } from '../config';
+import { shapeCenter } from '../math/mass';
 import { dist, len, sub } from '../math/vec';
 import { isKnownType } from '../profiles';
 import type { CreatureSnapshot, DecorativePiece, DecorativeReason, LimbDraft, SnapLink, SnapPiece, V3 } from '../types';
@@ -61,8 +62,19 @@ export function detectLimbs(s: CreatureSnapshot, cfg = CREATURE_CONFIG): Detecti
       continue;
     }
     const totalFree = good.reduce((a, e) => a + e.freeLength, 0);
-    const created: LimbDraft[] = good.map((e) => {
-      const ids = subtreeIds(rod.id, kids);
+    // El subárbol (lo ensartado, lo clavado en eso) cuelga de UN lado: cuenta solo en la extremidad más cercana.
+    const subtree = subtreeIds(rod.id, kids).filter((id) => id !== rod.id);
+    const owner = new Map<string, number>();
+    for (const id of subtree) {
+      const c = shapeCenter(pieces.get(id)!.shape);
+      let best = 0;
+      good.forEach((e, i) => {
+        if (dist(c, e.tip) < dist(c, good[best].tip)) best = i;
+      });
+      owner.set(id, best);
+    }
+    const created: LimbDraft[] = good.map((e, i) => {
+      const ids = [rod.id, ...subtree.filter((id) => owner.get(id) === i)];
       const massShare = good.length > 1 && totalFree > 0 ? e.freeLength / totalFree : 1;
       const base = {
         id: `limb:${rod.id}:${e.end}`,
@@ -75,6 +87,8 @@ export function detectLimbs(s: CreatureSnapshot, cfg = CREATURE_CONFIG): Detecti
         length: dist(e.tip, e.pivot),
         freeLength: e.freeLength,
         embedded: e.embedded,
+        embeddedFraction: rodLen > 0 ? Math.min(1, e.embedded / rodLen) : 0,
+        atraviesa: link.exit !== null,
         tiltDeg: e.tiltDeg,
         anchorQuality: e.quality,
         anchoredBy: e.anchoredBy,

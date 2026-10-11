@@ -15,7 +15,13 @@ export function collectDecorative(
   cfg = CREATURE_CONFIG,
 ): DecorativePiece[] {
   const inLimb = new Set<string>();
-  for (const l of limbs) for (const id of l.pieceIds) inLimb.add(id);
+  const holder = new Map<string, string>();
+  for (const l of limbs) {
+    for (const id of l.pieceIds) {
+      inLimb.add(id);
+      if (id !== l.rootPieceId) holder.set(id, l.id);
+    }
+  }
   const links = new Map(s.links.map((l) => [l.childId, l]));
   const byId = new Map(s.pieces.map((p) => [p.id, p]));
   const out: DecorativePiece[] = [];
@@ -23,6 +29,8 @@ export function collectDecorative(
     const p = byId.get(pieceId)!;
     const link = links.get(pieceId);
     const entry: DecorativePiece = { pieceId, reason, mass: pieceMass(p, cfg) };
+    const heldBy = holder.get(pieceId);
+    if (heldBy) entry.heldBy = heldBy;
     // De una vara se muestran sus medidas, para ver contra qué umbral falló (calibración).
     if (p.kind === 'rod' && p.shape.kind === 'capsule' && link && link.mode === 'pierce') {
       const L = len(sub(p.shape.b, p.shape.a));
@@ -52,8 +60,8 @@ export function collectDecorative(
     else if (p.kind === 'rod') add(p.id, rodReasons.get(p.id) ?? 'no-free-tip');
     else {
       // Un chizito ensartado en una vara que no llegó a extremidad: decorativo por la misma razón que su vara.
-      const holder = link && link.mode === 'tail' ? link.parentId : undefined;
-      add(p.id, (holder && rodReasons.get(holder)) || 'weak-anchor');
+      const holderRod = link && link.mode === 'tail' ? link.parentId : undefined;
+      add(p.id, (holderRod && rodReasons.get(holderRod)) || 'weak-anchor');
     }
   }
   return out;

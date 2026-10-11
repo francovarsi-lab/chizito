@@ -1,6 +1,6 @@
 import { CREATURE_CONFIG } from '../config';
-import { pieceMass } from '../math/mass';
-import { add, dot, len, norm, scale, sub } from '../math/vec';
+import { centerOfMass, pieceMass, shapeCenter } from '../math/mass';
+import { add, dot, len, mid, norm, scale, sub } from '../math/vec';
 import type { CreatureSnapshot, LimbDraft, SnapPiece, V3 } from '../types';
 
 /** Hijos de cada pieza (por el árbol del archivo). */
@@ -69,9 +69,9 @@ function massInZone(p: SnapPiece, pivot: V3, axis: V3, zoneStart: number): numbe
 /** Masa del grupo, fracción de masa en el extremo y etiqueta (lanza / maza / placa-con-vara). */
 export function groupStats(
   s: CreatureSnapshot,
-  d: Pick<LimbDraft, 'pieceIds' | 'rootPieceId' | 'pivot' | 'tip' | 'massShare' | 'anchoredBy'>,
+  d: Pick<LimbDraft, 'pieceIds' | 'rootPieceId' | 'end' | 'pivot' | 'tip' | 'massShare' | 'anchoredBy'>,
   cfg = CREATURE_CONFIG,
-): Pick<LimbDraft, 'mass' | 'endMassRatio' | 'tag'> {
+): Pick<LimbDraft, 'mass' | 'endMassRatio' | 'comDistance' | 'tag'> {
   const byId = new Map(s.pieces.map((p) => [p.id, p]));
   const L = len(sub(d.tip, d.pivot));
   const axis = L < 1e-9 ? ([0, 0, 0] as V3) : norm(sub(d.tip, d.pivot));
@@ -80,11 +80,15 @@ export function groupStats(
   let inEnd = 0;
   let rodMass = 0;
   let blobMass = 0;
+  const items: { mass: number; at: V3 }[] = [];
   for (const id of d.pieceIds) {
     const p = byId.get(id);
     if (!p || p.cosmetic) continue;
     const m = pieceMass(p, cfg) * (id === d.rootPieceId ? d.massShare : 1);
     total += m;
+    // La vara aporta solo su parte de este lado: del pivote al extremo de la vara.
+    const rodEnd = id === d.rootPieceId && p.shape.kind === 'capsule' ? (d.end === 'tip' ? p.shape.a : p.shape.b) : null;
+    items.push({ mass: m, at: rodEnd ? mid(d.pivot, rodEnd) : shapeCenter(p.shape) });
     inEnd += m * massInZone(p, d.pivot, axis, zoneStart);
     if (id === d.rootPieceId) rodMass = m;
     else if (p.kind === 'blob') blobMass += m;
@@ -95,5 +99,6 @@ export function groupStats(
   let tag: LimbDraft['tag'] = 'lanza';
   if (blobMass > 0 && ratio >= cfg.actions.maceEndRatio && blobMass >= cfg.actions.maceMassVsRod * rodMass) tag = 'maza';
   else if (parentKind === 'plate' && d.anchoredBy !== 'own') tag = 'placa-con-vara';
-  return { mass: total, endMassRatio: ratio, tag };
+  const comDistance = total > 0 ? len(sub(centerOfMass(items), d.pivot)) : 0;
+  return { mass: total, endMassRatio: ratio, comDistance, tag };
 }
