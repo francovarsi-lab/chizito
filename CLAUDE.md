@@ -157,6 +157,14 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   el chizito): el tope es cuando la bola toca la superficie (`chupetinStopDepth`: elipsoide de la bola contra el plano
   tangente, según semilla e inclinación; perpendicular ≈ 53 mm de 55; antes era el 70 % = 38,5 mm; `PieceDefinition.depthStop`
   se suma a `maxDepth`; el cargador recorta con la cota perpendicular). Sin marca.
+  BOLA SÓLIDA PARA TODAS LAS PIEZAS (`interaction/solidBall.ts`): ninguna pieza puede entrar en el volumen de la bola
+  de un chupetín colocado: al apuntar (mouse/flechas), hundir (mantener, Ctrl + rueda), girar (Q/E) o editar una pieza
+  ya colocada, el cambio se bloquea (queda donde estaba) con un destello rojo en la bola y el aviso "el chupetín es
+  sólido: por ahí no entra". Es simétrico: al clavar un chupetín, su bola tampoco puede entrar en otras piezas (salvo
+  la pieza donde se clava, que la maneja `depthStop`). Excepción: el palito del propio chupetín (su bola no cuenta contra
+  sí mismo). Sacar nunca se bloquea. Prueba exacta triángulo-esfera con 0,2 mm de tolerancia. Límites conocidos: el
+  chizito/aceituna que se ensarta (`mount`) y el ketchup no se miden; el cargador no revisa choques de archivos viejos.
+  Prueba: `node scripts/solidball-test.mjs`.
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
 - Chizito extra (DESCARTADO por el usuario como pieza suelta: no hay bowl ni se va a agregar; el mecanismo `mountsOnTail` queda porque lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
