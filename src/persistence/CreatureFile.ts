@@ -1,5 +1,6 @@
 import type { Snapshot, Vec3 } from '../commands/CommandStack';
 import { CONFIG } from '../config';
+import { MAX_STROKES } from '../creature/limits';
 import { attachModeOf, type AttachMode } from '../interaction/attach';
 import { DEFAULT_COMBAT_FRONT, DEFAULT_COMBAT_UP, type PieceData } from '../model/Construction';
 import type { PieceRegistry } from '../pieces/PieceRegistry';
@@ -16,7 +17,7 @@ import { maxDepthOf } from '../pieces/PieceDefinition';
  *     "creature": {
  *       "name": "…", "savedAt": "2026-10-09T…", "pieceCount": 12,
  *       "root":  { "type": "chizito", "seed": 3 },
- *       "front": { "direction": [1, 0, 0], "up": [0, 1, 0] }        ← FRENTE DE COMBATE: ±X del chizito raíz
+ *       "front": { "direction": [0, -1, 0], "up": [1, 0, 0] }       ← FRENTE DE COMBATE: ±X o ±Y del chizito raíz
  *     },
  *     "pieces": [
  *       { "id": "palito-…", "type": "palito", "parentId": "root", "seed": 4711,
@@ -120,8 +121,8 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
   if (!isObj(cr) || !isObj(cr.root) || !num(cr.root.seed)) throw new CreatureFileError('a la criatura le falta el chizito raíz');
   const warnings: string[] = [];
 
-  // Frente de combate: dato por criatura, ±X del chizito raíz (por defecto +X), "arriba" +Y. Se RESPETA el
-  // del archivo; lo que no sea ±X (p. ej. el +Z que escribía el constructor antes de esta decisión) vale +X.
+  // Frente de combate: dato por criatura (±X o ±Y del chizito raíz; por defecto −Y con +X arriba). Se RESPETA
+  // el del archivo; el +Z viejo del constructor o algo que no sea ±X/±Y vale el de fábrica.
   const { front, up, warning } = readCombatFront(cr.front);
   if (warning) warnings.push(warning);
 
@@ -133,6 +134,8 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
   let count = 0;
   let dropped = 0;
   let overLimit = 0;
+  let strokes = 0;
+  let overStrokes = 0;
   // Orden padre → hijo; si viniera desordenado, se reintenta hasta que no avance.
   let pending = list.slice();
   for (let pass = 0; pass < 64 && pending.length; pass++) {
@@ -156,7 +159,12 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
         overLimit++;
         continue;
       }
+      if (!isPiece && strokes >= MAX_STROKES) {
+        overStrokes++;
+        continue;
+      }
       if (isPiece) count++;
+      else strokes++;
       accepted.set(d.id, d);
       out.push(d);
     }
@@ -167,6 +175,7 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
     pending = next;
   }
   if (dropped) warnings.push(dropped === 1 ? '1 pieza no se pudo cargar' : `${dropped} piezas no se pudieron cargar`);
+  if (overStrokes) warnings.push(`${overStrokes} trazo${overStrokes === 1 ? '' : 's'} de ketchup de más (el tope es ${MAX_STROKES})`);
   if (overLimit) warnings.push(`${overLimit} pieza${overLimit === 1 ? '' : 's'} de más (el tope es ${CONFIG.creature.maxPieces})`);
 
   return {
@@ -177,17 +186,31 @@ export function fromCreatureFile(json: unknown, pieces: PieceRegistry): { snapsh
 }
 
 /**
- * Lee `creature.front`: la dirección se lleva al ±X más cercano por el signo de su componente X (debe ser
- * dominante); el "arriba" es +Y. Sin dato, o con el +Z viejo del constructor, vale +X sin aviso.
+ * Lee `creature.front` (frente de combate). Se aceptan y se CONSERVAN tal cual los ejes ±X y ±Y del
+ * chizito raíz (la dirección se lleva al eje dominante). El "arriba" se toma del archivo si es un eje
+ * principal perpendicular al frente; si no: +X cuando el frente es ±Y, +Y cuando es ±X. Sin dato, o con el
+ * +Z viejo del constructor, vale el de fábrica (−Y, arriba +X) sin aviso; otra cosa, de fábrica con aviso.
  */
 export function readCombatFront(raw: unknown): { front: Vec3; up: Vec3; warning?: string } {
-  const up = [...DEFAULT_COMBAT_UP] as Vec3;
-  const dflt = { front: [...DEFAULT_COMBAT_FRONT] as Vec3, up };
+  const dflt = { front: [...DEFAULT_COMBAT_FRONT] as Vec3, up: [...DEFAULT_COMBAT_UP] as Vec3 };
   if (!isObj(raw) || !vec(raw.direction) || len(raw.direction) < 1e-6) return dflt;
-  const d = unit(raw.direction);
-  if (Math.abs(d[0]) >= 0.9) return { front: [Math.sign(d[0]), 0, 0], up };
-  const oldBuilderFace = Math.abs(d[2]) >= 0.9 && Math.abs(d[0]) < 0.1;
-  return oldBuilderFace ? dflt : { ...dflt, warning: 'el frente de combate no era ±X: se usa +X' };
+  const axisOf = (v: Vec3): Vec3 | null => {
+    const u = unit(v);
+    const i = [0, 1, 2].reduce((a, b) => (Math.abs(u[b]) > Math.abs(u[a]) ? b : a), 0);
+    if (Math.abs(u[i]) < 0.9) return null;
+    const out: Vec3 = [0, 0, 0];
+    out[i] = Math.sign(u[i]);
+    return out;
+  };
+  const front = axisOf(raw.direction);
+  if (front && front[2] === 0) {
+    const fileUp = vec(raw.up) && len(raw.up) > 1e-6 ? axisOf(raw.up) : null;
+    const perpendicular = fileUp && fileUp[2] === 0 && fileUp[0] * front[0] + fileUp[1] * front[1] === 0;
+    const up: Vec3 = perpendicular ? fileUp! : front[1] !== 0 ? [1, 0, 0] : [0, 1, 0];
+    return { front, up };
+  }
+  const oldBuilderFace = front !== null && front[2] !== 0;
+  return oldBuilderFace ? dflt : { ...dflt, warning: 'el frente de combate no era ±X ni ±Y: se usa −Y' };
 }
 
 function toPieceData(raw: Record<string, unknown>, pieces: PieceRegistry, parentType: string | undefined, accepted: Map<string, PieceData>): PieceData | null {

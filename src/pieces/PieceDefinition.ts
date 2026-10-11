@@ -59,6 +59,14 @@ export interface PieceDefinition {
    */
   wrapper?: (seed: number, piece: THREE.Object3D) => { object: THREE.Object3D; setProgress(p: number): void };
 
+  /**
+   * Para el intérprete de combate: qué es la pieza geométricamente y cuánto pesa (aprox., gramos).
+   * `rod` = vara (palito), `blob` = bulto (aceituna, chizito), `plate` = placa (papita, nacho).
+   * `tipMassGrams`/`tipAt`: masa concentrada en una punta (p. ej. la bola del chupetín, a `tipAt` metros
+   * de la punta que se clava, a lo largo de +Y local). `rigid`: false si se dobla (caramelo blando).
+   */
+  structure?: { kind: 'rod' | 'blob' | 'plate'; massGrams: number; tipMassGrams?: number; tipAt?: number; rigid?: boolean };
+
   /** Ayuda que se muestra al tener la pieza en la mano. */
   holdHint?: string;
 

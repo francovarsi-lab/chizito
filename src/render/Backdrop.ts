@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import type { AssetRegistry } from '../assets/AssetRegistry';
-import { stripesTexture, tableclothMaterial, woodMaterial } from '../assets/procedural/surfaces';
+import { stripesTexture } from '../assets/procedural/surfaces';
 import { mulberry32 } from '../util/noise';
 import { PALITO_LENGTH } from '../assets/procedural/palito';
 import { bakeStatic } from '../util/merge';
 import { createSachet, SACHET_H } from '../assets/procedural/ketchup';
 import { buildParty, type Party } from './Party';
+import { buildRoom } from './Room';
 
 /**
  * Set de cumpleaños: mesa de madera con mantel, bowls de snacks en primer plano lateral
@@ -28,11 +29,12 @@ export const BOWL_LAYOUT = {
   papita: new THREE.Vector3(-0.15, 0, -0.17), // corrido a la izquierda: deja ver el platito de palitos de la selva
   // Tira de recipientes chicos al frente: nachos, aceitunas, escarbadientes, espaditas y sobrecitos de
   // ketchup. La clave es el tipo de pieza o `tipo:variante`.
-  nacho: new THREE.Vector3(-0.098, 0, -0.074),
-  aceituna: new THREE.Vector3(-0.05, 0, -0.066),
-  escarbadientes: new THREE.Vector3(-0.012, 0, -0.064),
-  'escarbadientes:espadita': new THREE.Vector3(0.018, 0, -0.064),
-  ketchup: new THREE.Vector3(0.062, 0, -0.07),
+  // (Sin superponerse: los bowls de nachos y aceitunas quedan separados por ≥ 3 mm de borde a borde.)
+  nacho: new THREE.Vector3(-0.104, 0, -0.074),
+  aceituna: new THREE.Vector3(-0.047, 0, -0.068),
+  escarbadientes: new THREE.Vector3(-0.009, 0, -0.064),
+  'escarbadientes:espadita': new THREE.Vector3(0.021, 0, -0.064),
+  ketchup: new THREE.Vector3(0.066, 0, -0.07),
   // Segunda fila, a los lados del chizito: palitos de la selva envueltos y chupetines parados.
   'palito-selva': new THREE.Vector3(-0.062, 0, -0.235),
   chupetin: new THREE.Vector3(0.064, 0, -0.245),
@@ -43,25 +45,9 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   root.name = 'backdrop';
   const bowls = new Map<string, THREE.Object3D>();
 
-  // Mesa
-  const table = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.03, 2.6), woodMaterial());
-  // Mesa grande: su borde lejano queda fuera de cuadro (no se ve el piso detrás).
-  table.position.set(0, -0.015, -0.9);
-  table.receiveShadow = true;
-  root.add(table);
-
-  // Mantel (algo girado: deja ver la madera en el fondo a la derecha).
-  const clothMat = tableclothMaterial();
-  const clothGeo = new THREE.PlaneGeometry(1.3, 2.4, 1, 1);
-  clothGeo.rotateX(-Math.PI / 2);
-  // UV en metros / 0,3 m por tile.
-  const uv = clothGeo.getAttribute('uv') as THREE.BufferAttribute;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * 1.3) / 0.25, (uv.getY(i) * 2.4) / 0.25);
-  const cloth = new THREE.Mesh(clothGeo, clothMat);
-  cloth.position.set(-0.12, 0.0006, -0.85);
-  cloth.rotation.y = 0.12;
-  cloth.receiveShadow = true;
-  root.add(cloth);
+  // Habitación: mesa de cumpleaños con su mantel, piso, tres paredes lisas y techo (ver Room.ts).
+  const room = buildRoom();
+  root.add(room.table);
 
   // Bowls de primer plano (cerámica blanca).
   const ceramic = new THREE.MeshPhysicalMaterial({
@@ -87,12 +73,12 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
 
   // Tira del frente: mismo lenguaje (cerámica blanca y vasito descartable), más chicos.
   // Escarbadientes y espaditas van en vasitos separados (cada uno da su variante).
-  const nachoBowl = makeBowl(0.034, 0.018, ceramic);
+  const nachoBowl = makeBowl(0.03, 0.018, ceramic);
   nachoBowl.position.copy(BOWL_LAYOUT.nacho);
-  nachoBowl.add(fillBowl(assets, 'nacho', 0.034, 0.018, 6, 41));
-  const oliveBowl = makeBowl(0.026, 0.016, ceramic);
+  nachoBowl.add(fillBowl(assets, 'nacho', 0.03, 0.018, 6, 41));
+  const oliveBowl = makeBowl(0.023, 0.016, ceramic);
   oliveBowl.position.copy(BOWL_LAYOUT.aceituna);
-  oliveBowl.add(fillBowl(assets, 'aceituna', 0.026, 0.016, 9, 51));
+  oliveBowl.add(fillBowl(assets, 'aceituna', 0.023, 0.016, 8, 51));
   const pickCup = makeStandCup(assets, { type: 'escarbadientes', count: 18, seed: 61, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'liso' }) });
   pickCup.position.copy(BOWL_LAYOUT.escarbadientes);
   const swordCup = makeStandCup(assets, { type: 'escarbadientes', count: 12, seed: 67, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'espadita' }) });
@@ -127,6 +113,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   const farProps = new THREE.Group();
   farProps.name = 'far-props';
   root.add(farProps);
+  farProps.add(room.shell);
   // Fondo: bowl de chizitos de plástico, otro de palitos, vasos, gaseosa, servilletas, gorrito.
   const plasticOrange = new THREE.MeshPhysicalMaterial({ color: '#bfe6d6', roughness: 0.35, clearcoat: 0.3 }); // menta pastel
   const bgBowl = makeBowl(0.085, 0.05, plasticOrange);
@@ -153,9 +140,8 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
       o.receiveShadow = true;
     }
   });
-  table.castShadow = false;
-  cloth.castShadow = false;
-  return { root, bowls, surfaces: [table, cloth], farProps, party };
+  for (const m of room.tableSurfaces) m.castShadow = false;
+  return { root, bowls, surfaces: room.tableSurfaces, farProps, party };
 }
 
 function makeBowl(radius: number, height: number, mat: THREE.Material): THREE.Group {

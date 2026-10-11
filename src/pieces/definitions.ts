@@ -153,6 +153,8 @@ export const PALITO_SELVA: PieceDefinition = {
   canPierce: true,
   canBePierced: false,
   maxDepth: SELVA_LENGTH * 0.5,
+  // Vara blanda: cilindro de caramelo masticable 4,5 cm × Ø 7,2 mm ≈ 1,8 cm³ × 1,25 g/cm³.
+  structure: { kind: 'rod', massGrams: 2.3, rigid: false },
   holdHint: 'tocá el chizito donde lo quieras clavar · Esc lo devuelve',
   sounds: CRUNCHY,
 };
@@ -176,6 +178,8 @@ export const CHUPETIN: PieceDefinition = {
   canBePierced: false,
   // Queda afuera la bola y un tramo de palito.
   maxDepth: CHUPETIN_STICK * 0.7,
+  // Vara (palito de papel, ~0,3 g) con una MAZA en la punta libre: bola Ø 2,1 cm ≈ 4,85 cm³ × 1,5 g/cm³.
+  structure: { kind: 'rod', massGrams: 7.6, tipMassGrams: 7.3, tipAt: CHUPETIN_STICK + CHUPETIN_BALL_R * 0.78, rigid: true },
   sounds: CRUNCHY,
 };
 

@@ -1,5 +1,5 @@
 /**
- * Pantalla de título de la intro: "Cumpleañitos" sobre el plano general de la mesa, con confeti y
+ * Pantalla de título de la intro: "CUMPLEAÑITO" sobre el plano general de la mesa, con confeti y
  * "tocá para empezar" titilando. La estética del juego todavía está en proceso: hay tres estilos para
  * comparar con ?titulo= (arcade | globo | neon), todos en CSS (index.html, `#title`). Cambiar el
  * texto o el estilo no toca nada del juego.
@@ -42,7 +42,9 @@ export class Title {
       c.style.setProperty('--r', `${Math.random() * 360}deg`);
       confetti.appendChild(c);
     }
-    this.el.append(confetti, logo, sub, start);
+    this.el.append(confetti, logo);
+    if (subtitle) this.el.append(sub);
+    this.el.append(start);
     document.body.appendChild(this.el);
   }
 

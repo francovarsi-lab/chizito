@@ -46,9 +46,12 @@ export function newPieceId(type: string): string {
   return `${type}-${Date.now().toString(36)}-${counter}`;
 }
 
-/** Frente de combate por defecto (+X) y su "arriba" (+Y), en coordenadas del chizito raíz. */
-export const DEFAULT_COMBAT_FRONT: [number, number, number] = [1, 0, 0];
-export const DEFAULT_COMBAT_UP: [number, number, number] = [0, 1, 0];
+/**
+ * Frente de combate por defecto (−Y) y su "arriba" (+X: el eje largo, como el chizito parado del
+ * constructor), en coordenadas del chizito raíz. Pedido del intérprete de combate.
+ */
+export const DEFAULT_COMBAT_FRONT: [number, number, number] = [0, -1, 0];
+export const DEFAULT_COMBAT_UP: [number, number, number] = [1, 0, 0];
 
 /**
  * Lado de cara del CONSTRUCTOR (fijo): el costado +Z del chizito raíz, el que mira a la cámara en la
@@ -60,13 +63,13 @@ export class Construction {
   readonly nodes = new Map<string, PieceNode>();
   root: PieceNode;
   /**
-   * FRENTE DE COMBATE de la criatura: dato por criatura, ±X del chizito raíz (por defecto +X), con +Y
-   * "arriba". Se elige en la vista de combate (intérprete); el constructor no lo toca: lo conserva, lo
+   * FRENTE DE COMBATE de la criatura: dato por criatura, ±X o ±Y del chizito raíz (por defecto −Y, con
+   * +X "arriba"). Se elige en la vista de combate (intérprete); el constructor no lo toca: lo conserva, lo
    * guarda en el archivo y lo respeta al cargar. (No confundir con el lado de cara del constructor,
    * `BUILDER_FACE`, que es fijo y sólo sirve para la pose inicial y la marca de F.)
    */
-  readonly front = new THREE.Vector3(1, 0, 0);
-  readonly up = new THREE.Vector3(0, 1, 0);
+  readonly front = new THREE.Vector3(...DEFAULT_COMBAT_FRONT);
+  readonly up = new THREE.Vector3(...DEFAULT_COMBAT_UP);
 
   constructor(rootType: string, rootSeed: number, rootObject: THREE.Object3D) {
     const data: PieceData = {

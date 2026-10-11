@@ -12,7 +12,7 @@ import { buildTube } from './tube';
  * Más adelante cada envoltorio traerá un dato curioso del animal.
  */
 export const SELVA_LENGTH = 0.045;
-export const SELVA_RADIUS = 0.00425;
+export const SELVA_RADIUS = 0.0036;
 /** Compatibilidad: ancho total del caramelo. */
 export const SELVA_WIDTH = SELVA_RADIUS * 2;
 

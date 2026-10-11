@@ -15,8 +15,10 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   `node scripts/one.mjs "<query>" out.png` saca una sola captura. Query de depuración: `noao`, `tm=agx`, `seed=N`.
 
 ## Dirección visual (actualizada con referencias del usuario)
-- Prioridad: que se vea LINDO, SUAVE y divertido, no hiperrealismo a toda costa. Paleta pastel: mantel rosado
-  pastel con confeti pastel, paredes rubor, madera clara, recipientes menta/lavanda/celeste, limonada en vez de cola.
+- Prioridad: que se vea LINDO, SUAVE y divertido, no hiperrealismo a toda costa, pero CON CONTRASTE: el chizito
+  amarillo se perdía entre pasteles, así que el mantel es CELESTE (#86c9e3) con confeti, las paredes lisas de un
+  durazno claro (#f7dcd2), piso de madera clara; recipientes menta/lavanda/celeste, limonada en vez de cola.
+  `look`: saturación 0,16, contraste +0,07, lift casi nulo, bloom 0,1 (umbral 0,9).
 - Luz envolvente y suave (sol 2,7 + entorno 1,15), sombra de contacto amplia, bloom leve (umbral alto), contraste
   apenas bajo y sombras levantadas con tono cálido (`look.lift`), viñeta y grano mínimos. Ojo: si el lift o el
   bloom suben mucho la imagen queda lechosa/neblinosa.
@@ -41,7 +43,7 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
 - Chizito: 4,4–5,2 cm de largo, 1,9–2,2 cm de grosor, casi recto.
 - Palito: 3,5 cm, Ø 3,4 mm. Papita: Ø ~5 cm, 1,5 mm. Nacho: triángulo de ~4,5 cm de lado, 1,8 mm.
   Aceituna: 2 × 1,5 cm (rellena de morrón). Escarbadientes: 3 cm × Ø 2 mm (variante espadita de cotillón, 3 cm).
-  Palito de la selva: 4,5 cm × Ø 8,5 mm. Chupetín: palito 5,5 cm × Ø 3,4 mm + bola Ø 2,1 cm.
+  Palito de la selva: 4,5 cm × Ø 7,2 mm. Chupetín: palito 5,5 cm × Ø 3,4 mm + bola Ø 2,1 cm.
 - Mesa en y = 0. Chizito flotando con centro en y = 10 cm (`CONFIG.chizitoCenter`): la mesa queda más lejos y despejada.
 - Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, a 30 cm del chizito, con zoom por
   dolly (rueda del mouse) entre 16 y 50 cm, suave. 50 mm sobre film de 36 mm. Nunca orbita.
@@ -66,8 +68,12 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   foto (mezcla de color por z en pantalla, sin transparencia). `offsetY` alinea la mesa de la foto con la 3D.
 - Sombra del chizito: `ContactShadow` (silueta de las piezas héroe vista desde la luz, desenfocada y proyectada sobre
   la mesa). El chizito y lo clavado están en `HERO_LAYER` y NO proyectan la sombra dura del sol.
-- Fondo: mesa de madera con mantel de cumpleaños de plástico rosado pastel con confeti; la mesa es grande para que su borde lejano
-  no entre en cuadro. Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
+- Habitación real y simple (`render/Room.ts`, medidas lógicas): mesa de cumpleaños 1,9 × 1,5 m (x ±0,95, z −1,2…+0,3)
+  con patas y el mantel cayendo 30 cm por los cuatro lados, piso a −0,75 m, pared del fondo a z −1,85, paredes
+  laterales a x ±1,7, techo a 1,6 m, zócalo blanco. Paredes LISAS; las guirnaldas cuelgan de chinches clavadas en la
+  pared del fondo (catenaria a 2 cm de la pared, los banderines se mecen sólo hacia adelante). Globos: dos racimos
+  de tres atados a las esquinas del fondo de la mesa, separados (distancia entre centros > suma de radios). La
+  tapa y el mantel de arriba siguen visibles con foto de fondo; el resto está en `farProps`. Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
   el vaso = un palito). Bowl de cerámica blanca con papitas abajo a la izquierda.
   Tira de recipientes chicos al frente (mismo lenguaje: cerámica blanca y vasito descartable): nachos, aceitunas,
   vasito de escarbadientes, vasito de espaditas y platito con sobrecitos de ketchup (genéricos, sin marca).
@@ -167,21 +173,25 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   Lado de cara del CONSTRUCTOR (`BUILDER_FACE`, fijo): el costado +Z del chizito raíz, el que mira a la cámara parado.
   F devuelve el chizito suave (0,7 s, leve rebote, `TrackballRotator.goHome`) a esa posición inicial y marca ese lado
   (aro + punto que late 2,6 s). El constructor y su cámara NO dependen del frente de combate.
-  FRENTE DE COMBATE (`Construction.front/up`): dato POR CRIATURA, ±X del chizito raíz (por defecto +X), "arriba" +Y.
-  Lo elige la "vista de combate" del intérprete (rama `claude/creature-interpreter`); el constructor no lo cambia:
-  lo conserva (también en deshacer), lo guarda en `creature.front` y el cargador lo RESPETA (`readCombatFront`:
-  ±X por el signo de X; el +Z viejo, la falta de dato o algo que no sea ±X valen +X, esto último con aviso).
+  FRENTE DE COMBATE (`Construction.front/up`): dato POR CRIATURA, ±X o ±Y del chizito raíz; por defecto frente −Y
+  con "arriba" +X (`DEFAULT_COMBAT_FRONT/UP`, pedido del intérprete). Lo elige la "vista de combate" del intérprete
+  (rama `claude/creature-interpreter`); el constructor no lo cambia: lo conserva (también en deshacer), lo guarda en
+  `creature.front` y el cargador lo RESPETA sin reescribirlo (`readCombatFront`: ±X y ±Y se aceptan tal cual, el
+  "arriba" del archivo si es un eje perpendicular, si no +X para ±Y y +Y para ±X; el +Z viejo o la falta de dato
+  valen el de fábrica; otra cosa, el de fábrica con aviso).
   Prueba: `node scripts/combat-front-test.mjs`. Ctrl+S descarga la criatura (.json); Ctrl+O o arrastrar un .json la carga
   (se deshace con Ctrl+Z). Al abrir (o recargar) SIEMPRE arranca un chizito nuevo con forma al azar (`?seed=N` la fija;
   `?capture` usa la 3). La última criatura se autoguarda en el navegador y sólo vuelve con `?recuperar`.
   R R también da un chizito de otra forma.
-  Tope de 40 piezas por criatura (`CONFIG.creature.maxPieces`; el ketchup no cuenta): con 40 no deja agarrar más.
+  Topes (`src/creature/limits.ts`, archivo COMPARTIDO con el intérprete, idéntico en las dos ramas y sin imports):
+  `MAX_PIECES = 40` piezas clavadas (el ketchup no cuenta; con 40 no deja agarrar más) y `MAX_STROKES = 30` trazos
+  de ketchup (el 31 no arranca, con aviso; el cargador descarta los de más con aviso).
 
 ## Intro
-- Al abrir: plano general de la mesita de cumpleaños (`CameraRig.startIntro`, deriva lenta) con guirnaldas de
-  banderines, globos atados a la mesa, torta con velitas y serpentinas (`render/Party.ts`, animado; dentro de
-  `farProps`) y el título "Cumpleañitos" (`ui/Title.ts` + CSS `#title` en index.html) con confeti y "tocá para
-  empezar". Clic o tecla → el título salta y se va, la cámara viaja en curva (3,2 s, ease in-out) hasta la pose de
+- Al abrir: plano general de la habitación (`CameraRig.startIntro`, lente de 26 mm desde (−0,08; 0,64; 1,22), deriva
+  lenta) con guirnaldas, globos, torta con velitas y serpentinas (`render/Party.ts`, animado; dentro de `farProps`) y
+  el título "CUMPLEAÑITO" (sin S y sin subtítulo; `ui/Title.ts` + CSS `#title` en index.html) con confeti y "tocá
+  para empezar". Clic o tecla → el título salta y se va, la cámara viaja en curva (3,2 s, ease in-out) hasta la pose de
   juego, recién ahí se habilita el juego (`interaction.enabled`), el chizito salta y se muestra el frente.
 - Estética del título en exploración (el usuario está en proceso creativo: "arcade pero no 8 bits"): tres estilos
   comparables con `?titulo=arcade` (Bungee, caramelo con borde blanco y relieve; por defecto) | `globo` (Baloo 2
@@ -214,13 +224,29 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
 - `interaction/attach.ts`: modos de conexión ('pierce', 'tail', 'paint') y `poseFromData`: la pose de cada pieza se
   deriva de punto de clavado + dirección + profundidad + giro (la misma cuenta que `Aim.pose`). `tailFrame` también vive acá.
 
+## Deploy
+- GitHub Pages desde `main` (`.github/workflows/deploy.yml`, igual al de `main`). `vite.config.ts`: `base` = `/chizito/`
+  sólo en el build; en `npm run dev` queda `/`. Los archivos opcionales se piden con `import.meta.env.BASE_URL`.
+- OJO al mergear: esta rama NO comparte historia con `main` (se reconstruyó desde el zip del usuario); un merge
+  común falla por "unrelated histories". Hay que decidir cómo integrarla (p. ej. reemplazar `main` por esta rama, o
+  `--allow-unrelated-histories` resolviendo conflictos) antes de hacerlo.
+
+## Contrato con el intérprete de combate (rama `claude/creature-interpreter`)
+- **AVISAR ANTES** de cambiar el formato `CreatureFileV1` (campos, semántica, versión) o la orientación inicial del
+  chizito en el constructor (`CONFIG.creature.homeRotation`, `BUILDER_FACE`): los fixtures y los tests de carga del
+  intérprete dependen de que se mantengan estables. Cambios de geometría de piezas (medidas, marco 'tip') también se
+  avisan, porque mueven las poses reconstruidas.
+- `PieceDefinition.structure` describe cada pieza para el intérprete (vara/bulto/placa, masa aprox. en gramos, masa
+  en la punta). Hoy: palito de la selva = vara blanda 2,3 g; chupetín = vara rígida 7,6 g con maza de 7,3 g en la
+  punta libre (bola).
+
 ## Archivo de criatura (Fase 4)
 - `{ format: "hombrecito-de-chizito/criatura", version: 1, units: "m", creature: { name, savedAt, pieceCount,
   root: { type, seed }, front: { direction, up } }, pieces: [ { id, type, parentId, seed, attach: { mode, entryPoint,
   direction, depth, spin }, params? } ] }`, piezas en orden padre → hijo. NO guarda matrices ni posiciones sueltas.
-- `creature.front` = frente de COMBATE (±X del chizito raíz, por defecto `[1,0,0]`, `up` `[0,1,0]`), parte del
-  `Snapshot` (deshacer) junto con la semilla de la raíz. Se respeta al cargar. Versión del formato: sigue en 1
-  (los archivos con el +Z anterior se leen como +X).
+- `creature.front` = frente de COMBATE (±X o ±Y del chizito raíz, por defecto `[0,-1,0]`, `up` `[1,0,0]`), parte
+  del `Snapshot` (deshacer) junto con la semilla de la raíz. Se respeta al cargar. Versión del formato: sigue en 1
+  (los archivos con el +Z anterior se leen como el de fábrica).
 - Al cargar: se valida todo (formato, versión, tipos, padres, conexión posible según canPierce/canBePierced/tailMount,
   profundidad ≤ maxDepth, tope de 40); lo inválido se descarta con aviso. Versiones nuevas: migraciones en `fromCreatureFile`.
 

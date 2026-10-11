@@ -36,9 +36,19 @@ function chizitoMaps() {
     const r = 2 + rnd() * 5;
     hf.stamp(rnd() * size, rnd() * size, r, 0.25 + rnd() * 0.25, Profiles.crater);
   }
+  // Porosidad según la foto de referencia del usuario: costra crocante llena de GRANITOS en relieve
+  // (0,15–0,5 mm) y poritos chicos entre ellos (1 px ≈ 0,014 mm con TILE = 14 mm).
+  for (let i = 0; i < 7000; i++) {
+    const r = 4 + Math.pow(rnd(), 1.6) * 14;
+    hf.stamp(rnd() * size, rnd() * size, r, 0.22 + rnd() * 0.32, Profiles.blister, 1 + rnd() * 0.5);
+  }
+  for (let i = 0; i < 3500; i++) {
+    const r = 3 + rnd() * 9;
+    hf.stamp(rnd() * size, rnd() * size, r, 0.3 + rnd() * 0.3, Profiles.crater, 1 + rnd() * 0.6);
+  }
   // Polvo de queso: granitos muy finos.
-  for (let i = 0; i < 9000; i++) {
-    hf.stamp(rnd() * size, rnd() * size, 1.2 + rnd() * 2.2, 0.12 + rnd() * 0.12, Profiles.grain);
+  for (let i = 0; i < 14000; i++) {
+    hf.stamp(rnd() * size, rnd() * size, 1.2 + rnd() * 2.6, 0.14 + rnd() * 0.14, Profiles.grain);
   }
   hf.normalize();
 
@@ -47,10 +57,11 @@ function chizitoMaps() {
   const blur = boxBlur(hf, 9);
   for (let i = 0; i < cavity.length; i++) cavity[i] = hf.data[i] - blur[i];
 
-  const normal = hf.toNormalMap(7);
+  const normal = hf.toNormalMap(9.5);
   const rough = hf.toGrayTexture((h, x, y) => {
     const cv = cavity[y * size + x];
-    return 0.84 - cv * 0.9 - (h - 0.5) * 0.08;
+    // Las puntas de los granitos brillan apenas (cristalitos de la costra); los poros, mate.
+    return 0.84 - cv * 1.6 - (h - 0.5) * 0.08;
   });
   const color = hf.toColorTexture((_h, x, y, rgb) => {
     const cv = cavity[y * size + x];
@@ -99,7 +110,7 @@ export function chizitoMaterial(): THREE.MeshPhysicalMaterial {
     vertexColors: true,
     map: maps.color,
     normalMap: maps.normal,
-    normalScale: new THREE.Vector2(1, 1),
+    normalScale: new THREE.Vector2(1.25, 1.25),
     roughnessMap: maps.rough,
     roughness: 1,
     metalness: 0,
@@ -165,6 +176,7 @@ export function buildChizitoGeometry(seed: number, detail: Detail = 'hero'): { g
     return [R * flat * ell, R / ell];
   };
 
+  const grainNoise = new Simplex3(seed + 4242);
   const displace = (p: THREE.Vector3, _n: THREE.Vector3, u: number, th: number) => {
     const sv = u * L;
     const fromEnd = Math.min(sv, L - sv);
@@ -183,7 +195,9 @@ export function buildChizitoGeometry(seed: number, detail: Detail = 'hero'): { g
     const navel = navelAt(sv, navelEnd === 0 ? 1 : 0.6) + navelAt(L - sv, navelEnd === 1 ? 1 : 0.6);
     // Las arrugas siguen el ángulo alrededor del eje: en el polo convergerían en una "estrella".
     const capFade = THREE.MathUtils.smoothstep(fromEnd, 0.0015, 0.0075);
-    return wrinkles * capFade + lumps * (0.4 + 0.6 * capFade) + big + navel;
+    // Rugosidad granulosa en la geometría (≈ 1–3 mm), para que la silueta tampoco sea lisa.
+    const grit = (grainNoise.billow(p.x * 420, p.y * 420, p.z * 420, 2) - 0.55) * 0.00012;
+    return wrinkles * capFade + lumps * (0.4 + 0.6 * capFade) + big + navel + grit;
   };
 
   const tone = new Simplex3(seed + 555);
