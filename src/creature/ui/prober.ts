@@ -29,7 +29,7 @@ export const PROBER_CREATURES: ProberCreature[] = [
 
 const CSS = `
 #cs-prober-btn{position:fixed;left:12px;bottom:12px;z-index:41;border:0;border-radius:18px;padding:7px 14px;background:#7a4b00;color:#fff;font:600 12px system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(60,40,20,.3)}
-#cs-prober{position:fixed;left:12px;bottom:12px;z-index:41;background:rgba(255,253,247,.97);border-radius:14px;box-shadow:0 6px 28px rgba(60,40,20,.32);font:12px/1.35 system-ui,sans-serif;color:#2b2b2b;overflow:hidden}
+#cs-prober{contain:layout paint style;position:fixed;left:12px;bottom:12px;z-index:41;background:rgba(255,253,247,.97);border-radius:14px;box-shadow:0 6px 28px rgba(60,40,20,.32);font:12px/1.35 system-ui,sans-serif;color:#2b2b2b;overflow:hidden}
 #cs-prober[hidden]{display:none}
 #cs-prober .cp-head{display:flex;align-items:center;gap:8px;padding:8px 12px}
 #cs-prober .cp-head b{letter-spacing:.06em;color:#7a4b00}
@@ -108,7 +108,7 @@ export function mountProber(deps: { panel: PanelController; host?: HTMLElement; 
   const q = <T extends Element>(sel: string): T => root.querySelector(sel) as T;
   const select = q<HTMLSelectElement>('select');
   const canvas = q<HTMLCanvasElement>('canvas');
-  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  const ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
   const elFps = q<HTMLSpanElement>('.cp-fps');
   const elMove = q<HTMLDivElement>('.cp-move');
   const elCombat = q<HTMLDivElement>('.cp-combat');

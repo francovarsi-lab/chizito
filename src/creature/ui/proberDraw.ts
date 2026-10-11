@@ -20,6 +20,7 @@ export function viewScale(a: CreatureAnalysis, cfg = CREATURE_CONFIG): number {
 }
 
 type Ctx = CanvasRenderingContext2D;
+const wallCache = new WeakMap<Ctx, { key: string; g: CanvasGradient }>();
 
 function drawShapes(ctx: Ctx, shapes: Shape2D[], X: (x: number) => number, Y: (y: number) => number, scale: number, color: string, min: number): void {
   ctx.fillStyle = color;
@@ -54,11 +55,17 @@ export function drawProber(ctx: Ctx, view: ProberView, a: CreatureAnalysis, plan
   const X = (x: number): number => cx + (x - camX) * scale;
   const Y = (y: number): number => floorY - y * scale;
 
-  // Pared y piso.
-  const wall = ctx.createLinearGradient(0, 0, 0, floorY);
-  wall.addColorStop(0, '#fdeadf');
-  wall.addColorStop(1, '#fff7ee');
-  ctx.fillStyle = wall;
+  // Pared y piso (el degradado se arma una vez por tamaño).
+  const key = `${floorY}`;
+  let wall = wallCache.get(ctx);
+  if (!wall || wall.key !== key) {
+    const g = ctx.createLinearGradient(0, 0, 0, floorY);
+    g.addColorStop(0, '#fdeadf');
+    g.addColorStop(1, '#fff7ee');
+    wall = { key, g };
+    wallCache.set(ctx, wall);
+  }
+  ctx.fillStyle = wall.g;
   ctx.fillRect(0, 0, w, floorY);
   ctx.fillStyle = '#f2cfae';
   ctx.fillRect(0, floorY, w, h - floorY);
