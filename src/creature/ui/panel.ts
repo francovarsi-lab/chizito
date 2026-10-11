@@ -23,7 +23,7 @@ export interface RenderState {
 }
 
 const CSS = `
-.cs-panel{contain:layout paint style;position:fixed;top:12px;right:12px;width:392px;max-height:calc(100vh - 24px);overflow:auto;background:rgba(255,253,247,.95);color:#2b2b2b;border-radius:14px;box-shadow:0 6px 28px rgba(60,40,20,.28);font:12px/1.35 system-ui,sans-serif;z-index:40}
+.cs-panel{contain:layout paint style;will-change:transform;position:fixed;top:12px;right:12px;width:392px;max-height:calc(100vh - 24px);overflow:auto;background:rgba(255,253,247,.95);color:#2b2b2b;border-radius:14px;box-shadow:0 6px 28px rgba(60,40,20,.28);font:12px/1.35 system-ui,sans-serif;z-index:40}
 .cs-panel *{box-sizing:border-box}
 .cs-head{display:flex;align-items:center;gap:8px;padding:10px 12px 6px;position:sticky;top:0;background:rgba(255,253,247,.97);z-index:2;border-radius:14px 14px 0 0}
 .cs-head b{font-size:12.5px;letter-spacing:.06em;color:#7a4b00}
