@@ -208,7 +208,9 @@ export const CREATURE_CONFIG = {
     maxStepsPerFrame: 5,
     /** Cuadros que promedia el contador de fps. */
     fpsWindow: 60,
-    /** Fracción de la ventana (de 0 a 1) a la que está el piso por abajo, y a la que se centra la criatura. */
+    /** Filas de baldosas que se dibujan en el piso. */
+    floorRows: 4,
+    /** Fracción de la ventana (de 0 a 1) a la altura a la que está la línea del piso. */
     floorLine: 0.76,
     /** Grosor mínimo (px) de las formas dibujadas. */
     minStroke: 2,

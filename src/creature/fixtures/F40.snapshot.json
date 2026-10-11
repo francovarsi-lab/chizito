@@ -1,0 +1,2655 @@
+{
+  "schema": "chizito.creature-snapshot",
+  "version": 1,
+  "source": {
+    "fileFormat": "hombrecito-de-chizito/criatura",
+    "fileVersion": 1,
+    "name": "F40 · 40 extremidades (prueba de carga)"
+  },
+  "orientation": {
+    "front": [
+      0,
+      -1,
+      0
+    ],
+    "up": [
+      1,
+      0,
+      0
+    ]
+  },
+  "coreId": "root",
+  "pieces": [
+    {
+      "id": "root",
+      "type": "chizito",
+      "seed": 3,
+      "kind": "core",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.024388419464230537,
+          0,
+          0
+        ],
+        "b": [
+          0.024388419464230537,
+          0,
+          0
+        ],
+        "radius": 0.010814764071255922
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF401",
+      "type": "palito",
+      "seed": 901,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.019,
+          0.0018150000000000006,
+          0
+        ],
+        "b": [
+          -0.019,
+          0.03880527198308613,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF402",
+      "type": "palito",
+      "seed": 902,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.019,
+          0.0005608482842493507,
+          0.0017254909525150214
+        ],
+        "b": [
+          -0.019,
+          0.011076850516091051,
+          0.034090433769928506
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF403",
+      "type": "palito",
+      "seed": 903,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.019,
+          -0.0014678459533849974,
+          0.0010669342395900226
+        ],
+        "b": [
+          -0.019,
+          -0.029509676399969122,
+          0.021440507735629576
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF404",
+      "type": "palito",
+      "seed": 904,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.019,
+          -0.0014678459533849974,
+          -0.0010669342395900226
+        ],
+        "b": [
+          -0.019,
+          -0.029109910156477542,
+          -0.02115006068515882
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF405",
+      "type": "palito",
+      "seed": 905,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.019,
+          0.0005608482842493507,
+          -0.0017254909525150214
+        ],
+        "b": [
+          -0.019,
+          0.011670338925338522,
+          -0.03591700417231307
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF406",
+      "type": "palito",
+      "seed": 906,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.013571,
+          0.0014678459533849974,
+          0.0010669342395900226
+        ],
+        "b": [
+          -0.013571,
+          0.030527923208620897,
+          0.022180307023436138
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF407",
+      "type": "palito",
+      "seed": 907,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.013571,
+          -0.0005608482842493507,
+          0.0017254909525150214
+        ],
+        "b": [
+          -0.013571,
+          -0.011085751420525543,
+          0.03411782795040648
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF408",
+      "type": "palito",
+      "seed": 908,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.013571,
+          -0.0018150000000000006,
+          0
+        ],
+        "b": [
+          -0.013571,
+          -0.038501556515633126,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF409",
+      "type": "palito",
+      "seed": 909,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.013571,
+          -0.0005608482842493507,
+          -0.0017254909525150214
+        ],
+        "b": [
+          -0.013571,
+          -0.011441375714690004,
+          -0.03521232752271211
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4010",
+      "type": "palito",
+      "seed": 910,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.013571,
+          0.0014678459533849974,
+          -0.0010669342395900226
+        ],
+        "b": [
+          -0.013571,
+          0.028902803835461035,
+          -0.020999589200754083
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4011",
+      "type": "palito",
+      "seed": 911,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.008143,
+          0.0018150000000000006,
+          0
+        ],
+        "b": [
+          -0.008143,
+          0.038444692913265896,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4012",
+      "type": "palito",
+      "seed": 912,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.008143,
+          0.0005608482842493507,
+          0.0017254909525150214
+        ],
+        "b": [
+          -0.008143,
+          0.010778716264635365,
+          0.033172870442387654
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4013",
+      "type": "palito",
+      "seed": 913,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.008143,
+          -0.0014678459533849974,
+          0.0010669342395900226
+        ],
+        "b": [
+          -0.008143,
+          -0.03212663084435217,
+          0.023341835604007728
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4014",
+      "type": "palito",
+      "seed": 914,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.008143,
+          -0.0014678459533849974,
+          -0.0010669342395900226
+        ],
+        "b": [
+          -0.008143,
+          -0.029066386281747663,
+          -0.021118438752976802
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4015",
+      "type": "palito",
+      "seed": 915,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.008143,
+          0.0005608482842493507,
+          -0.0017254909525150214
+        ],
+        "b": [
+          -0.008143,
+          0.01155989518976563,
+          -0.03557709313886588
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4016",
+      "type": "palito",
+      "seed": 916,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.002714,
+          0.0014678459533849974,
+          0.0010669342395900226
+        ],
+        "b": [
+          -0.002714,
+          0.03153431427090123,
+          0.022911492611059694
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4017",
+      "type": "palito",
+      "seed": 917,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.002714,
+          -0.0005608482842493507,
+          0.0017254909525150214
+        ],
+        "b": [
+          -0.002714,
+          -0.010938727873190949,
+          0.033665335777298216
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4018",
+      "type": "palito",
+      "seed": 918,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.002714,
+          -0.0018150000000000006,
+          0
+        ],
+        "b": [
+          -0.002714,
+          -0.03566892323252745,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4019",
+      "type": "palito",
+      "seed": 919,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.002714,
+          -0.0005608482842493507,
+          -0.0017254909525150214
+        ],
+        "b": [
+          -0.002714,
+          -0.011268023348409886,
+          -0.03467880353724442
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4020",
+      "type": "palito",
+      "seed": 920,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.002714,
+          0.0014678459533849974,
+          -0.0010669342395900226
+        ],
+        "b": [
+          -0.002714,
+          0.028758785884169105,
+          -0.020894954079983902
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4021",
+      "type": "palito",
+      "seed": 921,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.002714,
+          0.0018150000000000006,
+          0
+        ],
+        "b": [
+          0.002714,
+          0.03899904218670912,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4022",
+      "type": "palito",
+      "seed": 922,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.002714,
+          0.0005608482842493507,
+          0.0017254909525150214
+        ],
+        "b": [
+          0.002714,
+          0.011415544204424739,
+          0.035132826269841363
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4023",
+      "type": "palito",
+      "seed": 923,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.002714,
+          -0.0014678459533849974,
+          0.0010669342395900226
+        ],
+        "b": [
+          0.002714,
+          -0.030394091981146343,
+          0.02208307298751211
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4024",
+      "type": "palito",
+      "seed": 924,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.002714,
+          -0.0014678459533849974,
+          -0.0010669342395900226
+        ],
+        "b": [
+          0.002714,
+          -0.030926210288673383,
+          -0.022469679399231248
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4025",
+      "type": "palito",
+      "seed": 925,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.002714,
+          0.0005608482842493507,
+          -0.0017254909525150214
+        ],
+        "b": [
+          0.002714,
+          0.012119713559262028,
+          -0.03730003776339507
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4026",
+      "type": "palito",
+      "seed": 926,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.008143,
+          0.0014678459533849974,
+          0.0010669342395900226
+        ],
+        "b": [
+          0.008143,
+          0.03175700731065108,
+          0.023073288504556817
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4027",
+      "type": "palito",
+      "seed": 927,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.008143,
+          -0.0005608482842493507,
+          0.0017254909525150214
+        ],
+        "b": [
+          0.008143,
+          -0.010966227201324848,
+          0.03374997004828344
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4028",
+      "type": "palito",
+      "seed": 928,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.008143,
+          -0.0018150000000000006,
+          0
+        ],
+        "b": [
+          0.008143,
+          -0.03615345387189649,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4029",
+      "type": "palito",
+      "seed": 929,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.008143,
+          -0.0005608482842493507,
+          -0.0017254909525150214
+        ],
+        "b": [
+          0.008143,
+          -0.01175964290495658,
+          -0.03619185369497241
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4030",
+      "type": "palito",
+      "seed": 930,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.008143,
+          0.0014678459533849974,
+          -0.0010669342395900226
+        ],
+        "b": [
+          0.008143,
+          0.03185875902284381,
+          -0.023147215418516852
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4031",
+      "type": "palito",
+      "seed": 931,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.013571,
+          0.0018150000000000006,
+          0
+        ],
+        "b": [
+          0.013571,
+          0.038267313972404224,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4032",
+      "type": "palito",
+      "seed": 932,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.013571,
+          0.0005608482842493507,
+          0.0017254909525150214
+        ],
+        "b": [
+          0.013571,
+          0.01118607169666154,
+          0.03442658216412632
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4033",
+      "type": "palito",
+      "seed": 933,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.013571,
+          -0.0014678459533849974,
+          0.0010669342395900226
+        ],
+        "b": [
+          0.013571,
+          -0.030841873214554498,
+          0.022408404954922946
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4034",
+      "type": "palito",
+      "seed": 934,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.013571,
+          -0.0014678459533849974,
+          -0.0010669342395900226
+        ],
+        "b": [
+          0.013571,
+          -0.03040400143319117,
+          -0.02209027262271158
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4035",
+      "type": "palito",
+      "seed": 935,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.013571,
+          0.0005608482842493507,
+          -0.0017254909525150214
+        ],
+        "b": [
+          0.013571,
+          0.010885125356901646,
+          -0.033500364114462305
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4036",
+      "type": "palito",
+      "seed": 936,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.019,
+          0.0014678459533849974,
+          0.0010669342395900226
+        ],
+        "b": [
+          0.019,
+          0.030650310818330563,
+          0.022269226788006222
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4037",
+      "type": "palito",
+      "seed": 937,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.019,
+          -0.0005608482842493507,
+          0.0017254909525150214
+        ],
+        "b": [
+          0.019,
+          -0.011531985574775656,
+          0.035491196134158985
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4038",
+      "type": "palito",
+      "seed": 938,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.019,
+          -0.0018150000000000006,
+          0
+        ],
+        "b": [
+          0.019,
+          -0.038269485059948635,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4039",
+      "type": "palito",
+      "seed": 939,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.019,
+          -0.0005608482842493507,
+          -0.0017254909525150214
+        ],
+        "b": [
+          0.019,
+          -0.011250237656025897,
+          -0.034624064777753386
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxF4040",
+      "type": "palito",
+      "seed": 940,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.019,
+          0.0014678459533849974,
+          -0.0010669342395900226
+        ],
+        "b": [
+          0.019,
+          0.030218072002803166,
+          -0.02195518704324836
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    }
+  ],
+  "links": [
+    {
+      "id": "link-palito-fxF401",
+      "parentId": "root",
+      "childId": "palito-fxF401",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.019,
+          0.010815,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.019,
+        0.010815,
+        0
+      ],
+      "normal": [
+        -0.44845908842012155,
+        0.8938033598132161,
+        0
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "tiltFromNormal": 0.4650405979732843,
+      "embedded": 0.009,
+      "chord": 0.020169886750930472,
+      "freeTail": 0.02799027198308613,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF402",
+      "parentId": "root",
+      "childId": "palito-fxF402",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.019,
+          0.003342,
+          0.010285
+        ],
+        "direction": [
+          0,
+          -0.309017,
+          -0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.019,
+        0.003342,
+        0.010285
+      ],
+      "normal": [
+        -0.4484805864340259,
+        0.27621211485942454,
+        0.8500423702361406
+      ],
+      "axis": [
+        0,
+        0.3090168573056277,
+        0.9510565608316642
+      ],
+      "tiltFromNormal": 0.4650646507204959,
+      "embedded": 0.009,
+      "chord": 0.0201692378142159,
+      "freeTail": 0.025030513168545432,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF403",
+      "parentId": "root",
+      "childId": "palito-fxF403",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.019,
+          -0.008749,
+          0.006357
+        ],
+        "direction": [
+          0,
+          0.809017,
+          -0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.019,
+        -0.008749,
+        0.006357
+      ],
+      "normal": [
+        -0.44847099649200567,
+        -0.7230784316994268,
+        0.5253868545334617
+      ],
+      "axis": [
+        0,
+        -0.8090171162905558,
+        0.5877850844899976
+      ],
+      "tiltFromNormal": 0.46505392223580166,
+      "embedded": 0.009,
+      "chord": 0.020169527275325682,
+      "freeTail": 0.025661603422136976,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF404",
+      "parentId": "root",
+      "childId": "palito-fxF404",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.019,
+          -0.008749,
+          -0.006357
+        ],
+        "direction": [
+          0,
+          0.809017,
+          0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.019,
+        -0.008749,
+        -0.006357
+      ],
+      "normal": [
+        -0.44847099649200567,
+        -0.7230784316994268,
+        -0.5253868545334617
+      ],
+      "axis": [
+        0,
+        -0.8090171162905558,
+        -0.5877850844899976
+      ],
+      "tiltFromNormal": 0.46505392223580166,
+      "embedded": 0.009,
+      "chord": 0.020169527275325682,
+      "freeTail": 0.02516746524453628,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF405",
+      "parentId": "root",
+      "childId": "palito-fxF405",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.019,
+          0.003342,
+          -0.010285
+        ],
+        "direction": [
+          0,
+          -0.309017,
+          0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.019,
+        0.003342,
+        -0.010285
+      ],
+      "normal": [
+        -0.4484805864340259,
+        0.27621211485942454,
+        -0.8500423702361406
+      ],
+      "axis": [
+        0,
+        0.3090168573056277,
+        -0.9510565608316642
+      ],
+      "tiltFromNormal": 0.4650646507204959,
+      "embedded": 0.009,
+      "chord": 0.0201692378142159,
+      "freeTail": 0.026951082856627173,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF406",
+      "parentId": "root",
+      "childId": "palito-fxF406",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.013571,
+          0.008749,
+          0.006357
+        ],
+        "direction": [
+          0,
+          -0.809017,
+          -0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.013571,
+        0.008749,
+        0.006357
+      ],
+      "normal": [
+        0,
+        0.8089959132707352,
+        0.5878142668490185
+      ],
+      "axis": [
+        0,
+        0.8090171162905558,
+        0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.026920225505833513,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF407",
+      "parentId": "root",
+      "childId": "palito-fxF407",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.013571,
+          -0.003342,
+          0.010285
+        ],
+        "direction": [
+          0,
+          0.309017,
+          -0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.013571,
+        -0.003342,
+        0.010285
+      ],
+      "normal": [
+        0,
+        -0.309033799559434,
+        0.9510510557955653
+      ],
+      "axis": [
+        0,
+        -0.3090168573056277,
+        0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.025059317113133146,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF408",
+      "parentId": "root",
+      "childId": "palito-fxF408",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.013571,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.013571,
+        -0.010815,
+        0
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ],
+      "axis": [
+        0,
+        -1,
+        0
+      ],
+      "tiltFromNormal": 0,
+      "embedded": 0.009,
+      "chord": 0.021629764071255924,
+      "freeTail": 0.027686556515633128,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF409",
+      "parentId": "root",
+      "childId": "palito-fxF409",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.013571,
+          -0.003342,
+          -0.010285
+        ],
+        "direction": [
+          0,
+          0.309017,
+          0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.013571,
+        -0.003342,
+        -0.010285
+      ],
+      "normal": [
+        0,
+        -0.309033799559434,
+        -0.9510510557955653
+      ],
+      "axis": [
+        0,
+        -0.3090168573056277,
+        -0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.026210142013966098,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4010",
+      "parentId": "root",
+      "childId": "palito-fxF4010",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.013571,
+          0.008749,
+          -0.006357
+        ],
+        "direction": [
+          0,
+          -0.809017,
+          0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.013571,
+        0.008749,
+        -0.006357
+      ],
+      "normal": [
+        0,
+        0.8089959132707352,
+        -0.5878142668490185
+      ],
+      "axis": [
+        0,
+        0.8090171162905558,
+        -0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.024911467791767783,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4011",
+      "parentId": "root",
+      "childId": "palito-fxF4011",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.008143,
+          0.010815,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.008143,
+        0.010815,
+        0
+      ],
+      "normal": [
+        1.6039976661829006e-16,
+        1,
+        0
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "tiltFromNormal": 0,
+      "embedded": 0.009,
+      "chord": 0.021629764071255924,
+      "freeTail": 0.027629692913265898,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4012",
+      "parentId": "root",
+      "childId": "palito-fxF4012",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.008143,
+          0.003342,
+          0.010285
+        ],
+        "direction": [
+          0,
+          -0.309017,
+          -0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.008143,
+        0.003342,
+        0.010285
+      ],
+      "normal": [
+        1.6040939167147254e-16,
+        0.309033799559434,
+        0.9510510557955653
+      ],
+      "axis": [
+        0,
+        0.3090168573056277,
+        0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.02406573003646917,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4013",
+      "parentId": "root",
+      "childId": "palito-fxF4013",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.008143,
+          -0.008749,
+          0.006357
+        ],
+        "direction": [
+          0,
+          0.809017,
+          -0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.008143,
+        -0.008749,
+        0.006357
+      ],
+      "normal": [
+        1.6040509803635173e-16,
+        -0.8089959132707352,
+        0.5878142668490185
+      ],
+      "axis": [
+        0,
+        -0.8090171162905558,
+        0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.028896336521953343,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4014",
+      "parentId": "root",
+      "childId": "palito-fxF4014",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.008143,
+          -0.008749,
+          -0.006357
+        ],
+        "direction": [
+          0,
+          0.809017,
+          0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.008143,
+        -0.008749,
+        -0.006357
+      ],
+      "normal": [
+        1.6040509803635173e-16,
+        -0.8089959132707352,
+        -0.5878142668490185
+      ],
+      "axis": [
+        0,
+        -0.8090171162905558,
+        -0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.025113666784833184,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4015",
+      "parentId": "root",
+      "childId": "palito-fxF4015",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.008143,
+          0.003342,
+          -0.010285
+        ],
+        "direction": [
+          0,
+          -0.309017,
+          0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.008143,
+        0.003342,
+        -0.010285
+      ],
+      "normal": [
+        1.6040939167147254e-16,
+        0.309033799559434,
+        -0.9510510557955653
+      ],
+      "axis": [
+        0,
+        0.3090168573056277,
+        -0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.02659367926209233,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4016",
+      "parentId": "root",
+      "childId": "palito-fxF4016",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.002714,
+          0.008749,
+          0.006357
+        ],
+        "direction": [
+          0,
+          -0.809017,
+          -0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.002714,
+        0.008749,
+        0.006357
+      ],
+      "normal": [
+        1.203038235272638e-16,
+        0.8089959132707352,
+        0.5878142668490185
+      ],
+      "axis": [
+        0,
+        0.8090171162905558,
+        0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.028164193083299316,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4017",
+      "parentId": "root",
+      "childId": "palito-fxF4017",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.002714,
+          -0.003342,
+          0.010285
+        ],
+        "direction": [
+          0,
+          0.309017,
+          -0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.002714,
+        -0.003342,
+        0.010285
+      ],
+      "normal": [
+        1.2030704375360442e-16,
+        -0.309033799559434,
+        0.9510510557955653
+      ],
+      "axis": [
+        0,
+        -0.3090168573056277,
+        0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.02458353870862629,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4018",
+      "parentId": "root",
+      "childId": "palito-fxF4018",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.002714,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.002714,
+        -0.010815,
+        0
+      ],
+      "normal": [
+        1.2029982496371756e-16,
+        -1,
+        0
+      ],
+      "axis": [
+        0,
+        -1,
+        0
+      ],
+      "tiltFromNormal": 0,
+      "embedded": 0.009,
+      "chord": 0.021629764071255924,
+      "freeTail": 0.02485392323252745,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4019",
+      "parentId": "root",
+      "childId": "palito-fxF4019",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.002714,
+          -0.003342,
+          -0.010285
+        ],
+        "direction": [
+          0,
+          0.309017,
+          0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.002714,
+        -0.003342,
+        -0.010285
+      ],
+      "normal": [
+        1.2030704375360442e-16,
+        -0.309033799559434,
+        -0.9510510557955653
+      ],
+      "axis": [
+        0,
+        -0.3090168573056277,
+        -0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.025649161723791614,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4020",
+      "parentId": "root",
+      "childId": "palito-fxF4020",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.002714,
+          0.008749,
+          -0.006357
+        ],
+        "direction": [
+          0,
+          -0.809017,
+          0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.002714,
+        0.008749,
+        -0.006357
+      ],
+      "normal": [
+        1.203038235272638e-16,
+        0.8089959132707352,
+        -0.5878142668490185
+      ],
+      "axis": [
+        0,
+        0.8090171162905558,
+        -0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.024733451840816996,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4021",
+      "parentId": "root",
+      "childId": "palito-fxF4021",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.002714,
+          0.010815,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.002714,
+        0.010815,
+        0
+      ],
+      "normal": [
+        -1.2029982496371756e-16,
+        1,
+        0
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "tiltFromNormal": 0,
+      "embedded": 0.009,
+      "chord": 0.021629764071255924,
+      "freeTail": 0.02818404218670912,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4022",
+      "parentId": "root",
+      "childId": "palito-fxF4022",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.002714,
+          0.003342,
+          0.010285
+        ],
+        "direction": [
+          0,
+          -0.309017,
+          -0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.002714,
+        0.003342,
+        0.010285
+      ],
+      "normal": [
+        -1.2030704375360442e-16,
+        0.309033799559434,
+        0.9510510557955653
+      ],
+      "axis": [
+        0,
+        0.3090168573056277,
+        0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.026126549453707404,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4023",
+      "parentId": "root",
+      "childId": "palito-fxF4023",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.002714,
+          -0.008749,
+          0.006357
+        ],
+        "direction": [
+          0,
+          0.809017,
+          -0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.002714,
+        -0.008749,
+        0.006357
+      ],
+      "normal": [
+        -1.203038235272638e-16,
+        -0.8089959132707352,
+        0.5878142668490185
+      ],
+      "axis": [
+        0,
+        -0.8090171162905558,
+        0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.026754801036091513,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4024",
+      "parentId": "root",
+      "childId": "palito-fxF4024",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.002714,
+          -0.008749,
+          -0.006357
+        ],
+        "direction": [
+          0,
+          0.809017,
+          0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.002714,
+        -0.008749,
+        -0.006357
+      ],
+      "normal": [
+        -1.203038235272638e-16,
+        -0.8089959132707352,
+        -0.5878142668490185
+      ],
+      "axis": [
+        0,
+        -0.8090171162905558,
+        -0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.027412535337149165,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4025",
+      "parentId": "root",
+      "childId": "palito-fxF4025",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.002714,
+          0.003342,
+          -0.010285
+        ],
+        "direction": [
+          0,
+          -0.309017,
+          0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.002714,
+        0.003342,
+        -0.010285
+      ],
+      "normal": [
+        -1.2030704375360442e-16,
+        0.309033799559434,
+        -0.9510510557955653
+      ],
+      "axis": [
+        0,
+        0.3090168573056277,
+        -0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.0284052903644042,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4026",
+      "parentId": "root",
+      "childId": "palito-fxF4026",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.008143,
+          0.008749,
+          0.006357
+        ],
+        "direction": [
+          0,
+          -0.809017,
+          -0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.008143,
+        0.008749,
+        0.006357
+      ],
+      "normal": [
+        -1.6040509803635173e-16,
+        0.8089959132707352,
+        0.5878142668490185
+      ],
+      "axis": [
+        0,
+        0.8090171162905558,
+        0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.02843945677706506,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4027",
+      "parentId": "root",
+      "childId": "palito-fxF4027",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.008143,
+          -0.003342,
+          0.010285
+        ],
+        "direction": [
+          0,
+          0.309017,
+          -0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.008143,
+        -0.003342,
+        0.010285
+      ],
+      "normal": [
+        -1.6040939167147254e-16,
+        -0.309033799559434,
+        0.9510510557955653
+      ],
+      "axis": [
+        0,
+        -0.3090168573056277,
+        0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.024672528443275943,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4028",
+      "parentId": "root",
+      "childId": "palito-fxF4028",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.008143,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.008143,
+        -0.010815,
+        0
+      ],
+      "normal": [
+        -1.6039976661829006e-16,
+        -1,
+        0
+      ],
+      "axis": [
+        0,
+        -1,
+        0
+      ],
+      "tiltFromNormal": 0,
+      "embedded": 0.009,
+      "chord": 0.021629764071255924,
+      "freeTail": 0.02533845387189649,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4029",
+      "parentId": "root",
+      "childId": "palito-fxF4029",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.008143,
+          -0.003342,
+          -0.010285
+        ],
+        "direction": [
+          0,
+          0.309017,
+          0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.008143,
+        -0.003342,
+        -0.010285
+      ],
+      "normal": [
+        -1.6040939167147254e-16,
+        -0.309033799559434,
+        -0.9510510557955653
+      ],
+      "axis": [
+        0,
+        -0.3090168573056277,
+        -0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.027240076733520253,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4030",
+      "parentId": "root",
+      "childId": "palito-fxF4030",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.008143,
+          0.008749,
+          -0.006357
+        ],
+        "direction": [
+          0,
+          -0.809017,
+          0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.008143,
+        0.008749,
+        -0.006357
+      ],
+      "normal": [
+        -1.6040509803635173e-16,
+        0.8089959132707352,
+        -0.5878142668490185
+      ],
+      "axis": [
+        0,
+        0.8090171162905558,
+        -0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.02856522879120893,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4031",
+      "parentId": "root",
+      "childId": "palito-fxF4031",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.013571,
+          0.010815,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.013571,
+        0.010815,
+        0
+      ],
+      "normal": [
+        3.2079953323658013e-16,
+        1,
+        0
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "tiltFromNormal": 0,
+      "embedded": 0.009,
+      "chord": 0.021629764071255924,
+      "freeTail": 0.027452313972404226,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4032",
+      "parentId": "root",
+      "childId": "palito-fxF4032",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.013571,
+          0.003342,
+          0.010285
+        ],
+        "direction": [
+          0,
+          -0.309017,
+          -0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.013571,
+        0.003342,
+        0.010285
+      ],
+      "normal": [
+        3.208187833429451e-16,
+        0.309033799559434,
+        0.9510510557955653
+      ],
+      "axis": [
+        0,
+        0.3090168573056277,
+        0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.025383960490231394,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4033",
+      "parentId": "root",
+      "childId": "palito-fxF4033",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.013571,
+          -0.008749,
+          0.006357
+        ],
+        "direction": [
+          0,
+          0.809017,
+          -0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.013571,
+        -0.008749,
+        0.006357
+      ],
+      "normal": [
+        3.2081019607270346e-16,
+        -0.8089959132707352,
+        0.5878142668490185
+      ],
+      "axis": [
+        0,
+        -0.8090171162905558,
+        0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.02730828899622429,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4034",
+      "parentId": "root",
+      "childId": "palito-fxF4034",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.013571,
+          -0.008749,
+          -0.006357
+        ],
+        "direction": [
+          0,
+          0.809017,
+          0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.013571,
+        -0.008749,
+        -0.006357
+      ],
+      "normal": [
+        3.2081019607270346e-16,
+        -0.8089959132707352,
+        -0.5878142668490185
+      ],
+      "axis": [
+        0,
+        -0.8090171162905558,
+        -0.5877850844899976
+      ],
+      "tiltFromNormal": 0.00003607184265168739,
+      "embedded": 0.009,
+      "chord": 0.0216294045967491,
+      "freeTail": 0.026767049790592863,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4035",
+      "parentId": "root",
+      "childId": "palito-fxF4035",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.013571,
+          0.003342,
+          -0.010285
+        ],
+        "direction": [
+          0,
+          -0.309017,
+          0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.013571,
+        0.003342,
+        -0.010285
+      ],
+      "normal": [
+        3.208187833429451e-16,
+        0.309033799559434,
+        -0.9510510557955653
+      ],
+      "axis": [
+        0,
+        0.3090168573056277,
+        -0.9510565608316642
+      ],
+      "tiltFromNormal": 0.000017814199540760657,
+      "embedded": 0.009,
+      "chord": 0.02162911513480912,
+      "freeTail": 0.024410077245207495,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4036",
+      "parentId": "root",
+      "childId": "palito-fxF4036",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.019,
+          0.008749,
+          0.006357
+        ],
+        "direction": [
+          0,
+          -0.809017,
+          -0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.019,
+        0.008749,
+        0.006357
+      ],
+      "normal": [
+        0.44847099649200567,
+        0.7230784316994268,
+        0.5253868545334617
+      ],
+      "axis": [
+        0,
+        0.8090171162905558,
+        0.5877850844899976
+      ],
+      "tiltFromNormal": 0.46505392223580166,
+      "embedded": 0.009,
+      "chord": 0.020169527275325682,
+      "freeTail": 0.027071504888241178,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4037",
+      "parentId": "root",
+      "childId": "palito-fxF4037",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.019,
+          -0.003342,
+          0.010285
+        ],
+        "direction": [
+          0,
+          0.309017,
+          -0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.019,
+        -0.003342,
+        0.010285
+      ],
+      "normal": [
+        0.4484805864340259,
+        -0.27621211485942454,
+        0.8500423702361406
+      ],
+      "axis": [
+        0,
+        -0.3090168573056277,
+        0.9510565608316642
+      ],
+      "tiltFromNormal": 0.4650646507204959,
+      "embedded": 0.009,
+      "chord": 0.0201692378142159,
+      "freeTail": 0.026503361810697235,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4038",
+      "parentId": "root",
+      "childId": "palito-fxF4038",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.019,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.019,
+        -0.010815,
+        0
+      ],
+      "normal": [
+        0.44845908842012155,
+        -0.8938033598132161,
+        0
+      ],
+      "axis": [
+        0,
+        -1,
+        0
+      ],
+      "tiltFromNormal": 0.4650405979732843,
+      "embedded": 0.009,
+      "chord": 0.020169886750930472,
+      "freeTail": 0.027454485059948637,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4039",
+      "parentId": "root",
+      "childId": "palito-fxF4039",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.019,
+          -0.003342,
+          -0.010285
+        ],
+        "direction": [
+          0,
+          0.309017,
+          0.951057
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.019,
+        -0.003342,
+        -0.010285
+      ],
+      "normal": [
+        0.4484805864340259,
+        -0.27621211485942454,
+        -0.8500423702361406
+      ],
+      "axis": [
+        0,
+        -0.3090168573056277,
+        -0.9510565608316642
+      ],
+      "tiltFromNormal": 0.4650646507204959,
+      "embedded": 0.009,
+      "chord": 0.0201692378142159,
+      "freeTail": 0.025591605988680377,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxF4040",
+      "parentId": "root",
+      "childId": "palito-fxF4040",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.019,
+          0.008749,
+          -0.006357
+        ],
+        "direction": [
+          0,
+          -0.809017,
+          0.587785
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.019,
+        0.008749,
+        -0.006357
+      ],
+      "normal": [
+        0.44847099649200567,
+        0.7230784316994268,
+        -0.5253868545334617
+      ],
+      "axis": [
+        0,
+        0.8090171162905558,
+        -0.5877850844899976
+      ],
+      "tiltFromNormal": 0.46505392223580166,
+      "embedded": 0.009,
+      "chord": 0.020169527275325682,
+      "freeTail": 0.026537228410248637,
+      "exit": null,
+      "crossings": []
+    }
+  ],
+  "budget": {
+    "pieceCount": 40,
+    "maxPieces": 40,
+    "strokeCount": 0,
+    "maxStrokes": 30
+  },
+  "warnings": []
+}

@@ -19,7 +19,7 @@ const up = arg('up', undefined);
 globalThis.location ??= { search: '' }; // src/config.ts lee location al cargarse
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
 try {
-  const { buildAllCreatures, buildDepthDemo, buildBattery } = await server.ssrLoadModule('/src/creature/fixtures/creatures.ts');
+  const { buildAllCreatures, buildDepthDemo, buildBattery, buildLoad40 } = await server.ssrLoadModule('/src/creature/fixtures/creatures.ts');
   const { renderProfileSheet } = await server.ssrLoadModule('/src/creature/fixtures/profileSheet.ts');
   const { renderHitboxSheet } = await server.ssrLoadModule('/src/creature/fixtures/hitboxSheet.ts');
   const creatures = buildAllCreatures(front, up);
@@ -36,6 +36,11 @@ try {
   fs.writeFileSync(`public/assets/creatures/${demo.id}.json`, JSON.stringify(demo.file, null, 2) + '\n');
   fs.writeFileSync(`src/creature/fixtures/${demo.id}.snapshot.json`, JSON.stringify(demo.snapshot, null, 2) + '\n');
   console.log(`${demo.id.padEnd(4)} ${demo.snapshot.budget.pieceCount} piezas — ${demo.name}`);
+  // Prueba de carga: 40 extremidades (aparte de las seis).
+  const load = buildLoad40(front, up);
+  fs.writeFileSync(`public/assets/creatures/${load.id}.json`, JSON.stringify(load.file, null, 2) + '\n');
+  fs.writeFileSync(`src/creature/fixtures/${load.id}.snapshot.json`, JSON.stringify(load.snapshot, null, 2) + '\n');
+  console.log(`${load.id.padEnd(4)} ${load.snapshot.budget.pieceCount} piezas — ${load.name}`);
   // Batería de golpes S1–S7 (aparte de las seis).
   for (const c of buildBattery(front, up)) {
     fs.writeFileSync(`public/assets/creatures/${c.id}.json`, JSON.stringify(c.file, null, 2) + '\n');

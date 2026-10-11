@@ -1,0 +1,91 @@
+{
+  "format": "hombrecito-de-chizito/criatura",
+  "version": 1,
+  "units": "m",
+  "creature": {
+    "name": "S8 · 2 brazos + 1 pierna (salta)",
+    "savedAt": "2026-10-10T00:00:00.000Z",
+    "pieceCount": 3,
+    "root": {
+      "type": "chizito",
+      "seed": 3
+    },
+    "front": {
+      "direction": [
+        0,
+        -1,
+        0
+      ],
+      "up": [
+        1,
+        0,
+        0
+      ]
+    }
+  },
+  "pieces": [
+    {
+      "id": "palito-fxS81",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 881,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.011,
+          0.010815,
+          0
+        ],
+        "direction": [
+          -0.374607,
+          -0.927184,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxS82",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 882,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.023375,
+          0.004571,
+          0
+        ],
+        "direction": [
+          0.906308,
+          -0.422618,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxS83",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 883,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.011,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          -0.374607,
+          0.927184,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    }
+  ]
+}

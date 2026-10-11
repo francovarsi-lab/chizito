@@ -1089,6 +1089,40 @@ try {
     }
   }
 
+  section('MVP 1: probador (cartel y dibujo)');
+  {
+    const HUD = await load('/src/creature/ui/proberHud.ts');
+    const DRAW = await load('/src/creature/ui/proberDraw.ts');
+    const a = an.A;
+    const plan = plans.A;
+    const act = a.actions.find((x) => x.kind === 'estocada');
+    const run = SIM.runSim(plan, 40, (f) => ({ move: plan.facing, attack: f >= 3 && f < 5 }));
+    const at = (pred) => run.find(pred);
+    const startup = at((st) => st.combat.phase === 'startup' && st.combat.frame === 2);
+    const active = at((st) => st.combat.phase === 'active' && st.combat.frame === 0);
+    const rec = at((st) => st.combat.phase === 'recovery' && st.combat.frame === 1);
+    const h1 = HUD.hudInfo(a, plan, startup);
+    ok(h1.combat.includes('estocada') && h1.combat.includes('arranque 3/' + act.startup) && h1.combat.includes(`${act.startup}+${act.active}+${act.recovery} cuadros`), `cartel: ${h1.combat}`);
+    ok(HUD.hudInfo(a, plan, active).combat.includes(`ACTIVO 1/${act.active}`), 'cartel: marca el tramo ACTIVO');
+    ok(HUD.hudInfo(a, plan, rec).combat.includes('recuperación 2/'), 'cartel: marca la recuperación');
+    ok(HUD.hudInfo(a, plan, run[0]).combat === 'libre', 'cartel: libre cuando no pelea');
+    ok(HUD.hudInfo(a, plan, run[0]).move.startsWith('camina') && HUD.hudInfo(a, plan, run[0]).move.includes(`${(plan.speed * 1000).toFixed(1).replace('.', ',')} mm/s`), `cartel: modo y velocidad del análisis (${HUD.hudInfo(a, plan, run[0]).move})`);
+    ok(/defensa: guardia con la extremidad \d/.test(HUD.hudInfo(a, plan, run[0]).defense) && HUD.hudInfo(an.D, plans.D, SIM.createSimState(plans.D)).defense.includes('se encoge') === (an.D.defense.kind === 'curl'), `cartel: defensa (${HUD.hudInfo(a, plan, run[0]).defense})`);
+    ok(HUD.KEYS_HELP.includes('Z') && HUD.KEYS_HELP.includes('X') && HUD.KEYS_HELP.includes('←'), 'las teclas figuran en pantalla (← → Z X)');
+    for (const k of ['A', 'D', 'mia']) {
+      const sc = DRAW.viewScale(an[k]);
+      const b = an[k].profile2D.bounds;
+      ok(Number.isFinite(sc) && sc > 0 && Math.max((b.max[1] - b.min[1]) * sc, 0) <= idx.CREATURE_CONFIG.prober.creaturePx + 1e-9, `${k}: la criatura entra en la ventana del probador (escala ${Math.round(sc)} px/m)`);
+    }
+    // S8 salta de verdad y F40 es la prueba de carga.
+    const s8 = interpret(loadSnap('S8'));
+    const f40 = interpret(loadSnap('F40'));
+    ok(s8.locomotion.mode === 'hop', `S8 (un solo pie) salta (${s8.locomotion.mode})`);
+    ok(f40.limbs.length === 40, `F40: ${f40.limbs.length} extremidades detectadas (prueba de carga)`);
+    const f40Snap = loadSnap('F40');
+    ok(f40Snap.budget.pieceCount === 40, 'F40: 40 piezas, el tope');
+  }
+
   // @@TESTS@@
 } finally {
   await server.close();

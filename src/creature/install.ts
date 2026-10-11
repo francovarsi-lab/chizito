@@ -1,6 +1,6 @@
 import { ALL_DEFINITIONS } from '../pieces/definitions';
 import { PieceRegistry } from '../pieces/PieceRegistry';
-import { mountCreaturePanel, type PanelController } from './ui';
+import { mountCreaturePanel, mountProber, type PanelController } from './ui';
 
 /** Lo que el juego deja en `window.__chizito` (src/main.ts): lo único que el intérprete necesita de él. */
 interface GameHandle {
@@ -41,5 +41,7 @@ export async function installCreature(): Promise<PanelController> {
   ALL_DEFINITIONS.forEach((d) => pieces.register(d));
   const panel = mountCreaturePanel({ construction: game.construction, interaction: game.interaction, persistence: game.persistence, pieces });
   window.__creature = panel;
+  // Probador (MVP 1): botón "▶ Probador" abajo a la izquierda; con `?creature&probador` arranca abierto.
+  window.__prober = mountProber({ panel, startOpen: new URLSearchParams(location.search).has('probador') });
   return panel;
 }

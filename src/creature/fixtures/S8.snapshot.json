@@ -1,0 +1,250 @@
+{
+  "schema": "chizito.creature-snapshot",
+  "version": 1,
+  "source": {
+    "fileFormat": "hombrecito-de-chizito/criatura",
+    "fileVersion": 1,
+    "name": "S8 · 2 brazos + 1 pierna (salta)"
+  },
+  "orientation": {
+    "front": [
+      0,
+      -1,
+      0
+    ],
+    "up": [
+      1,
+      0,
+      0
+    ]
+  },
+  "coreId": "root",
+  "pieces": [
+    {
+      "id": "root",
+      "type": "chizito",
+      "seed": 3,
+      "kind": "core",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.024388419464230537,
+          0,
+          0
+        ],
+        "b": [
+          0.024388419464230537,
+          0,
+          0
+        ],
+        "radius": 0.010814764071255922
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS81",
+      "type": "palito",
+      "seed": 881,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.007628537968123612,
+          0.0024703463961877996,
+          0
+        ],
+        "b": [
+          0.021131559224103875,
+          0.0358914657564902,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS82",
+      "type": "palito",
+      "seed": 882,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.01521822867206899,
+          0.000767438313390649,
+          0
+        ],
+        "b": [
+          -0.04744894479769869,
+          0.015796855230797723,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS83",
+      "type": "palito",
+      "seed": 883,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.007628537968123612,
+          -0.0024703463961877996,
+          0
+        ],
+        "b": [
+          0.021671534820613764,
+          -0.03722795101564032,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    }
+  ],
+  "links": [
+    {
+      "id": "link-palito-fxS81",
+      "parentId": "root",
+      "childId": "palito-fxS81",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.011,
+          0.010815,
+          0
+        ],
+        "direction": [
+          -0.374607,
+          -0.927184,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.011,
+        0.010815,
+        0
+      ],
+      "normal": [
+        0,
+        1,
+        0
+      ],
+      "axis": [
+        0.37460689243070977,
+        0.927183733756911,
+        0
+      ],
+      "tiltFromNormal": 0.3839727579366218,
+      "embedded": 0.009,
+      "chord": 0.02332845506641169,
+      "freeTail": 0.02704584306594915,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxS82",
+      "parentId": "root",
+      "childId": "palito-fxS82",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          -0.023375,
+          0.004571,
+          0
+        ],
+        "direction": [
+          0.906308,
+          -0.422618,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        -0.023375,
+        0.004571,
+        0
+      ],
+      "normal": [
+        -0.906288025475916,
+        0.4226606379578837,
+        0
+      ],
+      "axis": [
+        -0.906307925325668,
+        0.42261796517881683,
+        0
+      ],
+      "tiltFromNormal": 0.0000470847126296253,
+      "embedded": 0.009,
+      "chord": 0.03640584485031522,
+      "freeTail": 0.026562655059038667,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxS83",
+      "parentId": "root",
+      "childId": "palito-fxS83",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.011,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          -0.374607,
+          0.927184,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.011,
+        -0.010815,
+        0
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ],
+      "axis": [
+        0.37460689243070977,
+        -0.927183733756911,
+        0
+      ],
+      "tiltFromNormal": 0.3839727579366218,
+      "embedded": 0.009,
+      "chord": 0.02332845506641169,
+      "freeTail": 0.028487289038836017,
+      "exit": null,
+      "crossings": []
+    }
+  ],
+  "budget": {
+    "pieceCount": 3,
+    "maxPieces": 40,
+    "strokeCount": 0,
+    "maxStrokes": 30
+  },
+  "warnings": []
+}

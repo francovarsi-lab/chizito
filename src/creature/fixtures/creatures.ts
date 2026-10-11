@@ -243,6 +243,20 @@ const makeS7: Maker = (front, up) => {
   return b.build();
 };
 
+/** S8) un solo pie: dos brazos y una pierna (la de la derecha de la pantalla): salta (la caminadora A sin una pierna). */
+const makeS8: Maker = (front, up) => {
+  const b = new CreatureBuilder('S8', 'S8 · 2 brazos + 1 pierna (salta)', 3, front, up);
+  for (const [i, [, theta]] of SIDES.entries()) {
+    const arm = b.side(0.011, theta);
+    b.rod(b.root, arm.point, b.lean(arm.n, UP, 22), D, { seed: 881 + 2 * i });
+    if (i === 0) {
+      const leg = b.end(-1, 25, theta);
+      b.rod(b.root, leg.point, leg.n, D, { seed: 882 + 2 * i });
+    }
+  }
+  return b.build();
+};
+
 export const BATTERY_MAKERS: { id: string; make: Maker }[] = [
   { id: 'S1', make: makeS1 },
   { id: 'S2', make: makeS2 },
@@ -251,8 +265,26 @@ export const BATTERY_MAKERS: { id: string; make: Maker }[] = [
   { id: 'S5', make: makeS5 },
   { id: 'S6', make: makeS6 },
   { id: 'S7', make: makeS7 },
+  { id: 'S8', make: makeS8 },
 ];
 
 export function buildBattery(front: V3 = DEFAULT_FRONT, up: V3 = DEFAULT_UP): BuiltCreature[] {
   return BATTERY_MAKERS.map((m) => ({ ...m.make(front, up), id: m.id }));
+}
+
+/**
+ * F40) prueba de carga: 40 palitos (el tope de piezas) en ocho anillos de cinco alrededor del chizito. Solo para medir fps del probador;
+ * no entra en `buildAllCreatures` ni en las hojas.
+ */
+export function buildLoad40(front: V3 = DEFAULT_FRONT, up: V3 = DEFAULT_UP): BuiltCreature {
+  const b = new CreatureBuilder('F40', 'F40 · 40 extremidades (prueba de carga)', 3, front, up);
+  let seed = 901;
+  for (let ring = 0; ring < 8; ring++) {
+    const x = -0.019 + ring * (0.038 / 7);
+    for (let k = 0; k < 5; k++) {
+      const a = b.side(x, k * 72 + (ring % 2) * 36);
+      b.rod(b.root, a.point, a.n, D, { seed: seed++ });
+    }
+  }
+  return { ...b.build(), id: 'F40' };
 }
