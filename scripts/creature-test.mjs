@@ -513,7 +513,10 @@ try {
   const full = Object.fromEntries(built.map((c) => [c.id, interpret(c.snapshot)]));
   const kinds = (a) => a.actions.map((x) => x.kind).sort().join(',');
   ok(kinds(full.A) === 'embestida,estocada', `A: estocada con el brazo de adelante y embestida (${kinds(full.A)})`);
-  ok(kinds(full.B) === 'embestida,estocada', `B: estocada y embestida (${kinds(full.B)})`);
+  // B (dos brazos por lado, a 20° y a 50°): el apiñamiento solo cuenta a las vecinas del mismo tipo de golpe, así que el brazo de 50° ya no
+  // queda tapado por el de 20°: suma un golpe alto y la estocada (la de 20°) deja de estar penalizada por su vecino.
+  ok(kinds(full.B) === 'embestida,estocada,golpe-alto', `B: golpe alto, estocada y embestida (${kinds(full.B)})`);
+  near(full.B.actions.find((x) => x.kind === 'estocada').damage, 9.1466, 5e-4, 'B: la estocada hace daño 9,1 (antes 4,6)');
   ok(kinds(full.C) === 'embestida,golpe-alto', `C: golpe alto (su brazo en profundidad) y embestida (${kinds(full.C)})`);
   ok(kinds(full.D) === 'rodada', `D: solo la rodada (${kinds(full.D)})`);
   ok(kinds(full.E) === 'embestida,mazazo', `E: mazazo y embestida (${kinds(full.E)})`);
@@ -521,6 +524,20 @@ try {
   const STRIKES = ['jab', 'estocada', 'golpe-alto', 'barrida', 'mazazo'];
   ok(full.D.actions.every((x) => !STRIKES.includes(x.kind)), 'D casi no golpea: ninguna acción de golpe');
   ok(full.D.locomotion.mode === 'roll' && full.D.locomotion.brake <= 0.2, 'D rueda y casi no frena (criterio de aceptación)');
+  {
+    // Criterio de aceptación de D con el apiñamiento por tipo de golpe: rueda, freno ~0,1 y ninguna extremidad llega a golpear.
+    const top = Math.max(...full.D.limbs.map((l) => l.caps.strike));
+    ok(top < 0.27, `D: capacidad de golpe máxima ${top.toFixed(3)} < 0,27 (el mínimo para golpear es ${idx.CREATURE_CONFIG.capabilities.minRole})`);
+    ok(full.D.locomotion.mode === 'roll' && Math.abs(full.D.locomotion.brake - 0.1) < 0.02, `D: rueda y frena ~0,1 (${full.D.locomotion.brake})`);
+    ok(full.D.actions.length === 1 && full.D.actions[0].kind === 'rodada', 'D: sin acciones de golpe, solo la rodada');
+  }
+  {
+    // Siete palitos clavados desde la cara (todos en profundidad): ya no queda solo la embestida.
+    const P = JSON.parse(fs.readFileSync('src/creature/fixtures/P.snapshot.json', 'utf8'));
+    const aP = interpret(P);
+    ok(aP.limbs.length === 7 && aP.limbs.every((l) => l.profile.inDepth), 'P: 7 extremidades, todas en profundidad');
+    ok(kinds(aP) === 'barrida,embestida,golpe-alto', `P: barrida, golpe alto y embestida (${kinds(aP)})`);
+  }
   ok(full.D.actions[0].input === 'attack' && full.D.actions[0].kind === 'rodada', 'D: la rodada es su ataque');
   for (const c of built) {
     const a = full[c.id];

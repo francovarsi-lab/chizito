@@ -3,17 +3,22 @@ import { add2, rot2, sub2 } from '../math/vec';
 import { toProfile } from '../math/basis';
 import { overlap2D } from '../math/shapes2d';
 import type { Caps, Limb, LimbDraft, Role, V2 } from '../types';
+import { strikeKindOf } from './actions';
 import type { Ctx } from './context';
 
 const ROLE_ORDER: Role[] = ['strike', 'support', 'push', 'defend'];
 
-/** Cuántas otras extremidades (no su hermana) tiene pegadas: pivote cerca y apuntando parecido. */
-function crowdOf(d: LimbDraft, all: LimbDraft[], ctx: Ctx): number {
+/**
+ * Cuántas otras extremidades (no su hermana) tiene pegadas: pivote cerca y apuntando parecido. Con `sameKind`, solo cuentan las que
+ * darían el mismo tipo de golpe (palitos que apuntan a distinto lado no se estorban al golpear).
+ */
+function crowdOf(d: LimbDraft, all: LimbDraft[], ctx: Ctx, sameKind?: (o: LimbDraft) => boolean): number {
   const { crowdRadius, crowdAngleDeg } = ctx.cfg.mobility;
   const axis = norm(sub(d.tip, d.pivot));
   let n = 0;
   for (const o of all) {
     if (o === d || o.id === d.pairedWith) continue;
+    if (sameKind && !sameKind(o)) continue;
     if (dist(o.pivot, d.pivot) > crowdRadius) continue;
     const c = clamp(dot(axis, norm(sub(o.tip, o.pivot))), -1, 1);
     if (deg(Math.acos(c)) < crowdAngleDeg) n++;
@@ -30,6 +35,17 @@ export function completeLimbs(ctx: Ctx, drafts: LimbDraft[]): Limb[] {
   const g = cfg.locomotion.gravity;
   const comX = ctx.mass.comProfile[0];
 
+  // Tipo de golpe de cada extremidad por su dirección (sin mirar la capacidad): para que el apiñamiento solo cuente a las del mismo tipo.
+  const kindOf = new Map<LimbDraft, ReturnType<typeof strikeKindOf>>();
+  for (const d of drafts) {
+    const v = sub(d.tip, d.pivot);
+    const l3 = Math.max(len(v), 1e-9);
+    const x = dot(v, basis.f);
+    const y = dot(v, basis.u);
+    const l2 = Math.hypot(x, y);
+    kindOf.set(d, strikeKindOf({ tag: d.tag, length: l3, angleDeg: deg(Math.atan2(y, x)), inDepth: l2 / l3 < cfg.profile.inDepthMaxRatio, dy: y }, cfg));
+  }
+
   return drafts.map((d) => {
     const root = ctx.pieces.get(d.rootPieceId);
     const r = root && root.shape.kind === 'capsule' ? root.shape.radius : st.refRadius;
@@ -45,12 +61,13 @@ export function completeLimbs(ctx: Ctx, drafts: LimbDraft[]): Limb[] {
     const tip2 = toProfile(basis, d.tip);
     const q = d.anchorQuality;
     const crowdFactor = 1 / (1 + crowdOf(d, drafts, ctx));
+    const strikeCrowdFactor = 1 / (1 + crowdOf(d, drafts, ctx, (o) => kindOf.get(o) === kindOf.get(d)));
 
     // ── capacidades ──
     const absA = Math.abs(angleDeg);
     const dirFactor = inDepth ? cap.inDepthStrikeFactor : absA <= cap.strikeFrontDeg ? 1 : absA <= cap.strikeArcDeg ? cap.strikeArcFactor : cap.strikeBackFactor;
     const bias = inDepth ? 1 : 1 + cap.anthropoBias * Math.sin(rad(angleDeg));
-    const strike = clamp(dirFactor * Math.min(1, len3 / cap.strikeRefLen) * q * crowdFactor * bias, 0, 1);
+    const strike = clamp(dirFactor * Math.min(1, len3 / cap.strikeRefLen) * q * strikeCrowdFactor * bias, 0, 1);
     const down = clamp(-y / len3, 0, 1);
     const grounded = tip2[1] - r <= ctx.floorY + cap.groundTolRatio * ctx.height;
     const support = down >= cap.supportMinDown && grounded ? clamp(down * q, 0, 1) : 0;

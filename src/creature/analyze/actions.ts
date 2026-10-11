@@ -23,18 +23,22 @@ const SLOT: Record<Kind, Input> = {
  * inclinación, igual que las normales: estocada si es una vara larga, jab si no.
  */
 export function classifyStrike(l: Limb, cfg = CREATURE_CONFIG): Kind | null {
-  const a = cfg.actions;
   if (l.caps.strike < cfg.capabilities.minRole) return null;
+  return strikeKindOf({ tag: l.tag, length: l.length, angleDeg: l.profile.angleDeg, inDepth: l.profile.inDepth, dy: l.profile.tip[1] - l.profile.pivot[1] }, cfg);
+}
+
+/** Tipo de golpe por dirección, forma y largo (sin mirar si la capacidad alcanza). null = apunta hacia atrás. */
+export function strikeKindOf(l: { tag: Limb['tag']; length: number; angleDeg: number; inDepth: boolean; dy: number }, cfg = CREATURE_CONFIG): Kind | null {
+  const a = cfg.actions;
   if (l.tag === 'maza') return 'mazazo';
-  const y = l.profile.tip[1] - l.profile.pivot[1];
-  if (l.profile.inDepth) {
-    if (y > a.verticalRatio * l.length) return 'golpe-alto';
-    if (y < -a.verticalRatio * l.length) return 'barrida';
+  if (l.inDepth) {
+    if (l.dy > a.verticalRatio * l.length) return 'golpe-alto';
+    if (l.dy < -a.verticalRatio * l.length) return 'barrida';
     return l.length >= a.longRodMin ? 'estocada' : 'jab';
   }
-  const abs = Math.abs(l.profile.angleDeg);
+  const abs = Math.abs(l.angleDeg);
   if (abs <= cfg.capabilities.strikeFrontDeg) return l.length >= a.longRodMin ? 'estocada' : 'jab';
-  if (abs <= cfg.capabilities.strikeArcDeg) return l.profile.angleDeg > 0 ? 'golpe-alto' : 'barrida';
+  if (abs <= cfg.capabilities.strikeArcDeg) return l.angleDeg > 0 ? 'golpe-alto' : 'barrida';
   return null;
 }
 
