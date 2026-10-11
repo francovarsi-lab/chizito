@@ -1,0 +1,112 @@
+{
+  "format": "hombrecito-de-chizito/criatura",
+  "version": 1,
+  "units": "m",
+  "creature": {
+    "name": "S5 · 2 brazos + 2 piernas",
+    "savedAt": "2026-10-10T00:00:00.000Z",
+    "pieceCount": 4,
+    "root": {
+      "type": "chizito",
+      "seed": 3
+    },
+    "front": {
+      "direction": [
+        0,
+        -1,
+        0
+      ],
+      "up": [
+        1,
+        0,
+        0
+      ]
+    }
+  },
+  "pieces": [
+    {
+      "id": "palito-fxS51",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 851,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.008,
+          0.010815,
+          0
+        ],
+        "direction": [
+          -0.087156,
+          -0.996195,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxS52",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 852,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.022433,
+          0.006203,
+          0
+        ],
+        "direction": [
+          0.819152,
+          -0.573576,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxS53",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 853,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.008,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          -0.087156,
+          0.996195,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxS54",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 854,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          -0.022433,
+          -0.006203,
+          0
+        ],
+        "direction": [
+          0.819152,
+          0.573576,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "format": "hombrecito-de-chizito/criatura",
+  "version": 1,
+  "units": "m",
+  "creature": {
+    "name": "S4 · 4 brazos apilados",
+    "savedAt": "2026-10-10T00:00:00.000Z",
+    "pieceCount": 4,
+    "root": {
+      "type": "chizito",
+      "seed": 3
+    },
+    "front": {
+      "direction": [
+        0,
+        -1,
+        0
+      ],
+      "up": [
+        1,
+        0,
+        0
+      ]
+    }
+  },
+  "pieces": [
+    {
+      "id": "palito-fxS41",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 841,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.012,
+          0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          -0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxS42",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 842,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0,
+          0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          -0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxS43",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 843,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.012,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxS44",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 844,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    }
+  ]
+}

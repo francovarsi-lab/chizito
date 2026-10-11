@@ -169,3 +169,90 @@ export function buildDepthDemo(front: V3 = DEFAULT_FRONT, up: V3 = DEFAULT_UP): 
   });
   return { ...b.build(), id: 'P' };
 }
+
+// ───────────── Batería de golpes (S1–S7): casos chicos para ver qué acción da cada extremidad ─────────────
+// Aparte de A–E y del vegetal: no entran en `buildAllCreatures` ni en las hojas. Las varas son todas el mismo palito procedural
+// (el generador no mide otros largos), así que "distintos" se logra con el ángulo.
+
+/** S1) un brazo: sale del frente (derecha de la pantalla), 20° hacia arriba. */
+const makeS1: Maker = (front, up) => {
+  const b = new CreatureBuilder('S1', 'S1 · 1 brazo', 3, front, up);
+  const a = b.side(0.006, 180);
+  b.rod(b.root, a.point, b.lean(a.n, UP, 20), D, { seed: 811 });
+  return b.build();
+};
+
+/** S2) dos brazos iguales: uno al frente y otro atrás, los dos a 20°, simétricos y separados. */
+const makeS2: Maker = (front, up) => {
+  const b = new CreatureBuilder('S2', 'S2 · 2 brazos iguales', 3, front, up);
+  for (const [i, [, theta]] of SIDES.entries()) {
+    const a = b.side(0.006, theta);
+    b.rod(b.root, a.point, b.lean(a.n, UP, 20), D, { seed: 821 + i });
+  }
+  return b.build();
+};
+
+/** S3) dos brazos distintos: al frente a 20° y atrás a 60° (distinto ángulo). */
+const makeS3: Maker = (front, up) => {
+  const b = new CreatureBuilder('S3', 'S3 · 2 brazos distintos (20° y 60°)', 3, front, up);
+  for (const [i, [, theta]] of SIDES.entries()) {
+    const a = b.side(0.006, theta);
+    b.rod(b.root, a.point, b.lean(a.n, UP, i === 0 ? 60 : 20), D, { seed: 831 + i });
+  }
+  return b.build();
+};
+
+/** S4) cuatro brazos: dos por lado, uno encima del otro y los cuatro a 20° (vecinos que apuntan igual). */
+const makeS4: Maker = (front, up) => {
+  const b = new CreatureBuilder('S4', 'S4 · 4 brazos apilados', 3, front, up);
+  let seed = 841;
+  for (const [, theta] of SIDES) {
+    for (const x of [0.012, 0.0]) {
+      const a = b.side(x, theta);
+      b.rod(b.root, a.point, b.lean(a.n, UP, 20), D, { seed: seed++ });
+    }
+  }
+  return b.build();
+};
+
+/** S5) dos brazos + dos piernas: brazos casi horizontales (5°), piernas de abajo abiertas 35°. */
+const makeS5: Maker = (front, up) => {
+  const b = new CreatureBuilder('S5', 'S5 · 2 brazos + 2 piernas', 3, front, up);
+  for (const [i, [, theta]] of SIDES.entries()) {
+    const arm = b.side(0.008, theta);
+    b.rod(b.root, arm.point, b.lean(arm.n, UP, 5), D, { seed: 851 + 2 * i });
+    const leg = b.end(-1, 35, theta);
+    b.rod(b.root, leg.point, leg.n, D, { seed: 852 + 2 * i });
+  }
+  return b.build();
+};
+
+/** S6) seis palitos en abanico: todos del mismo punto del frente, de −50° a +50° respecto de la normal. */
+const makeS6: Maker = (front, up) => {
+  const b = new CreatureBuilder('S6', 'S6 · 6 palitos en abanico', 3, front, up);
+  const a = b.side(0.004, 180);
+  [-50, -30, -10, 10, 30, 50].forEach((lift, i) => b.rod(b.root, a.point, b.lean(a.n, UP, lift), D, { seed: 861 + i }));
+  return b.build();
+};
+
+/** S7) un solo brazo, en la cabeza: sale de la tapa de arriba, derecho hacia arriba. */
+const makeS7: Maker = (front, up) => {
+  const b = new CreatureBuilder('S7', 'S7 · 1 brazo en la cabeza', 3, front, up);
+  const h = b.end(1, 0, 0);
+  b.rod(b.root, h.point, h.n, D, { seed: 871 });
+  return b.build();
+};
+
+export const BATTERY_MAKERS: { id: string; make: Maker }[] = [
+  { id: 'S1', make: makeS1 },
+  { id: 'S2', make: makeS2 },
+  { id: 'S3', make: makeS3 },
+  { id: 'S4', make: makeS4 },
+  { id: 'S5', make: makeS5 },
+  { id: 'S6', make: makeS6 },
+  { id: 'S7', make: makeS7 },
+];
+
+export function buildBattery(front: V3 = DEFAULT_FRONT, up: V3 = DEFAULT_UP): BuiltCreature[] {
+  return BATTERY_MAKERS.map((m) => ({ ...m.make(front, up), id: m.id }));
+}

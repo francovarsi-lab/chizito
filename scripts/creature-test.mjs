@@ -809,6 +809,18 @@ try {
     ok(idx.classifyStrike(mk({ tag: 'maza' })) === 'mazazo', 'la maza sigue siendo mazazo');
   }
 
+  section('batería de golpes S1–S7 (documenta lo que hace hoy; no son criterios)');
+  {
+    const expected = { S1: 'embestida,estocada', S2: 'embestida,estocada', S3: 'embestida,estocada,golpe-alto', S4: 'embestida,estocada', S5: 'barrida,embestida,estocada', S6: 'embestida,golpe-alto', S7: 'embestida,golpe-alto' };
+    for (const [id, want] of Object.entries(expected)) {
+      const snap = JSON.parse(fs.readFileSync(`src/creature/fixtures/${id}.snapshot.json`, 'utf8'));
+      const a = interpret(snap);
+      ok(idx.validateSnapshot(snap).length === 0, `${id}: snapshot válido`);
+      ok(kinds(a) === want, `${id}: acciones ${want} (${kinds(a)})`);
+      ok(a.actions.filter((x) => x.limbId).length <= a.limbs.length, `${id}: nunca hay más golpes que extremidades`);
+    }
+  }
+
   section('masa sin doble conteo y campos por extremidad');
   for (const c of built) {
     const a = full[c.id];

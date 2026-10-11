@@ -1,0 +1,49 @@
+{
+  "format": "hombrecito-de-chizito/criatura",
+  "version": 1,
+  "units": "m",
+  "creature": {
+    "name": "S7 · 1 brazo en la cabeza",
+    "savedAt": "2026-10-10T00:00:00.000Z",
+    "pieceCount": 1,
+    "root": {
+      "type": "chizito",
+      "seed": 3
+    },
+    "front": {
+      "direction": [
+        0,
+        -1,
+        0
+      ],
+      "up": [
+        1,
+        0,
+        0
+      ]
+    }
+  },
+  "pieces": [
+    {
+      "id": "palito-fxS71",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 871,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.024388,
+          0,
+          0
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    }
+  ]
+}

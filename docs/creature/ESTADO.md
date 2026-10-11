@@ -43,6 +43,10 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 - Criatura de demostración `P` (7 palitos clavados desde la cara, todos en profundidad; `scripts/make-fixtures.mjs`, no entra en las hojas ni en las pruebas de las seis): capacidad de golpe 0,09–0,17 (< `minRole` 0,3) → solo embestida.
 - El apiñamiento del GOLPE solo cuenta a las vecinas que darían el mismo tipo de golpe (`strikeKindOf`, `analyze/limbs.ts`); el de la movilidad (bloqueo físico) sigue contando a todas. Efecto medido: D sigue rodando (freno 0,1, sin golpes; capacidad máxima 0,171 → 0,243, tope de prueba 0,27, mínimo 0,3), A, C, E y el vegetal no cambian, B suma un golpe alto y su estocada pasa de daño 4,6 a 9,1 (efecto buscado), P pasa a barrida + golpe alto + embestida.
 
+## Batería de golpes S1–S7
+- `public/assets/creatures/S1…S7.json` (aparte de A–E; `buildBattery`), informe en `docs/creature/informe-golpes.md` (`node scripts/creature-battery.mjs`): por extremidad, qué acción usa o por qué ninguna (capacidad, apiñamiento, en profundidad, arco, "una por tipo").
+- Regla "una acción por tipo": si dos extremidades dan el mismo tipo de golpe y las dos superan el mínimo, solo ejecuta la de mayor capacidad (S4: estocada ← p44 y p43 no actúa; S5: barrida ← una pierna y la otra no). El panel ya muestra qué extremidad ejecuta cada acción; NO muestra qué hace cada extremidad (acción o motivo). Opciones propuestas en el informe de la batería; sin decidir.
+
 ## Pendientes por chat
 - HECHO por el chat 3D (merge 14e1663): frente por defecto −Y / arriba +X en el cargador, `MAX_STROKES` aplicado en el juego, `src/config.ts` importa `MAX_PIECES` de `limits.ts` (una sola fuente del 40).
 - Un test falla si `src/config.ts` deja de importar `MAX_PIECES` o pone un número distinto.

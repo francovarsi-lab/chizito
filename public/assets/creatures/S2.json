@@ -1,0 +1,70 @@
+{
+  "format": "hombrecito-de-chizito/criatura",
+  "version": 1,
+  "units": "m",
+  "creature": {
+    "name": "S2 · 2 brazos iguales",
+    "savedAt": "2026-10-10T00:00:00.000Z",
+    "pieceCount": 2,
+    "root": {
+      "type": "chizito",
+      "seed": 3
+    },
+    "front": {
+      "direction": [
+        0,
+        -1,
+        0
+      ],
+      "up": [
+        1,
+        0,
+        0
+      ]
+    }
+  },
+  "pieces": [
+    {
+      "id": "palito-fxS21",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 821,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.006,
+          0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          -0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    },
+    {
+      "id": "palito-fxS22",
+      "type": "palito",
+      "parentId": "root",
+      "seed": 822,
+      "attach": {
+        "mode": "pierce",
+        "entryPoint": [
+          0.006,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0
+      }
+    }
+  ]
+}

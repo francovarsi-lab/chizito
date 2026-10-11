@@ -1,0 +1,185 @@
+{
+  "schema": "chizito.creature-snapshot",
+  "version": 1,
+  "source": {
+    "fileFormat": "hombrecito-de-chizito/criatura",
+    "fileVersion": 1,
+    "name": "S2 · 2 brazos iguales"
+  },
+  "orientation": {
+    "front": [
+      0,
+      -1,
+      0
+    ],
+    "up": [
+      1,
+      0,
+      0
+    ]
+  },
+  "coreId": "root",
+  "pieces": [
+    {
+      "id": "root",
+      "type": "chizito",
+      "seed": 3,
+      "kind": "core",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.024388419464230537,
+          0,
+          0
+        ],
+        "b": [
+          0.024388419464230537,
+          0,
+          0
+        ],
+        "radius": 0.010814764071255922
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS21",
+      "type": "palito",
+      "seed": 821,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.0029218209459996934,
+          0.0023577655991149343,
+          0
+        ],
+        "b": [
+          0.015226698632949133,
+          0.036165167003367846,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS22",
+      "type": "palito",
+      "seed": 822,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.0029218209459996934,
+          -0.0023577655991149343,
+          0
+        ],
+        "b": [
+          0.014453175507018778,
+          -0.03403992793321151,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    }
+  ],
+  "links": [
+    {
+      "id": "link-palito-fxS21",
+      "parentId": "root",
+      "childId": "palito-fxS21",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.006,
+          0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          -0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.006,
+        0.010815,
+        0
+      ],
+      "normal": [
+        -1.6039976661829006e-16,
+        1,
+        0
+      ],
+      "axis": [
+        0.34201989488892304,
+        0.9396927112094519,
+        0
+      ],
+      "tiltFromNormal": 0.34906558601801563,
+      "embedded": 0.009,
+      "chord": 0.02301791193359036,
+      "freeTail": 0.02697708165762014,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxS22",
+      "parentId": "root",
+      "childId": "palito-fxS22",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.006,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.006,
+        -0.010815,
+        0
+      ],
+      "normal": [
+        -1.6039976661829006e-16,
+        -1,
+        0
+      ],
+      "axis": [
+        0.34201989488892304,
+        -0.9396927112094519,
+        0
+      ],
+      "tiltFromNormal": 0.34906558601801563,
+      "embedded": 0.009,
+      "chord": 0.02301791193359036,
+      "freeTail": 0.024715449695591835,
+      "exit": null,
+      "crossings": []
+    }
+  ],
+  "budget": {
+    "pieceCount": 2,
+    "maxPieces": 40,
+    "strokeCount": 0,
+    "maxStrokes": 30
+  },
+  "warnings": []
+}

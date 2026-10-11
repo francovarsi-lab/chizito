@@ -1,0 +1,120 @@
+{
+  "schema": "chizito.creature-snapshot",
+  "version": 1,
+  "source": {
+    "fileFormat": "hombrecito-de-chizito/criatura",
+    "fileVersion": 1,
+    "name": "S7 · 1 brazo en la cabeza"
+  },
+  "orientation": {
+    "front": [
+      0,
+      -1,
+      0
+    ],
+    "up": [
+      1,
+      0,
+      0
+    ]
+  },
+  "coreId": "root",
+  "pieces": [
+    {
+      "id": "root",
+      "type": "chizito",
+      "seed": 3,
+      "kind": "core",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.024388419464230537,
+          0,
+          0
+        ],
+        "b": [
+          0.024388419464230537,
+          0,
+          0
+        ],
+        "radius": 0.010814764071255922
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS71",
+      "type": "palito",
+      "seed": 871,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.015388,
+          0,
+          0
+        ],
+        "b": [
+          0.051719424591480746,
+          8.067196819778911e-18,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    }
+  ],
+  "links": [
+    {
+      "id": "link-palito-fxS71",
+      "parentId": "root",
+      "childId": "palito-fxS71",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.024388,
+          0,
+          0
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.024388,
+        0,
+        0
+      ],
+      "normal": [
+        1,
+        0,
+        0
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "tiltFromNormal": 0,
+      "embedded": 0.009,
+      "chord": 0.04877641946423054,
+      "freeTail": 0.027331424591480746,
+      "exit": null,
+      "crossings": []
+    }
+  ],
+  "budget": {
+    "pieceCount": 1,
+    "maxPieces": 40,
+    "strokeCount": 0,
+    "maxStrokes": 30
+  },
+  "warnings": []
+}

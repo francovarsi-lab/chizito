@@ -19,7 +19,7 @@ const up = arg('up', undefined);
 globalThis.location ??= { search: '' }; // src/config.ts lee location al cargarse
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
 try {
-  const { buildAllCreatures, buildDepthDemo } = await server.ssrLoadModule('/src/creature/fixtures/creatures.ts');
+  const { buildAllCreatures, buildDepthDemo, buildBattery } = await server.ssrLoadModule('/src/creature/fixtures/creatures.ts');
   const { renderProfileSheet } = await server.ssrLoadModule('/src/creature/fixtures/profileSheet.ts');
   const { renderHitboxSheet } = await server.ssrLoadModule('/src/creature/fixtures/hitboxSheet.ts');
   const creatures = buildAllCreatures(front, up);
@@ -36,6 +36,12 @@ try {
   fs.writeFileSync(`public/assets/creatures/${demo.id}.json`, JSON.stringify(demo.file, null, 2) + '\n');
   fs.writeFileSync(`src/creature/fixtures/${demo.id}.snapshot.json`, JSON.stringify(demo.snapshot, null, 2) + '\n');
   console.log(`${demo.id.padEnd(4)} ${demo.snapshot.budget.pieceCount} piezas — ${demo.name}`);
+  // Batería de golpes S1–S7 (aparte de las seis).
+  for (const c of buildBattery(front, up)) {
+    fs.writeFileSync(`public/assets/creatures/${c.id}.json`, JSON.stringify(c.file, null, 2) + '\n');
+    fs.writeFileSync(`src/creature/fixtures/${c.id}.snapshot.json`, JSON.stringify(c.snapshot, null, 2) + '\n');
+    console.log(`${c.id.padEnd(4)} ${c.snapshot.budget.pieceCount} piezas — ${c.name}`);
+  }
   // Los perfiles siempre se dibujan con las tres orientaciones, sea cual sea el frente del snapshot.
   fs.writeFileSync('docs/creature/perfiles-a-vs-b.svg', renderProfileSheet(creatures));
   console.log('docs/creature/perfiles-a-vs-b.svg');

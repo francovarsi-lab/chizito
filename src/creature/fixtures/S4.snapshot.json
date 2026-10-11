@@ -1,0 +1,315 @@
+{
+  "schema": "chizito.creature-snapshot",
+  "version": 1,
+  "source": {
+    "fileFormat": "hombrecito-de-chizito/criatura",
+    "fileVersion": 1,
+    "name": "S4 · 4 brazos apilados"
+  },
+  "orientation": {
+    "front": [
+      0,
+      -1,
+      0
+    ],
+    "up": [
+      1,
+      0,
+      0
+    ]
+  },
+  "coreId": "root",
+  "pieces": [
+    {
+      "id": "root",
+      "type": "chizito",
+      "seed": 3,
+      "kind": "core",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.024388419464230537,
+          0,
+          0
+        ],
+        "b": [
+          0.024388419464230537,
+          0,
+          0
+        ],
+        "radius": 0.010814764071255922
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS41",
+      "type": "palito",
+      "seed": 841,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.008921820945999694,
+          0.0023577655991149343,
+          0
+        ],
+        "b": [
+          0.02106073934731851,
+          0.03570919723846493,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS42",
+      "type": "palito",
+      "seed": 842,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.0030781790540003067,
+          0.0023577655991149343,
+          0
+        ],
+        "b": [
+          0.00941304555027655,
+          0.03667715137207188,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS43",
+      "type": "palito",
+      "seed": 843,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          0.008921820945999694,
+          -0.0023577655991149343,
+          0
+        ],
+        "b": [
+          0.021156554581395405,
+          -0.03597244764708262,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    },
+    {
+      "id": "palito-fxS44",
+      "type": "palito",
+      "seed": 844,
+      "kind": "rod",
+      "shape": {
+        "kind": "capsule",
+        "a": [
+          -0.0030781790540003067,
+          -0.0023577655991149343,
+          0
+        ],
+        "b": [
+          0.00836199796265539,
+          -0.033789419482841754,
+          0
+        ],
+        "radius": 0.0017
+      },
+      "cosmetic": false,
+      "stability": "stable"
+    }
+  ],
+  "links": [
+    {
+      "id": "link-palito-fxS41",
+      "parentId": "root",
+      "childId": "palito-fxS41",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.012,
+          0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          -0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.012,
+        0.010815,
+        0
+      ],
+      "normal": [
+        0,
+        1,
+        0
+      ],
+      "axis": [
+        0.34201989488892304,
+        0.9396927112094519,
+        0
+      ],
+      "tiltFromNormal": 0.34906558601801563,
+      "embedded": 0.009,
+      "chord": 0.02301791193359036,
+      "freeTail": 0.02649184881558176,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxS42",
+      "parentId": "root",
+      "childId": "palito-fxS42",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0,
+          0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          -0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0,
+        0.010815,
+        0
+      ],
+      "normal": [
+        0,
+        1,
+        0
+      ],
+      "axis": [
+        0.34201989488892304,
+        0.9396927112094519,
+        0
+      ],
+      "tiltFromNormal": 0.34906558601801563,
+      "embedded": 0.009,
+      "chord": 0.02301791193359036,
+      "freeTail": 0.027521923990221693,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxS43",
+      "parentId": "root",
+      "childId": "palito-fxS43",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0.012,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0.012,
+        -0.010815,
+        0
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ],
+      "axis": [
+        0.34201989488892304,
+        -0.9396927112094519,
+        0
+      ],
+      "tiltFromNormal": 0.34906558601801563,
+      "embedded": 0.009,
+      "chord": 0.02301791193359036,
+      "freeTail": 0.02677199402207045,
+      "exit": null,
+      "crossings": []
+    },
+    {
+      "id": "link-palito-fxS44",
+      "parentId": "root",
+      "childId": "palito-fxS44",
+      "mode": "pierce",
+      "attach": {
+        "entryPoint": [
+          0,
+          -0.010815,
+          0
+        ],
+        "direction": [
+          -0.34202,
+          0.939693,
+          0
+        ],
+        "depth": 0.009,
+        "spin": 0,
+        "frame": "parent"
+      },
+      "integrity": "ok",
+      "anchor": [
+        0,
+        -0.010815,
+        0
+      ],
+      "normal": [
+        0,
+        -1,
+        0
+      ],
+      "axis": [
+        0.34201989488892304,
+        -0.9396927112094519,
+        0
+      ],
+      "tiltFromNormal": 0.34906558601801563,
+      "embedded": 0.009,
+      "chord": 0.02301791193359036,
+      "freeTail": 0.0244488641965436,
+      "exit": null,
+      "crossings": []
+    }
+  ],
+  "budget": {
+    "pieceCount": 4,
+    "maxPieces": 40,
+    "strokeCount": 0,
+    "maxStrokes": 30
+  },
+  "warnings": []
+}
