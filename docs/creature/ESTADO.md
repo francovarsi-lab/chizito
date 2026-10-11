@@ -1,6 +1,6 @@
 # Estado del intérprete de criaturas
 
-Se actualiza en cada tanda. Última actualización: rol de golpe final por extremidad en el panel; análisis de extremidades fuera del arco. Rama `claude/creature-interpreter`.
+Se actualiza en cada tanda. Última actualización: decisión sobre extremidades fuera del arco (quedan sin golpe). Rama `claude/creature-interpreter`.
 
 ## Decisiones vigentes
 - Contrato estable: `CreatureSnapshot` (JSON puro). El intérprete (`src/creature/`) no importa three.js ni el juego; solo `resolve/` toca three.js.
@@ -47,10 +47,10 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 - `public/assets/creatures/S1…S7.json` (aparte de A–E; `buildBattery`), informe en `docs/creature/informe-golpes.md` (`node scripts/creature-battery.mjs`): por extremidad, qué acción usa o por qué ninguna (capacidad, apiñamiento, en profundidad, arco, "una por tipo").
 - Regla "una acción por tipo": si dos extremidades dan el mismo tipo de golpe y las dos superan el mínimo, solo ejecuta la de mayor capacidad (S4: estocada ← p44 y p43 no actúa; S5: barrida ← una pierna y la otra no). El panel muestra, en cada extremidad, su rol de golpe final (opción A, aprobada): "ejecuta: estocada", "pierde contra palito 4 (0,37 vs 0,40)", "fuera del arco (160°)", "capacidad bajo el mínimo (0,17 de 0,30)" o "apiñada: comparte con 3 vecinas" (`analyze/explain.ts`, mismas reglas que `computeActions`; test en `creature-test.mjs`, capturas `panel-S2/S4/S5/S6.png`).
 
-## Extremidades fuera del arco (análisis, sin implementar)
-- Hoy una extremidad con |ángulo| > `strikeArcDeg` (140°) no tiene tipo de golpe y queda con rol "alcanza": S2 (1 de 2), S4 (2 de 4), S5 (1 de 4), y también A, B y el vegetal (1 de 4); D tiene 5 de 30. Su capacidad de golpe ya trae el factor hacia atrás (0,2): como máximo 0,15, bajo el mínimo (0,3). Defensa, apoyo y empuje son 0 (el coseno hacia atrás se recorta a 0).
-- Giro posible de esas extremidades (movilidad): S2, A y el vegetal entran al arco girando (rango hasta 131°–135°); S4, S5, B y las 5 de D siguen afuera (rango 146°–175°).
-- Opciones (decisión pendiente): golpe hacia atrás (haría falta cambiar un factor o un umbral: ninguna llega a 0,3; en D la mayor sube a ≈ 0,35), giro corto usando la movilidad ya calculada (activa S2, A, vegetal; D intacto; golpea hacia atrás-arriba), defensa trasera (la defensa hoy es 0 hacia atrás: cambia la fórmula; sin sentido si el rival siempre está al frente), o nada (honesto y sin riesgo, el panel ya explica el motivo; se puede girar el frente 180° para que ese brazo pase a ser el de adelante).
+## Extremidades fuera del arco — DECISIÓN VIGENTE
+- Las extremidades que apuntan fuera del arco de golpe (|ángulo| > `strikeArcDeg`, 140°) quedan SIN golpe. Razón: girar el frente 180° (selector del panel) pone ese brazo al frente, así que la criatura ya puede elegir con qué lado pelea; el panel dice "fuera del arco (160°)" en cada una.
+- Idea para probar DESPUÉS de las pruebas de combate: "giro corto" (usar la movilidad ya calculada para que el brazo trasero entre al arco). Entraría S2, A y el vegetal (rango hasta 131°–135°); no entran S4, S5, B ni las 5 de D.
+- Datos: hoy son 1 de 2 en S2, 2 de 4 en S4, 1 de 4 en S5, A, B y vegetal; 5 de 30 en D. Su capacidad de golpe ya trae el factor hacia atrás (0,2): como máximo 0,15, bajo el mínimo de 0,3. Defensa, apoyo y empuje valen 0 hacia atrás. Descartadas por ahora: golpe hacia atrás (haría falta tocar un factor o el umbral; en D la mayor subiría a ≈ 0,35) y defensa trasera (cambia la fórmula y no sirve con el rival al frente).
 
 ## Pendientes por chat
 - HECHO por el chat 3D (merge 14e1663): frente por defecto −Y / arriba +X en el cargador, `MAX_STROKES` aplicado en el juego, `src/config.ts` importa `MAX_PIECES` de `limits.ts` (una sola fuente del 40).
