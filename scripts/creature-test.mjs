@@ -821,6 +821,25 @@ try {
     }
   }
 
+  section('rol final de cada extremidad en el panel (texto del motivo)');
+  {
+    const texts = (id) => {
+      const snap = JSON.parse(fs.readFileSync(`src/creature/fixtures/${id}.snapshot.json`, 'utf8'));
+      return UI.buildPanelModel(snap, interpret(snap)).limbs.map((l) => l.strike.text);
+    };
+    const eq = (id, want) => { const got = texts(id); ok(JSON.stringify(got) === JSON.stringify(want), `${id}: ${got.join(' | ')}`); };
+    eq('S2', ['fuera del arco (160°)', 'ejecuta: estocada']);
+    eq('S4', ['fuera del arco (160°)', 'fuera del arco (160°)', 'pierde contra palito 4 (0,37 vs 0,40)', 'ejecuta: estocada']);
+    eq('S5', ['fuera del arco (175°)', 'ejecuta: barrida', 'ejecuta: estocada', 'pierde contra palito 2 (0,38 vs 0,39)']);
+    eq('S6', ['capacidad bajo el mínimo (0,24 de 0,30)', 'apiñada: comparte con 2 vecinas', 'apiñada: comparte con 3 vecinas', 'apiñada: comparte con 3 vecinas', 'apiñada: comparte con 2 vecinas', 'ejecuta: golpe alto']);
+    // El texto nunca contradice a las acciones: "ejecuta" solo si hay acción de esa extremidad.
+    for (const c of built) {
+      const m = models[c.id];
+      const ex = m.limbs.filter((l) => l.strike.outcome === 'executes').length;
+      ok(ex === full[c.id].actions.filter((x) => x.limbId).length, `${c.id}: tantas extremidades "ejecuta" como acciones de golpe`);
+    }
+  }
+
   section('masa sin doble conteo y campos por extremidad');
   for (const c of built) {
     const a = full[c.id];

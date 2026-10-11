@@ -1,3 +1,4 @@
+import { explainStrikes } from '../analyze/explain';
 import { REASON_TEXT } from '../analyze/warnings';
 import { CREATURE_CONFIG } from '../config';
 import { INPUT_TEXT, KIND_TEXT, MODE_TEXT, ROLE_TEXT, TAG_TEXT } from '../describe';
@@ -37,6 +38,8 @@ export interface LimbRow {
   /** Piezas de segundo nivel que se mueven con ella. */
   branches: number;
   anchoredBy: string;
+  /** Su golpe: "ejecuta: estocada" o el motivo concreto de por qué no. */
+  strike: { outcome: 'executes' | 'loses' | 'arc' | 'crowded' | 'below'; text: string };
 }
 
 export interface DecoRow {
@@ -136,6 +139,25 @@ export function buildPanelModel(s: CreatureSnapshot, a: CreatureAnalysis, cfg = 
   const minFreeOf = (rodLen: number) => Math.max(lim.minFreeAbs, lim.minFreeRatio * rodLen);
   const minEmbOf = (rodLen: number) => Math.max(lim.minEmbeddedAbs, lim.minEmbeddedRatio * rodLen);
 
+  const verdicts = explainStrikes(a, cfg);
+  const plural1 = (n: number, one: string, many: string) => (n === 1 ? one : many);
+  const strikeText = (id: string): LimbRow['strike'] => {
+    const v = verdicts.get(id)!;
+    const rootOf = (limbId?: string) => labels.get(a.limbs.find((x) => x.id === limbId)?.rootPieceId ?? '') ?? '';
+    switch (v.outcome) {
+      case 'executes':
+        return { outcome: v.outcome, text: `ejecuta: ${KIND_TEXT[v.action!.kind]}` };
+      case 'arc':
+        return { outcome: v.outcome, text: `fuera del arco (${nf(v.angleDeg, 0)}°)` };
+      case 'crowded':
+        return { outcome: v.outcome, text: `apiñada: comparte con ${v.neighbors} ${plural1(v.neighbors, 'vecina', 'vecinas')}` };
+      case 'below':
+        return { outcome: v.outcome, text: `capacidad bajo el mínimo (${nf(v.strike, 2)} de ${nf(v.min, 2)})` };
+      default:
+        return { outcome: v.outcome, text: `pierde contra ${rootOf(v.winnerId)} (${nf(v.strike, 2)} vs ${nf(v.winnerStrike ?? 0, 2)})` };
+    }
+  };
+
   const limbs: LimbRow[] = a.limbs.map((l, i) => {
     const end = l.end === 'tip' ? 'punta' : 'cola';
     const minFree = minFreeOf(l.rodLength);
@@ -163,6 +185,7 @@ export function buildPanelModel(s: CreatureSnapshot, a: CreatureAnalysis, cfg = 
       paired: !!l.pairedWith,
       branches: l.pieceIds.filter((id) => id !== l.rootPieceId && pieces.get(id)?.kind === 'rod').length,
       anchoredBy: l.anchoredBy,
+      strike: strikeText(l.id),
     };
   });
 

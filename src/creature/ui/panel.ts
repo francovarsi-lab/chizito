@@ -58,6 +58,7 @@ const CSS = `
 .cs-faces button.on{background:#1565c0;color:#fff;border-color:#1565c0}
 .cs-profilebox{background:#fffdf7;border:1px solid #eee;border-radius:10px;padding:4px}
 .cs-profilebox svg{width:100%;height:auto;display:block}
+.cs-strike{font-weight:600}.cs-strike.executes{color:#2e7d32}.cs-strike.loses,.cs-strike.crowded{color:#b26a00}.cs-strike.arc,.cs-strike.below{color:#777}
 .cs-act{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:2px 0;border-bottom:1px dotted #e6dcc4}
 .cs-thr{color:#666;font-size:11px}
 .cs-thr li{margin:1px 0}
@@ -77,7 +78,8 @@ function limbHtml(l: LimbRow): string {
   ].join(' ');
   return `<div class="cs-row" data-id="${esc(l.id)}" style="--c:${color}">
 <div class="cs-r1"><b>${esc(l.label)}</b><span class="cs-role">${esc(l.role)}</span>${chips}</div>
-<div class="cs-r2">sobresale <span class="${mark(l.ok.free)}">${nf(l.freeMm)} mm</span> <span class="cs-min">(mín. ${nf(l.minFreeMm)})</span> · adentro <span class="${mark(l.ok.embedded)}">${nf(l.embeddedMm)} mm</span> <span class="cs-min">(mín. ${nf(l.minEmbeddedMm)})</span> · inclin. <span class="${mark(l.ok.tilt)}">${nf(l.tiltDeg, 0)}°</span> · calidad <span class="${mark(l.ok.quality)}">${nf(l.quality, 2)}</span> · ${nf(l.massG, 2)} g</div></div>`;
+<div class="cs-r2">sobresale <span class="${mark(l.ok.free)}">${nf(l.freeMm)} mm</span> <span class="cs-min">(mín. ${nf(l.minFreeMm)})</span> · adentro <span class="${mark(l.ok.embedded)}">${nf(l.embeddedMm)} mm</span> <span class="cs-min">(mín. ${nf(l.minEmbeddedMm)})</span> · inclin. <span class="${mark(l.ok.tilt)}">${nf(l.tiltDeg, 0)}°</span> · calidad <span class="${mark(l.ok.quality)}">${nf(l.quality, 2)}</span> · ${nf(l.massG, 2)} g</div>
+<div class="cs-r2 cs-strike ${l.strike.outcome}">golpe · ${esc(l.strike.text)}</div></div>`;
 }
 
 function decoHtml(d: DecoRow): string {

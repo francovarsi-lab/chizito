@@ -56,6 +56,14 @@ for (const id of ['A', 'B', 'C', 'D', 'E', 'veg']) {
   await snap(id);
 }
 
+// Rol final de cada extremidad (batería de golpes): qué hace cada una o por qué no.
+for (const [id, want] of [['S2', ['fuera del arco (160°)', 'ejecuta: estocada']], ['S4', ['pierde contra palito 4 (0,37 vs 0,40)', 'ejecuta: estocada']], ['S5', ['ejecuta: barrida', 'pierde contra palito 2 (0,38 vs 0,39)']], ['S6', ['apiñada: comparte con 3 vecinas', 'capacidad bajo el mínimo (0,24 de 0,30)', 'ejecuta: golpe alto']]]) {
+  const t2 = await page.evaluate(async (id) => { await window.__panel.loadCreature(id); window.__chizito.renderFrames(4); return document.getElementById('cs-panel').innerText; }, id);
+  ok(want.every((w) => t2.includes(w)), `${id}: el panel muestra "${want.join('" y "')}"`);
+  await page.evaluate(() => { document.querySelector('.cs-body').scrollTo(0, 0); document.getElementById('cs-panel').scrollTo(0, 0); });
+  await snap(id);
+}
+
 // Frente: giro de 180° cambia el cartel y la locomoción/acciones se espejan.
 await page.evaluate(() => window.__panel.loadCreature('A'));
 const f1 = await page.evaluate(() => window.__panel.state().analysis.profile2D.facing);

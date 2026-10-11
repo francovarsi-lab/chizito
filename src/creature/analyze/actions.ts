@@ -24,6 +24,11 @@ const SLOT: Record<Kind, Input> = {
  */
 export function classifyStrike(l: Limb, cfg = CREATURE_CONFIG): Kind | null {
   if (l.caps.strike < cfg.capabilities.minRole) return null;
+  return limbStrikeKind(l, cfg);
+}
+
+/** Tipo de golpe de una extremidad por su dirección, forma y largo (sin mirar si la capacidad alcanza). */
+export function limbStrikeKind(l: Limb, cfg = CREATURE_CONFIG): Kind | null {
   return strikeKindOf({ tag: l.tag, length: l.length, angleDeg: l.profile.angleDeg, inDepth: l.profile.inDepth, dy: l.profile.tip[1] - l.profile.pivot[1] }, cfg);
 }
 

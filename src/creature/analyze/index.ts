@@ -26,4 +26,5 @@ export { completeLimbs } from './limbs';
 export { computeSupport } from './support';
 export { computeLocomotion, angularCoverageDeg } from './locomotion';
 export { buildWarnings } from './warnings';
-export { computeActions, computeDefense, classifyStrike } from './actions';
+export { computeActions, computeDefense, classifyStrike, limbStrikeKind, strikeKindOf } from './actions';
+export { explainStrikes, type StrikeVerdict } from './explain';

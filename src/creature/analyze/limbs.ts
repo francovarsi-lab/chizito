@@ -2,7 +2,7 @@ import { clamp, deg, dist, dot, len, norm, rad, sub } from '../math/vec';
 import { add2, rot2, sub2 } from '../math/vec';
 import { toProfile } from '../math/basis';
 import { overlap2D } from '../math/shapes2d';
-import type { Caps, Limb, LimbDraft, Role, V2 } from '../types';
+import type { Caps, Limb, LimbDraft, Role, V2, V3 } from '../types';
 import { strikeKindOf } from './actions';
 import type { Ctx } from './context';
 
@@ -12,8 +12,8 @@ const ROLE_ORDER: Role[] = ['strike', 'support', 'push', 'defend'];
  * Cuántas otras extremidades (no su hermana) tiene pegadas: pivote cerca y apuntando parecido. Con `sameKind`, solo cuentan las que
  * darían el mismo tipo de golpe (palitos que apuntan a distinto lado no se estorban al golpear).
  */
-function crowdOf(d: LimbDraft, all: LimbDraft[], ctx: Ctx, sameKind?: (o: LimbDraft) => boolean): number {
-  const { crowdRadius, crowdAngleDeg } = ctx.cfg.mobility;
+export function crowdOf<T extends { id: string; pivot: V3; tip: V3; pairedWith?: string }>(d: T, all: T[], cfg: Ctx['cfg'], sameKind?: (o: T) => boolean): number {
+  const { crowdRadius, crowdAngleDeg } = cfg.mobility;
   const axis = norm(sub(d.tip, d.pivot));
   let n = 0;
   for (const o of all) {
@@ -60,8 +60,8 @@ export function completeLimbs(ctx: Ctx, drafts: LimbDraft[]): Limb[] {
     const pivot2 = toProfile(basis, d.pivot);
     const tip2 = toProfile(basis, d.tip);
     const q = d.anchorQuality;
-    const crowdFactor = 1 / (1 + crowdOf(d, drafts, ctx));
-    const strikeCrowdFactor = 1 / (1 + crowdOf(d, drafts, ctx, (o) => kindOf.get(o) === kindOf.get(d)));
+    const crowdFactor = 1 / (1 + crowdOf(d, drafts, cfg));
+    const strikeCrowdFactor = 1 / (1 + crowdOf(d, drafts, cfg, (o) => kindOf.get(o) === kindOf.get(d)));
 
     // ── capacidades ──
     const absA = Math.abs(angleDeg);
