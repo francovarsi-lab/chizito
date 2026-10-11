@@ -27,8 +27,10 @@ try {
   ok(idx.MAX_PIECES === 40, 'MAX_PIECES = 40');
   ok(idx.MAX_STROKES === 30, 'MAX_STROKES = 30');
   const gameCfg = fs.readFileSync('src/config.ts', 'utf8');
-  const m = /maxPieces:\s*(\d+)/.exec(gameCfg);
-  ok(!!m && Number(m[1]) === idx.MAX_PIECES, `MAX_PIECES coincide con CONFIG.creature.maxPieces del juego (${m?.[1]})`);
+  const shared = /import\s*\{[^}]*\bMAX_PIECES\b[^}]*\}\s*from\s*'\.\/creature\/limits'/.test(gameCfg) && /maxPieces:\s*MAX_PIECES\b/.test(gameCfg);
+  const lit = /maxPieces:\s*(\d+)/.exec(gameCfg);
+  ok(shared || (!!lit && Number(lit[1]) === idx.MAX_PIECES), `el tope de piezas del juego sale de limits.ts o, si es un número, coincide con MAX_PIECES (${shared ? 'importado' : lit?.[1]})`);
+  ok(!lit || Number(lit[1]) === idx.MAX_PIECES, 'src/config.ts no tiene un tope de piezas distinto de MAX_PIECES');
   ok(!/^\s*import\s/m.test(fs.readFileSync('src/creature/limits.ts', 'utf8')), 'limits.ts no tiene imports');
   ok(idx.CREATURE_CONFIG.limits.maxPieces === 40 && idx.CREATURE_CONFIG.limits.maxStrokes === 30, 'config reexporta los topes');
   const c = idx.CREATURE_CONFIG;

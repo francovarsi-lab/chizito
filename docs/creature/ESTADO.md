@@ -1,6 +1,6 @@
 # Estado del intérprete de criaturas
 
-Se actualiza en cada tanda. Última actualización: tanda 8 (panel) + correcciones de masa. Rama `claude/creature-interpreter`.
+Se actualiza en cada tanda. Última actualización: tanda 9 (activación `?creature`, merge de la rama 3D). Rama `claude/creature-interpreter`.
 
 ## Decisiones vigentes
 - Contrato estable: `CreatureSnapshot` (JSON puro). El intérprete (`src/creature/`) no importa three.js ni el juego; solo `resolve/` toca three.js.
@@ -38,9 +38,7 @@ chizito 250 (× 0,85 por grumoso) · palito 550 · escarbadientes 600 · papita 
 `palito-selva` y `chupetin` caen en 400 y no tienen perfil: son decorativos por tipo desconocido.
 
 ## Pendientes por chat
-- Chat 3D: actualizar `DEFAULT_COMBAT_FRONT/UP` y `readCombatFront` a ±Y / arriba +X (hoy dan el aviso "el frente de combate no era ±X").
-- Chat 3D: hacer cumplir `MAX_STROKES` (30) en el juego; hoy solo lo valida el intérprete.
+- HECHO por el chat 3D (merge 14e1663): frente por defecto −Y / arriba +X en el cargador, `MAX_STROKES` aplicado en el juego, `src/config.ts` importa `MAX_PIECES` de `limits.ts` (una sola fuente del 40).
 - Chat 3D: informar forma y masa de `palito-selva` y `chupetin`.
-- Chat 3D: el tope de 40 vive también en `src/config.ts` (`maxPieces`); un test lo compara con `limits.ts` y falla si difieren.
-- Este chat: tanda 9 (bloque `?creature` en `main.ts`, sección en `CLAUDE.md`, `install.ts`, `docs/CREATURE_CONTRACT.md`) — espera OK.
-- Este chat: falta cubrir el panel contra "deshacer" y "cambiar frente" en el juego real (ver informe de la tanda 8).
+- Un test falla si `src/config.ts` deja de importar `MAX_PIECES` o pone un número distinto.
+- Este chat: tanda 9 cerrada, espera OK. Las fixtures se regeneraron tras el merge (el chizito de la rama 3D cambió su porosidad: los puntos de entrada se movieron < 0,1 mm).

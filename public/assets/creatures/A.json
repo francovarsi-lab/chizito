@@ -33,7 +33,7 @@
         "mode": "pierce",
         "entryPoint": [
           0.011,
-          0.010791,
+          0.010815,
           0
         ],
         "direction": [
@@ -54,7 +54,7 @@
         "mode": "pierce",
         "entryPoint": [
           -0.023375,
-          0.00456,
+          0.004571,
           0
         ],
         "direction": [
@@ -75,7 +75,7 @@
         "mode": "pierce",
         "entryPoint": [
           0.011,
-          -0.010791,
+          -0.010815,
           0
         ],
         "direction": [
@@ -96,7 +96,7 @@
         "mode": "pierce",
         "entryPoint": [
           -0.023375,
-          -0.00456,
+          -0.004571,
           0
         ],
         "direction": [

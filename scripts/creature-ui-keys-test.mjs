@@ -10,19 +10,13 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-await page.goto('http://localhost:5173/?capture');
+await page.goto('http://localhost:5173/?capture&creature');
 await page.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
 let bad = 0;
 const ok = (c, msg) => { if (!c) bad++; console.log(`${c ? 'OK ' : 'FALLA'} ${msg}`); };
 
-await page.evaluate(async () => {
-  const c = window.__chizito;
-  const { PieceRegistry } = await import('/src/pieces/PieceRegistry.ts');
-  const { ALL_DEFINITIONS } = await import('/src/pieces/definitions.ts');
-  const { mountCreaturePanel } = await import('/src/creature/ui/index.ts');
-  const pieces = new PieceRegistry();
-  ALL_DEFINITIONS.forEach((d) => pieces.register(d));
-  window.__panel = mountCreaturePanel({ construction: c.construction, interaction: c.interaction, persistence: c.persistence, pieces });
+await page.waitForFunction(() => !!window.__creature, null, { timeout: 120000 });
+await page.evaluate(() => { window.__panel = window.__creature; });
 });
 const count = () => page.evaluate(() => window.__panel.state().snapshot.pieces.length);
 const tinted = () => page.evaluate(() => window.__panel.highlighter.tinted?.length ?? -1);

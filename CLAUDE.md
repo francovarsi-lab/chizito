@@ -267,3 +267,15 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
      posiciones/matrices sueltas (`localMatrix` es un derivado, no la fuente de verdad).
    - Tope: 40 piezas por criatura.
 Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit, y esperar aprobación.
+
+## Intérprete de criaturas (`?creature`, rama `claude/creature-interpreter`)
+- Lee la criatura viva y calcula extremidades, masa, apoyos, locomoción, acciones ofensivas y perfil 2D con cajas de golpe. Vive entero
+  en `src/creature/` (no toca el constructor); contrato y campos: `docs/CREATURE_CONTRACT.md`; estado y pendientes: `docs/creature/ESTADO.md`.
+- Activación: `?creature` en la URL. Es UN bloque al final de `src/main.ts` que importa `src/creature/install.ts` bajo demanda; sin el
+  flag no se carga nada y la app es idéntica. Monta el panel "ESTRUCTURA DETECTADA" (se actualiza al clavar, sacar, deshacer y rehacer;
+  resalta las extremidades en 3D; selector de criaturas de prueba A–E y vegetal; selector de frente). `window.__creature` es el panel.
+- Capas: archivo `CreatureFileV1` → resolver (`resolve/`, único código con three.js) → `CreatureSnapshot` (JSON puro) → `interpret()`.
+- Un solo archivo de umbrales (`src/creature/config.ts`) y uno de topes (`src/creature/limits.ts`: `MAX_PIECES` 40, `MAX_STROKES` 30;
+  `src/config.ts` importa `MAX_PIECES` de ahí). Orientación de combate: arriba +X, frente −Y por defecto, giro de 180° = +Y.
+- Pruebas: `node scripts/creature-test.mjs` (módulos puros), `creature-resolve-test.mjs`, y con `npm run dev` corriendo:
+  `creature-fixtures-test.mjs`, `creature-ui-test.mjs`, `creature-ui-keys-test.mjs`. Fixtures: `node scripts/make-fixtures.mjs`.

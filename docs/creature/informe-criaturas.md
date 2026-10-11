@@ -4,12 +4,12 @@ Generado por `node scripts/creature-report.mjs` (tanda 6: incluye acciones y def
 
 | criatura | piezas | extremidades | decorativas | masa (g) | modo | vel. (mm/s) | freno | apoyos | en profundidad |
 |---|---|---|---|---|---|---|---|---|---|
-| A · cuerpo + 2 brazos + 2 piernas | 4 | 4 | 0 | 3.98 | walk | 22.0 | 1 | 2 | 0 |
-| B · cuerpo + 4 brazos | 4 | 4 | 0 | 3.94 | drag | 15.1 | 0.9 | 0 | 0 |
-| C · cuerpo + 1 brazo | 1 | 1 | 0 | 3.42 | drag | 15.9 | 0.9 | 0 | 1 |
-| D · erizo | 30 | 30 | 0 | 8.56 | roll | 24.7 | 0.1 | 6 | 12 |
-| E · asimétrica / extraña | 8 | 3 | 6 | 7.75 | drag | 10.9 | 0.9 | 0 | 2 |
-| Rival vegetal (proxy) | 4 | 4 | 0 | 4.57 | walk | 21.3 | 1 | 2 | 0 |
+| A · cuerpo + 2 brazos + 2 piernas | 4 | 4 | 0 | 3.99 | walk | 22.0 | 1 | 2 | 0 |
+| B · cuerpo + 4 brazos | 4 | 4 | 0 | 3.96 | drag | 15.1 | 0.9 | 0 | 0 |
+| C · cuerpo + 1 brazo | 1 | 1 | 0 | 3.43 | drag | 15.9 | 0.9 | 0 | 1 |
+| D · erizo | 30 | 30 | 0 | 8.58 | roll | 24.7 | 0.1 | 6 | 12 |
+| E · asimétrica / extraña | 8 | 3 | 6 | 7.77 | drag | 10.9 | 0.9 | 0 | 2 |
+| Rival vegetal (proxy) | 4 | 4 | 0 | 4.58 | walk | 21.3 | 1 | 2 | 0 |
 
 **Criterios de aceptación**
 
@@ -23,7 +23,7 @@ Generado por `node scripts/creature-report.mjs` (tanda 6: incluye acciones y def
 
 ## A · cuerpo + 2 brazos + 2 piernas
 
-4 piezas · 4 extremidades · 0 decorativas · masa 3.98 g · **walk**
+4 piezas · 4 extremidades · 0 decorativas · masa 3.99 g · **walk**
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -45,7 +45,7 @@ Defensa: **guardia** (−27 % de daño)
 
 ## B · cuerpo + 4 brazos
 
-4 piezas · 4 extremidades · 0 decorativas · masa 3.94 g · **drag**
+4 piezas · 4 extremidades · 0 decorativas · masa 3.96 g · **drag**
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -71,7 +71,7 @@ Avisos del panel:
 
 ## C · cuerpo + 1 brazo
 
-1 piezas · 1 extremidades · 0 decorativas · masa 3.42 g · **drag**
+1 piezas · 1 extremidades · 0 decorativas · masa 3.43 g · **drag**
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -95,11 +95,11 @@ Avisos del panel:
 
 ## D · erizo
 
-30 piezas · 30 extremidades · 0 decorativas · masa 8.56 g · **roll**
+30 piezas · 30 extremidades · 0 decorativas · masa 8.58 g · **roll**
 
 Las 30 extremidades: golpe máximo 0.17 (mínimo para contar: 0.3), giro medio 10°, 12 en profundidad.
 
-Locomoción: velocidad 24.7 mm/s · giro 0.2 · freno 0.1 · salto 0.0 mm · apoyos 6 · margen 27.4 mm · carga/capacidad 0.25
+Locomoción: velocidad 24.7 mm/s · giro 0.2 · freno 0.1 · salto 0.0 mm · apoyos 6 · margen 27.5 mm · carga/capacidad 0.25
 
 Acciones (una por entrada):
 
@@ -116,12 +116,12 @@ Avisos del panel:
 
 ## E · asimétrica / extraña
 
-8 piezas · 3 extremidades · 6 decorativas · masa 7.75 g · **drag**
+8 piezas · 3 extremidades · 6 decorativas · masa 7.77 g · **drag**
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
-| E1 (tail, par) | 12.7 | 0.59 | reach | 0.26 | 0.00 | 0.18 | sí | 152 a 208 | no | lanza |
-| E1 (tip, par) | 12.1 | 0.59 | reach | 0.25 | 0.00 | 0.18 | sí | -29 a 29 | no | lanza |
+| E1 (tail, par) | 12.7 | 0.59 | reach | 0.26 | 0.00 | 0.18 | sí | 151 a 209 | no | lanza |
+| E1 (tip, par) | 12.0 | 0.59 | reach | 0.25 | 0.00 | 0.18 | sí | -29 a 29 | no | lanza |
 | E6 | 60.0 | 0.74 | strike | 0.80 | 0.00 | 0.57 | no | 10 a 15 | sí | maza |
 
 Locomoción: velocidad 10.9 mm/s · giro 0.4 · freno 0.9 · salto 0.0 mm · apoyos 0 · margen 0.0 mm · carga/capacidad 0.00
@@ -156,7 +156,7 @@ Avisos del panel:
 
 ## Rival vegetal (proxy)
 
-4 piezas · 4 extremidades · 0 decorativas · masa 4.57 g · **walk**
+4 piezas · 4 extremidades · 0 decorativas · masa 4.58 g · **walk**
 
 | extremidad | largo | calidad | rol | golpe | apoyo | defensa | en profundidad | giro (grados) | cuelga | etiqueta |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -172,7 +172,7 @@ Acciones (una por entrada):
 | acción | entrada | arranque | activa | recuperación | daño | alcance (mm) | radio (mm) |
 |---|---|---|---|---|---|---|---|
 | estocada | forward+attack | 12 | 6 | 16 | 9.5 | 25.0 | 4.0 |
-| embestida | attack | 17 | 6 | 19 | 5.5 | 11.7 | 11.7 |
+| embestida | attack | 17 | 6 | 19 | 5.5 | 11.8 | 11.8 |
 
 Defensa: **guardia** (−27 % de daño)
 
