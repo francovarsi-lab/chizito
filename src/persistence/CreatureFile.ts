@@ -244,7 +244,7 @@ function toPieceData(raw: Record<string, unknown>, pieces: PieceRegistry, parent
     mount: mode === 'tail' ? 'tail' : undefined,
     entryPoint: [...at.entryPoint] as Vec3,
     direction: unit(at.direction),
-    depth: mode === 'pierce' ? Math.min(depth, maxDepthOf(def, params)) : depth,
+    depth: mode === 'pierce' ? Math.min(depth, maxDepthOf(def, params), def.depthStop ? def.depthStop(num(raw.seed) ? raw.seed : 1, 1) : Infinity) : depth,
     spin: num(at.spin) ? at.spin : 0,
     localMatrix: [], // se reconstruye al cargar
   };

@@ -153,7 +153,10 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   blanco. En el vasito viene envuelto (`ChupetinWrapper`): film transparente con LÍNEAS BLANCAS CURVAS PARALELAS (no
   se cruzan) sobre la bola, ceñido al palito abajo y ARRIBA un cuello retorcido (el nudo) que se abre en un abanico
   blanco con rayas rojas, azules y verdes. Al agarrarlo se abre DESDE ARRIBA: se desata el nudo y el film se abre
-  como una flor de la cima hacia abajo, y se cae; en la mano y clavado va pelado, sin líneas. Se clava por la punta del palito (máx. 70 %). Sin marca.
+  como una flor de la cima hacia abajo, y se cae; en la mano y clavado va pelado, sin líneas. Se clava por la punta del palito. El palito ATRAVIESA, la bola NO (es sólida, con masa: no se superpone con
+  el chizito): el tope es cuando la bola toca la superficie (`chupetinStopDepth`: elipsoide de la bola contra el plano
+  tangente, según semilla e inclinación; perpendicular ≈ 53 mm de 55; antes era el 70 % = 38,5 mm; `PieceDefinition.depthStop`
+  se suma a `maxDepth`; el cargador recorta con la cota perpendicular). Sin marca.
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
 - Chizito extra (DESCARTADO por el usuario como pieza suelta: no hay bowl ni se va a agregar; el mecanismo `mountsOnTail` queda porque lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);

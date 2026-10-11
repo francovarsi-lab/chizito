@@ -121,6 +121,27 @@ function shape(seed: number) {
   return { flavor, R, ballY: CHUPETIN_STICK + R * 0.78 };
 }
 
+/** Achatado de la bola a lo largo del palito (se usa para dibujarla y para el tope de clavado). */
+const BALL_SQUASH = 0.94;
+
+/**
+ * Tope de clavado del chupetín: la bola es sólida y NO atraviesa, el palito sí. La punta puede entrar hasta
+ * que la bola toca el plano de la superficie. `cosTilt` = coseno del ángulo entre el palito y la normal
+ * (1 = perpendicular). La bola es un elipsoide (radio R de costado, R·0,94 a lo largo del palito), con el
+ * centro a `ballY` de la punta: toca el plano cuando (ballY − profundidad)·cosθ = apoyo del elipsoide.
+ * Con el chizito convexo es conservador: la bola nunca lo penetra.
+ */
+export function chupetinStopDepth(seed: number, cosTilt = 1): number {
+  const { R, ballY } = shape(seed);
+  const c = THREE.MathUtils.clamp(cosTilt, 0.05, 1);
+  const s2 = 1 - c * c;
+  const support = Math.sqrt(R * R * s2 + (R * BALL_SQUASH) ** 2 * c * c);
+  return Math.max(0.002, ballY - support / c);
+}
+
+/** Tope perpendicular más chico entre todas las semillas (bola más grande): cota segura para validar archivos. */
+export const CHUPETIN_MAX_DEPTH = CHUPETIN_STICK + 0.78 * CHUPETIN_BALL_R * 1.04 - CHUPETIN_BALL_R * 1.04 * BALL_SQUASH;
+
 export function createChupetin(seed: number, detail: 'hero' | 'prop' = 'hero', params: ChupetinParams = {}): THREE.Group {
   const { flavor, R, ballY } = shape(seed);
   const { stick, candy } = materials(flavor);
@@ -136,7 +157,7 @@ export function createChupetin(seed: number, detail: 'hero' | 'prop' = 'hero', p
 
   // Bola de caramelo, apenas achatada, abrazando la punta del palito.
   const ball = new THREE.Mesh(new THREE.SphereGeometry(R, Math.round(40 * seg) + 8, Math.round(28 * seg) + 6), candy);
-  ball.scale.set(1, 0.94, 1);
+  ball.scale.set(1, BALL_SQUASH, 1);
   ball.position.y = ballY;
   ball.name = 'bola';
   g.add(ball);

@@ -14,7 +14,7 @@ import {
 import { createKetchupStroke, KETCHUP_RADIUS, type KetchupParams } from '../assets/procedural/ketchup';
 import { nextCuriosidad } from '../ui/datosCuriosos';
 import { createPalitoSelva, SELVA_LENGTH, SELVA_WIDTH, SelvaWrapper, type PalitoSelvaParams } from '../assets/procedural/palitoSelva';
-import { CHUPETIN_BALL_R, CHUPETIN_STICK, ChupetinWrapper, createChupetin, type ChupetinParams } from '../assets/procedural/chupetin';
+import { CHUPETIN_BALL_R, CHUPETIN_MAX_DEPTH, CHUPETIN_STICK, ChupetinWrapper, chupetinStopDepth, createChupetin, type ChupetinParams } from '../assets/procedural/chupetin';
 import * as THREE from 'three';
 import type { PieceDefinition } from './PieceDefinition';
 
@@ -178,8 +178,10 @@ export const CHUPETIN: PieceDefinition = {
   },
   canPierce: true,
   canBePierced: false,
-  // Queda afuera la bola y un tramo de palito.
-  maxDepth: CHUPETIN_STICK * 0.7,
+  // El palito atraviesa, la bola no: el tope es cuando la bola toca la superficie (`depthStop` lo afina por
+  // semilla e inclinación; `maxDepth` es la cota perpendicular más estricta, para validar archivos).
+  maxDepth: CHUPETIN_MAX_DEPTH,
+  depthStop: chupetinStopDepth,
   // Vara (palito de papel, ~0,3 g) con una MAZA en la punta libre: bola Ø 2,1 cm ≈ 4,85 cm³ × 1,5 g/cm³.
   structure: { kind: 'rod', massGrams: 7.6, tipMassGrams: 7.3, tipAt: CHUPETIN_STICK + CHUPETIN_BALL_R * 0.78, rigid: true },
   sounds: CRUNCHY,

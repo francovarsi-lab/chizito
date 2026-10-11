@@ -730,7 +730,13 @@ export class InteractionController {
 
   /** Profundidad máxima: la propia de la pieza o, ensartando, lo que queda del palito afuera. */
   private maxDepth(a: ActivePiece): number {
-    if (!a.mount) return maxDepthOf(a.def, a.params);
+    if (!a.mount) {
+      const max = maxDepthOf(a.def, a.params);
+      if (!a.def.depthStop) return max;
+      // Tope físico (bola del chupetín): depende del ángulo con la superficie.
+      const cos = Math.cos(a.aim.tiltX) * Math.cos(a.aim.tiltY);
+      return Math.min(max, a.def.depthStop(a.seed, cos));
+    }
     const tailY = new THREE.Vector3().setFromMatrixPosition(tailFrame(a.mount.object)).y;
     return Math.max(0.004, tailY - a.mount.data.depth - 0.003);
   }

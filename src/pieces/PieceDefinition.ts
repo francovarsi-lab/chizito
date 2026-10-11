@@ -88,6 +88,13 @@ export interface PieceDefinition {
   canPierce: boolean;
   /** Puede ser atravesada por otras piezas. */
   canBePierced: boolean;
+  /**
+   * Tope físico de clavado que depende de la pieza concreta (semilla) y del ángulo (`cosTilt` = coseno entre
+   * la pieza y la normal de la superficie): p. ej. la bola del chupetín, que no atraviesa. Se aplica además
+   * de `maxDepth`.
+   */
+  depthStop?: (seed: number, cosTilt: number) => number;
+
   /** Profundidad máxima de inserción (m). Una variante puede tener la suya (ver `maxDepthOf`). */
   maxDepth: number;
 
