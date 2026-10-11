@@ -64,6 +64,27 @@ for (const [id, want] of [['S2', ['fuera del arco (160°)', 'ejecuta: estocada']
   await snap(id);
 }
 
+// Regresión del panel (botones, selector, tooltips, scroll) tras los cambios de CSS (contain, will-change, sin backdrop-filter).
+{
+  const R = await page.evaluate(() => { const b = document.querySelector('.cs-min'); return { title: b?.getAttribute('title') ?? '', collapsedBefore: document.getElementById('cs-panel').classList.contains('cs-min-collapsed') }; });
+  ok(R.title.length > 0 && !R.collapsedBefore, `el botón de plegar tiene tooltip ("${R.title}")`);
+  await page.click('.cs-min');
+  ok(await page.evaluate(() => document.getElementById('cs-panel').classList.contains('cs-min-collapsed')), 'botón plegar: pliega el panel');
+  await page.click('.cs-min');
+  ok(await page.evaluate(() => !document.getElementById('cs-panel').classList.contains('cs-min-collapsed')), 'botón plegar: lo vuelve a desplegar');
+  await page.selectOption('.cs-select', 'B');
+  await page.waitForFunction(() => window.__panel.state().snapshot.pieces.length === 5 && window.__panel.state().analysis.limbs.length === 4, null, { timeout: 60000 });
+  ok(true, 'el selector del panel carga una criatura (B)');
+  await page.evaluate(() => window.__panel.loadCreature('D'));
+  const box = await page.evaluate(() => { const r = document.getElementById('cs-panel').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, scrollable: document.getElementById('cs-panel').scrollHeight > document.getElementById('cs-panel').clientHeight }; });
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.wheel(0, 700);
+  await page.waitForTimeout(250);
+  const sc = await page.evaluate(() => { const p = document.getElementById('cs-panel'); const head = document.querySelector('.cs-head').getBoundingClientRect(); return { top: p.scrollTop, headTop: head.top, panelTop: p.getBoundingClientRect().top }; });
+  ok(box.scrollable && sc.top > 0, `scroll del panel con la rueda (scrollTop ${sc.top})`);
+  ok(Math.abs(sc.headTop - sc.panelTop) < 1.5, 'el encabezado sigue pegado arriba mientras se desplaza');
+  await page.evaluate(() => { document.getElementById('cs-panel').scrollTo(0, 0); });
+}
 // Frente: giro de 180° cambia el cartel y la locomoción/acciones se espejan.
 await page.evaluate(() => window.__panel.loadCreature('A'));
 const f1 = await page.evaluate(() => window.__panel.state().analysis.profile2D.facing);
