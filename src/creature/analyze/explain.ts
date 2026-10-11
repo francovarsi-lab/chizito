@@ -37,7 +37,8 @@ export function explainStrikes(a: Pick<CreatureAnalysis, 'limbs' | 'actions'>, c
     const base = { limbId: l.id, kind, strike: l.caps.strike, min, angleDeg: l.profile.angleDeg, neighbors };
     const action = byLimb.get(l.id);
     if (action) out.set(l.id, { ...base, outcome: 'executes', action });
-    else if (kind === null) out.set(l.id, { ...base, outcome: 'arc' });
+    // Una maza se clasifica como mazazo sin mirar el arco (regla del MVP 0); si apunta fuera del arco el motivo real es ese, no la capacidad.
+    else if (kind === null || (!l.profile.inDepth && Math.abs(l.profile.angleDeg) > cfg.capabilities.strikeArcDeg)) out.set(l.id, { ...base, outcome: 'arc' });
     else if (l.caps.strike < min) out.set(l.id, { ...base, outcome: neighbors > 0 && l.caps.strike * (1 + neighbors) >= min ? 'crowded' : 'below' });
     else {
       const win = a.actions.find((x) => x.kind === kind && x.limbId);

@@ -832,6 +832,19 @@ try {
     eq('S4', ['fuera del arco (160°)', 'fuera del arco (160°)', 'pierde contra palito 4 (0,37 vs 0,40)', 'ejecuta: estocada']);
     eq('S5', ['fuera del arco (175°)', 'ejecuta: barrida', 'ejecuta: estocada', 'pierde contra palito 2 (0,38 vs 0,39)']);
     eq('S6', ['capacidad bajo el mínimo (0,24 de 0,30)', 'apiñada: comparte con 2 vecinas', 'apiñada: comparte con 3 vecinas', 'apiñada: comparte con 3 vecinas', 'apiñada: comparte con 2 vecinas', 'ejecuta: golpe alto']);
+    {
+      // Una maza que apunta hacia atrás dice "fuera del arco" (no "capacidad bajo el mínimo").
+      const cl = (x) => JSON.parse(JSON.stringify(x));
+      const snap = cl(A.snapshot);
+      const rod = snap.pieces.find((p) => p.id === 'palito-fxA1'); // el brazo trasero (158°)
+      const u = idx.norm(idx.sub(rod.shape.b, rod.shape.a));
+      const ballId = rod.id + '~caramelo';
+      snap.pieces.splice(snap.pieces.indexOf(rod) + 1, 0, { id: ballId, type: 'chupetin-caramelo', seed: 1, kind: 'blob', shape: { kind: 'capsule', a: rod.shape.b, b: idx.addScaled(rod.shape.b, u, 0.021), radius: 0.0105 }, cosmetic: false, stability: 'stable' });
+      snap.links.push({ id: 'link-' + ballId, parentId: rod.id, childId: ballId, mode: 'tail', attach: { entryPoint: [0, 0, 0], direction: [0, 0, 0], depth: 0, spin: 0, frame: 'child' }, integrity: 'ok', anchor: rod.shape.b, normal: u, axis: u, tiltFromNormal: 0, embedded: 0, chord: null, freeTail: 0, exit: null, crossings: [] });
+      const m = UI.buildPanelModel(snap, interpret(snap));
+      const row = m.limbs.find((l) => l.id.includes('palito-fxA1'));
+      ok(row.tag === 'maza' && /^fuera del arco \(1\d\d°\)$/.test(row.strike.text), `maza hacia atrás: "${row.strike.text}"`);
+    }
     // El texto nunca contradice a las acciones: "ejecuta" solo si hay acción de esa extremidad.
     for (const c of built) {
       const m = models[c.id];

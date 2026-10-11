@@ -52,6 +52,16 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 - Idea para probar DESPUÉS de las pruebas de combate: "giro corto" (usar la movilidad ya calculada para que el brazo trasero entre al arco). Entraría S2, A y el vegetal (rango hasta 131°–135°); no entran S4, S5, B ni las 5 de D.
 - Datos: hoy son 1 de 2 en S2, 2 de 4 en S4, 1 de 4 en S5, A, B y vegetal; 5 de 30 en D. Su capacidad de golpe ya trae el factor hacia atrás (0,2): como máximo 0,15, bajo el mínimo de 0,3. Defensa, apoyo y empuje valen 0 hacia atrás. Descartadas por ahora: golpe hacia atrás (haría falta tocar un factor o el umbral; en D la mayor subiría a ≈ 0,35) y defensa trasera (cambia la fórmula y no sirve con el rival al frente).
 
+## Cómo probar (comandos)
+- Módulos puros, sin navegador: `node scripts/creature-test.mjs` (≈1390 comprobaciones). `node scripts/creature-summary.mjs [salida.json]` (resumen numérico A–E, vegetal y P, para comparar antes/después) y `node scripts/creature-battery.mjs` (informe de golpes S1–S7).
+- Con `npm run dev` corriendo (juego real, Chromium con WebGL por software; lento, cada script tarda minutos): `node scripts/creature-resolve-test.mjs` (resolver contra la referencia, 918 comprobaciones), `creature-fixtures-test.mjs` (carga las criaturas), `creature-ui-test.mjs` (panel, flag apagado, frente, deshacer, rol de golpe; saca las capturas `panel-*.png`), `creature-ui-keys-test.mjs` (resaltado 3D y Ctrl+Z / Ctrl+Y con el teclado) y `creature-golosinas-test.mjs` (palito de la selva y chupetín reales).
+- Regenerar fixtures: `node scripts/make-fixtures.mjs` (A–E, vegetal, P y S1–S7; si cambia la geometría del chizito en el chat 3D hay que correrlo y el test "al día" falla hasta entonces). Informe de criaturas: `node scripts/creature-report.mjs`.
+- Si el servidor de desarrollo no está: `npm run dev` y esperar a `localhost:5173`.
+
+## Decisiones vigentes (masa y ramas)
+- La masa del palito de la selva la manda el intérprete: 1,1 g (densidad 550 × volumen medido del modelo). El chat 3D declara 2,3 g: queda pendiente de definir con el chat de mecánicas; no bloquea.
+- `main` no comparte historia con estas ramas (se reconstruyó desde el zip del usuario): el merge está pendiente de decisión con el chat 3D (reemplazar `main` o `--allow-unrelated-histories`). No bloquea el trabajo del intérprete.
+
 ## Pendientes por chat
 - HECHO por el chat 3D (merge 14e1663): frente por defecto −Y / arriba +X en el cargador, `MAX_STROKES` aplicado en el juego, `src/config.ts` importa `MAX_PIECES` de `limits.ts` (una sola fuente del 40).
 - Un test falla si `src/config.ts` deja de importar `MAX_PIECES` o pone un número distinto.
