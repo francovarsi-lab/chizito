@@ -1002,6 +1002,93 @@ try {
   near(Math.max(...runs.mia.map((st) => Math.abs(st.vx))), an.mia.locomotion.speed, 1e-12, 'mi criatura se arrastra a la velocidad del análisis');
   ok(Math.max(...posesOf('mia').map((p) => p.lowest)) < 1e-9, 'mi criatura arrastrada queda apoyada en el piso (no flota)');
 
+  section('MVP 1: combate (tanda 3)');
+  {
+    const trigger = (plan, act) => {
+      const f = plan.facing;
+      if (act.input === 'forward+attack') return { move: f, attack: true };
+      if (act.input === 'up+attack') return { move: 0, attack: true, vertical: 1 };
+      if (act.input === 'down+attack') return { move: 0, attack: true, vertical: -1 };
+      return { move: 0, attack: true };
+    };
+    const profile = (k) => an[k].profile2D;
+    for (const k of ['A', 'B', 'C', 'D', 'E', 'veg', 'P', 'mia', 'pesada']) {
+      const plan = plans[k];
+      for (const act of an[k].actions) {
+        const frames = act.input === 'hold+attack' ? smCfg.holdFrames + 4 : 2;
+        const total = frames + act.startup + act.active + act.recovery + 10;
+        const inputAt = (f) => (f < 5 ? { move: 0 } : f < 5 + frames ? trigger(plan, act) : { move: 0 });
+        const run = SIM.runSim(plan, total, inputAt);
+        const mine = run.filter((st) => st.combat.actionId === act.id);
+        const cnt = (ph) => mine.filter((st) => st.combat.phase === ph).length;
+        ok(cnt('startup') === act.startup && cnt('active') === act.active && cnt('recovery') === act.recovery, `${k} ${act.kind} (${act.input}): ${cnt('startup')}+${cnt('active')}+${cnt('recovery')} cuadros = los del análisis (${act.startup}+${act.active}+${act.recovery})`);
+        ok(run[run.length - 1].combat.phase === 'idle', `${k} ${act.kind}: al terminar vuelve a estar libre`);
+        // Cajas de golpe: las del análisis, cuadro a cuadro del tramo activo.
+        let hbOk = true;
+        let rangeOk = true;
+        mine.forEach((st) => {
+          const pose = SIM.poseCreature(an[k], plan, st);
+          if (st.combat.phase === 'active') {
+            const t = act.active > 1 ? st.combat.frame / (act.active - 1) : 0;
+            const want = idx.attackHitbox(profile(k), an[k].limbs, act, t);
+            const hb = pose.hitbox;
+            if (!hb || hb.actionId !== act.id || Math.abs(hb.center[0] - (want.center[0] + st.x)) > 1e-12 || Math.abs(hb.center[1] - (want.center[1] + pose.lift)) > 1e-12 || hb.r !== act.hitRadius) hbOk = false;
+          } else if (pose.hitbox) hbOk = false;
+          if (pose.limbs.some((l) => l.angleDeg < l.minDeg - 1e-9 || l.angleDeg > l.maxDeg + 1e-9)) rangeOk = false;
+        });
+        ok(hbOk, `${k} ${act.kind}: la caja de golpe activa es la del análisis en cada cuadro activo (y solo ahí)`);
+        ok(rangeOk, `${k} ${act.kind}: ninguna extremidad sale de su rango mientras pega`);
+        ok(mine.every((st) => st.x === 0 && st.vx === 0), `${k} ${act.kind}: parada mientras pega (arrancó quieta)`);
+      }
+      // Una acción a la vez: apretar de nuevo en el medio no hace nada; después de recuperarse se puede otra vez.
+      const first = an[k].actions.find((x) => x.input === 'attack');
+      if (first) {
+        const spam = SIM.runSim(plan, 6 + first.startup + first.active + first.recovery + 8, (f) => ({ move: 0, attack: f >= 5 && f % 2 === 1 }));
+        const ids = new Set(spam.filter((st) => st.combat.actionId).map((st) => st.combat.actionId));
+        const starts = spam.filter((st, i) => i > 0 && st.combat.phase === 'startup' && st.combat.frame === 0).length;
+        ok(ids.size === 1 && starts >= 1, `${k}: apretar el ataque en medio de una acción no empieza otra encima`);
+      }
+    }
+    // Las entradas correctas dan cada acción: arriba, abajo, hacia adelante, mantenido.
+    for (const k of ['A', 'B', 'C', 'E']) {
+      for (const act of an[k].actions.filter((x) => x.input !== 'attack')) {
+        const run = SIM.runSim(plans[k], 40, (f) => (f < 3 ? trigger(plans[k], act) : f < 2 + smCfg.holdFrames + 2 && act.input === 'hold+attack' ? trigger(plans[k], act) : { move: 0 }));
+        ok(run.some((st) => st.combat.actionId === act.id), `${k}: la entrada "${act.input}" da la acción ${act.kind}`);
+      }
+    }
+    // Guardia: sube en `guardFrames`, no camina, baja al soltar; el análisis dice cuánto defiende.
+    for (const k of ['A', 'B', 'C', 'D', 'E', 'veg', 'P', 'mia']) {
+      const plan = plans[k];
+      ok(JSON.stringify(plan.defense) === JSON.stringify(an[k].defense), `${k}: la defensa del plan es la del análisis (${plan.defense.kind}, −${Math.round(plan.defense.reduction * 100)} %)`);
+      const run = SIM.runSim(plan, 40, (f) => ({ move: 0, guard: f >= 3 && f < 25 }));
+      const top = Math.max(...run.map((st) => st.combat.guard));
+      ok(top === smCfg.guardFrames && run[24].combat.phase === 'guard', `${k}: la guardia sube en ${smCfg.guardFrames} cuadros y se mantiene`);
+      ok(run[run.length - 1].combat.guard === 0 && run[run.length - 1].combat.phase === 'idle', `${k}: al soltar baja del todo`);
+      const poses = run.map((st) => SIM.poseCreature(an[k], plan, st));
+      ok(poses.every((p) => p.lowest >= -1e-9 && p.limbs.every((l) => l.angleDeg >= l.minDeg - 1e-9 && l.angleDeg <= l.maxDeg + 1e-9)), `${k}: con la guardia el piso no se atraviesa y nada sale de su rango`);
+      if (plan.defense.kind === 'guard') {
+        const limb = an[k].limbs.find((l) => l.id === plan.defense.limbId);
+        const full = poses[24].limbs.find((l) => l.id === limb.id);
+        const toDeg = idx.swingArc(limb).to;
+        // Llega al frente, salvo que el piso la frene (entonces se queda lo más cerca posible, sin tocarlo).
+        ok(Math.abs(full.angleDeg - toDeg) < 1e-9 || (full.lowest <= smCfg.contactTol + 1e-6 && Math.abs(full.angleDeg - toDeg) <= Math.abs(full.restDeg - toDeg)), `${k}: la guardia lleva a su extremidad al frente (${Math.round(toDeg)}°)`);
+      } else {
+        const w0 = idx.bounds2D(poses[0].shapes);
+        const w1 = idx.bounds2D(poses[24].shapes);
+        ok(w1.max[1] - w1.min[1] < w0.max[1] - w0.min[1], `${k}: sin extremidad que guarde, se encoge`);
+      }
+    }
+    // Sin pelea en el aire.
+    {
+      const plan = plans.salto;
+      const probe = SIM.runSim(plan, plan.pauseFrames + plan.airFrames + 4, () => ({ move: plan.facing }));
+      const f0 = probe.findIndex((st) => st.air);
+      const run = SIM.runSim(plan, f0 + plan.airFrames + 4, (f) => ({ move: plan.facing, attack: f >= f0 + 2 && f < f0 + 6 }));
+      const airStates = run.filter((st) => st.air);
+      ok(airStates.length > 0 && airStates.every((st) => st.combat.phase === 'idle'), 'salto: en el aire no se empieza ninguna acción');
+    }
+  }
+
   // @@TESTS@@
 } finally {
   await server.close();

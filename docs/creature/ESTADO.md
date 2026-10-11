@@ -71,6 +71,11 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 - Imagen: `docs/creature/animacion.png` (`node scripts/creature-sim-strip.mjs`): un ciclo de A, vegetal, A con un pie, B, mi criatura y D. Fixture de mi criatura: `src/creature/fixtures/criatura-20261011-1623.snapshot.json` (`node scripts/creature-snapshot.mjs <archivo> <salida>`).
 - Límites conocidos: la animación es 2D sobre el perfil (una extremidad "en profundidad" gira su proyección corta); no hay combate ni colisión con un rival (tanda 3).
 
+## MVP 1 — tanda 3 (estados y combate, sin rival)
+- `sim/combat.ts`: una acción a la vez con las tres fases del análisis (arranque, activo, recuperación; cuadros EXACTOS de `AttackAction`), guardia que sube en `guardFrames`, golpe mantenido (`holdFrames`) y sin pelea en el aire. Mientras pelea, guarda o carga no camina (frena con su freno: D sigue rodando un rato). Entradas: ataque solo → jab / embestida / rodada; → + ataque → estocada; ↑ + ataque → golpe alto; ↓ + ataque → barrida; ataque mantenido → mazazo (la misma asignación del análisis).
+- Caja de golpe activa = `attackHitbox` del análisis en cada cuadro activo, llevada al mundo (lado, posición, altura): `pose.hitbox`. La extremidad recorre su arco (reposo → arranque → arco → reposo) sin salir de su rango; si el piso la frena, el dibujo se recorta y la caja sigue siendo la del análisis. La que guarda sube hacia el frente (`swingArc.to`); sin extremidad que guarde, el cuerpo se encoge (`curlScale`). El cuerpo se apoya como en reposo: pegar o guardar no lo hace saltar.
+- Pruebas: cuadros y cajas iguales a los del análisis en A–E, vegetal, P, mi criatura y la pesada; una acción a la vez; cada entrada da su acción; guardia; sin pelea en el aire.
+
 ## Pendientes por chat
 - HECHO por el chat 3D (merge 14e1663): frente por defecto −Y / arriba +X en el cargador, `MAX_STROKES` aplicado en el juego, `src/config.ts` importa `MAX_PIECES` de `limits.ts` (una sola fuente del 40).
 - Un test falla si `src/config.ts` deja de importar `MAX_PIECES` o pone un número distinto.

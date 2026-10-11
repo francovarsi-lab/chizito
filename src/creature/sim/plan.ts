@@ -42,5 +42,7 @@ export function makeSimPlan(a: CreatureAnalysis, cfg = CREATURE_CONFIG): SimPlan
     rollRadius: Math.max(...shapes.map((s) => farthest(s, [0, comHeight])), cfg.profile.minShapeThickness),
     comHeight,
     facing: a.profile2D.facing,
+    actions: a.actions,
+    defense: a.defense,
   };
 }

@@ -1,9 +1,10 @@
 import { CREATURE_CONFIG } from '../config';
 import { clamp } from '../math/vec';
+import { IDLE, isBusy, stepCombat } from './combat';
 import type { SimInput, SimPlan, SimState } from './types';
 
 export function createSimState(plan: SimPlan, x = 0, h = 0): SimState {
-  return { frame: 0, x, h, vx: 0, vh: 0, facing: plan.facing, phase: 0, angle: 0, turnTimer: 0, air: false, hopFrame: 0 };
+  return { frame: 0, x, h, vx: 0, vh: 0, facing: plan.facing, phase: 0, angle: 0, turnTimer: 0, air: false, hopFrame: 0, combat: IDLE };
 }
 
 /**
@@ -14,9 +15,12 @@ export function createSimState(plan: SimPlan, x = 0, h = 0): SimState {
  *  - Rodar: el ángulo avanza velocidad / radio, sin deslizar.
  *  - El piso (h = 0) no se atraviesa: si h > 0 sin saltar, cae.
  */
-export function stepSim(s: SimState, input: SimInput, plan: SimPlan, cfg = CREATURE_CONFIG): SimState {
+export function stepSim(s: SimState, rawInput: SimInput, plan: SimPlan, cfg = CREATURE_CONFIG): SimState {
   const dt = cfg.sim.dt;
   let { x, h, vx, vh, facing, phase, angle, turnTimer, air, hopFrame } = s;
+  // Combate: una acción a la vez; mientras pelea, cuida la guardia o carga el golpe mantenido no camina (frena con su freno).
+  const combat = stepCombat(s.combat, rawInput, facing, air, plan, cfg);
+  const input: SimInput = isBusy(combat) ? { ...rawInput, move: 0 } : rawInput;
 
   // Dar la vuelta: parada, y al terminar mira para el otro lado.
   if (turnTimer > 0) {
@@ -74,7 +78,7 @@ export function stepSim(s: SimState, input: SimInput, plan: SimPlan, cfg = CREAT
     phase = (phase + (Math.abs(vx) * dt) / plan.stride) % 1;
     if (plan.mode === 'roll') angle -= (vx * dt) / plan.rollRadius;
   }
-  return { frame: s.frame + 1, x, h, vx, vh, facing, phase, angle, turnTimer, air, hopFrame };
+  return { frame: s.frame + 1, x, h, vx, vh, facing, phase, angle, turnTimer, air, hopFrame, combat };
 }
 
 /** Corre `frames` pasos con la entrada que da `input(frame)`; devuelve todos los estados (el 0 es el inicial). */

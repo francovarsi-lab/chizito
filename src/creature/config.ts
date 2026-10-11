@@ -186,6 +186,32 @@ export const CREATURE_CONFIG = {
     contactTol: 0.0005,
     /** Pasos de bisección al recortar el giro de una extremidad que atravesaría el piso. */
     clampSteps: 16,
+    /** Combate: cuadros que hay que mantener el botón de ataque para el golpe "mantenido" (mazazo). */
+    holdFrames: 12,
+    /** Guardia: cuadros que tarda en levantarse (y en bajarse). */
+    guardFrames: 6,
+    /** Al encogerse (defensa sin extremidad que cubra): escala final del cuerpo (1 = igual). */
+    curlScale: 0.85,
+  },
+
+  /** Probador del panel (MVP 1, tanda 5): medidas de la ventana y del dibujo. */
+  prober: {
+    width: 760,
+    height: 330,
+    /** Alto en pantalla (px) de la criatura. */
+    creaturePx: 170,
+    /** Alto (px) de la franja de piso. */
+    floorHeight: 78,
+    /** Separación (m) entre las marcas del piso. */
+    tickSpacing: 0.02,
+    /** Pasos fijos como máximo por cuadro dibujado (para no espiralar si el navegador se traba). */
+    maxStepsPerFrame: 5,
+    /** Cuadros que promedia el contador de fps. */
+    fpsWindow: 60,
+    /** Fracción de la ventana (de 0 a 1) a la que está el piso por abajo, y a la que se centra la criatura. */
+    floorLine: 0.76,
+    /** Grosor mínimo (px) de las formas dibujadas. */
+    minStroke: 2,
   },
 
   /** Resolver (tanda 7): rayos contra las mallas reales. */
