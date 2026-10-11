@@ -13,3 +13,4 @@ export * from './analyze';
 export * from './project';
 export * from './interpret';
 export * from './describe';
+export * from './sim';

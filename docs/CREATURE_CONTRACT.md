@@ -24,6 +24,9 @@ Ver la lista completa de campos en `docs/creature/ESTADO.md`. Lo esencial:
 - `decorative[]` (cada una con `heldBy` si cuelga de una extremidad: esa masa ya está en la de la extremidad): lo que suma masa pero no es extremidad, con su razón (`no-free-tip`, `weak-anchor`, `too-short`, `plate`, `stroke`, `broken`, `unknown-type`, `second-level`).
 - `locomotion` (`walk`, `hop`, `drag`, `roll`, `immobile`), `support`, `actions[]` (jab, estocada, golpe-alto, barrida, mazazo, rodada, embestida), `defense`, `profile2D` (cajas de daño y de golpe).
 
+## Simulación (MVP 1)
+`import { makeSimPlan, createSimState, stepSim, runSim, poseCreature } from './creature'`: el plan sale del `CreatureAnalysis` (modo, velocidad, salto, freno y giro); `stepSim` es un paso puro de 1/60 s; `poseCreature` da las formas del perfil en el mundo (x a lo largo del piso, y hacia arriba, piso en 0) con cada extremidad dentro de su rango de movilidad. No modifica el análisis ni el juego.
+
 ## Reglas que no se rompen
 - Un solo archivo de umbrales (`config.ts`) y uno de topes (`limits.ts`); un test falla si aparecen números sueltos en detect/analyze/project.
 - El intérprete no escribe en el juego. El panel sólo lee la construcción y encadena `interaction.onChange`.

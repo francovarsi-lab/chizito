@@ -883,6 +883,125 @@ try {
   const colorsMod = await load('/src/creature/ui/colors.ts');
   ok(Object.keys(colorsMod.ROLE_COLOR).length >= 6 && /^#[0-9a-f]{6}$/i.test(colorsMod.ROLE_COLOR.strike), 'colores por rol definidos');
 
+  // ───────────── MVP 1: simulación cinemática y animación ─────────────
+  section('MVP 1: simulación (tandas 1 y 2)');
+  const SIM = await load('/src/creature/sim/index.ts');
+  const smCfg = idx.CREATURE_CONFIG.sim;
+  for (const f of ['plan', 'step', 'pose', 'types', 'index']) {
+    const text = strip(fs.readFileSync(`src/creature/sim/${f}.ts`, 'utf8'));
+    const bad = (text.match(/\b\d+\.\d+\b|\b\d{3,}\b/g) ?? []).filter((n) => n !== '180');
+    ok(bad.length === 0, `sim/${f}.ts: ningún número suelto${bad.length ? ' (' + bad.join(', ') + ')' : ''}`);
+  }
+  const cloneS = (x) => JSON.parse(JSON.stringify(x));
+  const loadSnap = (name) => JSON.parse(fs.readFileSync(`src/creature/fixtures/${name}.snapshot.json`, 'utf8'));
+  const subjects = {
+    A: A.snapshot, B: byId.B.snapshot, C: byId.C.snapshot, D: byId.D.snapshot, E: byId.E.snapshot, veg: byId.veg.snapshot,
+    P: loadSnap('P'), mia: loadSnap('criatura-20261011-1623'),
+  };
+  // Sintéticas: un solo pie (salta) y demasiado pesada (inmóvil).
+  const hopSnap = cloneS(A.snapshot);
+  hopSnap.pieces = hopSnap.pieces.filter((p) => p.id !== 'palito-fxA4');
+  hopSnap.links = hopSnap.links.filter((l) => l.childId !== 'palito-fxA4');
+  const heavySnap = cloneS(A.snapshot);
+  heavySnap.pieces.find((p) => p.id === heavySnap.coreId).shape.radius *= 3;
+  subjects.salto = hopSnap;
+  subjects.pesada = heavySnap;
+  const an = Object.fromEntries(Object.entries(subjects).map(([k, v]) => [k, interpret(v)]));
+  const plans = Object.fromEntries(Object.entries(an).map(([k, v]) => [k, SIM.makeSimPlan(v)]));
+  // Recorrido de prueba: derecha, parar, izquierda (con vuelta), parar.
+  const script = (f) => ({ move: f < 150 ? 1 : f < 200 ? 0 : f < 380 ? -1 : 0 });
+  const FRAMES = 420;
+  const runs = Object.fromEntries(Object.keys(an).map((k) => [k, SIM.runSim(plans[k], FRAMES, script)]));
+  const posesOf = (k) => runs[k].map((st) => SIM.poseCreature(an[k], plans[k], st));
+
+  ok(an.mia.locomotion.mode === 'drag', 'mi criatura (criatura-20261011-1623) se arrastra');
+  ok(an.D.locomotion.mode === 'roll' && an.D.actions.every((x) => !['jab', 'estocada', 'golpe-alto', 'barrida', 'mazazo'].includes(x.kind)), 'D rueda y casi no golpea (solo la rodada)');
+  ok(an.salto.locomotion.mode === 'hop' && an.pesada.locomotion.mode === 'immobile', 'las sintéticas: un pie salta, la pesada es inmóvil');
+
+  for (const k of Object.keys(an)) {
+    ok(plans[k].mode === an[k].locomotion.mode && plans[k].speed === an[k].locomotion.speed, `${k}: el plan toma modo (${plans[k].mode}) y velocidad del análisis`);
+    // Determinista: misma entrada, misma salida (estados y poses idénticos).
+    const again = SIM.runSim(plans[k], FRAMES, script);
+    ok(JSON.stringify(runs[k]) === JSON.stringify(again), `${k}: la simulación es determinista`);
+    ok(runs[k].every((st) => Number.isFinite(st.x) && Number.isFinite(st.vx) && Number.isFinite(st.h) && Number.isFinite(st.phase) && Number.isFinite(st.angle)), `${k}: todos los estados son números finitos`);
+    ok(runs[k][150].x !== 0 && runs[k][FRAMES].x !== runs[k][150].x, `${k}: se desplazó en la corrida (derecha y después izquierda)`);
+    const pa = posesOf(k);
+    ok(JSON.stringify(pa) === JSON.stringify(runs[k].map((st) => SIM.poseCreature(an[k], plans[k], st))), `${k}: la animación es determinista`);
+    // El piso no se atraviesa, y lo más bajo lo toca cuando está apoyada.
+    ok(pa.every((p) => p.lowest >= -1e-9), `${k}: el piso no se atraviesa en ningún cuadro`);
+    ok(pa.every((p, i) => (runs[k][i].h > 0 ? Math.abs(p.lowest - runs[k][i].h) < 1e-9 : Math.abs(p.lowest) < 1e-9)), `${k}: apoyada toca el piso; en el aire flota a su altura`);
+    // Ninguna extremidad sale de su rango de movilidad.
+    const out = pa.flatMap((p) => p.limbs).filter((l) => l.angleDeg < l.minDeg - 1e-9 || l.angleDeg > l.maxDeg + 1e-9);
+    ok(out.length === 0, `${k}: ninguna extremidad sale de su rango (${an[k].limbs.length} extremidades, ${pa.length} cuadros)`);
+    // Se mueve: de pie ni anda ni gira.
+    const idle = SIM.runSim(plans[k], 60, () => ({ move: 0 }));
+    ok(idle.every((st) => st.x === 0 && st.phase === 0), `${k}: sin entrada no se mueve`);
+  }
+
+  // La velocidad coincide con la del análisis.
+  for (const k of Object.keys(an)) {
+    if (plans[k].mode === 'hop') continue;
+    const right = SIM.runSim(plans[k], 200, () => ({ move: plans[k].facing }));
+    const vmax = Math.max(...right.map((st) => Math.abs(st.vx)));
+    near(vmax, an[k].locomotion.speed, 1e-12, `${k}: la velocidad máxima es la del análisis (${(an[k].locomotion.speed * 1000).toFixed(2)} mm/s)`);
+    const last = right[right.length - 1];
+    near(Math.abs(last.vx), an[k].locomotion.speed, 1e-9, `${k}: llega a la velocidad del análisis y la mantiene`);
+  }
+  {
+    // Saltito: la velocidad MEDIA de ciclos completos es la del análisis; sube a la altura calculada y vuelve.
+    const k = 'salto';
+    const cyc = plans[k].airFrames + plans[k].pauseFrames;
+    const hopRun = SIM.runSim(plans[k], cyc * 10 + 1, () => ({ move: plans[k].facing }));
+    const first = hopRun.findIndex((st) => st.air);
+    const a0 = hopRun[first - 1];
+    const a1 = hopRun[first - 1 + cyc * 8];
+    near((a1.x - a0.x) / (cyc * 8 * smCfg.dt), an[k].locomotion.speed, an[k].locomotion.speed * 1e-6, 'salto: la velocidad media de ocho ciclos es la del análisis');
+    near(Math.max(...hopRun.map((st) => st.h)), an[k].locomotion.jump, an[k].locomotion.jump * 0.02, 'salto: llega a la altura del análisis');
+    ok(hopRun.every((st) => st.h >= 0) && hopRun.some((st) => st.air) && hopRun.some((st) => !st.air && st.frame > first), 'salto: despega, cae y se queda en el piso entre saltos');
+  }
+  {
+    // Rodar: avanza sin deslizar (ángulo = distancia / radio) y D no frena enseguida.
+    const rr = runs.D;
+    const st = SIM.runSim(plans.D, 100, () => ({ move: 1 }));
+    const lastS = st[st.length - 1];
+    near(-lastS.angle * plans.D.rollRadius, lastS.x, 1e-9, 'D: rueda sin deslizar (ángulo × radio = distancia)');
+    const coast = SIM.runSim(plans.D, 30, (f) => ({ move: f < 1 ? 1 : 0 }), st[st.length - 1]);
+    ok(Math.abs(coast[coast.length - 1].vx) > 0.5 * Math.abs(lastS.vx), 'D: casi no frena (a los 0,5 s sigue con más de la mitad de la velocidad)');
+    ok(rr.some((s2) => s2.angle !== 0), 'D: gira en la corrida de prueba');
+  }
+
+  // Solo tocan el piso los apoyos.
+  for (const k of ['A', 'veg', 'salto']) {
+    const pa = posesOf(k);
+    const feet = new Set(an[k].support.feet);
+    const bad = pa.filter((p, i) => runs[k][i].h === 0 && p.contacts.some((c) => c !== 'core' && !feet.has(c)));
+    ok(bad.length === 0 && pa.some((p) => p.contacts.some((c) => feet.has(c))), `${k}: en cada cuadro solo tocan el piso las extremidades de apoyo (${[...feet].length} pies)`);
+  }
+  for (const k of ['B', 'C', 'E', 'P', 'mia']) {
+    // Sin apoyos: el cuerpo toca el piso y ninguna extremidad NUEVA lo toca al girar (las que ya lo tocan en reposo, sí).
+    const pa = posesOf(k);
+    const rest = new Set(SIM.poseCreature(an[k], plans[k], SIM.createSimState(plans[k])).contacts);
+    ok(pa.every((p) => p.contacts.every((c) => rest.has(c))), `${k}: ninguna extremidad nueva llega al piso al andar (en reposo toca: ${[...rest].join(', ')})`);
+  }
+  {
+    // Dar vuelta: parada lo que dura su giro, después mira para el otro lado y se mueve a la velocidad del análisis.
+    const k = 'A';
+    const left = SIM.runSim(plans[k], 60, () => ({ move: -plans[k].facing }));
+    const flipAt = left.findIndex((st) => st.facing !== plans[k].facing);
+    ok(flipAt > 0 && left[flipAt - 1].turnTimer > 0 && left.slice(0, flipAt).every((st) => st.x === 0), 'A: al invertir el sentido se queda parada mientras da la vuelta');
+    near(flipAt * smCfg.dt, plans[k].turnLock, 2 * smCfg.dt, `A: la vuelta tarda lo que dice su giro (${plans[k].turnLock.toFixed(2)} s)`);
+    ok(Math.abs(left[left.length - 1].vx) > 0 && Math.sign(left[left.length - 1].vx) === -plans[k].facing, 'A: después de la vuelta camina hacia el otro lado');
+    // El espejo: la pose mirando al otro lado es el reflejo exacto (en reposo).
+    const r0 = SIM.poseCreature(an[k], plans[k], SIM.createSimState(plans[k]));
+    const r1 = SIM.poseCreature(an[k], plans[k], { ...SIM.createSimState(plans[k]), facing: -plans[k].facing });
+    const bx = (p) => idx.bounds2D(p.shapes);
+    near(bx(r1).min[0], -bx(r0).max[0], 1e-9, 'A: mirando al otro lado la pose es el espejo');
+    near(bx(r1).max[0], -bx(r0).min[0], 1e-9, 'A: …en los dos bordes');
+  }
+  ok(an.pesada.locomotion.speed === idx.CREATURE_CONFIG.locomotion.immobileSpeed && runs.pesada.every((st) => Math.abs(st.vx) <= idx.CREATURE_CONFIG.locomotion.immobileSpeed + 1e-12), 'la pesada casi no se mueve (velocidad de inmóvil)');
+  near(Math.max(...runs.mia.map((st) => Math.abs(st.vx))), an.mia.locomotion.speed, 1e-12, 'mi criatura se arrastra a la velocidad del análisis');
+  ok(Math.max(...posesOf('mia').map((p) => p.lowest)) < 1e-9, 'mi criatura arrastrada queda apoyada en el piso (no flota)');
+
   // @@TESTS@@
 } finally {
   await server.close();

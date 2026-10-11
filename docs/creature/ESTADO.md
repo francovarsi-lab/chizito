@@ -1,6 +1,6 @@
 # Estado del intérprete de criaturas
 
-Se actualiza en cada tanda. Última actualización: decisión sobre extremidades fuera del arco (quedan sin golpe). Rama `claude/creature-interpreter`.
+Se actualiza en cada tanda. Última actualización: MVP 1, tandas 1 y 2 (simulación cinemática y animación). Rama `claude/creature-interpreter`.
 
 ## Decisiones vigentes
 - Contrato estable: `CreatureSnapshot` (JSON puro). El intérprete (`src/creature/`) no importa three.js ni el juego; solo `resolve/` toca three.js.
@@ -61,6 +61,15 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 ## Decisiones vigentes (masa y ramas)
 - La masa del palito de la selva la manda el intérprete: 1,1 g (densidad 550 × volumen medido del modelo). El chat 3D declara 2,3 g: queda pendiente de definir con el chat de mecánicas; no bloquea.
 - `main` no comparte historia con estas ramas (se reconstruyó desde el zip del usuario): el merge está pendiente de decisión con el chat 3D (reemplazar `main` o `--allow-unrelated-histories`). No bloquea el trabajo del intérprete.
+
+## MVP 1 — locomoción adaptativa (tandas 1 y 2: hechas, esperando OK)
+- `src/creature/sim/` (solo archivos nuevos; sin dependencias ni Matter.js; todos los números nuevos en `config.sim`):
+  `plan.ts` (`makeSimPlan`: toma modo, velocidad, salto, freno y giro del análisis), `step.ts` (`stepSim`, `runSim`: núcleo cinemático puro a 60 Hz), `pose.ts` (`poseCreature`: animación por rangos de movilidad), `types.ts`.
+- Reglas: camina/arrastra/rueda/inmóvil aceleran a la velocidad del análisis (`accelTime`), frenan con su freno (`stopTime / freno`) y al invertir el sentido se quedan paradas `turnTime / giro`; saltito = pausa en el piso + parábola de `hopAirTime` (la velocidad MEDIA es la del análisis; g = 8h/T²); rodar = ángulo = distancia / radio (sin deslizar). `h` = altura del punto más bajo (salto o caída); el piso no se atraviesa.
+- Animación: cada extremidad gira como mucho `swingFraction` de su rango, hacia el límite que corresponda (nunca lo supera). Con apoyos, el cuerpo se apoya en el punto más bajo de los pies (alternan al caminar) y las demás se recortan para quedar en el aire; sin apoyos se apoya en lo que ya toca el piso en reposo (cuerpo y/o una extremidad, que no gira) y ninguna otra llega al piso al andar. Mi criatura (palito de la selva) y P quedan apoyadas en esa extremidad: está por debajo del umbral de apoyo del MVP 0 (`supportMinDown`), no la convierto en pie.
+- Pruebas (en `creature-test.mjs`, sección MVP 1; fixtures A–E, vegetal, P, mi criatura y dos sintéticas: un pie = salta, pesada = inmóvil): determinista (estados y poses idénticos), velocidad máxima = la del análisis (saltito: media de ocho ciclos), piso no atravesado y lo más bajo lo toca, ninguna extremidad fuera de rango, solo tocan el piso los apoyos (A, vegetal, saltito), D rueda sin deslizar y casi no frena, mi criatura se arrastra. Sin números sueltos en `sim/`.
+- Imagen: `docs/creature/animacion.png` (`node scripts/creature-sim-strip.mjs`): un ciclo de A, vegetal, A con un pie, B, mi criatura y D. Fixture de mi criatura: `src/creature/fixtures/criatura-20261011-1623.snapshot.json` (`node scripts/creature-snapshot.mjs <archivo> <salida>`).
+- Límites conocidos: la animación es 2D sobre el perfil (una extremidad "en profundidad" gira su proyección corta); no hay combate ni colisión con un rival (tanda 3).
 
 ## Pendientes por chat
 - HECHO por el chat 3D (merge 14e1663): frente por defecto −Y / arriba +X en el cargador, `MAX_STROKES` aplicado en el juego, `src/config.ts` importa `MAX_PIECES` de `limits.ts` (una sola fuente del 40).

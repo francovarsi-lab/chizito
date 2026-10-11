@@ -165,6 +165,29 @@ export const CREATURE_CONFIG = {
     curlReduction: 0.25,
   },
 
+  /** Simulación cinemática y animación (MVP 1): todo lo que el simulador necesita, además de lo que ya calcula el análisis. */
+  sim: {
+    /** Paso fijo (s): 60 Hz. */
+    dt: 1 / 60,
+    /** Tiempo (s) en alcanzar la velocidad del análisis desde parado. */
+    accelTime: 0.15,
+    /** Tiempo (s) en frenar con freno 1 (con freno 0,1 tarda diez veces más). */
+    stopTime: 0.12,
+    /** Tiempo (s) de giro de 180° con giro 1 (con giro 0,2 tarda cinco veces más): parado mientras da la vuelta. */
+    turnTime: 0.2,
+    /** Saltito: tiempo (s) en el aire y tiempo (s) quieto en el piso entre saltos (la velocidad media es la del análisis). */
+    hopAirTime: 0.3,
+    hopPause: 0.1,
+    /** Zancada = este múltiplo del largo medio de las extremidades de apoyo (o de todas, o del ancho si no hay). */
+    strideRatio: 1,
+    /** Qué fracción de su rango de giro usa cada extremidad al andar (0..1). */
+    swingFraction: 0.8,
+    /** Una pieza "toca el piso" si su punto más bajo está a menos de esta distancia (m). */
+    contactTol: 0.0005,
+    /** Pasos de bisección al recortar el giro de una extremidad que atravesaría el piso. */
+    clampSteps: 16,
+  },
+
   /** Resolver (tanda 7): rayos contra las mallas reales. */
   resolve: {
     /** Largo (m) de los rayos de cuerda: más que cualquier pieza. */
