@@ -1,6 +1,6 @@
 # Estado del intérprete de criaturas
 
-Se actualiza en cada tanda. Última actualización: tanda 9 (activación `?creature`, merge de la rama 3D). Rama `claude/creature-interpreter`.
+Se actualiza en cada tanda. Última actualización: perfiles de palito de la selva y chupetín; estocada en profundidad. Rama `claude/creature-interpreter`.
 
 ## Decisiones vigentes
 - Contrato estable: `CreatureSnapshot` (JSON puro). El intérprete (`src/creature/`) no importa three.js ni el juego; solo `resolve/` toca three.js.
@@ -34,11 +34,16 @@ Se actualiza en cada tanda. Última actualización: tanda 9 (activación `?creat
 - Ambas son valores de juego a calibrar, no medidas físicas. Cambiar una no debe tocar la otra.
 
 ## Densidades (kg/m³, `config.ts`)
-chizito 250 (× 0,85 por grumoso) · palito 550 · escarbadientes 600 · papita 350 · nacho 500 · aceituna 1000 · ketchup 0 · desconocido 400.
-`palito-selva` y `chupetin` caen en 400 y no tienen perfil: son decorativos por tipo desconocido.
+chizito 250 (× 0,85 por grumoso) · palito 550 · palito-selva 550 · chupetín (palito) 550 · caramelo del chupetín 1300 · escarbadientes 600 · papita 350 · nacho 500 · aceituna 1000 · ketchup 0 · desconocido 400.
+Palito de la selva: vara, medida de la malla real (Ø ≈ 7,6 mm × 4,35 cm, ≈ 1,1 g; el chat 3D declara 2,3 g con 1,25 g/cm³: no coincide, se usó la densidad pedida).
+Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5,3 cm) y `<id>~caramelo` (bola Ø ≈ 21 mm, soldada a la cola como un chizito ensartado): da una MAZA (≈ 6,6 g). `ROD_STRUCTURE` en `profiles.ts`.
+
+## Golpes en profundidad
+- Una vara en profundidad con largo ≥ `longRodMin` y poca inclinación vertical es ESTOCADA (antes jab): mismo criterio que las normales (`classifyStrike`).
+- Criatura de demostración `P` (7 palitos clavados desde la cara, todos en profundidad; `scripts/make-fixtures.mjs`, no entra en las hojas ni en las pruebas de las seis): capacidad de golpe 0,09–0,17 (< `minRole` 0,3) → solo embestida.
+- PENDIENTE de decisión: que el apiñamiento solo penalice a las vecinas del mismo tipo de golpe. Probado, NO commiteado: D sigue rodando (freno 0,1, sin golpes; su capacidad máxima sube de 0,171 a 0,243, aún < 0,3), P pasa a barrida + golpe alto, pero B cambia (suma golpe alto y su estocada duplica el daño, 4,6 → 9,1).
 
 ## Pendientes por chat
 - HECHO por el chat 3D (merge 14e1663): frente por defecto −Y / arriba +X en el cargador, `MAX_STROKES` aplicado en el juego, `src/config.ts` importa `MAX_PIECES` de `limits.ts` (una sola fuente del 40).
-- Chat 3D: informar forma y masa de `palito-selva` y `chupetin`.
 - Un test falla si `src/config.ts` deja de importar `MAX_PIECES` o pone un número distinto.
 - Este chat: tanda 9 cerrada, espera OK. Las fixtures se regeneraron tras el merge (el chizito de la rama 3D cambió su porosidad: los puntos de entrada se movieron < 0,1 mm).
