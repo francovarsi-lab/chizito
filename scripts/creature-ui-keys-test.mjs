@@ -17,7 +17,6 @@ const ok = (c, msg) => { if (!c) bad++; console.log(`${c ? 'OK ' : 'FALLA'} ${ms
 
 await page.waitForFunction(() => !!window.__creature, null, { timeout: 120000 });
 await page.evaluate(() => { window.__panel = window.__creature; });
-});
 const count = () => page.evaluate(() => window.__panel.state().snapshot.pieces.length);
 const tinted = () => page.evaluate(() => window.__panel.highlighter.tinted?.length ?? -1);
 

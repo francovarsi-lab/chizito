@@ -13,6 +13,7 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto('http://localhost:5173/?capture&creature');
 await page.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
 
+let offFailed = false;
 // Con el flag apagado la app es la de siempre: ni panel ni controlador ni el módulo del intérprete.
 {
   const off = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -24,7 +25,7 @@ await page.waitForFunction(() => document.body.dataset.ready || document.body.da
   const st = await off.evaluate(() => ({ panel: !!document.getElementById('cs-panel'), ctl: !!window.__creature, err: document.body.dataset.error ?? null }));
   const offOk = !st.panel && !st.ctl && !st.err && !loaded.some((u) => /creature\/(install|ui)/.test(u));
   console.log(`${offOk ? 'OK ' : 'FALLA'} sin ?creature: sin panel, sin controlador y sin cargar el intérprete`);
-  if (!offOk) process.exitCode = 1;
+  if (!offOk) offFailed = true;
   await off.close();
 }
 let bad = 0;
@@ -32,7 +33,6 @@ const ok = (c, msg) => { if (!c) bad++; console.log(`${c ? 'OK ' : 'FALLA'} ${ms
 
 await page.waitForFunction(() => !!window.__creature, null, { timeout: 120000 });
 await page.evaluate(() => { window.__panel = window.__creature; });
-});
 const snap = async (name) => {
   const data = await page.evaluate(() => window.__chizito.renderFrames(6));
   await page.screenshot({ path: `${out}/panel-${name}.png` });
@@ -95,4 +95,4 @@ await snap('E-avisos');
 
 console.log(errors.length ? 'errores de página: ' + [...new Set(errors)].slice(0, 5).join(' | ') : 'sin errores de página');
 await browser.close();
-process.exit(bad ? 1 : 0);
+process.exit(bad || offFailed ? 1 : 0);
