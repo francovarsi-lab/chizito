@@ -27,19 +27,19 @@ export const PROBER_CREATURES: ProberCreature[] = [
   { id: LIVE_ID, label: 'La del juego (la que cargues con Ctrl+O)' },
 ];
 
-const CSS = `
+const css = (w: number, h: number): string => `
 #cs-prober-btn{position:fixed;left:12px;bottom:12px;z-index:41;border:0;border-radius:18px;padding:7px 14px;background:#7a4b00;color:#fff;font:600 12px system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(60,40,20,.3)}
-#cs-prober{contain:layout paint style;will-change:transform;position:fixed;left:12px;bottom:12px;z-index:41;background:rgba(255,253,247,.97);border-radius:14px;box-shadow:0 6px 28px rgba(60,40,20,.32);font:12px/1.35 system-ui,sans-serif;color:#2b2b2b;overflow:hidden}
+#cs-prober{contain:layout paint style;will-change:transform;position:fixed;width:${w}px;left:12px;bottom:12px;z-index:41;background:rgba(255,253,247,.97);border-radius:14px;box-shadow:0 6px 28px rgba(60,40,20,.32);font:12px/1.35 system-ui,sans-serif;color:#2b2b2b;overflow:hidden}
 #cs-prober[hidden]{display:none}
 #cs-prober .cp-head{display:flex;align-items:center;gap:8px;padding:8px 12px}
 #cs-prober .cp-head b{letter-spacing:.06em;color:#7a4b00}
 #cs-prober select{flex:1;padding:4px 6px;border-radius:8px;border:1px solid #d9c9a4;background:#fff;font:inherit}
 #cs-prober .cp-fps{min-width:62px;text-align:right;color:#666}
 #cs-prober .cp-x{border:0;background:#f1e6cf;border-radius:8px;width:24px;height:22px;cursor:pointer}
-#cs-prober canvas{display:block}
+#cs-prober canvas{display:block;width:${w}px;height:${h}px}
 #cs-prober .cp-hud{padding:6px 12px 2px;font-weight:600}
 #cs-prober .cp-hud div{margin:1px 0}
-#cs-prober .cp-keys{padding:2px 12px 8px;color:#666;font-size:11px}
+#cs-prober .cp-keys{padding:2px 12px 8px;box-sizing:border-box;color:#666;font-size:11px}
 #cs-prober .cp-pads{display:flex;gap:8px;padding:0 12px 10px}
 #cs-prober .cp-pads button{flex:1;padding:7px;border:0;border-radius:9px;font:700 12px system-ui,sans-serif;cursor:pointer;color:#fff;user-select:none}
 #cs-prober .cp-atk{background:#e57373}
@@ -89,7 +89,7 @@ export function mountProber(deps: { panel: PanelController; host?: HTMLElement; 
   if (!document.getElementById('cp-style')) {
     const st = document.createElement('style');
     st.id = 'cp-style';
-    st.textContent = CSS;
+    st.textContent = css(pc.width, pc.height);
     document.head.appendChild(st);
   }
   const btn = document.createElement('button');

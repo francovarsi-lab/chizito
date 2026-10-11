@@ -1,6 +1,6 @@
 # Estado del intérprete de criaturas
 
-Se actualiza en cada tanda. Última actualización: MVP 1, tandas 1 y 2 (simulación cinemática y animación). Rama `claude/creature-interpreter`.
+Se actualiza en cada tanda. Última actualización: MVP 1, tandas 3 y 5 (combate y probador en el panel); la 4 queda para después. Rama `claude/creature-interpreter`.
 
 ## Decisiones vigentes
 - Contrato estable: `CreatureSnapshot` (JSON puro). El intérprete (`src/creature/`) no importa three.js ni el juego; solo `resolve/` toca three.js.
@@ -75,6 +75,14 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 - `sim/combat.ts`: una acción a la vez con las tres fases del análisis (arranque, activo, recuperación; cuadros EXACTOS de `AttackAction`), guardia que sube en `guardFrames`, golpe mantenido (`holdFrames`) y sin pelea en el aire. Mientras pelea, guarda o carga no camina (frena con su freno: D sigue rodando un rato). Entradas: ataque solo → jab / embestida / rodada; → + ataque → estocada; ↑ + ataque → golpe alto; ↓ + ataque → barrida; ataque mantenido → mazazo (la misma asignación del análisis).
 - Caja de golpe activa = `attackHitbox` del análisis en cada cuadro activo, llevada al mundo (lado, posición, altura): `pose.hitbox`. La extremidad recorre su arco (reposo → arranque → arco → reposo) sin salir de su rango; si el piso la frena, el dibujo se recorta y la caja sigue siendo la del análisis. La que guarda sube hacia el frente (`swingArc.to`); sin extremidad que guarde, el cuerpo se encoge (`curlScale`). El cuerpo se apoya como en reposo: pegar o guardar no lo hace saltar.
 - Pruebas: cuadros y cajas iguales a los del análisis en A–E, vegetal, P, mi criatura y la pesada; una acción a la vez; cada entrada da su acción; guardia; sin pelea en el aire.
+
+## MVP 1 — tanda 5 (probador en el panel)
+- Abrir: `?creature&probador` (arranca abierto) o `?creature` y el botón "▶ Probador" abajo a la izquierda. Código: `ui/prober.ts` (ventana, teclado, selector, bucle fijo a 60 Hz), `ui/proberDraw.ts` (piso con perspectiva lateral, criatura posada, contactos, caja de golpe, aro de guardia), `ui/proberHud.ts` (cartel, testeable en Node). Medidas en `config.prober`. `window.__prober` expone `select`, `advance`, `benchmark`, `fps`.
+- Teclas (figuran en pantalla): ← → moverse; Z ataque (↑ + Z golpe alto, ↓ + Z barrida, → + Z estocada, mantener Z mazazo); X defensa. También hay dos botones con el mouse. Mientras está abierto, sus teclas no llegan al juego (Ctrl/Alt/Meta sí pasan: Ctrl+Z sigue deshaciendo).
+- Selector: A–E, vegetal, P, S8 (un solo pie: salta), F40 (40 extremidades), `criatura-20261011-1623` y "La del juego" (la que cargues con Ctrl+O: sigue lo que el panel interpreta). Elegir una la carga en el juego.
+- Cartel: modo de movimiento, velocidad del análisis y la de ahora, golpe en curso con su fase y cuadros (`estocada ← extremidad 3 · ACTIVO 1/6 · 13+6+17 cuadros · daño 7,9`), defensa.
+- fps (Chromium sin GPU, WebGL por software): simular + posar + dibujar 40 extremidades cuesta ≈ 0,15–0,3 ms por cuadro (más de 3.000 fps posibles); el bucle real con el panel y el juego presentes da ≈ 40 fps de promedio (mín. ≈ 31) en esa prueba y hasta 60 en pruebas aisladas: la composición por software de este entorno es el límite, no el código. Panel y probador usan `contain` + `will-change` (el `backdrop-filter` del panel se sacó: costaba ≈ 1 fps en software). Verificar los 60 en una máquina con GPU con el contador de fps de la ventana.
+- Con el flag apagado la app es idéntica (el módulo ni se descarga: test en `creature-ui-test.mjs`).
 
 ## Pendientes por chat
 - HECHO por el chat 3D (merge 14e1663): frente por defecto −Y / arriba +X en el cargador, `MAX_STROKES` aplicado en el juego, `src/config.ts` importa `MAX_PIECES` de `limits.ts` (una sola fuente del 40).
