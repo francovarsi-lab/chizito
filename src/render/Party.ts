@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../util/noise';
+import { ROOM } from './Room';
 
 /**
  * Decoración de cumpleaños para el plano general de la intro (y que se intuya de fondo): guirnaldas de
@@ -19,11 +20,15 @@ export function buildParty(): Party {
   const animated: ((t: number) => void)[] = [];
   const rnd = mulberry32(2024);
 
-  // ── Guirnaldas de banderines (cuelgan en catenaria detrás de la mesa) ──
+  // ── Guirnaldas de banderines: clavadas con chinches en la pared del fondo, cuelgan en catenaria
+  //    pegadas a la pared (unos centímetros delante). ──
+  const wz = ROOM.backZ + 0.02;
   const garlands: [THREE.Vector3, THREE.Vector3, number][] = [
-    [new THREE.Vector3(-0.95, 0.66, -1.05), new THREE.Vector3(0.95, 0.62, -1.05), 0.16],
-    [new THREE.Vector3(-0.7, 0.52, -1.32), new THREE.Vector3(0.8, 0.56, -1.32), 0.12],
+    [new THREE.Vector3(-1.05, 0.98, wz), new THREE.Vector3(1.05, 0.94, wz), 0.22],
+    [new THREE.Vector3(-0.75, 0.74, wz + 0.01), new THREE.Vector3(0.85, 0.78, wz + 0.01), 0.15],
   ];
+  const pinMat = new THREE.MeshPhysicalMaterial({ color: '#e8476a', roughness: 0.3, clearcoat: 0.8 });
+  const pinGeo = new THREE.SphereGeometry(0.009, 16, 12);
   const stringMat = new THREE.MeshStandardMaterial({ color: '#f4ede4', roughness: 0.8 });
   const flagMats = PASTEL.map((c) => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.6, sheen: 0.4, side: THREE.DoubleSide }));
   const flagGeo = new THREE.BufferGeometry();
@@ -38,6 +43,13 @@ export function buildParty(): Party {
     }
     const curve = new THREE.CatmullRomCurve3(pts);
     group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 80, 0.0018, 6), stringMat));
+    // Chinches en la pared, donde está atado el hilo.
+    for (const end of [a, b]) {
+      const pin = new THREE.Mesh(pinGeo, pinMat);
+      pin.scale.set(1, 1, 0.55);
+      pin.position.set(end.x, end.y, ROOM.backZ + 0.005);
+      group.add(pin);
+    }
     const n = Math.round(curve.getLength() / 0.075);
     for (let i = 1; i < n; i++) {
       const t = i / n;
@@ -52,7 +64,8 @@ export function buildParty(): Party {
       group.add(pivot);
       const ph = rnd() * 6;
       animated.push((time) => {
-        flag.rotation.x = Math.sin(time * 1.4 + ph + i * 0.35) * 0.12;
+        // Se mece apenas y sólo hacia adelante (atrás está la pared).
+        flag.rotation.x = -(0.5 + 0.5 * Math.sin(time * 1.4 + ph + i * 0.35)) * 0.1;
       });
     }
   });
@@ -61,17 +74,21 @@ export function buildParty(): Party {
   const knotGeo = new THREE.ConeGeometry(0.006, 0.01, 10);
   const balloonGeo = new THREE.SphereGeometry(1, 32, 24);
   balloonGeo.scale(1, 1.18, 1);
-  const clusters: [number, number, number][] = [
-    [-0.72, -0.85, 3],
-    [0.78, -0.95, 3],
+  // Dos racimos atados a las esquinas del fondo de la mesa, con los globos separados entre sí (la
+  // distancia entre centros siempre supera la suma de los radios, aun cuando flotan).
+  const clusters: { base: THREE.Vector3; tops: [number, number, number][] }[] = [
+    { base: new THREE.Vector3(-0.78, 0, -1.08), tops: [[-0.93, 0.42, -1.12], [-0.79, 0.55, -1.16], [-0.65, 0.41, -1.08]] },
+    { base: new THREE.Vector3(0.8, 0, -1.08), tops: [[0.66, 0.43, -1.1], [0.8, 0.56, -1.15], [0.94, 0.42, -1.07]] },
   ];
-  for (const [cx, cz, count] of clusters) {
-    for (let i = 0; i < count; i++) {
-      const color = PASTEL[Math.floor(rnd() * PASTEL.length)];
+  const colorsLeft = [PASTEL[2], PASTEL[1], PASTEL[0]];
+  const colorsRight = [PASTEL[4], PASTEL[3], PASTEL[0]];
+  clusters.forEach(({ base: knotAt, tops }, ci) => {
+    tops.forEach((tp, i) => {
+      const color = (ci === 0 ? colorsLeft : colorsRight)[i];
       const mat = new THREE.MeshPhysicalMaterial({ color, roughness: 0.25, clearcoat: 0.9, clearcoatRoughness: 0.1, sheen: 0.3 });
-      const r = 0.055 + rnd() * 0.015;
-      const base = new THREE.Vector3(cx + (rnd() - 0.5) * 0.04, 0, cz + (rnd() - 0.5) * 0.04);
-      const top = new THREE.Vector3(cx + (i - 1) * 0.075 + (rnd() - 0.5) * 0.02, 0.36 + rnd() * 0.16, cz + (rnd() - 0.5) * 0.08);
+      const r = 0.058 + rnd() * 0.006;
+      const base = knotAt.clone().add(new THREE.Vector3((i - 1) * 0.01, 0, 0));
+      const top = new THREE.Vector3(...tp);
       const balloon = new THREE.Mesh(balloonGeo, mat);
       balloon.scale.setScalar(r);
       const knot = new THREE.Mesh(knotGeo, mat);
@@ -85,17 +102,17 @@ export function buildParty(): Party {
       const ph = rnd() * 6;
       const p = new THREE.Vector3();
       animated.push((time) => {
-        p.copy(top).add(new THREE.Vector3(Math.sin(time * 0.6 + ph) * 0.01, Math.sin(time * 0.9 + ph) * 0.008, 0));
+        p.copy(top).add(new THREE.Vector3(Math.sin(time * 0.6 + ph) * 0.006, Math.sin(time * 0.9 + ph) * 0.006, 0));
         holder.position.copy(p);
-        holder.rotation.z = Math.sin(time * 0.7 + ph) * 0.06;
+        holder.rotation.z = Math.sin(time * 0.7 + ph) * 0.05;
         // Hilo desde la mesa hasta el nudo, con una leve curva.
         const end = p.clone().add(new THREE.Vector3(0, -r * 1.18 - 0.008, 0));
-        const mid = base.clone().lerp(end, 0.5).add(new THREE.Vector3(0.015 * Math.sin(time + ph), 0, 0));
+        const mid = base.clone().lerp(end, 0.5).add(new THREE.Vector3(0.01 * Math.sin(time + ph), 0, 0));
         string.geometry.dispose();
         string.geometry = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(base, mid, end), 16, 0.0009, 4);
       });
-    }
-  }
+    });
+  });
 
   // ── Torta con velitas ──
   const cake = new THREE.Group();

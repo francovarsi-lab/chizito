@@ -73,9 +73,10 @@ export const CONFIG = {
    * Ajuste de color final: suave y luminoso. `lift` levanta las sombras con un tono cálido pastel
    * (negros lavados, como una foto de revista de repostería).
    */
-  look: { saturation: 0.1, brightness: 0.0, contrast: -0.015, lift: [0.022, 0.014, 0.018] as [number, number, number] },
+  // Más contraste que el look pastel original (el chizito se perdía entre los pasteles).
+  look: { saturation: 0.16, brightness: 0.0, contrast: 0.07, lift: [0.008, 0.005, 0.006] as [number, number, number] },
   /** Brillo suave alrededor de las zonas claras (sueño, no neón). */
-  bloom: { intensity: 0.16, threshold: 0.86, smoothing: 0.25, radius: 0.7 },
+  bloom: { intensity: 0.1, threshold: 0.9, smoothing: 0.25, radius: 0.7 },
   pixelRatioMax: 1.5,
   /** Criaturas: tope de piezas clavadas (los trazos de ketchup no cuentan). */
   creature: {

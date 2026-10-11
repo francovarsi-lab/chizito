@@ -164,7 +164,7 @@ async function main() {
   };
 
   // ── Intro: plano general de la mesa con el título; un clic o una tecla viaja hasta el chizito. ──
-  const INTRO_SHOT = { position: new THREE.Vector3(-0.13, 0.34, 0.98), target: new THREE.Vector3(0.04, 0.2, -0.6), focalLength: 28 };
+  const INTRO_SHOT = { position: new THREE.Vector3(-0.08, 0.64, 1.22), target: new THREE.Vector3(0.03, 0.14, -0.55), focalLength: 26 };
   let title: Title | null = null;
   let started = false;
   const startIntro = () => {
@@ -172,7 +172,7 @@ async function main() {
     rig.startIntro(INTRO_SHOT);
     document.getElementById('help')?.classList.add('hidden');
     const style = (params.get('titulo') ?? 'arcade') as TitleStyle;
-    title = new Title('Cumpleañitos', 'hombrecito de chizito', ['arcade', 'globo', 'neon'].includes(style) ? style : 'arcade');
+    title = new Title('CUMPLEAÑITO', '', ['arcade', 'globo', 'neon'].includes(style) ? style : 'arcade');
   };
   const startGame = () => {
     if (started) return;

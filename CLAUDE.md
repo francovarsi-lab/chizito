@@ -15,8 +15,10 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   `node scripts/one.mjs "<query>" out.png` saca una sola captura. Query de depuración: `noao`, `tm=agx`, `seed=N`.
 
 ## Dirección visual (actualizada con referencias del usuario)
-- Prioridad: que se vea LINDO, SUAVE y divertido, no hiperrealismo a toda costa. Paleta pastel: mantel rosado
-  pastel con confeti pastel, paredes rubor, madera clara, recipientes menta/lavanda/celeste, limonada en vez de cola.
+- Prioridad: que se vea LINDO, SUAVE y divertido, no hiperrealismo a toda costa, pero CON CONTRASTE: el chizito
+  amarillo se perdía entre pasteles, así que el mantel es CELESTE (#86c9e3) con confeti, las paredes lisas de un
+  durazno claro (#f7dcd2), piso de madera clara; recipientes menta/lavanda/celeste, limonada en vez de cola.
+  `look`: saturación 0,16, contraste +0,07, lift casi nulo, bloom 0,1 (umbral 0,9).
 - Luz envolvente y suave (sol 2,7 + entorno 1,15), sombra de contacto amplia, bloom leve (umbral alto), contraste
   apenas bajo y sombras levantadas con tono cálido (`look.lift`), viñeta y grano mínimos. Ojo: si el lift o el
   bloom suben mucho la imagen queda lechosa/neblinosa.
@@ -66,8 +68,12 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   foto (mezcla de color por z en pantalla, sin transparencia). `offsetY` alinea la mesa de la foto con la 3D.
 - Sombra del chizito: `ContactShadow` (silueta de las piezas héroe vista desde la luz, desenfocada y proyectada sobre
   la mesa). El chizito y lo clavado están en `HERO_LAYER` y NO proyectan la sombra dura del sol.
-- Fondo: mesa de madera con mantel de cumpleaños de plástico rosado pastel con confeti; la mesa es grande para que su borde lejano
-  no entre en cuadro. Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
+- Habitación real y simple (`render/Room.ts`, medidas lógicas): mesa de cumpleaños 1,9 × 1,5 m (x ±0,95, z −1,2…+0,3)
+  con patas y el mantel cayendo 30 cm por los cuatro lados, piso a −0,75 m, pared del fondo a z −1,85, paredes
+  laterales a x ±1,7, techo a 1,6 m, zócalo blanco. Paredes LISAS; las guirnaldas cuelgan de chinches clavadas en la
+  pared del fondo (catenaria a 2 cm de la pared, los banderines se mecen sólo hacia adelante). Globos: dos racimos
+  de tres atados a las esquinas del fondo de la mesa, separados (distancia entre centros > suma de radios). La
+  tapa y el mantel de arriba siguen visibles con foto de fondo; el resto está en `farProps`. Palitos parados en un vasito descartable blanco a la derecha (detrás del chizito, levemente desenfocado; clic en
   el vaso = un palito). Bowl de cerámica blanca con papitas abajo a la izquierda.
   Tira de recipientes chicos al frente (mismo lenguaje: cerámica blanca y vasito descartable): nachos, aceitunas,
   vasito de escarbadientes, vasito de espaditas y platito con sobrecitos de ketchup (genéricos, sin marca).
@@ -182,10 +188,10 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   de ketchup (el 31 no arranca, con aviso; el cargador descarta los de más con aviso).
 
 ## Intro
-- Al abrir: plano general de la mesita de cumpleaños (`CameraRig.startIntro`, deriva lenta) con guirnaldas de
-  banderines, globos atados a la mesa, torta con velitas y serpentinas (`render/Party.ts`, animado; dentro de
-  `farProps`) y el título "Cumpleañitos" (`ui/Title.ts` + CSS `#title` en index.html) con confeti y "tocá para
-  empezar". Clic o tecla → el título salta y se va, la cámara viaja en curva (3,2 s, ease in-out) hasta la pose de
+- Al abrir: plano general de la habitación (`CameraRig.startIntro`, lente de 26 mm desde (−0,08; 0,64; 1,22), deriva
+  lenta) con guirnaldas, globos, torta con velitas y serpentinas (`render/Party.ts`, animado; dentro de `farProps`) y
+  el título "CUMPLEAÑITO" (sin S y sin subtítulo; `ui/Title.ts` + CSS `#title` en index.html) con confeti y "tocá
+  para empezar". Clic o tecla → el título salta y se va, la cámara viaja en curva (3,2 s, ease in-out) hasta la pose de
   juego, recién ahí se habilita el juego (`interaction.enabled`), el chizito salta y se muestra el frente.
 - Estética del título en exploración (el usuario está en proceso creativo: "arcade pero no 8 bits"): tres estilos
   comparables con `?titulo=arcade` (Bungee, caramelo con borde blanco y relieve; por defecto) | `globo` (Baloo 2
@@ -217,6 +223,13 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
   guardar/cargar/autoguardar (`Persistence.ts`).
 - `interaction/attach.ts`: modos de conexión ('pierce', 'tail', 'paint') y `poseFromData`: la pose de cada pieza se
   deriva de punto de clavado + dirección + profundidad + giro (la misma cuenta que `Aim.pose`). `tailFrame` también vive acá.
+
+## Deploy
+- GitHub Pages desde `main` (`.github/workflows/deploy.yml`, igual al de `main`). `vite.config.ts`: `base` = `/chizito/`
+  sólo en el build; en `npm run dev` queda `/`. Los archivos opcionales se piden con `import.meta.env.BASE_URL`.
+- OJO al mergear: esta rama NO comparte historia con `main` (se reconstruyó desde el zip del usuario); un merge
+  común falla por "unrelated histories". Hay que decidir cómo integrarla (p. ej. reemplazar `main` por esta rama, o
+  `--allow-unrelated-histories` resolviendo conflictos) antes de hacerlo.
 
 ## Contrato con el intérprete de combate (rama `claude/creature-interpreter`)
 - **AVISAR ANTES** de cambiar el formato `CreatureFileV1` (campos, semántica, versión) o la orientación inicial del
