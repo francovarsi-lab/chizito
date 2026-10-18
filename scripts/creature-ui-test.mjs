@@ -96,6 +96,39 @@ for (const [id, want] of [['S2', ['fuera del arco (160°)', 'ejecuta: estocada']
   await page.evaluate(() => window.__panel.loadCreature('A'));
 }
 
+// El giro de 180° entra al historial: Ctrl+Z lo revierte (el frente del dato y el panel), Ctrl+Y y Ctrl+Shift+Z lo rehacen.
+{
+  const read = () => page.evaluate(() => { const st = window.__panel.state(); return { front: window.__chizito.construction.front.toArray().map((v) => Math.round(v)), facing: st.analysis.profile2D.facing, texts: st.model.limbs.map((l) => l.strike.text), pieces: st.snapshot.pieces.length, hasPanelBtn: document.querySelector('button[data-facing="-1"]').classList.contains('on') }; });
+  const settle = () => page.waitForTimeout(600);
+  await page.evaluate(() => window.__panel.loadCreature('S2'));
+  const s0 = await read();
+  await page.click('button[data-facing="-1"]');
+  const s1 = await read();
+  await page.keyboard.press('Control+z');
+  await settle();
+  const s2 = await read();
+  await page.keyboard.press('Control+y');
+  await settle();
+  const s3 = await read();
+  await page.keyboard.press('Control+z');
+  await settle();
+  const s4 = await read();
+  await page.keyboard.press('Control+Shift+z');
+  await settle();
+  const s5 = await read();
+  ok(s0.front.join() === '0,-1,0' && s1.front.join() === '0,1,0' && s1.facing === -1, `girar: el frente del dato pasa de ${s0.front} a ${s1.front}`);
+  ok(s2.front.join() === '0,-1,0' && s2.facing === 1 && s2.pieces === s0.pieces && JSON.stringify(s2.texts) === JSON.stringify(s0.texts) && s2.hasPanelBtn === s0.hasPanelBtn, `Ctrl+Z revierte el giro: frente ${s2.front}, el panel vuelve a "${s2.texts.join(' | ')}" y la criatura sigue cargada`);
+  ok(s3.front.join() === '0,1,0' && s3.facing === -1 && JSON.stringify(s3.texts) === JSON.stringify(s1.texts), `Ctrl+Y rehace el giro: frente ${s3.front}, panel "${s3.texts.join(' | ')}"`);
+  ok(s4.front.join() === '0,-1,0' && s5.front.join() === '0,1,0' && s5.facing === -1 && JSON.stringify(s5.texts) === JSON.stringify(s1.texts), `Ctrl+Z y Ctrl+Shift+Z también deshacen y rehacen el giro (frente ${s4.front} → ${s5.front})`);
+  // Apretar el botón que ya está activo no deja un paso vacío en el historial.
+  await page.click('button[data-facing="-1"]');
+  await page.keyboard.press('Control+z');
+  await settle();
+  const s6 = await read();
+  ok(s6.front.join() === '0,-1,0' && s6.pieces === s0.pieces, 'apretar el giro cuando ya está girado no agrega un paso vacío: un Ctrl+Z revierte el giro real');
+  await page.evaluate(() => window.__panel.loadCreature('A'));
+}
+
 // Regresión del panel (botones, selector, tooltips, scroll) tras los cambios de CSS (contain, will-change, sin backdrop-filter).
 {
   const R = await page.evaluate(() => { const b = document.querySelector('.cs-min'); return { title: b?.getAttribute('title') ?? '', collapsedBefore: document.getElementById('cs-panel').classList.contains('cs-min-collapsed') }; });

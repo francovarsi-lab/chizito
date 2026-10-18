@@ -12,7 +12,8 @@ import { renderProfileSvg } from './profileSvg';
 /** Lo que el panel necesita del juego (todo ya existe: `__chizito.construction`, `.interaction`, `.persistence`). */
 export interface PanelDeps {
   construction: Construction;
-  interaction: { onChange: (() => void) | null };
+  /** `snapshot()` y `commands.record()` son los del juego: el giro de 180° entra al historial como cualquier edición. */
+  interaction: { onChange: (() => void) | null; snapshot(): unknown; commands: { record(label: string, before: unknown, after: unknown): void } };
   persistence: { loadText(text: string, record?: boolean): string[] };
   pieces: PieceRegistry;
   host?: HTMLElement;
@@ -131,12 +132,15 @@ export function mountCreaturePanel(deps: PanelDeps): PanelController {
       compute(force);
     },
     // El giro de 180° cambia el frente del DATO (`Construction.front`, lo que Ctrl+S guarda en `creature.front`) y avisa como cualquier
-    // cambio de la criatura (autoguardado y recálculo): el panel, el probador y el combate leen la misma fuente.
+    // cambio de la criatura (autoguardado y recálculo): el panel, el probador y el combate leen la misma fuente. Entra al historial
+    // (Ctrl+Z lo revierte, Ctrl+Y / Ctrl+Shift+Z lo rehacen): el juego ignora un registro que no cambia nada (mismo frente).
     setFacing(f) {
       const d = CREATURE_CONFIG.orientation.defaultFront;
       const u = CREATURE_CONFIG.orientation.defaultUp;
+      const before = deps.interaction.snapshot();
       deps.construction.front.set(d[0] * f, d[1] * f, d[2] * f);
       deps.construction.up.set(u[0], u[1], u[2]);
+      deps.interaction.commands.record('girar 180°', before, deps.interaction.snapshot());
       deps.interaction.onChange?.();
       compute(true);
     },
