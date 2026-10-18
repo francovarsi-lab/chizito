@@ -1,5 +1,6 @@
 import type { Construction } from '../../model/Construction';
 import type { PieceRegistry } from '../../pieces/PieceRegistry';
+import { CREATURE_CONFIG } from '../config';
 import { interpret } from '../interpret';
 import { resolveSnapshot } from '../resolve';
 import type { CreatureAnalysis, CreatureSnapshot } from '../types';
@@ -53,7 +54,14 @@ export interface PanelController {
 
 /** Firma barata de la construcción para no recalcular si no cambió nada. */
 function signature(c: Construction): string {
-  return JSON.stringify(c.list().map((d) => [d.id, d.parentId, d.type, d.depth, d.spin, d.entryPoint, d.direction, d.mount ?? '', d.params ? JSON.stringify(d.params).length : 0]));
+  const front = [...c.front.toArray(), ...c.up.toArray()].join(',');
+  return front + '|' + JSON.stringify(c.list().map((d) => [d.id, d.parentId, d.type, d.depth, d.spin, d.entryPoint, d.direction, d.mount ?? '', d.params ? JSON.stringify(d.params).length : 0]));
+}
+
+/** De qué lado de la pantalla queda el frente de combate: 1 = a la derecha (el de fábrica, −Y), −1 = el giro de 180° (+Y). */
+function sideOf(front: readonly [number, number, number]): 1 | -1 {
+  const d = CREATURE_CONFIG.orientation.defaultFront;
+  return front[0] * d[0] + front[1] * d[1] + front[2] * d[2] >= 0 ? 1 : -1;
 }
 
 /**
@@ -91,11 +99,13 @@ export function mountCreaturePanel(deps: PanelDeps): PanelController {
   };
 
   const compute = (force = false) => {
-    const sig = `${signature(deps.construction)}|${facing}`;
+    const sig = signature(deps.construction);
     if (!force && sig === lastSig && last) return;
     lastSig = sig;
     const t0 = performance.now();
-    const snapshot = resolveSnapshot({ construction: deps.construction, pieces: deps.pieces });
+    // El frente de combate es DATO de la criatura (`Construction.front`, el `creature.front` del archivo): el lado sale de ahí.
+    const snapshot = resolveSnapshot({ construction: deps.construction, pieces: deps.pieces, orientation: 'construction' });
+    facing = sideOf(snapshot.orientation.front);
     const analysis = interpret(snapshot, { facing });
     const model = buildPanelModel(snapshot, analysis);
     last = { snapshot, analysis, model, facing, ms: performance.now() - t0, hover };
@@ -120,8 +130,14 @@ export function mountCreaturePanel(deps: PanelDeps): PanelController {
       window.clearTimeout(timer);
       compute(force);
     },
+    // El giro de 180° cambia el frente del DATO (`Construction.front`, lo que Ctrl+S guarda en `creature.front`) y avisa como cualquier
+    // cambio de la criatura (autoguardado y recálculo): el panel, el probador y el combate leen la misma fuente.
     setFacing(f) {
-      facing = f;
+      const d = CREATURE_CONFIG.orientation.defaultFront;
+      const u = CREATURE_CONFIG.orientation.defaultUp;
+      deps.construction.front.set(d[0] * f, d[1] * f, d[2] * f);
+      deps.construction.up.set(u[0], u[1], u[2]);
+      deps.interaction.onChange?.();
       compute(true);
     },
     async loadCreature(id) {

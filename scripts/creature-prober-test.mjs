@@ -83,6 +83,30 @@ await hold('ArrowRight', 200);
 await snap('D-rueda');
 ok(await P(() => window.__prober.state().sim.angle !== 0), 'D: rueda (el ángulo cambia)');
 
+// El giro de 180° del panel cambia el dato y el probador (y el combate) lo siguen: S2 pelea con el otro brazo y mira hacia el otro lado.
+{
+  await P(() => window.__prober.select('S2'));
+  const rd = () => P(() => { window.__prober.advance(1, { move: 0 }); const s = window.__prober.state(); const act = s.analysis.actions.find((x) => x.kind === 'estocada'); return { facing: s.plan.facing, limb: act?.limbId ?? '' }; });
+  const strikeSide = async () => {
+    await P(() => window.__prober.advance(30, { move: 0 }));
+    const side = await P(() => {
+      const p = window.__prober; const x0 = p.state().sim.x;
+      p.advance(1, { move: p.state().plan.facing, attack: true }); p.advance(1, { move: p.state().plan.facing, attack: false });
+      for (let i = 0; i < 60; i++) { p.advance(1, { move: 0 }); if (p.state().sim.combat.phase === 'active') break; }
+      const hb = p.state().pose.hitbox; return hb ? Math.sign(hb.center[0] - p.state().sim.x) : 0;
+    });
+    return side;
+  };
+  const a0 = await rd();
+  const side0 = await strikeSide();
+  await page.click('button[data-facing="-1"]');
+  const a1 = await rd();
+  const side1 = await strikeSide();
+  ok(a0.facing === 1 && a1.facing === -1 && a0.limb !== a1.limb && a0.limb.length > 0, `el probador sigue al giro: la estocada pasa de ${a0.limb.slice(-9)} a ${a1.limb.slice(-9)} y mira de ${a0.facing} a ${a1.facing}`);
+  ok(side0 === 1 && side1 === -1, `la caja de golpe sale hacia adelante en los dos lados (${side0 > 0 ? 'derecha' : 'izquierda'} → ${side1 > 0 ? 'derecha' : 'izquierda'})`);
+  await page.click('button[data-facing="1"]');
+}
+
 // Ctrl+Z sigue llegando al juego con el probador abierto (sus teclas no se la roban).
 await P(() => window.__prober.select('A'));
 const n0 = await P(() => window.__creature.state().snapshot.pieces.length);

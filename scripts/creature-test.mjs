@@ -853,6 +853,28 @@ try {
     }
   }
 
+  section('una acción por tipo: el desempate');
+  {
+    // Dos extremidades con la MISMA capacidad de golpe y distinta masa dan el mismo tipo de golpe: actúa la más liviana,
+    // sin importar el orden; con distinta capacidad gana la de más capacidad aunque pese más.
+    const ctxMod = await load('/src/creature/analyze/context.ts');
+    const ctx = ctxMod.buildContext(A.snapshot);
+    const base = full.A.limbs.find((l) => l.id.includes('palito-fxA3')); // el brazo que apunta al frente: estocada
+    const mk = (id, mass, strike = base.caps.strike) => ({ ...JSON.parse(JSON.stringify(base)), id, mass, caps: { ...JSON.parse(JSON.stringify(base.caps)), strike } });
+    const light = mk('limb:liviana', 0.0001);
+    const heavy = mk('limb:pesada', 0.0004);
+    ok(light.caps.strike === heavy.caps.strike && light.mass < heavy.mass, 'caso de prueba: igual capacidad de golpe, la pesada pesa 4 veces más');
+    for (const [name, order] of [['liviana primero', [light, heavy]], ['pesada primero', [heavy, light]]]) {
+      const acts = idx.computeActions(ctx, order, 'walk').filter((x) => x.kind === 'estocada');
+      ok(acts.length === 1 && acts[0].limbId === 'limb:liviana', `a igual capacidad actúa la más liviana (${name}: ${acts.map((x) => x.limbId).join(',')})`);
+      const lightFirst = full.A.actions.length > 0 && acts[0].damage > 0;
+      ok(lightFirst, `${name}: la acción tiene daño y cuadros del análisis`);
+    }
+    const strong = mk('limb:fuerte', 0.0004, base.caps.strike + 0.1);
+    const acts2 = idx.computeActions(ctx, [light, strong], 'walk').filter((x) => x.kind === 'estocada');
+    ok(acts2.length === 1 && acts2[0].limbId === 'limb:fuerte', 'con distinta capacidad gana la de más capacidad, aunque pese más');
+  }
+
   section('masa sin doble conteo y campos por extremidad');
   for (const c of built) {
     const a = full[c.id];

@@ -64,6 +64,38 @@ for (const [id, want] of [['S2', ['fuera del arco (160°)', 'ejecuta: estocada']
   await snap(id);
 }
 
+// El giro de 180° cambia el DATO (Construction.front = creature.front): S2 deja el brazo trasero al frente, igual que si el frente viene del archivo.
+{
+  const read = () => page.evaluate(() => {
+    const st = window.__panel.state();
+    return { front: window.__chizito.construction.front.toArray().map((v) => Math.round(v)), texts: st.model.limbs.map((l) => l.strike.text), angles: st.analysis.limbs.map((l) => Math.round(l.profile.angleDeg)), facing: st.analysis.profile2D.facing, saved: JSON.parse(window.__chizito.persistence.toJSON()).creature.front.direction.map((v) => Math.round(v)) };
+  });
+  await page.evaluate(() => window.__panel.loadCreature('S2'));
+  const before = await read();
+  await page.click('button[data-facing="-1"]');
+  const after = await read();
+  ok(before.front.join() === '0,-1,0' && after.front.join() === '0,1,0' && after.saved.join() === '0,1,0', `el giro cambia el frente del dato: Construction.front ${before.front} → ${after.front} y el archivo guarda ${after.saved}`);
+  ok(before.angles[0] > 140 && /^fuera del arco/.test(before.texts[0]) && before.texts[1] === 'ejecuta: estocada' && before.facing === 1, `S2 antes: brazo 1 a ${before.angles[0]}° ("${before.texts[0]}"), brazo 2 "${before.texts[1]}"`);
+  ok(after.angles[0] < 40 && after.texts[0] === 'ejecuta: estocada' && after.angles[1] > 140 && /^fuera del arco/.test(after.texts[1]) && after.facing === -1, `S2 tras el giro: brazo 1 a ${after.angles[0]}° con "${after.texts[0]}", brazo 2 "${after.texts[1]}"`);
+  // Igual que cuando el frente viene del archivo (creature.front = +Y).
+  const fromFile = await page.evaluate(async () => {
+    const t = JSON.parse(await (await fetch('/assets/creatures/S2.json')).text());
+    t.creature.front.direction = [0, 1, 0];
+    window.__panel.loadCreature('A');
+    return JSON.stringify(t);
+  });
+  await page.waitForTimeout(300);
+  await page.evaluate((txt) => { window.__chizito.persistence.loadText(txt, false); window.__panel.refresh(true); }, fromFile);
+  const file = await read();
+  ok(JSON.stringify({ ...file, saved: 0 }) === JSON.stringify({ ...after, saved: 0 }), `con el frente +Y venido del archivo el panel da lo mismo que tras el giro (${file.texts.join(' | ')})`);
+  await page.evaluate(() => window.__panel.loadCreature('S2'));
+  await page.click('button[data-facing="-1"]');
+  await page.click('button[data-facing="1"]');
+  const back = await read();
+  ok(back.front.join() === '0,-1,0' && back.facing === 1 && back.texts[1] === 'ejecuta: estocada', 'volver al frente de fábrica deja el dato y el análisis como al principio');
+  await page.evaluate(() => window.__panel.loadCreature('A'));
+}
+
 // Regresión del panel (botones, selector, tooltips, scroll) tras los cambios de CSS (contain, will-change, sin backdrop-filter).
 {
   const R = await page.evaluate(() => { const b = document.querySelector('.cs-min'); return { title: b?.getAttribute('title') ?? '', collapsedBefore: document.getElementById('cs-panel').classList.contains('cs-min-collapsed') }; });
