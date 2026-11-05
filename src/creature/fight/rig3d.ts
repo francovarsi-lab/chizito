@@ -1,14 +1,7 @@
 import * as THREE from 'three';
-import { Construction } from '../../model/Construction';
-import { CHIZITO } from '../../pieces/definitions';
-import type { PieceRegistry } from '../../pieces/PieceRegistry';
-import type { AssetRegistry } from '../../assets/AssetRegistry';
-import { poseFromData } from '../../interaction/attach';
-import { fromCreatureFile } from '../../persistence/CreatureFile';
-import { markHero } from '../../render/ContactShadow';
+import type { Construction } from '../../model/Construction';
 import { CREATURE_CONFIG } from '../config';
 import { makeBasis } from '../math/basis';
-import { ownMeshes } from '../resolve/measure';
 import type { Pose, SimPlan, SimState } from '../sim';
 import type { CreatureAnalysis } from '../types';
 
@@ -61,7 +54,7 @@ export function applyRig(r: Rig3D, plan: SimPlan, st: SimState, pose: Pose, z0: 
   const yaw = (flip: boolean) => new THREE.Matrix4().makeRotationY(flip ? Math.PI : 0);
   const guard = cfg.sim.guardFrames > 0 ? st.combat.guard / cfg.sim.guardFrames : 0;
   const curl = plan.defense.kind === 'curl' && guard > 0 ? 1 - (1 - cfg.sim.curlScale) * guard : 1;
-  const m = T(st.x, pose.lift, z0);
+  const m = T(pose.x, pose.lift, z0);
   // Orden = el de `poseCreature.place`: encoger, dar vuelta, rodar, y recién ahí trasladar.
   const roll = plan.mode === 'roll' ? T(C.x, C.y).multiply(new THREE.Matrix4().makeRotationZ(st.angle)).multiply(T(-C.x, -C.y)) : new THREE.Matrix4();
   const shrink = T(C.x, C.y).multiply(new THREE.Matrix4().makeScale(curl, curl, curl)).multiply(T(-C.x, -C.y));
@@ -93,60 +86,4 @@ export function resetRig(r: Rig3D): void {
   r.pivot.quaternion.copy(r.home.quaternion);
   r.pivot.scale.copy(r.home.scale);
   for (const l of r.limbs) l.rest.decompose(l.obj.position, l.obj.quaternion, l.obj.scale);
-}
-
-export interface Enemy {
-  construction: Construction;
-  pivot: THREE.Group;
-  dispose(): void;
-}
-
-/** Arma el rival con las MISMAS piezas y mallas del constructor (un segundo chizito con sus palitos) a partir de un archivo de criatura. */
-export function buildEnemy(scene: THREE.Scene, assets: AssetRegistry, pieces: PieceRegistry, text: string): Enemy {
-  const { snapshot } = fromCreatureFile(JSON.parse(text), pieces);
-  const pivot = new THREE.Group();
-  pivot.name = 'rival';
-  const root = assets.create(CHIZITO.type, snapshot.rootSeed, 'hero');
-  markHero(root);
-  pivot.add(root);
-  scene.add(pivot);
-  const c = new Construction(CHIZITO.type, snapshot.rootSeed, pivot);
-  c.front.fromArray(snapshot.front).normalize();
-  c.up.fromArray(snapshot.up).normalize();
-  const list = snapshot.pieces.map((p) => structuredClone(p));
-  c.restore(
-    list,
-    (d) => {
-      const o = assets.create(d.type, d.seed, 'hero', d.params);
-      markHero(o);
-      return o;
-    },
-    (d, parent) => poseFromData(d, pieces.get(d.type), parent),
-  );
-  return {
-    construction: c,
-    pivot,
-    dispose() {
-      pivot.removeFromParent();
-      pivot.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
-    },
-  };
-}
-
-/** Rival vegetal (proxy): cuerpo = brócoli, brazos = zanahoria, piernas = apio. Copias tintadas de los materiales (los originales son compartidos). */
-export function tintBroccoli(e: Enemy, an: CreatureAnalysis): void {
-  const paint = (id: string, hex: string, mix: number): void => {
-    const node = e.construction.get(id);
-    if (!node) return;
-    for (const m of ownMeshes(node)) {
-      const swap = (mat: THREE.Material): THREE.Material => {
-        const c = mat.clone() as THREE.MeshStandardMaterial;
-        if (c.color) c.color.lerp(new THREE.Color(hex), mix);
-        return c;
-      };
-      m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
-    }
-  };
-  paint('root', '#58c443', 0.9);
-  for (const l of an.limbs) for (const id of l.pieceIds) paint(id, l.dominant === 'support' ? '#8fd05a' : '#f58a24', 0.85);
 }

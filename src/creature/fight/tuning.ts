@@ -5,7 +5,7 @@ export const FIGHT = {
   /** Daño del análisis (adimensional) → puntos de vida. */
   damageScale: 2.5,
   /** El análisis camina a mm/s; en la pelea se multiplica para que el cruce no dure minutos. */
-  speedMul: 3,
+  speedMul: 7,
   /** m: mitad del ancho de la arena (la sombra de contacto cubre ±0,16 m alrededor del chizito). */
   arenaHalf: 0.125,
   /** m: separación inicial entre los centros. */

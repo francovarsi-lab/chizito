@@ -1,16 +1,17 @@
 import * as THREE from 'three';
-import type { AssetRegistry } from '../../assets/AssetRegistry';
-import type { PieceRegistry } from '../../pieces/PieceRegistry';
 import type { CameraRig } from '../../render/CameraRig';
 import type { Stage } from '../../render/Stage';
 import { CREATURE_CONFIG } from '../config';
 import { interpret } from '../interpret';
-import { resolveSnapshot } from '../resolve';
-import { poseCreature, type SimInput } from '../sim';
+import { poseCreature, type Pose, type SimInput } from '../sim';
+import vegRaw from '../fixtures/veg.snapshot.json?raw';
+import type { CreatureSnapshot } from '../types';
 import type { PanelController } from '../ui/mount';
 import { actionsHelp } from '../ui/proberHud';
 import { aiInput, newAi, type AiMem } from './ai';
-import { applyRig, buildEnemy, makeRig, resetRig, tintBroccoli, type Enemy, type Rig3D } from './rig3d';
+import { broccoliAnalysis } from './broccoliAnalysis';
+import { broccoliPoser, type Poser } from './broccoliRig';
+import { applyRig, makeRig, resetRig } from './rig3d';
 import { createFight, stepFight, type FightState } from './rules';
 import { FIGHT } from './tuning';
 
@@ -19,7 +20,6 @@ interface Game {
   stage: Stage;
   pivot: THREE.Group;
   rig: CameraRig;
-  assets: AssetRegistry;
   construction: import('../../model/Construction').Construction;
   interaction: { enabled: boolean };
 }
@@ -32,8 +32,8 @@ export interface FightController {
   /** Para pruebas: avanza `frames` pasos con la entrada del jugador dada (el rival juega con su IA). No dibuja: el juego renderiza. */
   advance(frames: number, input?: SimInput | ((frame: number) => SimInput)): void;
   restart(): void;
-  /** Las dos criaturas 3D (para las pruebas). */
-  rigs(): [Rig3D, Rig3D] | null;
+  /** Las dos criaturas 3D en escena (para las pruebas). */
+  posers(): [Poser, Poser] | null;
   destroy(): void;
 }
 
@@ -72,7 +72,7 @@ const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyZ',
  * La pelea en LA MISMA mesa donde se arma la criatura: la cámara pasa a una vista lateral fija y las dos criaturas (la tuya, con
  * todas sus piezas reales, y el rival vegetal armado con las mismas piezas) se mueven y pelean sobre el mantel. Botón "⚔ PELEAR".
  */
-export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry; host?: HTMLElement }): FightController {
+export function mountFight(deps: { panel: PanelController; host?: HTMLElement }): FightController {
   const host = deps.host ?? document.body;
   const st = document.createElement('style');
   st.textContent = css;
@@ -97,8 +97,10 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
   const cfg = CREATURE_CONFIG;
   let open = false;
   let state: FightState | null = null;
-  let rigs: [Rig3D, Rig3D] | null = null;
-  let enemy: Enemy | null = null;
+  let posers: [Poser, Poser] | null = null;
+  let prevPoses: [Pose, Pose] | null = null;
+  let curPoses: [Pose, Pose] | null = null;
+  let alpha = 1;
   let z0 = 0;
   let ai: AiMem = newAi(1);
   let hitstop = 0;
@@ -144,9 +146,22 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
     } else ko.style.display = 'none';
   };
 
+  /** La pose se mezcla entre el último paso y el anterior (la simulación va a 60 Hz; la pantalla puede ir a más): movimiento fluido. */
+  const blend = (a: Pose, b: Pose, t: number): Pose => ({
+    ...b,
+    x: a.x + (b.x - a.x) * t,
+    lift: a.lift + (b.lift - a.lift) * t,
+    limbs: b.limbs.map((l, k) => ({ ...l, deltaDeg: a.limbs[k] ? a.limbs[k].deltaDeg + (l.deltaDeg - a.limbs[k].deltaDeg) * t : l.deltaDeg })),
+  });
   const pose = (): void => {
-    if (!state || !rigs) return;
-    state.f.forEach((f, i) => applyRig(rigs![i], f.plan, f.sim, poseCreature(f.an, f.plan, f.sim, cfg), z0, cfg));
+    if (!state || !posers || !prevPoses || !curPoses) return;
+    state.f.forEach((f, i) => posers![i].apply(f.plan, f.sim, blend(prevPoses![i], curPoses![i], alpha), z0));
+  };
+  const capture = (): void => {
+    if (!state) return;
+    const now = state.f.map((f) => poseCreature(f.an, f.plan, f.sim, cfg)) as [Pose, Pose];
+    prevPoses = curPoses ?? now;
+    curPoses = now;
   };
 
   const burst = (x: number, y: number, blocked: boolean, damage: number): void => {
@@ -219,7 +234,7 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
       burst(e.at[0], e.at[1], e.blocked, e.damage);
       if (!e.blocked) hitstop = FIGHT.hitstop;
     }
-    pose();
+    capture();
     setHud();
   };
 
@@ -231,10 +246,13 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
   });
 
   const restart = (): void => {
-    if (!rigs) return;
-    state = createFight(rigs[0].an, rigs[1].an);
+    if (!posers) return;
+    state = createFight(posers[0].an, posers[1].an);
     ai = newAi(seed++);
     hitstop = 0;
+    curPoses = null;
+    capture();
+    alpha = 1;
     pose();
     setHud();
   };
@@ -252,6 +270,7 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
       if (hitstop > 0) hitstop--;
       else step(readInput());
     }
+    alpha = hitstop > 0 ? 1 : Math.min(1, acc / cfg.sim.dt);
     fx(dt);
     raf = requestAnimationFrame(frame);
   };
@@ -288,16 +307,13 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
       const g = game();
       const an = deps.panel.state()?.analysis;
       if (!an) return;
-      const text = await (await fetch(`${import.meta.env.BASE_URL}assets/creatures/veg.json`)).text();
-      enemy = buildEnemy(g.stage.scene, g.assets, deps.pieces, text);
-      const front = g.construction.front.clone();
-      const up = g.construction.up.clone();
       const facing = an.profile2D.facing;
-      const rivalSnap = resolveSnapshot({ construction: enemy.construction, pieces: deps.pieces, orientation: 'construction' });
-      const rivalAn = interpret(rivalSnap, { facing: (-facing) as 1 | -1 });
-      tintBroccoli(enemy, rivalAn);
+      const base = interpret(JSON.parse(vegRaw) as CreatureSnapshot, { facing: (-facing) as 1 | -1 });
+      const { an: rivalAn, ids } = broccoliAnalysis(base);
       z0 = g.pivot.position.z;
-      rigs = [makeRig(g.construction, g.pivot, an, front, up), makeRig(enemy.construction, enemy.pivot, rivalAn, enemy.construction.front, enemy.construction.up)];
+      const rig = makeRig(g.construction, g.pivot, an, g.construction.front.clone(), g.construction.up.clone());
+      const player: Poser = { an, apply: (plan, st, pose, z) => applyRig(rig, plan, st, pose, z, cfg), dispose: () => resetRig(rig) };
+      posers = [player, broccoliPoser(g.stage.scene, rivalAn, ids)];
       open = true;
       btn.hidden = true;
       root.hidden = false;
@@ -331,10 +347,9 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
       const g = game();
       if (patched) delete (g.stage as { render?: unknown }).render;
       patched = false;
-      if (rigs) rigs.forEach(resetRig);
-      enemy?.dispose();
-      enemy = null;
-      rigs = null;
+      posers?.forEach((p) => p.dispose());
+      posers = null;
+      prevPoses = curPoses = null;
       state = null;
       for (const s of sparks) s.m.removeFromParent();
       sparks.length = 0;
@@ -363,10 +378,12 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
         }
         step(typeof input === 'function' ? input(f) : (input ?? readInput()));
       }
+      alpha = 1;
+      pose();
       fx(frames / 60);
     },
     restart,
-    rigs: () => rigs,
+    posers: () => posers,
     destroy() {
       controller.close();
       window.clearInterval(poll);

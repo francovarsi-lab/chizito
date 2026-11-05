@@ -10,7 +10,25 @@ try {
   const { FIGHT } = await server.ssrLoadModule('/src/creature/fight/tuning.ts');
   const { aiInput, newAi } = await server.ssrLoadModule('/src/creature/fight/ai.ts');
   const snap = (id) => JSON.parse(fs.readFileSync(`src/creature/fixtures/${id}.snapshot.json`, 'utf8'));
-  const veg = interpret(snap('veg'), { facing: -1 });
+  const { broccoliAnalysis } = await server.ssrLoadModule('/src/creature/fight/broccoliAnalysis.ts');
+  const { makeSimPlan, createSimState, poseCreature } = await server.ssrLoadModule('/src/creature/sim/index.ts');
+  const veg = broccoliAnalysis(interpret(snap('veg'), { facing: -1 })).an;
+  // El brócoli (geometría del boceto): mide ≈ 8 cm, apoya en el piso y camina sin atravesarlo, para los dos lados.
+  for (const pf of [-1, 1]) {
+    const bro = broccoliAnalysis(interpret(snap('veg'), { facing: pf })).an;
+    const h = bro.profile2D.bounds.max[1] - bro.profile2D.bounds.min[1];
+    ok(h > 0.07 && h < 0.09, `brócoli (facing ${pf}) mide ${(h * 100).toFixed(1)} cm`);
+    const plan = makeSimPlan(bro);
+    let st = createSimState(plan);
+    let low = Infinity;
+    for (let f = 0; f < 240; f++) {
+      const { stepSim } = await server.ssrLoadModule('/src/creature/sim/step.ts');
+      st = stepSim(st, { move: plan.facing }, plan);
+      low = Math.min(low, poseCreature(bro, plan, st).lowest);
+    }
+    ok(low > -1e-6 && low < 1e-3, `brócoli (facing ${pf}) camina apoyado en el piso (punto más bajo ${low.toExponential(1)})`);
+    ok(bro.actions.some((a) => a.input === 'forward+attack'), `brócoli (facing ${pf}) conserva su estocada`);
+  }
   ok(veg.actions.length > 0, `el brócoli tiene golpes (${veg.actions.map((a) => a.kind)})`);
   for (const id of ['A', 'B', 'E', 'S2', 'S4']) {
     const player = interpret(snap(id), { facing: 1 });

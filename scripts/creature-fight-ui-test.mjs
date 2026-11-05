@@ -18,7 +18,7 @@ await page.evaluate((id) => window.__creature.loadCreature(id), id);
 await page.evaluate(() => document.body.classList.add('ready')); // quita el velo crema de la entrada
 await page.waitForTimeout(2000);
 // El canvas WebGL no sale en page.screenshot (headless): se guarda lo que devuelve renderFrames (la escena, sin el HUD).
-const shot = async (name, frames = 40) => { const d = await page.evaluate((n) => window.__chizito.renderFrames(n), frames); fs.writeFileSync(`${out}/pelea3d-${name}.png`, Buffer.from(d.split(',')[1], 'base64')); };
+const shot = async (name, frames = 25) => { const d = await page.evaluate((n) => window.__chizito.renderFrames(n), frames); fs.writeFileSync(`${out}/pelea3d-${name}.png`, Buffer.from(d.split(',')[1], 'base64')); };
 await shot('0-constructor');
 await page.evaluate(() => window.__fight.open());
 await page.waitForFunction(() => window.__fight.isOpen() && window.__fight.state(), null, { timeout: 60000 });
@@ -26,14 +26,14 @@ await page.evaluate(() => window.__fight.advance(80, { move: 0 }));
 await shot('1-inicio');
 // El cuerpo 3D tiene que caer donde dice la pose 2D (misma mesa, mismos ejes).
 const place = await page.evaluate(() => {
-  const f = window.__fight; const [r0] = f.rigs(); const s = f.state().f[0];
-  const T = window.__chizito.THREE; const b = new T.Box3().setFromObject(r0.construction.root.object);
+  const f = window.__fight; const s = f.state().f[0];
+  const T = window.__chizito.THREE; const b = new T.Box3().setFromObject(window.__chizito.construction.root.object);
   return { cx: (b.min.x + b.max.x) / 2, cy: (b.min.y + b.max.y) / 2, x: s.sim.x, miny: b.min.y };
 });
 console.log('cuerpo 3D', place);
 ok(Math.abs(place.cx - place.x) < 0.02, `el cuerpo 3D está en la x de la simulación (${place.cx.toFixed(3)} vs ${place.x.toFixed(3)})`);
 ok(place.miny > -0.005 && place.miny < 0.03, `apoyado sobre la mesa (y mínima ${place.miny.toFixed(4)})`);
-for (let i = 0; i < 6; i++) {
+for (let i = 0; i < 4; i++) {
   await page.evaluate(() => window.__fight.advance(70, (f) => ({ move: 1, attack: f % 40 > 33 })));
   await shot(`2-golpes-${i}`);
 }
