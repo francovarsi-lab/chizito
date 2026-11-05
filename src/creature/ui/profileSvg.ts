@@ -79,7 +79,7 @@ export function drawProfile(a: CreatureAnalysis, o: DrawOptions): string {
     const on = o.highlightLimbId === act.limbId;
     pts.forEach((h, i) => {
       const last = i === pts.length - 1;
-      out += `<circle cx="${f1(px(h.center[0]))}" cy="${f1(py(h.center[1]))}" r="${f1(h.r * S)}" fill="#e53935" fill-opacity="${last ? (on ? 0.55 : 0.35) : on ? 0.2 : 0.12}" stroke="#e53935" stroke-opacity="0.5" stroke-width="0.8"/>`;
+      out += `<circle cx="${f1(px(h.center[0]))}" cy="${f1(py(h.center[1]))}" r="${f1(h.r * S)}" fill="#ff3d2e" fill-opacity="${last ? (on ? 0.55 : 0.35) : on ? 0.2 : 0.12}" stroke="#ff3d2e" stroke-opacity="0.5" stroke-width="0.8"/>`;
     });
   }
   // Rodada / embestida: círculo alrededor del cuerpo.
@@ -87,7 +87,7 @@ export function drawProfile(a: CreatureAnalysis, o: DrawOptions): string {
     if (act.limbId) continue;
     const core = a.profile2D.groups[0].shapes[0];
     const c: V2 = core && core.kind === 'capsule' ? [(core.a[0] + core.b[0]) / 2, (core.a[1] + core.b[1]) / 2] : [0, ext.max[1] / 2];
-    out += `<circle cx="${f1(px(c[0]))}" cy="${f1(py(c[1]))}" r="${f1(act.hitRadius * S)}" fill="none" stroke="#e53935" stroke-dasharray="5 3" stroke-opacity="${act.kind === 'rodada' ? 0.8 : 0.35}"/>`;
+    out += `<circle cx="${f1(px(c[0]))}" cy="${f1(py(c[1]))}" r="${f1(act.hitRadius * S)}" fill="none" stroke="#ff3d2e" stroke-dasharray="5 3" stroke-opacity="${act.kind === 'rodada' ? 0.8 : 0.35}"/>`;
   }
   // Cajas de daño: cuerpo amarillo, extremidades por su rol; punteado = en profundidad.
   for (const g of a.profile2D.groups as HurtGroup[]) {

@@ -60,8 +60,8 @@ export function drawProber(ctx: Ctx, view: ProberView, a: CreatureAnalysis, plan
   let wall = wallCache.get(ctx);
   if (!wall || wall.key !== key) {
     const g = ctx.createLinearGradient(0, 0, 0, floorY);
-    g.addColorStop(0, '#fdeadf');
-    g.addColorStop(1, '#fff7ee');
+    g.addColorStop(0, '#9fdcff');
+    g.addColorStop(1, '#e9f7ff');
     wall = { key, g };
     wallCache.set(ctx, wall);
   }
@@ -109,7 +109,7 @@ export function drawProber(ctx: Ctx, view: ProberView, a: CreatureAnalysis, plan
     drawShapes(ctx, l.shapes, X, Y, scale, ROLE_COLOR[limb?.dominant ?? 'none'], pc.minStroke);
   }
   // Contactos con el piso.
-  ctx.fillStyle = '#e53935';
+  ctx.fillStyle = '#ff3d2e';
   for (const l of pose.limbs) {
     if (!l.contact) continue;
     let low: [number, number] | null = null;
@@ -132,7 +132,7 @@ export function drawProber(ctx: Ctx, view: ProberView, a: CreatureAnalysis, plan
   // Caja de golpe activa.
   if (pose.hitbox) {
     ctx.fillStyle = 'rgba(229, 57, 53, 0.35)';
-    ctx.strokeStyle = '#e53935';
+    ctx.strokeStyle = '#ff3d2e';
     ctx.lineWidth = pc.minStroke;
     ctx.beginPath();
     ctx.arc(X(pose.hitbox.center[0]), Y(pose.hitbox.center[1]), pose.hitbox.r * scale, 0, Math.PI * 2);

@@ -28,22 +28,22 @@ export const PROBER_CREATURES: ProberCreature[] = [
 ];
 
 const css = (w: number, h: number): string => `
-#cs-prober-btn{position:fixed;left:12px;bottom:12px;z-index:41;border:0;border-radius:18px;padding:7px 14px;background:#7a4b00;color:#fff;font:600 12px system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(60,40,20,.3)}
-#cs-prober{contain:layout paint style;will-change:transform;position:fixed;width:${w}px;left:12px;bottom:12px;z-index:41;background:rgba(255,253,247,.97);border-radius:14px;box-shadow:0 6px 28px rgba(60,40,20,.32);font:12px/1.35 system-ui,sans-serif;color:#2b2b2b;overflow:hidden}
+#cs-prober-btn{position:fixed;left:12px;bottom:12px;z-index:41;border:3px solid #1a0d08;border-radius:18px;padding:7px 14px;background:#ff3d2e;color:#fff;font:700 12px system-ui,sans-serif;cursor:pointer;box-shadow:3px 3px 0 #1a0d08}
+#cs-prober{contain:layout paint style;will-change:transform;position:fixed;width:${w}px;left:12px;bottom:12px;z-index:41;background:#fff6df;border:3px solid #1a0d08;border-radius:12px;box-shadow:6px 6px 0 #1a0d08;font:12px/1.35 system-ui,sans-serif;color:#2a1710;overflow:hidden}
 #cs-prober[hidden]{display:none}
 #cs-prober .cp-head{display:flex;align-items:center;gap:8px;padding:8px 12px}
-#cs-prober .cp-head b{letter-spacing:.06em;color:#7a4b00}
-#cs-prober select{flex:1;padding:4px 6px;border-radius:8px;border:1px solid #d9c9a4;background:#fff;font:inherit}
+#cs-prober .cp-head b{letter-spacing:.1em;color:#ff3d2e}
+#cs-prober select{flex:1;padding:4px 6px;border-radius:8px;border:2px solid #1a0d08;background:#fff;font:inherit}
 #cs-prober .cp-fps{min-width:62px;text-align:right;color:#666}
-#cs-prober .cp-x{border:0;background:#f1e6cf;border-radius:8px;width:24px;height:22px;cursor:pointer}
+#cs-prober .cp-x{border:2px solid #1a0d08;background:#ffd21f;border-radius:7px;width:26px;height:22px;cursor:pointer}
 #cs-prober canvas{display:block;width:${w}px;height:${h}px}
 #cs-prober .cp-hud{padding:6px 12px 2px;font-weight:600}
 #cs-prober .cp-hud div{margin:1px 0}
 #cs-prober .cp-keys{padding:2px 12px 8px;box-sizing:border-box;color:#666;font-size:11px}
 #cs-prober .cp-pads{display:flex;gap:8px;padding:0 12px 10px}
-#cs-prober .cp-pads button{flex:1;padding:7px;border:0;border-radius:9px;font:700 12px system-ui,sans-serif;cursor:pointer;color:#fff;user-select:none}
-#cs-prober .cp-atk{background:#e57373}
-#cs-prober .cp-grd{background:#64b5f6}
+#cs-prober .cp-pads button{flex:1;padding:7px;border:3px solid #1a0d08;border-radius:9px;box-shadow:2px 2px 0 #1a0d08;font:700 12px system-ui,sans-serif;cursor:pointer;color:#fff;user-select:none}
+#cs-prober .cp-atk{background:#ff3d2e}
+#cs-prober .cp-grd{background:#1e90ff}
 #cs-prober .cp-atk.on,#cs-prober .cp-grd.on{filter:brightness(.8)}
 `;
 
