@@ -7,6 +7,7 @@ const ok = (c, m) => { c ? pass++ : (fail++, console.log('  FALLA:', m)); };
 try {
   const { interpret } = await server.ssrLoadModule('/src/creature/interpret.ts');
   const { createFight, stepFight } = await server.ssrLoadModule('/src/creature/fight/rules.ts');
+  const { FIGHT } = await server.ssrLoadModule('/src/creature/fight/tuning.ts');
   const { aiInput, newAi } = await server.ssrLoadModule('/src/creature/fight/ai.ts');
   const snap = (id) => JSON.parse(fs.readFileSync(`src/creature/fixtures/${id}.snapshot.json`, 'utf8'));
   const veg = interpret(snap('veg'), { facing: -1 });
@@ -24,7 +25,7 @@ try {
     }
     console.log(`${id} vs brócoli: ${s.winner === null ? 'sin KO' : 'ganó ' + s.winner} a los ${(f / 60).toFixed(1)} s · golpes ${hits} (bloqueados ${blocked}) · vida ${s.f[0].hp.toFixed(0)} / ${s.f[1].hp.toFixed(0)}`);
     ok(hits > 0, `${id}: se pegan`);
-    ok(s.f.every((q) => q.hp >= 0 && Math.abs(q.sim.x) <= 0.19 + 1e-9), `${id}: vida ≥ 0 y dentro de la arena`);
+    ok(s.f.every((q) => q.hp >= 0 && Math.abs(q.sim.x) <= FIGHT.arenaHalf + 1e-9), `${id}: vida ≥ 0 y dentro de la arena`);
   }
   // Un golpe solo suma una vez por golpe, y la guardia levantada reduce el daño.
   const A = interpret(snap('A'), { facing: 1 });

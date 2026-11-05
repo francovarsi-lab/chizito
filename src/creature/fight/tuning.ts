@@ -6,10 +6,10 @@ export const FIGHT = {
   damageScale: 2.5,
   /** El análisis camina a mm/s; en la pelea se multiplica para que el cruce no dure minutos. */
   speedMul: 3,
-  /** m: mitad del ancho de la arena. */
-  arenaHalf: 0.19,
+  /** m: mitad del ancho de la arena (la sombra de contacto cubre ±0,16 m alrededor del chizito). */
+  arenaHalf: 0.125,
   /** m: separación inicial entre los centros. */
-  startGap: 0.2,
+  startGap: 0.17,
   /** Cuadros sin poder actuar al recibir un golpe (sin guardia). */
   hitstun: 20,
   /** Cuadros de pausa al impacto (da peso al golpe; lo aplica la pantalla). */

@@ -43,7 +43,7 @@ export async function installCreature(): Promise<PanelController> {
   const panel = mountCreaturePanel({ construction: game.construction, interaction: game.interaction, persistence: game.persistence, pieces });
   window.__creature = panel;
   // Probador (MVP 1): botón "▶ Probador" abajo a la izquierda; con `?creature&probador` arranca abierto.
-  window.__fight = mountFight({ panel });
+  window.__fight = mountFight({ panel, pieces });
   window.__prober = mountProber({ panel, startOpen: new URLSearchParams(location.search).has('probador') });
   return panel;
 }
