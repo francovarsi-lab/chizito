@@ -15,7 +15,8 @@ await page.goto('http://localhost:5173/?capture&creature');
 await page.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
 await page.waitForFunction(() => !!window.__fight && !!window.__creature, null, { timeout: 120000 });
 await page.evaluate((id) => window.__creature.loadCreature(id), id);
-await page.waitForTimeout(500);
+await page.evaluate(() => document.body.classList.add('ready')); // quita el velo crema de la entrada
+await page.waitForTimeout(2000);
 const shot = async (name, frames = 1) => { await page.evaluate((n) => window.__chizito.renderFrames(n), frames); await page.screenshot({ path: `${out}/pelea3d-${name}.png` }); };
 await shot('0-constructor');
 await page.evaluate(() => window.__fight.open());
