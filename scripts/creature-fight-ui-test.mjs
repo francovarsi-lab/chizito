@@ -18,7 +18,7 @@ await page.evaluate((id) => window.__creature.loadCreature(id), id);
 await page.evaluate(() => document.body.classList.add('ready')); // quita el velo crema de la entrada
 await page.waitForTimeout(2000);
 // El canvas WebGL no sale en page.screenshot (headless): se guarda lo que devuelve renderFrames (la escena, sin el HUD).
-const shot = async (name, frames = 1) => { const d = await page.evaluate((n) => window.__chizito.renderFrames(n), frames); fs.writeFileSync(`${out}/pelea3d-${name}.png`, Buffer.from(d.split(',')[1], 'base64')); };
+const shot = async (name, frames = 40) => { const d = await page.evaluate((n) => window.__chizito.renderFrames(n), frames); fs.writeFileSync(`${out}/pelea3d-${name}.png`, Buffer.from(d.split(',')[1], 'base64')); };
 await shot('0-constructor');
 await page.evaluate(() => window.__fight.open());
 await page.waitForFunction(() => window.__fight.isOpen() && window.__fight.state(), null, { timeout: 60000 });

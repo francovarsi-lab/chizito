@@ -112,6 +112,7 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
   let camBase = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
   let tween: { t: number; from: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number }; to: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number }; done?: () => void } | null = null;
   let shake = 0;
+  let patched = false;
   const sparks: { m: THREE.Mesh; v: THREE.Vector3; life: number }[] = [];
   const pops: { el: HTMLElement; p: THREE.Vector3; life: number }[] = [];
   const sparkGeo = new THREE.SphereGeometry(0.0013, 6, 6);
@@ -304,6 +305,14 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
       saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
       camBase = { pos: saved.pos.clone(), quat: saved.quat.clone() };
       g.interaction.enabled = false;
+      // El juego mueve el chizito en cada cuadro (sacudida, rotor): la pose de la pelea se aplica justo antes de dibujar.
+      const stage = g.stage;
+      const render = stage.render.bind(stage);
+      stage.render = (dt: number) => {
+        if (open) pose();
+        render(dt);
+      };
+      patched = true;
       startTween(fightCam());
       help.textContent = `← → moverse · Z atacar · X guardia · R revancha · Esc salir\nTus golpes: ${actionsHelp(an)}`;
       restart();
@@ -320,6 +329,8 @@ export function mountFight(deps: { panel: PanelController; pieces: PieceRegistry
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
       const g = game();
+      if (patched) delete (g.stage as { render?: unknown }).render;
+      patched = false;
       if (rigs) rigs.forEach(resetRig);
       enemy?.dispose();
       enemy = null;
