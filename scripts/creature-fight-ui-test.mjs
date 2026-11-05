@@ -1,0 +1,37 @@
+// Pelea en el juego real: abre ⚔ PELEAR, juega unos segundos y saca capturas. Uso: node scripts/creature-fight-ui-test.mjs [outDir] (con `npm run dev` corriendo)
+import { chromium } from 'playwright';
+import fs from 'node:fs';
+const out = process.argv[2] ?? 'docs/creature/capturas';
+fs.mkdirSync(out, { recursive: true });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push(e.message));
+page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+let bad = 0;
+const ok = (c, m) => { if (!c) bad++; console.log(`${c ? 'OK ' : 'FALLA'} ${m}`); };
+await page.goto('http://localhost:5173/?capture&creature');
+await page.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
+await page.waitForFunction(() => !!window.__fight, null, { timeout: 120000 });
+await page.evaluate(() => window.__creature.loadCreature('A'));
+await page.waitForTimeout(500);
+await page.click('#cf-btn');
+await page.waitForFunction(() => window.__fight.isOpen() && window.__fight.state(), null, { timeout: 30000 });
+await page.screenshot({ path: `${out}/pelea-0-inicio.png` });
+// Acercarse y pegar con la estocada (→ + Z).
+const hp = () => page.evaluate(() => window.__fight.state().f.map((q) => Math.round(q.hp)));
+await page.evaluate(() => window.__fight.advance(150, (f) => ({ move: 1, attack: f % 40 > 33 })));
+await page.screenshot({ path: `${out}/pelea-1-cruce.png` });
+await page.evaluate(() => window.__fight.advance(300, (f) => ({ move: 1, attack: f % 40 > 33 })));
+await page.screenshot({ path: `${out}/pelea-2-golpes.png` });
+const h = await hp();
+ok(h[0] < 100 || h[1] < 100, `alguien recibió daño (vida ${h})`);
+await page.evaluate(() => window.__fight.advance(900, (f) => ({ move: 1, attack: f % 40 > 33 })));
+await page.screenshot({ path: `${out}/pelea-3-final.png` });
+const w = await page.evaluate(() => window.__fight.state().winner);
+console.log('ganador', w, 'vida', await hp());
+await page.keyboard.press('Escape');
+ok(await page.evaluate(() => !window.__fight.isOpen()), 'Esc cierra la pelea');
+ok(errors.length === 0, `sin errores de página ${errors.slice(0, 3)}`);
+await browser.close();
+process.exit(bad ? 1 : 0);
