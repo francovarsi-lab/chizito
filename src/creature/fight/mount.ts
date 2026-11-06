@@ -304,8 +304,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const span = Math.abs(a.x - b.x) + 0.12;
     // Alto a encuadrar: del piso a la cabeza del más alto (salto incluido), dejando libre la franja del HUD de arriba.
     const top = Math.max(...m.f.map((f) => f.y + Math.max(...f.model.body.map((sh) => Math.max(sh.a[1], sh.b[1]) + sh.r)))) + 0.012;
-    let D = Math.max(span / (2 * tanH), top / (2 * tanV * 0.8), 0.2);
-    let lookY = top * 0.5 + 0.004;
+    const floor = -0.008;
+    let D = Math.max(span / (2 * tanH), (top - floor) / (2 * tanV * 0.7), 0.2);
+    let lookY = (top + floor) / 2;
     if (m.phase === 'intro') D *= 1 + 0.35 * Math.max(0, 1 - m.phaseT / FIGHT.introFrames);
     if (m.phase === 'ko' || (m.phase === 'end' && m.f.some((f) => f.ko))) {
       const loser = m.f.find((f) => f.ko) ?? a;
