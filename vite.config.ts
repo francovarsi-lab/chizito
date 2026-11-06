@@ -4,5 +4,6 @@ import { defineConfig } from 'vite';
 // la raíz, para que `npm run dev` siga en http://localhost:5173/. Los archivos opcionales (modelos, Draco,
 // sonidos, HDRI) se piden con import.meta.env.BASE_URL, así funcionan en los dos casos.
 export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/chizito/' : '/',
+  // Vercel (VERCEL=1 en su build) sirve en la raíz, no en /chizito/.
+  base: command === 'build' && !process.env.VERCEL ? '/chizito/' : '/',
 }));
