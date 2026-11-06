@@ -67,12 +67,12 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   }
   if (!attackPrev && rnd(mem) < L.aggression) {
     mem.wasAttack = true;
-    const kick = foe.crouch > 0.5 || rnd(mem) < 0.22;
+    const kick = me.legs.length > 0 && (foe.crouch > 0.5 || rnd(mem) < 0.22);
     if (rnd(mem) < L.retreat) {
       mem.doing = 'retreat';
       mem.left = 10 + Math.floor(rnd(mem) * 20);
     }
-    return { x: 0, attack: true, down: kick };
+    return { x: 0, punch: !kick, kick };
   }
   // A veces se acomoda: un pasito adelante o atrás.
   const r = rnd(mem);

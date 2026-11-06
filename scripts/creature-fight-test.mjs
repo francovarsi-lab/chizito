@@ -72,52 +72,136 @@ try {
   ok(dA > dMine, `más liviana = más rápida (A ${(dA * 100).toFixed(1)} cm vs ${(dMine * 100).toFixed(1)} cm)`);
   ok(fighterFromSnapshot(snap('B')).limbs.every((l) => l.role === 'arm') ? dB > 0.005 && dB < dA : true, `sin piernas se arrastra, más lento (${(dB * 100).toFixed(1)} cm)`);
 
-  // ── Golpe: Z = el brazo siguiente; carga → golpe → vuelta; gira en su clavado ──
+  // ── Golpe: piña = el brazo siguiente; carga → golpe → vuelta; gira en su clavado; uno por vez ──
   {
     const m = fight(mine);
     const phases = new Set();
     let max = 0;
     const used = new Set();
-    for (let i = 0; i < 120; i++) {
-      stepMatch(m, [{ x: 0, attack: i === 0 || i === 40 }, { x: 0 }]);
+    let both = false;
+    for (let i = 0; i < 200; i++) {
+      stepMatch(m, [{ x: 0, punch: i === 0 || i === 90 }, { x: 0 }]);
+      const striking = m.f[0].limbs.filter((s) => s.phase === 'windup' || s.phase === 'strike').length;
+      both ||= striking > 1;
       m.f[0].limbs.forEach((s, k) => { phases.add(s.phase); if (s.phase !== 'rest') used.add(k); max = Math.max(max, rot(s)); });
     }
     ok(['windup', 'strike', 'recover', 'rest'].every((p) => phases.has(p)), `fases del golpe (${[...phases]})`);
     ok(max > 1, `el brazo gira en su punto de clavado (${(max * 57.3).toFixed(0)}°)`);
-    ok(m.f[0].arms.every((k) => used.has(k)), 'dos toques de Z = los dos brazos, en orden');
+    ok(m.f[0].arms.every((k) => used.has(k)), 'dos piñas = los dos brazos, en orden');
+    ok(!both, 'nunca dos golpes a la vez');
     ok(m.f[0].limbs.every((s) => s.phase === 'rest' && rot(s) < 0.2), 'todo vuelve al reposo');
+    // Patada: solo piernas.
+    const k = fight(mine);
+    let kicked = -1;
+    for (let i = 0; i < 40; i++) {
+      stepMatch(k, [{ x: 0, kick: i === 0 }, { x: 0 }]);
+      k.f[0].limbs.forEach((s, j) => { if (s.phase === 'strike') kicked = j; });
+    }
+    ok(kicked >= 0 && k.f[0].legs.includes(kicked), 'la patada usa una pierna');
+    const B = fight(fighterFromSnapshot(snap('B')));
+    let any = false;
+    for (let i = 0; i < 40; i++) {
+      stepMatch(B, [{ x: 0, kick: i === 0 }, { x: 0 }]);
+      any ||= B.f[0].limbs.some((s) => s.phase !== 'rest');
+    }
+    ok(!any, 'sin piernas no hay patada');
   }
 
-  // ── Daño por peso: la aceituna pega más fuerte que el palito; la guardia lo reduce ──
+  // ── Errar con peso: la aceituna que no pega sigue de largo, desestabiliza y cuesta tiempo de reacción ──
   {
-    // Forzar qué brazo pega: el orden es del más adelantado al más atrasado (palito, después aceituna).
+    const whiffOf = (heavy) => {
+      const m = fight(mine);
+      m.f[1].x = 0.15; // lejos: no hay nada que pegar
+      let ev = null, tiltMax = 0;
+      const presses = heavy ? [0, 60] : [0];
+      for (let i = 0; i < 200; i++) {
+        stepMatch(m, [{ x: 0, punch: presses.includes(i) }, { x: 0 }]);
+        for (const e of m.events) if (e.type === 'whiff' && e.heavy === heavy) ev = e;
+        if (ev) tiltMax = Math.max(tiltMax, Math.abs(m.f[0].tilt - (-0.093)));
+      }
+      return { ev, tiltMax };
+    };
+    const light = whiffOf(false);
+    const heavy = whiffOf(true);
+    ok(light.ev && heavy.ev, 'errar se registra');
+    if (light.ev && heavy.ev) {
+      ok(heavy.ev.lock > light.ev.lock * 2.5, `errar con la aceituna cuesta mucho más (${heavy.ev.lock} vs ${light.ev.lock} cuadros)`);
+      ok(heavy.tiltMax > light.tiltMax && heavy.tiltMax > 0.15, `la aceituna que erra desestabiliza al chizito (${heavy.tiltMax.toFixed(2)} vs ${light.tiltMax.toFixed(2)} rad)`);
+    }
+  }
+
+  // ── Piezas fijas: el chupetín y lo que atraviesa el chizito no giran; lo que asoma < 1 cm no es extremidad ──
+  {
+    const s = snap('criatura-20261011-1623');
+    s.pieces.find((p) => p.id === 'palito-mv47lm1n-2').type = 'chupetin';
+    const P = fighterFromSnapshot(s);
+    const pop = P.limbs.find((l) => l.id === 'palito-mv47lm1n-2');
+    ok(pop && pop.rigid, 'el chupetín queda rígido');
+    const m = fight(P);
+    const k = P.limbs.indexOf(pop);
+    for (let i = 0; i < 200; i++) stepMatch(m, [{ x: i < 60 ? 1 : 0, punch: i % 40 === 0, guard: i > 150 }, { x: 0 }]);
+    ok(rot(m.f[0].limbs[k]) < 1e-6 && !m.f[0].arms.includes(k), 'el chupetín no gira ni pega como brazo');
+    const E = fighterFromSnapshot(snap('E'));
+    const thr = E.limbs.filter((l) => l.through);
+    ok(thr.length === 2 && thr.every((l) => l.rigid), `las varas que atraviesan el chizito quedan fijas (${thr.length})`);
+    const t = snap('criatura-20261011-1623');
+    const link = t.links.find((l) => l.childId === 'palito-mv47lm1n-2');
+    const rod = t.pieces.find((p) => p.id === 'palito-mv47lm1n-2');
+    rod.shape.b = link.anchor.map((v, i) => v + link.axis[i] * 0.006);
+    const short = fighterFromSnapshot(t);
+    ok(!short.limbs.some((l) => l.id === rod.id) && short.armor.some((q) => q.piece === rod.id), 'un palito que asoma 6 mm no es extremidad (es solo peso)');
+  }
+
+  // ── Piernas y peso: sin piernas no salta; si pesa más de lo que aguantan, camina lento y no salta ──
+  {
+    const B = fight(fighterFromSnapshot(snap('B')));
+    ok(B.f[0].jump === 0, 'sin piernas no puede saltar');
+    for (let i = 0; i < 30; i++) stepMatch(B, [{ x: 0, up: i === 0 }, { x: 0 }]);
+    ok(B.f[0].grounded, 'apretar ↑ sin piernas no lo levanta');
+    const A = fighterFromSnapshot(snap('A'));
+    const heavyA = { ...A, armor: [...A.armor, { p: [0, 0, 0], m: 0.015, r: 0.001, piece: 'lastre', kind: 'light', inside: true }], mass: A.mass + 0.015 };
+    const h = fight(heavyA);
+    const a = fight(A);
+    ok(a.f[0].jump > 0 && h.f[0].jump === 0, 'con 15 g de más ya no salta');
+    ok(h.f[0].speed < a.f[0].speed * 0.6, `y camina mucho más lento (${(h.f[0].speed * 100).toFixed(1)} vs ${(a.f[0].speed * 100).toFixed(1)} cm/s)`);
+  }
+
+  // ── Daño: la aceituna pega más fuerte que el palito ──
+  {
     const m = fight(mine);
     m.f[1].x = m.f[0].x + 0.038;
     const hits = [];
-    for (let i = 0; i < 200; i++) {
-      stepMatch(m, [{ x: 0, attack: i % 50 === 0 }, { x: 0 }]);
+    for (let i = 0; i < 260; i++) {
+      stepMatch(m, [{ x: 0, punch: i % 80 === 0 }, { x: 0 }]);
       for (const e of m.events) if (e.type === 'hit' && e.by === 0) hits.push(e);
     }
     const light = hits.find((e) => !e.heavy);
     const heavy = hits.find((e) => e.heavy);
     ok(light && heavy, `pegan los dos brazos (${hits.map((e) => (e.heavy ? 'aceituna' : 'palito') + ' ' + e.damage.toFixed(1))})`);
-    if (light && heavy) ok(heavy.damage > light.damage * 1.5, `la aceituna pega más (${heavy.damage.toFixed(1)} vs ${light.damage.toFixed(1)})`);
+    if (light && heavy) ok(heavy.damage > light.damage * 1.3, `la aceituna pega más (${heavy.damage.toFixed(1)} vs ${light.damage.toFixed(1)})`);
   }
+
+  // ── Guardia física: tapan los brazos (sin brazos no hay guardia) ──
   {
-    const run = (guard) => {
-      const m = fight(fighterFromSnapshot(snap('A')));
+    const run = (guard, defender) => {
+      const m = createMatch([fighterFromSnapshot(snap('A')), defender]);
+      for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
       m.f[1].x = m.f[0].x + 0.05;
-      let dmg = 0, blocked = false;
-      for (let i = 0; i < 200; i++) {
-        stepMatch(m, [{ x: 0, attack: i % 30 === 10 }, { x: 0, guard }]);
-        for (const e of m.events) if (e.type === 'hit' && e.by === 0) { dmg += e.damage; blocked ||= e.blocked; }
+      let dmg = 0, blocked = 0;
+      for (let i = 0; i < 300; i++) {
+        stepMatch(m, [{ x: 0, punch: i % 40 === 10 }, { x: 0, guard }]);
+        for (const e of m.events) if (e.type === 'hit' && e.by === 0) { dmg += e.damage; if (e.blocked) blocked++; }
       }
       return { dmg, blocked };
     };
-    const open = run(false);
-    const g = run(true);
+    const open = run(false, broccoliFighter(1));
+    const g = run(true, broccoliFighter(1));
     ok(open.dmg > 0, `A le pega al brócoli (${open.dmg.toFixed(1)})`);
-    ok(g.blocked && g.dmg < open.dmg * 0.5, `la guardia bloquea (${g.dmg.toFixed(1)} vs ${open.dmg.toFixed(1)})`);
+    ok(g.blocked > 0 && g.dmg < open.dmg * 0.6, `los brazos del brócoli tapan (${g.blocked} bloqueos, ${g.dmg.toFixed(1)} vs ${open.dmg.toFixed(1)})`);
+    const noArms = fighterFromSnapshot(snap('A'));
+    noArms.limbs = noArms.limbs.filter((l) => l.role === 'leg');
+    const n = run(true, noArms);
+    ok(n.blocked === 0, 'sin brazos, cubrirse no tapa nada');
   }
 
   // ── Escudos: E tiene una papita (en la espalda); un escudo adelante se gasta y salta ──
@@ -131,7 +215,7 @@ try {
     for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
     let shieldHits = 0, breaks = 0, through = 0;
     for (let i = 0; i < 60 * 30 && m.phase === 'fight'; i++) {
-      stepMatch(m, [{ x: Math.abs(m.f[1].x - m.f[0].x) > 0.045 ? 1 : 0, attack: i % 24 === 0 }, { x: 0 }]);
+      stepMatch(m, [{ x: Math.abs(m.f[1].x - m.f[0].x) > 0.045 ? 1 : 0, punch: i % 30 === 0 }, { x: 0 }]);
       for (const e of m.events) {
         if (e.type === 'hit' && e.shield) shieldHits++;
         if (e.type === 'hit' && !e.shield && breaks) through++;
@@ -181,7 +265,7 @@ try {
   {
     const m = fight(fighterFromSnapshot(snap('F40')));
     const t0 = performance.now();
-    for (let i = 0; i < 600; i++) stepMatch(m, [{ x: i % 120 < 60 ? 1 : -1, attack: i % 20 === 0 }, { x: 0 }]);
+    for (let i = 0; i < 600; i++) stepMatch(m, [{ x: i % 120 < 60 ? 1 : -1, punch: i % 20 === 0 }, { x: 0 }]);
     const ms = (performance.now() - t0) / 600;
     console.log(`  F40: ${ms.toFixed(3)} ms por paso`);
     ok(ms < 2, `F40 simula rápido (${ms.toFixed(3)} ms por paso)`);

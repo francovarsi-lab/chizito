@@ -56,7 +56,7 @@ await page.keyboard.up('ArrowRight');
 const x1 = await page.evaluate(() => window.__fight.match().f[0].x);
 ok(x1 - x0 > 0.01, `con → camina (x ${x0.toFixed(3)} → ${x1.toFixed(3)})`);
 await shot('2-camina');
-await page.keyboard.press('KeyZ');
+await page.keyboard.press('KeyZ'); // piña
 const phases = new Set();
 let maxRot = 0;
 for (let i = 0; i < 14; i++) {
@@ -65,23 +65,23 @@ for (let i = 0; i < 14; i++) {
   maxRot = Math.max(maxRot, r.rot);
   if (i === 6) await shot('3-golpe');
 }
-ok(phases.has('strike'), `con Z un brazo golpea (fases ${[...phases]})`);
+ok(phases.has('strike'), `con Z (piña) un brazo golpea (fases ${[...phases]})`);
 ok(maxRot > 0.3, `el brazo gira en su punto de clavado (${(maxRot * 57.3).toFixed(0)}°)`);
 // Acercarse y pelear un rato (entradas simuladas): tiene que haber golpes de los dos lados.
 let hits = 0;
 for (let k = 0; k < 10 && hits < 4; k++) {
-  await page.evaluate(() => window.__fight.advance(40, (f) => ({ x: 1, attack: f % 9 === 0, down: f % 27 === 0 })));
+  await page.evaluate(() => window.__fight.advance(40, (f) => ({ x: 1, punch: f % 30 === 0, kick: f % 30 === 15 })));
   hits = await page.evaluate(() => 100 - window.__fight.match().f[1].hp);
 }
 await shot('4-pelea', 24);
 const hp = await page.evaluate(() => window.__fight.match().f.map((f) => Math.round(f.hp)));
 ok(hp[1] < 100, `le saca vida al brócoli (vida ${hp})`);
-// Guardia (mantener X) y salto (↑).
-await page.keyboard.down('KeyX');
+// Guardia (mantener C) y salto (↑).
+await page.keyboard.down('KeyC');
 await page.evaluate(() => window.__chizito.renderFrames(14));
-ok(await page.evaluate(() => window.__fight.match().f[0].guard > 0.6), 'con X se cubre');
+ok(await page.evaluate(() => window.__fight.match().f[0].guard > 0.6), 'con C se cubre (los brazos adelante)');
 await shot('4b-guardia');
-await page.keyboard.up('KeyX');
+await page.keyboard.up('KeyC');
 await page.keyboard.press('ArrowUp');
 await page.evaluate(() => window.__chizito.renderFrames(9));
 ok(await page.evaluate(() => !window.__fight.match().f[0].grounded), 'con ↑ salta');

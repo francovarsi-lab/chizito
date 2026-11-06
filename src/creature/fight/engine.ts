@@ -16,11 +16,13 @@ export interface FightInput {
   x: -1 | 0 | 1;
   /** Salto (flanco: solo el paso en que se apretó). */
   up?: boolean;
-  /** Agacharse (mantenido). Con `attack` = patada. */
+  /** Agacharse (mantenido). */
   down?: boolean;
-  /** Golpe (flanco). */
-  attack?: boolean;
-  /** Guardia (mantenida). */
+  /** Piña: el brazo siguiente (flanco). En el aire, en picada. */
+  punch?: boolean;
+  /** Patada: la pierna más adelantada (flanco). */
+  kick?: boolean;
+  /** Guardia (mantenida): los brazos se cruzan delante del cuerpo. */
   guard?: boolean;
 }
 
@@ -42,6 +44,8 @@ export interface LimbState {
   phi: number;
   landed: boolean;
   active: boolean;
+  /** Cuadros con el freno flojo (erró: lo que se movió sigue de largo). */
+  slack: number;
 }
 
 export interface FighterState {
@@ -71,6 +75,10 @@ export interface FighterState {
   limbs: LimbState[];
   nextArm: number;
   strikeCool: number;
+  /** Cuadros sin poder golpear ni cubrirse (pagando un golpe errado o acertado). */
+  lock: number;
+  /** Erró y quedó desestabilizado: si se inclina de más, trastabilla (una vez). */
+  wobbly: boolean;
   buffer: { kind: 'arm' | 'kick' | 'air'; t: number } | null;
   gait: number;
   hopCool: number;
@@ -97,7 +105,8 @@ export type FightEvent =
   | { type: 'hit'; by: 0 | 1; at: [number, number]; damage: number; kind: HitKind; blocked: boolean; shield: boolean; piece: string; speed: number; combo: number; heavy: boolean }
   | { type: 'shieldBreak'; who: 0 | 1; piece: string; at: [number, number]; vel: [number, number] }
   | { type: 'swing'; who: 0 | 1; limb: number; heavy: boolean }
-  | { type: 'jump' | 'land' | 'dizzy' | 'ko'; who: 0 | 1 }
+  | { type: 'whiff'; who: 0 | 1; heavy: boolean; lock: number }
+  | { type: 'jump' | 'land' | 'dizzy' | 'ko' | 'stumble'; who: 0 | 1 }
   | { type: 'round'; round: number }
   | { type: 'fight' }
   | { type: 'roundEnd'; winner: 0 | 1 | 'draw'; reason: 'ko' | 'time' }
@@ -144,14 +153,19 @@ function rot(q: Q, v: V3): V3 {
 const posed = (q: Q, pivot: V3, p: V3): V3 => addv(pivot, rot(q, sub(p, pivot)));
 
 function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterState {
-  const legs = model.limbs.map((l, i) => (l.role === 'leg' ? i : -1)).filter((i) => i >= 0);
+  // Solo lo articulado camina o pega; lo rígido (chupetín, varas que atraviesan) es peso y apoyo.
+  const legs = model.limbs.map((l, i) => (l.role === 'leg' && !l.rigid ? i : -1)).filter((i) => i >= 0);
   // Brazos en orden "brazo 1, brazo 2…": del más adelantado al más atrasado.
   const arms = model.limbs
-    .map((l, i) => (l.role === 'arm' ? i : -1))
+    .map((l, i) => (l.role === 'arm' && !l.rigid ? i : -1))
     .filter((i) => i >= 0)
     .sort((a, b) => model.limbs[b].pivot[0] + model.limbs[b].dir[0] * model.limbs[b].reach - (model.limbs[a].pivot[0] + model.limbs[a].dir[0] * model.limbs[a].reach));
   const legLen = legs.length ? legs.reduce((s, i) => s + model.limbs[i].reach, 0) / legs.length : 0.02;
-  const massF = clamp(Math.pow(FIGHT.massRef / model.mass, FIGHT.massSpeedExp), FIGHT.speedClamp[0], FIGHT.speedClamp[1]);
+  // Las piernas tienen que poder con el peso: si cargan menos que la masa, camina lento; muy cargadas, ni saltan.
+  const carry = legs.reduce((s, i) => s + model.limbs[i].carry, 0) / model.mass;
+  const massF = legs.length
+    ? clamp(Math.pow(carry, FIGHT.carrySpeedExp), FIGHT.speedClamp[0], FIGHT.speedClamp[1])
+    : clamp(Math.pow(FIGHT.massRef / model.mass, FIGHT.massSpeedExp), FIGHT.speedClamp[0], FIGHT.speedClamp[1]);
   const legF = FIGHT.legSpeed[Math.min(2, legs.length)] * (legs.length ? clamp(Math.pow(legLen / 0.022, 0.35), 0.75, 1.25) : 1);
   let It = model.bodyMass * (0.6 * 0.025 * 0.025);
   for (const l of model.limbs) for (const p of l.points) It += p.m * (p.p[0] * p.p[0] + p.p[1] * p.p[1]);
@@ -176,9 +190,11 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     bleed: [],
     guard: 0,
     crouch: 0,
-    limbs: model.limbs.map(() => ({ q: QI(), w: [0, 0, 0], phase: 'rest', t: 0, axis: [0, 0, 1], windup: 0, target: 0, phi: 0, landed: false, active: false })),
+    limbs: model.limbs.map(() => ({ q: QI(), w: [0, 0, 0], phase: 'rest', t: 0, axis: [0, 0, 1], windup: 0, target: 0, phi: 0, landed: false, active: false, slack: 0 })),
     nextArm: 0,
     strikeCool: 0,
+    lock: 0,
+    wobbly: false,
     buffer: null,
     gait: 0,
     hopCool: 0,
@@ -191,7 +207,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     cur: model.limbs.map((l) => new Float64Array(l.points.length * 2)),
     prev: model.limbs.map((l) => new Float64Array(l.points.length * 2)),
     speed: FIGHT.walkSpeed * massF * legF,
-    jump: FIGHT.jumpSpeed * Math.pow(massF, 0.5) * (legs.length ? 1 : 0.6),
+    jump: legs.length && carry >= FIGHT.jumpMinCarry ? FIGHT.jumpSpeed * Math.min(1.1, Math.sqrt(carry)) : 0,
     legs,
     arms,
     It,
@@ -315,7 +331,8 @@ function drive(f: FighterState, k: number, target: Q, gains: { wn: number; zeta:
   if (al < 1e-12) return 0;
   const I = inertia(f, k, scl(a, 1 / al));
   // Frenar cuesta menos que arrancar (músculo + rozamiento del agujero): el golpe se corta en seco y no da la vuelta.
-  const braking = dotv(a, s.w) < 0 ? FIGHT.brakeBoost : 1;
+  // Después de errar el freno queda flojo: lo que se movió sigue de largo.
+  const braking = dotv(a, s.w) < 0 && s.slack <= 0 ? FIGHT.brakeBoost : 1;
   const tauMax = FIGHT.tau0 * Math.pow(I / FIGHT.I0, FIGHT.tauExp) * boost * braking;
   const k2 = Math.min(1, tauMax / I / al);
   const acc = scl(a, k2);
@@ -377,25 +394,47 @@ function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air'
 
 const ready = (s: LimbState): boolean => s.phase === 'rest' || (s.phase === 'recover' && s.t > 7);
 
+/** Piña = el brazo siguiente que esté listo; patada = la pierna lista más adelantada. Sin brazos no hay piña, sin piernas no hay patada. */
 function pickLimb(f: FighterState, kind: 'arm' | 'kick' | 'air'): number {
   const L = f.model.limbs;
-  if (kind === 'kick' && f.legs.length) {
+  if (kind === 'kick') {
     const c = f.legs.filter((k) => ready(f.limbs[k])).sort((a, b) => L[b].pivot[0] + L[b].dir[0] * L[b].reach - (L[a].pivot[0] + L[a].dir[0] * L[a].reach));
-    if (c.length) return c[0];
+    return c.length ? c[0] : -1;
   }
-  if (f.arms.length) {
-    for (let n = 0; n < f.arms.length; n++) {
-      const idx = (f.nextArm + n) % f.arms.length;
-      if (ready(f.limbs[f.arms[idx]])) {
-        f.nextArm = idx + 1;
-        return f.arms[idx];
-      }
+  for (let n = 0; n < f.arms.length; n++) {
+    const idx = (f.nextArm + n) % f.arms.length;
+    if (ready(f.limbs[f.arms[idx]])) {
+      f.nextArm = idx + 1;
+      return f.arms[idx];
     }
-    return -1;
   }
-  // Sin brazos: pega con una pierna.
-  const c = f.legs.filter((k) => ready(f.limbs[k]));
-  return c.length ? c[0] : -1;
+  return -1;
+}
+
+/**
+ * Terminó un golpe. Si erró, lo que se movió sigue de largo: el giro que traía pasa al cuerpo (lo inclina y lo arrastra), el
+ * freno queda flojo un rato y la criatura pierde tiempo de reacción en proporción a lo que pesa la extremidad frente al chizito.
+ */
+function endStrike(m: Match, i: 0 | 1, k: number): void {
+  const f = m.f[i];
+  const l = f.model.limbs[k];
+  const s = f.limbs[k];
+  s.phase = 'recover';
+  s.t = 0;
+  if (s.landed) {
+    f.lock = Math.max(f.lock, FIGHT.hitLock);
+    return;
+  }
+  const W = FIGHT.whiff;
+  const lock = Math.min(W.max, Math.round(W.base + W.k * (l.mass / f.model.bodyMass)));
+  f.lock = Math.max(f.lock, lock);
+  const wAx = dotv(s.w, s.axis);
+  const I = inertia(f, k, s.axis);
+  f.wt += (W.transfer * I * wAx * s.axis[2]) / f.It;
+  f.vx += f.facing * W.lurch * (l.mass / f.model.mass) * Math.abs(wAx) * l.reach;
+  s.slack = W.slack;
+  f.wobbly = true;
+  m.events.push({ type: 'whiff', who: i, heavy: l.kind === 'heavy', lock });
 }
 
 // ───────────────────────── Paso de un luchador ─────────────────────────
@@ -408,6 +447,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   if (f.stun > 0) f.stun--;
   if (f.block > 0) f.block--;
   if (f.strikeCool > 0) f.strikeCool--;
+  if (f.lock > 0 && --f.lock === 0) f.wobbly = false;
   if (f.hopCool > 0) f.hopCool--;
   if (f.dizzyT > 0) f.dizzyT--;
   f.dizzy = Math.max(0, f.dizzy - FIGHT.dizzyDecay);
@@ -426,18 +466,22 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     f.wt = -f.wt;
   }
 
-  const guardHeld = !!input.guard && f.grounded;
+  // Cubrirse necesita brazos libres (y no estar pagando un golpe).
+  const guardHeld = !!input.guard && f.grounded && f.lock <= 0 && f.arms.length > 0;
   const crouchHeld = !!input.down && f.grounded && !guardHeld;
   f.guard += ((guardHeld ? 1 : 0) - f.guard) * 0.22;
   f.crouch += ((crouchHeld ? 1 : 0) - f.crouch) * 0.2;
-  if (input.attack) f.buffer = { kind: !f.grounded ? 'air' : input.down ? 'kick' : 'arm', t: FIGHT.buffer };
-  if (input.up && f.grounded && !guardHeld) {
+  if (input.punch) f.buffer = { kind: f.grounded ? 'arm' : 'air', t: FIGHT.buffer };
+  if (input.kick) f.buffer = { kind: 'kick', t: FIGHT.buffer };
+  // Saltar necesita piernas que aguanten el peso (`f.jump` es 0 si no).
+  if (input.up && f.grounded && !guardHeld && f.jump > 0) {
     f.vy = f.jump;
     f.vx += input.x * f.speed * 0.4;
     f.grounded = false;
     m.events.push({ type: 'jump', who: i });
   }
-  if (f.buffer && f.strikeCool <= 0 && canAct && f.guard < 0.3) {
+  // Un golpe por vez: no arranca otro mientras uno carga o pega, ni mientras paga el anterior.
+  if (f.buffer && f.strikeCool <= 0 && canAct && !busy && f.lock <= 0 && f.guard < 0.3) {
     const k = pickLimb(f, f.buffer.kind);
     if (k >= 0) {
       startStrike(m, i, k, f.buffer.kind);
@@ -454,7 +498,9 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   let react = 0;
   M.limbs.forEach((l, k) => {
     const s = f.limbs[k];
+    if (l.rigid) return; // el chupetín y lo que atraviesa no giran: se mueven con el cuerpo
     s.t++;
+    if (s.slack > 0) s.slack--;
     // Golpe y vuelta: se sigue el ángulo a lo largo del eje del golpe con un objetivo que avanza delante del ángulo actual,
     // así un mazazo de 200° va por arriba (y vuelve por arriba) en vez de tomar el atajo.
     const guided = (goal: number, g: { wn: number; zeta: number }, boost = 1): void => {
@@ -472,10 +518,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if (s.phase === 'strike') {
       guided(s.target, FIGHT.joint.strike, FIGHT.strikeBoost);
       s.active = !s.landed && s.phi < s.target - 0.12 && s.t < FIGHT.strikeMax;
-      if (!s.active && (dotv(s.w, s.axis) < 1 || s.t >= FIGHT.strikeMax)) {
-        s.phase = 'recover';
-        s.t = 0;
-      }
+      if (!s.active && (dotv(s.w, s.axis) < 1 || s.t >= FIGHT.strikeMax || s.landed)) endStrike(m, i, k);
       return;
     }
     if (s.phase === 'recover' && Math.abs(s.phi) > 0.45 && s.t < FIGHT.recoverMax) {
@@ -494,8 +537,12 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       if (f.air > 5) ang = front * 0.35 + (f.vy > 0 ? -0.15 : 0.1);
       target = qAxis([0, 0, 1], ang);
     } else if (l.role === 'arm' && f.guard > 0.02 && s.phase === 'rest') {
-      // Guardia: el brazo va adelante y arriba, delante del cuerpo.
-      const gq = qFromTo(l.dir, normv([0.85, 0.75, l.dir[2] * 0.3]));
+      // Guardia: los brazos se cruzan DELANTE del cuerpo en diagonal (uno arriba, tapando la cabeza, y otro abajo), así son
+      // ellos los que reciben el golpe. Lo que pase por fuera de los brazos, pega.
+      const n = f.arms.indexOf(k);
+      const gx = Math.max(...M.body.map((b) => b.r)) + l.reach * 0.3;
+      const gy = l.pivot[1] + l.reach * (n % 2 === 0 ? 0.6 : -0.4);
+      const gq = qFromTo(l.dir, normv([Math.max(gx - l.pivot[0], l.reach * 0.25), gy - l.pivot[1], (Math.sign(l.dir[2]) || 1) * 0.004]));
       target = slerpI(gq, f.guard);
       g = FIGHT.joint.guard;
     } else if (f.air > 5 && l.role === 'arm') target = qAxis([0, 0, 1], 0.3);
@@ -548,6 +595,12 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   if (Math.abs(f.tilt) > lim) {
     f.tilt = Math.sign(f.tilt) * lim;
     if (f.wt * f.tilt > 0) f.wt = 0;
+  }
+  // El peso que siguió de largo lo desestabilizó: trastabilla.
+  if (f.wobbly && !f.ko && Math.abs(f.tilt) > FIGHT.stumbleTilt) {
+    f.wobbly = false;
+    f.stun = Math.max(f.stun, FIGHT.stumbleFrames);
+    m.events.push({ type: 'stumble', who: i });
   }
 
   // ── Piso ──
@@ -617,6 +670,15 @@ function resolveHits(m: Match): void {
       return { ax: A[0], ay: A[1], bx: B[0], by: B[1], r: sh.r };
     });
     const shields = shieldPoints(b);
+    // Guardia física: lo que tapa son los brazos levantados, punto por punto (no un campo de fuerza).
+    const blockers: { x: number; y: number; r: number; limb: number }[] = [];
+    if (b.guard >= FIGHT.guardReady && b.grounded) {
+      for (const k of b.arms) {
+        b.model.limbs[k].points.forEach((p, j) => {
+          if (!p.inside) blockers.push({ x: b.cur[k][2 * j], y: b.cur[k][2 * j + 1], r: p.r, limb: k });
+        });
+      }
+    }
     a.model.limbs.forEach((l, k) => {
       const s = a.limbs[k];
       if (!s.active || s.landed) return;
@@ -625,22 +687,24 @@ function resolveHits(m: Match): void {
         if (p.inside || a.broken.includes(p.piece)) continue;
         const px = a.cur[k][2 * j];
         const py = a.cur[k][2 * j + 1];
+        const reach = p.r + FIGHT.hitPad;
+        const blocker = blockers.find((q) => Math.hypot(px - q.x, py - q.y) < q.r + reach);
         let shield: string | null = null;
-        for (const sp of shields) if (Math.hypot(px - sp.x, py - sp.y) < sp.r + p.r + FIGHT.hitPad) shield = sp.piece;
-        const body = bodies.some((q) => segD(px, py, q.ax, q.ay, q.bx, q.by) < q.r + p.r + FIGHT.hitPad);
-        if (!shield && !body) continue;
+        if (!blocker) for (const sp of shields) if (Math.hypot(px - sp.x, py - sp.y) < sp.r + reach) shield = sp.piece;
+        const body = !blocker && !shield && bodies.some((q) => segD(px, py, q.ax, q.ay, q.bx, q.by) < q.r + reach);
+        if (!blocker && !shield && !body) continue;
         const vx = (px - a.prev[k][2 * j]) / dt - b.vx;
         const vy = (py - a.prev[k][2 * j + 1]) / dt - b.vy;
         const speed = Math.hypot(vx, vy);
         if (speed < FIGHT.minHitSpeed) continue;
-        applyHit(m, i, k, j, px, py, speed, shield);
+        applyHit(m, i, k, j, px, py, speed, shield, blocker ? blocker.limb : null);
         return;
       }
     });
   }
 }
 
-function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: number, speed: number, shield: string | null): void {
+function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: number, speed: number, shield: string | null, blockedBy: number | null): void {
   const a = m.f[i];
   const b = m.f[1 - i];
   const l = a.model.limbs[k];
@@ -650,11 +714,16 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   const r = lenv(sub(p.p, l.pivot));
   const I = inertia(a, k, s.axis);
   const mEff = clamp(I / Math.max(r * r, 1e-8), 0.2 * l.mass, l.mass);
-  const momentum = mEff * 1000 * speed; // g·m/s
   const kind: HitKind = p.kind === 'shield' ? l.kind : p.kind;
-  let dmg = clamp(FIGHT.dmgK * Math.pow(momentum, FIGHT.dmgExp), FIGHT.dmgClamp[0], FIGHT.dmgClamp[1]) * FIGHT.kindMul[kind];
+  // La velocidad manda más que la masa: algo pesado que apenas se mueve pega poco.
+  let dmg = clamp(FIGHT.dmgK * Math.pow(mEff * 1000, FIGHT.dmgMassExp) * Math.pow(speed, FIGHT.dmgSpeedExp), FIGHT.dmgClamp[0], FIGHT.dmgClamp[1]) * FIGHT.kindMul[kind];
   const fromFront = Math.sign(a.x - b.x || 1) === b.facing;
-  const blocked = b.guard >= FIGHT.guardReady && fromFront && b.grounded;
+  const blocked = blockedBy !== null;
+  if (blocked) {
+    // El brazo que tapó se lleva el golpe y se sacude.
+    const bs = b.limbs[blockedBy];
+    bs.w = [bs.w[0], bs.w[1], bs.w[2] + (py > b.y ? 1 : -1) * Math.min(30, speed * 12)];
+  }
   if (shield) {
     dmg *= FIGHT.shieldPass;
     b.shields[shield] = (b.shields[shield] ?? 1) - 1;
@@ -701,6 +770,7 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   s.active = false;
   s.phase = 'recover';
   s.t = 0;
+  a.lock = Math.max(a.lock, FIGHT.hitLock);
   a.combo = m.frame - a.lastHit < FIGHT.comboWindow && !blocked ? a.combo + 1 : 1;
   a.lastHit = m.frame;
   m.hitstop = Math.min(FIGHT.hitstop.max, Math.round(FIGHT.hitstop.base + FIGHT.hitstop.k * dmg));
@@ -713,7 +783,7 @@ function separate(m: Match): void {
   const ra = Math.max(...a.model.body.map((s) => s.r));
   const rb = Math.max(...b.model.body.map((s) => s.r));
   const d = b.x - a.x;
-  const gap = ra + rb;
+  const gap = ra + rb + FIGHT.bodyGap;
   if (Math.abs(d) < gap && Math.abs(a.y - b.y) < 0.05) {
     const push = (gap - Math.abs(d)) / 2;
     const sgn = d >= 0 ? 1 : -1;

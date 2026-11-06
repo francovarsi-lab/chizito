@@ -34,29 +34,35 @@ export const FIGHT = {
   },
   /** Golpes que aguanta cada escudo antes de saltar (propuesta del chat de mecánicas). */
   shieldHits: { papita: 2, nacho: 6 },
-  /** m: una vara cuenta como pasante (un solo brazo que gira por el medio) si asoma al menos esto del otro lado. */
+  /** m: una vara ATRAVIESA el chizito (queda fija: girarla lo rompería) si asoma al menos esto del otro lado. */
   throughMin: 0.004,
+  /** m: lo que asoma menos que esto (p. ej. un palito clavado al 90 %) no es extremidad: no llega a nada, es solo peso. */
+  minReach: 0.01,
   /** Pierna: pivote por debajo de esta fracción de medio largo del chizito (0 = el medio) y dirección con y < esto. */
   legPivotMax: 0.2,
   legDownMin: -0.3,
+  /** Gramos que carga cada pierna según su pieza: si la criatura pesa más que lo que cargan sus piernas, camina lento y no salta. */
+  legCarryGrams: { palito: 4, escarbadientes: 2.5, 'palito-selva': 6, default: 3 },
 
-  broccoli: { bodyGrams: 6, carrotGrams: 1 },
+  broccoli: { bodyGrams: 6, carrotGrams: 1, carrotCarryGrams: 6 },
 
   // ── Cuerpo ──
   /** m/s²: gravedad de juego (más flotante que la real, para que los saltos se lean). */
   gravity: 3.4,
-  /** m/s: caminar de una criatura de `massRef` con dos piernas. */
+  /** m/s: caminar con piernas que cargan justo su peso. */
   walkSpeed: 0.1,
   massRef: 0.006,
-  /** Exponente del peso sobre la velocidad: (massRef / masa)^esto, acotado. */
+  /** Velocidad ∝ (lo que cargan las piernas / masa)^esto, acotado. Sin piernas: (massRef / masa)^massSpeedExp. */
+  carrySpeedExp: 0.8,
   massSpeedExp: 0.5,
-  speedClamp: [0.4, 1.35] as const,
+  speedClamp: [0.15, 1.3] as const,
   /** Factor de velocidad según cantidad de piernas: 0 (se arrastra), 1 (salta en una pata), 2+ (camina). */
   legSpeed: [0.38, 0.8, 1] as const,
   groundAccel: 1.6,
   airAccel: 0.5,
-  /** m/s: velocidad del salto (↑). */
+  /** m/s: velocidad del salto (↑). Solo con piernas, y si cargan al menos `jumpMinCarry` de la masa. */
   jumpSpeed: 0.56,
+  jumpMinCarry: 0.6,
   /** Saltito de una sola pierna al avanzar. */
   hopSpeed: 0.26,
   hopRest: 7,
@@ -109,8 +115,18 @@ export const FIGHT = {
   windMax: 16,
   strikeMax: 22,
   recoverMax: 34,
-  /** Cuadros entre dos golpes seguidos (aunque haya otro brazo libre). */
+  /** Cuadros entre dos golpes seguidos (y nunca dos a la vez). */
   strikeGap: 5,
+  /** Cuadros sin poder golpear después de acertar. */
+  hitLock: 6,
+  /**
+   * Errar: lo que se movió sigue de largo. Cuadros sin poder golpear ni cubrirse = base + k · (masa de la extremidad / masa del
+   * chizito); el giro que traía pasa al cuerpo (`transfer`) y lo arrastra hacia adelante (`lurch`); si se inclina más que
+   * `stumbleTilt`, trastabilla. Una aceituna puede pesar más que el chizito.
+   */
+  whiff: { base: 10, k: 26, max: 75, transfer: 0.9, lurch: 0.3, slack: 12 },
+  stumbleTilt: 0.45,
+  stumbleFrames: 26,
   /** Cuadros que se recuerda un botón apretado antes de poder golpear. */
   buffer: 9,
   /** m/s de envión del cuerpo al golpear. */
@@ -121,16 +137,22 @@ export const FIGHT = {
   /** Las piernas abren el paso cada `stride` metros recorridos (por metro de pierna). */
   strideK: 2.2,
 
-  // ── Golpe y daño (por momento lineal en el punto de contacto) ──
+  // ── Golpe y daño ──
   /** m/s: por debajo de esto el contacto no lastima (apoyar no es pegar). */
   minHitSpeed: 0.14,
-  /** Daño = dmgK · (masa efectiva [g] · velocidad [m/s])^dmgExp. */
+  /**
+   * Daño = dmgK · (masa efectiva [g])^dmgMassExp · (velocidad [m/s])^dmgSpeedExp. La velocidad pesa más que la masa: lo que no se
+   * puede mover rápido (o una criatura que casi no se mueve) pega poco aunque pese mucho.
+   */
   dmgK: 12,
-  dmgExp: 0.42,
-  dmgClamp: [2, 30] as const,
+  dmgMassExp: 0.4,
+  dmgSpeedExp: 1.3,
+  dmgClamp: [1, 30] as const,
   kindMul: { light: 1, cut: 0.75, heavy: 1.1, shield: 0.6 },
   hitPad: 0.0015,
-  /** Guardia: fracción de daño que pasa, cuadros de bloqueo, y desde cuánto levantada protege. */
+  /** m entre los cuerpos (los muñones cortos no alcanzan a tocar). */
+  bodyGap: 0.004,
+  /** Guardia: la cubren los BRAZOS (si el golpe toca un brazo levantado). Fracción de daño que pasa, cuadros de bloqueo. */
   chip: 0.15,
   blockstun: 10,
   guardReady: 0.55,

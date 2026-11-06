@@ -111,7 +111,7 @@ export class FightHud {
     r.innerHTML = `<div class="top">${side('l')}<div><div class="clock">90</div><div class="round">ROUND 1</div></div>${side('r')}</div>
 <div class="status l"></div><div class="status r"></div><div class="combo l"></div><div class="combo r"></div><div class="warn"></div>
 <div class="ann"></div><div class="flash"></div>
-<div class="keys"><span><kbd>←</kbd><kbd>→</kbd>moverse</span><span><kbd>↑</kbd>saltar</span><span><kbd>↓</kbd>agacharse</span><span><kbd>Z</kbd>golpe</span><span><kbd>↓</kbd>+<kbd>Z</kbd>patada</span><span><kbd>X</kbd>guardia</span><span><kbd>Esc</kbd>pausa</span></div>
+<div class="keys"><span><kbd>←</kbd><kbd>→</kbd>moverse</span><span><kbd>↑</kbd>saltar</span><span><kbd>↓</kbd>agacharse</span><span><kbd>Z</kbd>piña</span><span><kbd>X</kbd>patada</span><span><kbd>C</kbd>guardia</span><span><kbd>Esc</kbd>pausa</span></div>
 <div class="menu"><div class="card"></div></div>`;
     host.appendChild(r);
     this.root = r;
@@ -202,7 +202,7 @@ export class FightHud {
   showMenu(title: string, sub: string, buttons: { a: MenuAction; label: string; alt?: boolean }[], withKeys = false): void {
     const card = this.menu.querySelector('.card') as HTMLElement;
     const grid = withKeys
-      ? `<div class="grid"><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse (doble toque no hace falta)</span><span><kbd>↑</kbd></span><span>saltar</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Z</kbd> o <kbd>J</kbd></span><span>golpe: cada toque usa el brazo siguiente</span><span><kbd>↓</kbd>+<kbd>Z</kbd></span><span>patada (con una pierna)</span><span><kbd>Z</kbd> en el aire</span><span>golpe en picada</span><span><kbd>X</kbd> o <kbd>K</kbd></span><span>guardia (mantener)</span></div>`
+      ? `<div class="grid"><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Z</kbd> o <kbd>J</kbd></span><span>piña: cada toque usa el brazo siguiente (errar con algo pesado cuesta)</span><span><kbd>X</kbd> o <kbd>K</kbd></span><span>patada: la pierna más adelantada</span><span><kbd>Z</kbd> en el aire</span><span>piña en picada</span><span><kbd>C</kbd> o <kbd>L</kbd></span><span>guardia (mantener): los brazos tapan</span></div>`
       : '';
     card.innerHTML = `<h2>${title}</h2><p>${sub}</p>${buttons.map((b, i) => `<button data-a="${b.a}" class="${b.alt ? 'alt' : ''}${i === 0 ? ' sel' : ''}">${b.label}</button>`).join('')}${grid}`;
     this.menuSel = 0;

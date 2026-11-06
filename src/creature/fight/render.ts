@@ -39,9 +39,11 @@ export interface FighterView {
   apply(p: RenderPose, z0: number, dt: number): void;
   /** Aplastón de impacto (0..1): el cuerpo se achata y rebota. */
   bump(strength: number): void;
-  /** Un escudo salta: devuelve el objeto suelto (para que caiga) o null. */
-  detach(pieceId: string): THREE.Object3D | null;
-  /** Vuelve a poner los escudos que saltaron (round nuevo). */
+  /** Un escudo recibe un golpe: se achica hacia donde está clavado (se va astillando). Devuelve su centro en el mundo (para las migas). */
+  chip(pieceId: string, left01: number): THREE.Vector3 | null;
+  /** Un escudo se rompe: desaparece (queda en migas). Devuelve su centro en el mundo. */
+  shatter(pieceId: string): THREE.Vector3 | null;
+  /** Vuelve a poner los escudos enteros (round nuevo). */
   reattach(): void;
   /** Punto de mundo de la cabeza (para las estrellitas de mareo). */
   head(): THREE.Vector3;
@@ -72,7 +74,7 @@ class Squash {
  * (posición, inclinación, giro de 180° animado) y cada extremidad gira alrededor de su punto de clavado. La parte de la vara
  * que queda adentro del chizito se recorta con un plano (si no, al girar mucho asomaría del otro lado).
  */
-export function creatureView(construction: Construction, pivot: THREE.Group, model: FighterModel, scene: THREE.Scene, renderer: THREE.WebGLRenderer): FighterView {
+export function creatureView(construction: Construction, pivot: THREE.Group, model: FighterModel, renderer: THREE.WebGLRenderer): FighterView {
   const b = model.basis;
   const B = new THREE.Matrix4().makeBasis(V(b.f), V(b.u), V(b.s)).transpose();
   const Binv = B.clone().transpose();
@@ -114,13 +116,13 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
     return rig;
   });
 
-  // Escudos (papitas, nachos): su lugar de reposo para devolverlos.
-  const shieldHome = new Map<string, { node: PieceNode; parent: THREE.Object3D; matrix: THREE.Matrix4 }>();
+  // Escudos (papitas, nachos): su escala de fábrica, para astillarlos y devolverlos enteros.
+  const shieldHome = new Map<string, { node: PieceNode; scale: THREE.Vector3 }>();
   for (const id of Object.keys(model.shields)) {
     const node = construction.get(id);
-    if (node?.parent) shieldHome.set(id, { node, parent: node.object.parent ?? node.parent.object, matrix: node.object.matrix.clone() });
+    if (node) shieldHome.set(id, { node, scale: node.object.scale.clone() });
   }
-  const loose = new Set<string>();
+  const centerOf = (o: THREE.Object3D): THREE.Vector3 => new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3());
 
   let psi = 0;
   let psiInit = false;
@@ -173,20 +175,25 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
     bump(st) {
       squash.kick(st);
     },
-    detach(id) {
+    chip(id, left01) {
       const h = shieldHome.get(id);
-      if (!h || loose.has(id)) return null;
-      loose.add(id);
-      scene.attach(h.node.object);
-      return h.node.object;
+      if (!h) return null;
+      // El origen de la pieza es por donde entra: achicarla ahí es comerle el borde de afuera.
+      h.node.object.scale.copy(h.scale).multiplyScalar(0.5 + 0.5 * Math.max(0, left01));
+      return centerOf(h.node.object);
+    },
+    shatter(id) {
+      const h = shieldHome.get(id);
+      if (!h || !h.node.object.visible) return null;
+      const c = centerOf(h.node.object);
+      h.node.object.visible = false;
+      return c;
     },
     reattach() {
-      for (const id of loose) {
-        const h = shieldHome.get(id)!;
-        h.parent.add(h.node.object);
-        h.matrix.decompose(h.node.object.position, h.node.object.quaternion, h.node.object.scale);
+      for (const h of shieldHome.values()) {
+        h.node.object.visible = true;
+        h.node.object.scale.copy(h.scale);
       }
-      loose.clear();
     },
     head() {
       const top = model.body[0].b[1] > model.body[0].a[1] ? model.body[0].b : model.body[0].a;
@@ -247,7 +254,8 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1)
     bump(st) {
       squash.kick(st);
     },
-    detach: () => null,
+    chip: () => null,
+    shatter: () => null,
     reattach() {},
     head() {
       outer.updateMatrixWorld(true);

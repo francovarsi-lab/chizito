@@ -54,7 +54,7 @@ const btnCss = `
 `;
 const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/></svg>`;
 
-const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyR', 'Escape', 'Enter', 'Space']);
+const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'Escape', 'Enter', 'Space']);
 
 const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken] });
 
@@ -101,9 +101,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const camLook = new THREE.Vector3();
   let camInit = false;
   let crumbs: [Crumbs, Crumbs] | null = null;
+  /** Migas de los escudos (papita, nacho). */
+  let chips: Crumbs | null = null;
   const sparks: { m: THREE.Mesh; v: THREE.Vector3; life: number; max: number }[] = [];
   const rings: { m: THREE.Mesh; life: number; max: number; size: number }[] = [];
-  const debris: { o: THREE.Object3D; v: THREE.Vector3; w: THREE.Vector3; rest: boolean }[] = [];
   const stars: THREE.Mesh[] = [];
   const sparkGeo = new THREE.SphereGeometry(0.0009, 6, 5);
   const sparkMat = [new THREE.MeshBasicMaterial({ color: 0xfff1a0 }), new THREE.MeshBasicMaterial({ color: 0xffffff }), new THREE.MeshBasicMaterial({ color: 0xffa21f })];
@@ -116,7 +117,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const took = (...c: string[]): boolean => c.some((k) => edges.has(k));
   const readInput = (): FightInput => {
     const x = ((held('ArrowRight', 'KeyD') ? 1 : 0) - (held('ArrowLeft', 'KeyA') ? 1 : 0)) as -1 | 0 | 1;
-    const inp: FightInput = { x, up: took('ArrowUp', 'KeyW', 'Space'), down: held('ArrowDown', 'KeyS'), attack: took('KeyZ', 'KeyJ'), guard: held('KeyX', 'KeyK') };
+    // Botones separados, sin combinar con flechas: Z piña · X patada · C guardia (o J · K · L).
+    const inp: FightInput = { x, up: took('ArrowUp', 'KeyW', 'Space'), down: held('ArrowDown', 'KeyS'), punch: took('KeyZ', 'KeyJ'), kick: took('KeyX', 'KeyK'), guard: held('KeyC', 'KeyL') };
     edges.clear();
     return inp;
   };
@@ -174,23 +176,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         rings.splice(i, 1);
       }
     }
-    for (const d of debris) {
-      if (d.rest) continue;
-      d.v.y -= 6 * dt;
-      d.o.position.addScaledVector(d.v, dt);
-      d.o.rotation.x += d.w.x * dt;
-      d.o.rotation.y += d.w.y * dt;
-      d.o.rotation.z += d.w.z * dt;
-      if (d.o.position.y < 0.003) {
-        d.o.position.y = 0.003;
-        d.v.y = -d.v.y * 0.3;
-        d.v.x *= 0.6;
-        d.v.z *= 0.6;
-        d.w.multiplyScalar(0.5);
-        if (Math.abs(d.v.y) < 0.03) d.rest = true;
-      }
-    }
     crumbs?.forEach((c) => c.update(dt));
+    chips?.update(dt);
     // Estrellitas del mareo.
     if (m && views) {
       let n = 0;
@@ -220,7 +207,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const final = m.wins[0] === FIGHT.roundsToWin - 1 && m.wins[1] === FIGHT.roundsToWin - 1;
         hud.announce(final ? 'ROUND FINAL' : `ROUND ${e.round}`, '', false, 1.5);
         views.forEach((v) => v.reattach());
-        debris.length = 0;
         camInit = false;
         break;
       }
@@ -234,7 +220,13 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const big = e.damage >= 12 || e.heavy;
         burst(at, e.blocked ? 6 : big ? 22 : 12, big ? 1.5 : 1);
         ring(at, big ? 0.016 : 0.01, e.blocked ? 0x9fe0ff : e.kind === 'cut' ? 0xff5a7a : 0xffe066);
-        if (!e.blocked) crumbs?.[victim].emit(at, new THREE.Vector3(m.f[e.by].facing, 0.6, 0.3).normalize(), big ? 6 : 3);
+        if (e.shield && !e.blocked) {
+          // Cada golpe en el escudo lo astilla: se achica y suelta migas de papita/nacho.
+          const f = m.f[victim];
+          const total = f.model.shields[e.piece] || 1;
+          const c = views[victim].chip(e.piece, Math.max(0, f.shields[e.piece] ?? 0) / total);
+          if (c) chips?.emit(c, new THREE.Vector3(m.f[e.by].facing, 0.7, 0.3).normalize(), 7);
+        } else if (!e.blocked) crumbs?.[victim].emit(at, new THREE.Vector3(m.f[e.by].facing, 0.6, 0.3).normalize(), big ? 6 : 3);
         views[victim].bump(Math.min(1, e.damage / 18) * (e.blocked ? 0.4 : 1));
         shake = Math.max(shake, e.blocked ? 0.0008 : 0.0012 + e.damage * 0.00022);
         const label = e.blocked ? 'BLOQUEO' : e.shield ? 'ESCUDO' : e.kind === 'heavy' ? '¡PESADO!' : e.kind === 'cut' ? 'CORTE' : '';
@@ -246,10 +238,24 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         break;
       }
       case 'shieldBreak': {
-        const o = views[e.who].detach(e.piece);
-        if (o) debris.push({ o, v: new THREE.Vector3(e.vel[0], e.vel[1], 0.08), w: new THREE.Vector3(9, 4, 12), rest: false });
+        // El escudo no cae entero: se deshace en migas.
+        const c = views[e.who].shatter(e.piece);
+        if (c) chips?.emit(c, new THREE.Vector3(e.vel[0], 0.8, 0.3).normalize(), 22);
         hud.popup(e.at[0], e.at[1] + 0.018, '¡ESCUDO ROTO!', '', 'heavy');
-        g.audio.play('crack', 1);
+        g.audio.play('crunch', 1);
+        g.audio.play('crack', 0.8);
+        break;
+      }
+      case 'whiff':
+        if (e.heavy) {
+          const f = m.f[e.who];
+          hud.popup(f.x, f.y + 0.045, '¡ERRÓ!', 'el peso sigue de largo', 'block');
+        }
+        break;
+      case 'stumble': {
+        const f = m.f[e.who];
+        hud.popup(f.x, f.y + 0.05, '¡TRASTABILLA!', '', 'heavy');
+        g.audio.play('drop', 0.8);
         break;
       }
       case 'swing':
@@ -461,7 +467,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const bro = broccoliFighter(level);
     m = createMatch([model, bro]);
     ai = newAi(seed++, level);
-    hud.show([model.name, bro.name], warnings(model));
+    hud.show([model.name, bro.name], warnings(m.f[0]));
     paused = false;
     fightT = 0;
     acc = 0;
@@ -473,15 +479,17 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     camInit = false;
   };
 
-  const warnings = (md: FighterModel): string[] => {
+  const warnings = (f: Match['f'][number]): string[] => {
+    const md = f.model;
     const w: string[] = [];
-    const legs = md.limbs.filter((l) => l.role === 'leg').length;
-    const arms = md.limbs.filter((l) => l.role === 'arm').length;
+    const fixed = md.limbs.filter((l) => l.rigid).length;
     if (!md.limbs.length) w.push('Tu criatura no tiene palitos: clavale brazos y piernas para pelear');
     else {
-      if (legs === 0) w.push('Sin piernas: se arrastra (clavá palitos abajo, apuntando al piso)');
-      if (legs === 1) w.push('Una sola pierna: avanza a saltitos');
-      if (arms === 0) w.push('Sin brazos: pega con las piernas');
+      if (f.legs.length === 0) w.push('Sin piernas: se arrastra y no puede saltar (clavá palitos abajo, apuntando al piso)');
+      else if (f.jump === 0) w.push('Pesa más de lo que aguantan sus piernas: camina lento y no puede saltar');
+      if (f.legs.length === 1) w.push('Una sola pierna: avanza a saltitos');
+      if (f.arms.length === 0) w.push('Sin brazos: no da piñas ni se puede cubrir');
+      if (fixed) w.push(`${fixed === 1 ? 'Una pieza queda fija' : `${fixed} piezas quedan fijas`} (chupetín o atraviesa el chizito): pesa, pero no se mueve`);
     }
     return w;
   };
@@ -550,8 +558,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       z0 = g.pivot.position.z;
       saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
       g.interaction.enabled = false;
-      views = [creatureView(g.construction, g.pivot, model, g.stage.scene, g.stage.renderer), broccoliView(g.stage.scene, broccoliFighter(level), level)];
+      views = [creatureView(g.construction, g.pivot, model, g.stage.renderer), broccoliView(g.stage.scene, broccoliFighter(level), level)];
       crumbs = [new Crumbs(g.stage.scene, '#f2c95a'), new Crumbs(g.stage.scene, '#5c9a35')];
+      chips = new Crumbs(g.stage.scene, '#e0a640');
       open = true;
       btn.hidden = true;
       for (const sel of ['.cs-panel', '#cs-prober-btn', '#cs-prober', '#help']) {
@@ -591,11 +600,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       restore = null;
       crumbs?.forEach((c) => c.clear());
       crumbs = null;
+      chips?.clear();
+      chips = null;
       for (const s of sparks) s.m.removeFromParent();
       sparks.length = 0;
       for (const r of rings) r.m.removeFromParent();
       rings.length = 0;
-      debris.length = 0;
       for (const s of stars) s.removeFromParent();
       stars.length = 0;
       for (const el of hidden) el.style.display = el.dataset.cfDisplay ?? '';

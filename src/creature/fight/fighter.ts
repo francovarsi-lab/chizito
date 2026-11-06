@@ -34,7 +34,14 @@ export interface LimbModel {
   /** La pieza y todo lo que cuelga de ella. */
   pieceIds: string[];
   role: 'arm' | 'leg';
-  /** Articulación = punto de clavado (marco local). En una vara que atraviesa: el medio del tramo embebido. */
+  /**
+   * Sin articulación: el chupetín (rígido) y toda vara que ATRAVIESA el chizito (girarla rompería el chizito). Pesa, toca y apoya,
+   * pero no pega ni camina.
+   */
+  rigid: boolean;
+  /** kg que puede cargar si es pierna (articulada). */
+  carry: number;
+  /** Articulación = punto de clavado, sobre el perímetro del chizito (marco local). */
   pivot: V3;
   /** Dirección de reposo, del pivote al punto más lejano. */
   dir: V3;
@@ -176,24 +183,30 @@ export function fighterFromSnapshot(s: CreatureSnapshot, name = 'TU CRIATURA'): 
         return q && !q.cosmetic ? sample(q, L, parentId === s.coreId ? inside : () => false) : [];
       });
       const out = points.filter((q) => !q.inside);
-      if (!out.length) continue; // embebida entera: no asoma, no es extremidad
       const through = !!link.exit && link.exit.freeTip > FIGHT.throughMin && parentId === s.coreId;
-      const pivotRoot = through && link.exit ? mid(link.anchor, link.exit.point) : link.anchor;
-      const pivot = L(pivotRoot);
+      const pivot = L(link.anchor);
       let far = out[0];
       for (const q of out) if (dist(q.p, pivot) > dist(far.p, pivot)) far = q;
-      const reach = dist(far.p, pivot);
+      const reach = far ? dist(far.p, pivot) : 0;
+      // Clavada casi entera (asoma menos de 1 cm): no llega a nada, es solo peso pegado al cuerpo.
+      if (reach < FIGHT.minReach && !through) {
+        armor.push(...points.map((q) => ({ ...q, kind: q.kind === 'shield' ? q.kind : ('light' as HitKind) })));
+        continue;
+      }
       const dir = norm(sub(far.p, pivot));
+      const rigid = through || ids.some((id) => byId.get(id)?.type === 'chupetin');
       const mass = points.reduce((a, q) => a + q.m, 0);
       const kinds = new Set(points.map((q) => q.kind));
       const kind: HitKind = kinds.has('heavy') ? 'heavy' : kinds.has('cut') ? 'cut' : 'light';
       // Pierna: sale de la mitad de abajo (o casi) y apunta hacia el piso. Todo lo demás es brazo, esté donde esté.
-      const role = !through && pivot[1] < half * FIGHT.legPivotMax && dir[1] < FIGHT.legDownMin ? 'leg' : 'arm';
+      const role = pivot[1] < half * FIGHT.legPivotMax && dir[1] < FIGHT.legDownMin ? 'leg' : 'arm';
       const names = ids.map((id) => byId.get(id)?.type).filter((t): t is string => !!t && t !== 'ketchup');
       limbs.push({
         id: piece.id,
         pieceIds: ids,
         role,
+        rigid,
+        carry: (FIGHT.legCarryGrams[piece.type as keyof typeof FIGHT.legCarryGrams] ?? FIGHT.legCarryGrams.default) / 1000,
         pivot,
         dir,
         reach,
@@ -201,7 +214,7 @@ export function fighterFromSnapshot(s: CreatureSnapshot, name = 'TU CRIATURA'): 
         points,
         through,
         kind,
-        clip: through ? null : { point: link.anchor, normal: link.axis },
+        clip: rigid ? null : { point: link.anchor, normal: link.axis },
         label: [...new Set(names)].join(' + '),
       });
     }
@@ -249,6 +262,8 @@ export function broccoliFighter(level = 1): FighterModel {
       id: sk.id,
       pieceIds: [sk.id],
       role: sk.arm ? 'arm' : 'leg',
+      rigid: false,
+      carry: FIGHT.broccoli.carrotCarryGrams / 1000,
       pivot: a,
       dir: norm(sub(b, a)),
       reach: len(sub(b, a)),
