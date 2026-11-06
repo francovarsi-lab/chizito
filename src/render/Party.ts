@@ -77,8 +77,8 @@ export function buildParty(): Party {
   // Dos racimos atados a las esquinas del fondo de la mesa, con los globos separados entre sí (la
   // distancia entre centros siempre supera la suma de los radios, aun cuando flotan).
   const clusters: { base: THREE.Vector3; tops: [number, number, number][] }[] = [
-    { base: new THREE.Vector3(-0.78, 0, -1.08), tops: [[-0.93, 0.42, -1.12], [-0.79, 0.55, -1.16], [-0.65, 0.41, -1.08]] },
-    { base: new THREE.Vector3(0.8, 0, -1.08), tops: [[0.66, 0.43, -1.1], [0.8, 0.56, -1.15], [0.94, 0.42, -1.07]] },
+    { base: new THREE.Vector3(-0.78, 0, -1.04), tops: [[-0.93, 0.42, -1.04], [-0.79, 0.55, -1.08], [-0.65, 0.41, -1.0]] },
+    { base: new THREE.Vector3(0.8, 0, -1.04), tops: [[0.66, 0.43, -1.02], [0.8, 0.56, -1.07], [0.94, 0.42, -0.99]] },
   ];
   const colorsLeft = [PASTEL[2], PASTEL[1], PASTEL[0]];
   const colorsRight = [PASTEL[4], PASTEL[3], PASTEL[0]];

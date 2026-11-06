@@ -14,6 +14,7 @@ import { setGhost, setHighlight } from './Ghost';
 import type { Picker, SurfaceHit } from './Picker';
 import { AIM_GAP, Aim } from './Placement';
 import { poseFromData, tailFrame } from './attach';
+import { findBallHit } from './solidBall';
 import type { TrackballRotator } from './TrackballRotator';
 
 /**
@@ -134,6 +135,9 @@ export class InteractionController {
   private pressTime = 0;
   private pressBefore: Snapshot | null = null;
   private wheelTarget: number | null = null;
+  /** Destellos rojos sobre una bola de chupetín contra la que se chocó (y espera para repetir el aviso). */
+  private readonly ballWarn: { mesh: THREE.Mesh; t: number }[] = [];
+  private warnCooldown = 0;
   private wheelBefore: Snapshot | null = null;
   private wheelIdle = 0;
   /** Semillas distintas en cada sesión: no hay dos piezas iguales ni entre partidas. */
@@ -155,7 +159,7 @@ export class InteractionController {
   /** Objetos de piezas quitadas, para reutilizarlos al deshacer sin regenerar la malla. */
   private readonly graveyard = new Map<string, THREE.Object3D>();
   /** Envoltorios que se desenrollan al agarrar (palito de la selva) y después se caen. */
-  private readonly unwraps: { obj: THREE.Object3D; setProgress(p: number): void; t: number; falling?: THREE.Vector3; spin?: THREE.Vector3 }[] = [];
+  private readonly unwraps: { obj: THREE.Object3D; setProgress(p: number): void; t: number; falling?: THREE.Vector3; spin?: THREE.Vector3; curiosity?: () => string }[] = [];
   /** Piezas devueltas que se están achicando antes de desaparecer. */
   private readonly leaving: { obj: THREE.Object3D; t: number; from: number }[] = [];
   private time = 0;
@@ -332,7 +336,7 @@ export class InteractionController {
       // La pieza pivota alrededor de la punta: la cola sigue al mouse. Ensartando un chizito, lo que
       // se mueve es el chizito (el palito queda quieto), así que el gesto se invierte.
       const k = this.active.mount ? -TILT_PER_PX : TILT_PER_PX;
-      this.active.aim.addTilt(dx * k, -dy * k);
+      this.tilt(this.active, dx * k, -dy * k);
     }
   }
 
@@ -362,6 +366,11 @@ export class InteractionController {
     const before = aim.depth;
     const step = PUSH_SPEED * 1.6 * dt;
     aim.depth += THREE.MathUtils.clamp(this.wheelTarget - aim.depth, -step, step);
+    if (aim.depth > before && this.blockedByBall(a)) {
+      // Choca con la bola de un chupetín: se queda donde estaba.
+      aim.depth = before;
+      this.wheelTarget = before;
+    }
     if (before <= 0 && aim.depth > 0 && !a.node) {
       this.commit(a);
       this.state = a.selected ? InteractionState.SELECTED_PLACED_PIECE : InteractionState.PLACED;
@@ -447,7 +456,14 @@ export class InteractionController {
       const a = this.active;
       const settled = this.state === InteractionState.PLACED || this.state === InteractionState.SELECTED_PLACED_PIECE;
       const before = settled ? this.snapshot() : null;
+      const prevSpin = a.aim.spin;
       a.aim.spin += e.code === 'KeyQ' ? -SPIN_STEP : SPIN_STEP;
+      if (this.state !== InteractionState.HOLDING && this.blockedByBall(a)) {
+        // La bola de un chupetín lo impide: no gira.
+        a.aim.spin = prevSpin;
+        this.pose(a);
+        return;
+      }
       if (a.node && this.state !== InteractionState.HOLDING) {
         this.pose(a);
         a.aim.writeData(a.node.data, a.object);
@@ -463,10 +479,10 @@ export class InteractionController {
     if (this.state === InteractionState.AIMING && this.active && e.code.startsWith('Arrow')) {
       e.preventDefault();
       const step = THREE.MathUtils.degToRad(e.shiftKey ? 5 : 1);
-      if (e.code === 'ArrowLeft') this.active.aim.addTilt(-step, 0);
-      if (e.code === 'ArrowRight') this.active.aim.addTilt(step, 0);
-      if (e.code === 'ArrowUp') this.active.aim.addTilt(0, step);
-      if (e.code === 'ArrowDown') this.active.aim.addTilt(0, -step);
+      if (e.code === 'ArrowLeft') this.tilt(this.active, -step, 0);
+      if (e.code === 'ArrowRight') this.tilt(this.active, step, 0);
+      if (e.code === 'ArrowUp') this.tilt(this.active, 0, step);
+      if (e.code === 'ArrowDown') this.tilt(this.active, 0, -step);
     }
   }
 
@@ -522,7 +538,7 @@ export class InteractionController {
     if (def.wrapper) {
       const w = def.wrapper(seed, object);
       (object.children[0] ?? object).add(w.object);
-      this.unwraps.push({ obj: w.object, setProgress: w.setProgress, t: 0 });
+      this.unwraps.push({ obj: w.object, setProgress: w.setProgress, t: 0, curiosity: def.curiosity });
     }
     if (def.holdHint) overlay.hint(`holding-${type}`, def.holdHint);
     else overlay.hint('holding', 'tocá el chizito donde lo quieras clavar · Esc lo devuelve');
@@ -705,6 +721,62 @@ export class InteractionController {
   }
 
   /**
+   * La bola del chupetín es sólida: ¿la pose actual de la pieza activa entra en el volumen de alguna bola
+   * (o, si es un chupetín, su bola entra en otra pieza)? Si choca avisa con un destello rojo y un mensaje;
+   * quien llama revierte el cambio. Ensartando (`mount`) y el ketchup no se miden.
+   */
+  private blockedByBall(a: ActivePiece): boolean {
+    if (a.mount || a.def.frame === 'free') return false;
+    this.pose(a);
+    a.object.updateMatrixWorld(true);
+    const c = this.d.construction;
+    const pieceObjects = new Set<THREE.Object3D>([a.object]);
+    for (const n of c.nodes.values()) pieceObjects.add(n.object);
+    const hit = findBallHit({ root: c.root.object, active: a.object, pieceObjects, parent: a.parent?.object ?? null });
+    if (!hit) return false;
+    this.warnBall(hit);
+    return true;
+  }
+
+  private warnBall(ball: THREE.Mesh): void {
+    if (this.warnCooldown > 0) return;
+    this.warnCooldown = 0.7;
+    this.d.overlay.flash('el chupetín es sólido: por ahí no entra', 1600);
+    const glow = new THREE.Mesh(ball.geometry, new THREE.MeshBasicMaterial({ color: '#ff4a5c', transparent: true, opacity: 0.55, depthWrite: false }));
+    glow.scale.setScalar(1.04);
+    glow.userData.noPick = true;
+    glow.userData.stroke = true; // no cuenta como pieza en la prueba de choque
+    ball.add(glow);
+    this.ballWarn.push({ mesh: glow, t: 0 });
+  }
+
+  private updateBallWarn(dt: number): void {
+    this.warnCooldown = Math.max(0, this.warnCooldown - dt);
+    for (let i = this.ballWarn.length - 1; i >= 0; i--) {
+      const w = this.ballWarn[i];
+      w.t += dt;
+      const k = Math.max(0, 1 - w.t / 0.6);
+      (w.mesh.material as THREE.MeshBasicMaterial).opacity = 0.55 * k * k;
+      if (k <= 0) {
+        w.mesh.removeFromParent();
+        (w.mesh.material as THREE.Material).dispose();
+        this.ballWarn.splice(i, 1);
+      }
+    }
+  }
+
+  /** Inclina la pieza que se apunta; si la bola de un chupetín lo impide, el ángulo no cambia. */
+  private tilt(a: ActivePiece, dx: number, dy: number): void {
+    const { tiltX, tiltY } = a.aim;
+    a.aim.addTilt(dx, dy);
+    if (this.blockedByBall(a)) {
+      a.aim.tiltX = tiltX;
+      a.aim.tiltY = tiltY;
+      this.pose(a);
+    }
+  }
+
+  /**
    * Pose de la pieza activa según su apuntado. Ensartando, `aim` describe una "punta virtual" (la cola
    * del palito, mirando hacia el palito) clavada en el chizito; el chizito queda en
    * cola · inversa(punta en el chizito), en coordenadas del palito. Con `smooth` se acerca suave.
@@ -730,7 +802,13 @@ export class InteractionController {
 
   /** Profundidad máxima: la propia de la pieza o, ensartando, lo que queda del palito afuera. */
   private maxDepth(a: ActivePiece): number {
-    if (!a.mount) return maxDepthOf(a.def, a.params);
+    if (!a.mount) {
+      const max = maxDepthOf(a.def, a.params);
+      if (!a.def.depthStop) return max;
+      // Tope físico (bola del chupetín): depende del ángulo con la superficie.
+      const cos = Math.cos(a.aim.tiltX) * Math.cos(a.aim.tiltY);
+      return Math.min(max, a.def.depthStop(a.seed, cos));
+    }
     const tailY = new THREE.Vector3().setFromMatrixPosition(tailFrame(a.mount.object)).y;
     return Math.max(0.004, tailY - a.mount.data.depth - 0.003);
   }
@@ -1184,6 +1262,7 @@ export class InteractionController {
     this.d.rotator.update(dt);
     this.updateLeaving(dt);
     this.updateUnwraps(dt);
+    this.updateBallWarn(dt);
     const a = this.active;
     if (a && a.popT !== undefined) {
       // "Pop" al salir del vaso: crece con un rebote elástico (easeOutBack).
@@ -1282,6 +1361,7 @@ export class InteractionController {
       const crust = aim.depth < 0 ? 1 : 0.3 + 0.7 * THREE.MathUtils.smoothstep(aim.depth, 0.0005, 0.0045);
       const before = aim.depth;
       aim.depth = Math.min(this.maxDepth(a), aim.depth + PUSH_SPEED * accel * crust * dt);
+      if (aim.depth > before && this.blockedByBall(a)) aim.depth = before; // la bola de un chupetín no se atraviesa
       if (before <= 0 && aim.depth > 0) this.commit(a);
       else if (aim.depth > 0 && aim.depth > before) this.emit('inserting', this.info(a, dt));
     } else if (this.press === 'pull') {
@@ -1351,6 +1431,11 @@ export class InteractionController {
           u.spin = new THREE.Vector3(Math.random() * 2, Math.random() * 3, Math.random() * 2);
           u.t = 0;
           this.emit('drop', null);
+          if (u.curiosity) {
+            // El papel "se da vuelta" hacia la pantalla: el cartel sale de donde quedó el papel.
+            const sp = u.obj.getWorldPosition(new THREE.Vector3()).project(this.d.camera);
+            this.d.overlay.fact(u.curiosity(), (sp.x * 0.5 + 0.5) * window.innerWidth, (-sp.y * 0.5 + 0.5) * window.innerHeight);
+          }
         }
         continue;
       }
@@ -1361,7 +1446,9 @@ export class InteractionController {
       u.obj.rotation.y += u.spin!.y * dt;
       u.obj.rotation.z += u.spin!.z * dt;
       // Se desvanece (cada envoltorio trae sus propios materiales, no afecta a los del bowl).
-      const fade = Math.max(0, 1 - u.t / 1.3);
+      // (el papel con dato curioso se va rápido: lo que se lee es el cartel)
+      const life = u.curiosity ? 0.35 : 1.3;
+      const fade = Math.max(0, 1 - u.t / life);
       u.obj.traverse((o) => {
         const m = (o as THREE.Mesh).material as THREE.Material | undefined;
         if (!m) return;
@@ -1369,7 +1456,7 @@ export class InteractionController {
         m.userData.baseOpacity ??= m.opacity;
         m.opacity = (m.userData.baseOpacity as number) * fade;
       });
-      if (u.t >= 1.3) {
+      if (u.t >= life) {
         u.obj.removeFromParent();
         u.obj.traverse((o) => {
           const mesh = o as THREE.Mesh;

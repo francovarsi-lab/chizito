@@ -7,9 +7,19 @@ export class Overlay {
   private readonly angle: HTMLElement;
   private readonly shown = new Set<string>();
   private hideTimer = 0;
+  private readonly factCard: HTMLElement;
+  private readonly factText: HTMLElement;
+  private factTimer = 0;
   hidden = false;
 
   constructor() {
+    this.factCard = document.createElement('div');
+    this.factCard.id = 'fact';
+    this.factCard.setAttribute('aria-live', 'polite');
+    this.factCard.innerHTML = '<div class="band"></div><div class="body"><div class="kicker">¿Sabías que…?</div><div class="text"></div></div><div class="band"></div>';
+    this.factText = this.factCard.querySelector('.text')!;
+    document.body.appendChild(this.factCard);
+
     this.help = document.getElementById('help')!;
     this.angle = document.createElement('div');
     this.angle.id = 'angle';
@@ -24,6 +34,31 @@ export class Overlay {
     this.help.classList.toggle('hidden', this.hidden);
     window.clearTimeout(this.hideTimer);
     this.hideTimer = window.setTimeout(() => this.help.classList.add('hidden'), ms);
+  }
+
+  /**
+   * Papel con un dato curioso, de frente a la pantalla: sale volando desde (fromX, fromY) (px CSS, donde
+   * se soltó el papel), se queda el tiempo de leerlo y se va. No bloquea el mouse (se sigue jugando).
+   */
+  fact(text: string, fromX: number, fromY: number): void {
+    const card = this.factCard;
+    window.clearTimeout(this.factTimer);
+    card.classList.remove('in', 'out');
+    this.factText.textContent = text;
+    // Punto de partida: el centro del papel suelto, relativo a donde va a quedar.
+    card.style.setProperty('--dx', '0px');
+    card.style.setProperty('--dy', '0px');
+    const r = card.getBoundingClientRect();
+    card.style.setProperty('--dx', `${Math.round(fromX - (r.left + r.width / 2))}px`);
+    card.style.setProperty('--dy', `${Math.round(fromY - (r.top + r.height / 2))}px`);
+    void card.offsetWidth; // fija el estado inicial antes de animar
+    card.classList.add('in');
+    // Tiempo de lectura: base + ~0,05 s por letra (≈ 4,5–6,5 s según el largo).
+    const ms = 3200 + text.length * 50;
+    this.factTimer = window.setTimeout(() => {
+      card.classList.add('out');
+      this.factTimer = window.setTimeout(() => card.classList.remove('in', 'out'), 700);
+    }, ms);
   }
 
   /** Mensaje breve que se muestra siempre (confirmaciones, deshacer). */

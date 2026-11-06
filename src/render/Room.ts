@@ -6,14 +6,14 @@ import { tableclothMaterial, woodMaterial } from '../assets/procedural/surfaces'
  * costados, piso de madera, tres paredes LISAS (fondo e izquierda/derecha) con zócalo blanco y techo. Las
  * guirnaldas se clavan en la pared del fondo (ver `Party`). Medidas reales (1 u = 1 m); la mesa está en y = 0.
  *
- *   x: −1,7 ……… pared izq.            mesa 1,9 × 1,5 m (x ±0,95, z −1,2 … +0,3)           pared der. ……… +1,7
- *   y: −0,75 piso · 0 mesa · 1,6 techo                 z: −1,85 pared del fondo
+ *   x: −1,7 ……… pared izq.            mesa 1,9 × 1,5 m (x ±0,95, z −1,2 … +0,3), con el borde de atrás contra la pared           pared der. ……… +1,7
+ *   y: −0,75 piso · 0 mesa · 1,6 techo                 z: −1,23 pared del fondo, pegada a la mesa
  */
 export const ROOM = {
   table: { halfW: 0.95, zBack: -1.2, zFront: 0.3, legInset: 0.08 },
   floorY: -0.75,
   ceilingY: 1.6,
-  backZ: -1.85,
+  backZ: -1.23, // la pared del fondo está pegada a la mesa (queda 3 cm: el mantel apenas la toca)
   sideX: 1.7,
   frontZ: 1.6,
   clothDrop: 0.3,

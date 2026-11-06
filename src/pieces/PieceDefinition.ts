@@ -60,6 +60,12 @@ export interface PieceDefinition {
   wrapper?: (seed: number, piece: THREE.Object3D) => { object: THREE.Object3D; setProgress(p: number): void };
 
   /**
+   * Dato curioso que trae el papel del envoltorio: cuando termina de desenrollarse, el papel se pone de
+   * frente a la pantalla con este texto y queda unos segundos para poder leerlo.
+   */
+  curiosity?: () => string;
+
+  /**
    * Para el intérprete de combate: qué es la pieza geométricamente y cuánto pesa (aprox., gramos).
    * `rod` = vara (palito), `blob` = bulto (aceituna, chizito), `plate` = placa (papita, nacho).
    * `tipMassGrams`/`tipAt`: masa concentrada en una punta (p. ej. la bola del chupetín, a `tipAt` metros
@@ -82,6 +88,13 @@ export interface PieceDefinition {
   canPierce: boolean;
   /** Puede ser atravesada por otras piezas. */
   canBePierced: boolean;
+  /**
+   * Tope físico de clavado que depende de la pieza concreta (semilla) y del ángulo (`cosTilt` = coseno entre
+   * la pieza y la normal de la superficie): p. ej. la bola del chupetín, que no atraviesa. Se aplica además
+   * de `maxDepth`.
+   */
+  depthStop?: (seed: number, cosTilt: number) => number;
+
   /** Profundidad máxima de inserción (m). Una variante puede tener la suya (ver `maxDepthOf`). */
   maxDepth: number;
 
