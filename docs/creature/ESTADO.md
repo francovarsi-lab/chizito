@@ -90,3 +90,7 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 - Un test falla si `src/config.ts` deja de importar `MAX_PIECES` o pone un número distinto.
 - Chat de mecánicas: definir la masa del palito de la selva (1,1 g con la densidad del palito vs 2,3 g declarados por el chat 3D).
 - Este chat: tanda 9 cerrada, espera OK. Las fixtures se regeneraron tras el merge (el chizito de la rama 3D cambió su porosidad: los puntos de entrada se movieron < 0,1 mm).
+
+
+## Pelea 3D (2026-11-06)
+- La pelea corre en la mesa real (`src/creature/fight/`). DECISIÓN NUEVA: palito clavado = brazo articulado en su punto de clavado, sin física del análisis. Detalle, estado y pendientes en `docs/creature/TRASPASO.md`.
