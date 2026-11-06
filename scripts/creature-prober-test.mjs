@@ -1,4 +1,4 @@
-// Probador del panel en el juego real (?creature&probador): teclas reales, animación, golpes, capturas y fps.
+// Probador del panel en el juego real (?dev&probador): teclas reales, animación, golpes, capturas y fps.
 // Uso: node scripts/creature-prober-test.mjs [outDir]   (con `npm run dev` corriendo)
 import { chromium } from 'playwright';
 import fs from 'node:fs';
@@ -10,7 +10,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-await page.goto('http://localhost:5173/?capture&creature&probador');
+await page.goto('http://localhost:5173/?capture&dev&probador');
 await page.waitForFunction(() => !!window.__prober, null, { timeout: 300000 });
 let bad = 0;
 const ok = (c, msg) => { if (!c) bad++; console.log(`${c ? 'OK ' : 'FALLA'} ${msg}`); };
@@ -18,7 +18,7 @@ const P = (fn, ...args) => page.evaluate(fn, ...args);
 const hud = () => P(() => document.getElementById('cs-prober').innerText);
 const snap = async (name) => { await P(() => window.__prober.render()); await page.screenshot({ path: `${out}/probador-${name}.png` }); };
 
-ok(await P(() => !document.getElementById('cs-prober').hidden), 'con ?creature&probador la ventana arranca abierta');
+ok(await P(() => !document.getElementById('cs-prober').hidden), 'con ?dev&probador la ventana arranca abierta');
 await P(() => window.__prober.setManual(true));
 const hold = async (code, frames) => { await page.keyboard.down(code); await P((n) => window.__prober.advance(n), frames); await page.keyboard.up(code); };
 

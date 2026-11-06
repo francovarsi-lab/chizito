@@ -1,441 +1,602 @@
 import * as THREE from 'three';
+import type { AudioManager } from '../../audio/AudioManager';
+import { Crumbs } from '../../fx/Crumbs';
+import type { Construction } from '../../model/Construction';
+import type { PieceRegistry } from '../../pieces/PieceRegistry';
 import type { CameraRig } from '../../render/CameraRig';
 import type { Stage } from '../../render/Stage';
-import { CREATURE_CONFIG } from '../config';
-import { interpret } from '../interpret';
-import { poseCreature, type Pose, type SimInput } from '../sim';
-import vegRaw from '../fixtures/veg.snapshot.json?raw';
-import type { CreatureSnapshot } from '../types';
-import type { PanelController } from '../ui/mount';
+import { resolveSnapshot } from '../resolve';
 import { aiInput, newAi, type AiMem } from './ai';
-import { broccoliAnalysis } from './broccoliAnalysis';
-import { broccoliPoser, type Poser } from './broccoliRig';
-import { applyRig, makeRig, resetRig } from './rig3d';
-import { createFight, stepFight, type FightState } from './rules';
-import { FIGHT } from './tuning';
+import { createMatch, stepMatch, type FightEvent, type FightInput, type Match } from './engine';
+import { broccoliFighter, fighterFromSnapshot, type FighterModel } from './fighter';
+import { FightHud, type MenuAction } from './hud';
+import { blendPose, broccoliView, creatureView, type FighterView, type RenderPose } from './render';
+import { AI_LEVELS, FIGHT } from './tuning';
 
-/** Lo que el juego deja en `window.__chizito` y la pelea usa: la MISMA escena, cámara y criatura del constructor. */
-interface Game {
+/** Lo que el juego deja en `window.__chizito`: la MISMA escena, cámara y criatura del constructor. */
+export interface Game {
   stage: Stage;
   pivot: THREE.Group;
   rig: CameraRig;
-  construction: import('../../model/Construction').Construction;
+  construction: Construction;
   interaction: { enabled: boolean };
+  audio: AudioManager;
 }
 
 export interface FightController {
   open(): Promise<void>;
   close(): void;
   isOpen(): boolean;
-  state(): FightState | null;
-  /** Para pruebas: avanza `frames` pasos con la entrada del jugador dada (el rival juega con su IA). No dibuja: el juego renderiza. */
-  advance(frames: number, input?: SimInput | ((frame: number) => SimInput)): void;
-  restart(): void;
-  /** Las dos criaturas 3D en escena (para las pruebas). */
-  posers(): [Poser, Poser] | null;
+  match(): Match | null;
+  model(): FighterModel | null;
+  /** Para pruebas: avanza `frames` pasos (el rival juega con su IA). No dibuja: el juego renderiza. */
+  advance(frames: number, input?: FightInput | ((frame: number) => FightInput)): void;
+  restart(level?: number): void;
+  paused(): boolean;
   destroy(): void;
 }
 
 declare global {
   interface Window {
-    /** La pelea (solo existe con `?creature`). */
     __fight?: FightController;
   }
 }
 
-const INK = '#1a0d08';
-const css = `
-#cf .warn{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center}
-#cf .warn b{background:#fff6df;color:${INK};border:3px solid ${INK};border-radius:16px;padding:6px 14px;font:800 14px system-ui,sans-serif;box-shadow:3px 3px 0 ${INK}}
-#cf-btn{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:41;border:3px solid ${INK};border-radius:26px;padding:11px 28px;background:#ffd21f;color:${INK};font:900 17px "Arial Black",system-ui,sans-serif;letter-spacing:.08em;cursor:pointer;box-shadow:4px 4px 0 ${INK}}
-#cf-btn:hover{background:#ffe066}#cf-btn[hidden]{display:none}
-#cf{position:fixed;inset:0;z-index:60;pointer-events:none;font-family:"Arial Black",Impact,system-ui,sans-serif}
-#cf[hidden]{display:none}
-#cf .bar{position:absolute;top:34px;width:min(38vw,560px);height:30px;border:4px solid ${INK};border-radius:16px;background:#fff6df;box-shadow:5px 5px 0 ${INK};overflow:hidden}
-#cf .bar.l{left:4vw}#cf .bar.r{right:4vw}
-#cf .bar i{position:absolute;top:0;bottom:0;background:#17c964;transition:width .08s linear}
-#cf .bar b{position:absolute;top:0;bottom:0;background:#fff;opacity:.9;transition:width .6s ease .25s}
-#cf .bar.l i,#cf .bar.l b{left:0}#cf .bar.r i,#cf .bar.r b{right:0}
-#cf .nm{position:absolute;top:6px;color:#fff6df;font-size:18px;letter-spacing:.06em;-webkit-text-stroke:5px ${INK};paint-order:stroke fill;text-shadow:0 2px 0 ${INK}}
-#cf .nm.l{left:4vw}#cf .nm.r{right:4vw}
-#cf .vs{position:absolute;top:26px;left:50%;transform:translateX(-50%);color:#ffd21f;font-size:30px;-webkit-text-stroke:6px ${INK};paint-order:stroke fill}
-#cf .pop{position:absolute;color:#fff;font-size:30px;-webkit-text-stroke:6px ${INK};paint-order:stroke fill;transform:translate(-50%,-50%);white-space:nowrap}
-#cf .ko{position:absolute;left:0;right:0;top:22%;text-align:center;display:none}
-#cf .ko h1{margin:0;font-size:min(16vh,150px);color:#ff3d2e;-webkit-text-stroke:12px ${INK};paint-order:stroke fill}
-#cf .ko h2{margin:6px 0 14px;font-size:min(7vh,64px);color:#ffd21f;-webkit-text-stroke:8px ${INK};paint-order:stroke fill}
-#cf .ko button{pointer-events:auto;margin:0 6px;border:3px solid ${INK};border-radius:22px;padding:9px 22px;background:#fff6df;color:${INK};font:900 16px "Arial Black",system-ui,sans-serif;cursor:pointer;box-shadow:4px 4px 0 ${INK}}
-#cf .help{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;font:700 13px system-ui,sans-serif;text-shadow:0 1px 4px #000,0 0 10px #000;white-space:pre-line}
+const btnCss = `
+#cf-btn{position:fixed;right:22px;bottom:22px;z-index:41;display:flex;align-items:center;gap:10px;border:0;border-radius:18px;padding:13px 24px 12px 18px;cursor:pointer;
+  font:400 19px/1 "Bungee",Impact,sans-serif;letter-spacing:.04em;color:#0d1024;background:linear-gradient(#fff7a8,#ffd23f 50%,#ff9f1c);
+  box-shadow:0 0 0 3px #fff,0 0 0 6px #0d1024,0 6px 0 6px #0d1024,0 18px 36px rgba(13,16,36,.35);transition:transform .12s,filter .15s;animation:cfb 2.4s ease-in-out infinite}
+#cf-btn:hover{transform:translateY(-3px) scale(1.03);filter:brightness(1.08)}
+#cf-btn:active{transform:translateY(2px)}
+#cf-btn svg{width:26px;height:26px}
+#cf-btn[hidden]{display:none}
+@keyframes cfb{0%,100%{box-shadow:0 0 0 3px #fff,0 0 0 6px #0d1024,0 6px 0 6px #0d1024,0 18px 36px rgba(13,16,36,.35)}50%{box-shadow:0 0 0 3px #fff,0 0 0 6px #0d1024,0 6px 0 6px #0d1024,0 18px 44px rgba(255,159,28,.6)}}
 `;
+const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/></svg>`;
 
-const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyZ', 'KeyX', 'KeyR', 'Escape']);
+const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyR', 'Escape', 'Enter', 'Space']);
+
+const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken] });
 
 /**
- * La pelea en LA MISMA mesa donde se arma la criatura: la cámara pasa a una vista lateral fija y las dos criaturas (la tuya, con
- * todas sus piezas reales, y el rival vegetal armado con las mismas piezas) se mueven y pelean sobre el mantel. Botón "⚔ PELEAR".
+ * La pelea en LA MISMA mesa donde se arma la criatura: la cámara pasa a una vista lateral que sigue y encuadra a los dos, y tu
+ * criatura (con todas sus piezas reales) pelea contra el brócoli. Botón "⚔ PELEAR" abajo a la derecha.
  */
-export function mountFight(deps: { panel: PanelController; host?: HTMLElement }): FightController {
+export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host?: HTMLElement }): FightController {
   const host = deps.host ?? document.body;
   const st = document.createElement('style');
-  st.textContent = css;
+  st.textContent = btnCss;
   document.head.appendChild(st);
   const btn = document.createElement('button');
   btn.id = 'cf-btn';
-  btn.textContent = '⚔ PELEAR';
-  const root = document.createElement('div');
-  root.id = 'cf';
-  root.hidden = true;
-  root.innerHTML = `<div class="nm l">TU CRIATURA</div><div class="bar l"><b></b><i></i></div><div class="vs">VS</div><div class="nm r">BRÓCOLI</div><div class="bar r"><b></b><i></i></div>
-<div class="ko"><h1>KO</h1><h2></h2><button data-a="again">R · Revancha</button><button data-a="exit">Esc · Volver a armar</button></div><div class="warn"></div><div class="help">← → moverse · Z golpear (↑ / ↓ + Z: otros golpes) · X guardia · Esc salir</div>`;
-  host.append(btn, root);
-  const q = <T extends Element>(s: string): T => root.querySelector(s) as T;
-  const bars = [q<HTMLElement>('.bar.l'), q<HTMLElement>('.bar.r')];
-  const fills = bars.map((b) => b.querySelector('i') as HTMLElement);
-  const chips = bars.map((b) => b.querySelector('b') as HTMLElement);
-  const ko = q<HTMLElement>('.ko');
-  const warnEl = q<HTMLElement>('.warn');
+  btn.innerHTML = `${SWORDS}PELEAR`;
+  btn.title = 'Pelear con tu criatura contra el brócoli';
+  host.append(btn);
+  const hud = new FightHud(host);
 
-  const game = (): Game => (window as unknown as { __chizito: Game }).__chizito;
-  const cfg = CREATURE_CONFIG;
+  const game = deps.game;
   let open = false;
-  let state: FightState | null = null;
-  let posers: [Poser, Poser] | null = null;
-  let prevPoses: [Pose, Pose] | null = null;
-  let curPoses: [Pose, Pose] | null = null;
-  let alpha = 1;
-  let z0 = 0;
-  let ai: AiMem = newAi(1);
-  let hitstop = 0;
-  let seed = 1;
-  let raf = 0;
-  let last = 0;
+  let paused = false;
+  let m: Match | null = null;
+  let model: FighterModel | null = null;
+  let views: [FighterView, FighterView] | null = null;
+  let prev: [RenderPose, RenderPose] | null = null;
+  let cur: [RenderPose, RenderPose] | null = null;
   let acc = 0;
+  let level = 1;
+  let ai: AiMem = newAi(1, 1);
+  let seed = 1;
+  let z0 = 0;
   const keys = new Set<string>();
+  const edges = new Set<string>();
   const hidden: HTMLElement[] = [];
   let saved: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number; enabled: boolean } | null = null;
-  let camBase = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
-  let tween: { t: number; from: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number }; to: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number }; done?: () => void } | null = null;
+  let restore: (() => void) | null = null;
   let shake = 0;
-  let patched = false;
-  /** Modo liviano: la pelea apaga lo caro (oclusión, sombra del sol, props, resolución) para ir fluida; se restaura al salir. */
-  let light: { restore: () => void; degrade: (level: number) => void } | null = null;
-  let level = 0;
-  let frames = 0;
-  let acc2 = 0;
-  const sparks: { m: THREE.Mesh; v: THREE.Vector3; life: number }[] = [];
-  const pops: { el: HTMLElement; p: THREE.Vector3; life: number }[] = [];
-  const sparkGeo = new THREE.SphereGeometry(0.0013, 6, 6);
-  const sparkMat = [new THREE.MeshBasicMaterial({ color: 0xffd21f }), new THREE.MeshBasicMaterial({ color: 0xffffff })];
+  let fightT = 0;
+  let level2 = 0;
+  let perfN = 0;
+  let perfAcc = 0;
+  const camPos = new THREE.Vector3();
+  const camLook = new THREE.Vector3();
+  let camInit = false;
+  let crumbs: [Crumbs, Crumbs] | null = null;
+  const sparks: { m: THREE.Mesh; v: THREE.Vector3; life: number; max: number }[] = [];
+  const rings: { m: THREE.Mesh; life: number; max: number; size: number }[] = [];
+  const debris: { o: THREE.Object3D; v: THREE.Vector3; w: THREE.Vector3; rest: boolean }[] = [];
+  const stars: THREE.Mesh[] = [];
+  const sparkGeo = new THREE.SphereGeometry(0.0009, 6, 5);
+  const sparkMat = [new THREE.MeshBasicMaterial({ color: 0xfff1a0 }), new THREE.MeshBasicMaterial({ color: 0xffffff }), new THREE.MeshBasicMaterial({ color: 0xffa21f })];
+  const ringGeo = new THREE.RingGeometry(0.84, 1, 40);
+  const starGeo = new THREE.OctahedronGeometry(0.0022, 0);
+  const starMat = new THREE.MeshBasicMaterial({ color: 0xffd23f });
 
-  /** Vista lateral fija sobre la mesa, mirando a donde pelean. */
-  const fightCam = (): { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number } => {
-    const pos = new THREE.Vector3(0, 0.085, z0 + 0.5);
-    const m = new THREE.Matrix4().lookAt(pos, new THREE.Vector3(0, 0.045, z0), new THREE.Vector3(0, 1, 0));
-    return { pos, quat: new THREE.Quaternion().setFromRotationMatrix(m), focal: 50 };
-  };
-
-  const startTween = (to: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number }, done?: () => void): void => {
-    const cam = game().stage.camera;
-    tween = { t: 0, from: { pos: cam.position.clone(), quat: cam.quaternion.clone(), focal: cam.getFocalLength() }, to, done };
-  };
-
-  const setHud = (): void => {
-    if (!state) return;
-    state.f.forEach((f, i) => {
-      const pct = Math.max(0, f.hp);
-      fills[i].style.width = `${pct}%`;
-      fills[i].style.background = pct > 50 ? '#17c964' : pct > 25 ? '#ffc21a' : '#ff3d2e';
-      chips[i].style.width = `${pct}%`;
-    });
-    if (state.winner !== null) {
-      ko.style.display = 'block';
-      (ko.querySelector('h2') as HTMLElement).textContent = state.winner === 'draw' ? '¡EMPATE!' : state.winner === 0 ? '¡GANASTE!' : 'PERDISTE';
-    } else ko.style.display = 'none';
+  // ── Entrada ──
+  const held = (...c: string[]): boolean => c.some((k) => keys.has(k));
+  const took = (...c: string[]): boolean => c.some((k) => edges.has(k));
+  const readInput = (): FightInput => {
+    const x = ((held('ArrowRight', 'KeyD') ? 1 : 0) - (held('ArrowLeft', 'KeyA') ? 1 : 0)) as -1 | 0 | 1;
+    const inp: FightInput = { x, up: took('ArrowUp', 'KeyW', 'Space'), down: held('ArrowDown', 'KeyS'), attack: took('KeyZ', 'KeyJ'), guard: held('KeyX', 'KeyK') };
+    edges.clear();
+    return inp;
   };
 
-  /** La pose se mezcla entre el último paso y el anterior (la simulación va a 60 Hz; la pantalla puede ir a más): movimiento fluido. */
-  const blend = (a: Pose, b: Pose, t: number): Pose => ({
-    ...b,
-    x: a.x + (b.x - a.x) * t,
-    lift: a.lift + (b.lift - a.lift) * t,
-    limbs: b.limbs.map((l, k) => ({ ...l, deltaDeg: a.limbs[k] ? a.limbs[k].deltaDeg + (l.deltaDeg - a.limbs[k].deltaDeg) * t : l.deltaDeg })),
-  });
-  const lean = [0, 0];
-  const leanOf = (f: FightState['f'][number]): number => {
-    const c = f.sim.combat;
-    if (f.stun > 0) return -0.24 * (f.stun / FIGHT.hitstun); // recibe el golpe: se echa hacia atrás
-    if (c.phase === 'startup') return -0.08; // carga el golpe
-    if (c.phase === 'active') return 0.16; // se tira hacia adelante
-    if (c.phase === 'recovery') return 0.05;
-    return 0;
+  // ── Efectos ──
+  const P3 = (x: number, y: number, dz = 0.008): THREE.Vector3 => new THREE.Vector3(x, y, z0 + dz);
+  const project = (x: number, y: number): [number, number] | null => {
+    const v = P3(x, y).project(game().stage.camera);
+    if (v.z > 1) return null;
+    return [((v.x + 1) / 2) * window.innerWidth, ((1 - v.y) / 2) * window.innerHeight];
   };
-  const pose = (): void => {
-    if (!state || !posers || !prevPoses || !curPoses) return;
-    state.f.forEach((f, i) => {
-      lean[i] += (leanOf(f) - lean[i]) * 0.35;
-      posers![i].apply(f.plan, f.sim, blend(prevPoses![i], curPoses![i], alpha), z0, lean[i]);
-    });
-  };
-  const capture = (): void => {
-    if (!state) return;
-    const now = state.f.map((f) => poseCreature(f.an, f.plan, f.sim, cfg)) as [Pose, Pose];
-    prevPoses = curPoses ?? now;
-    curPoses = now;
-  };
-
-  const burst = (x: number, y: number, blocked: boolean, damage: number): void => {
-    for (let i = 0; i < (blocked ? 8 : 16); i++) {
-      const m = new THREE.Mesh(sparkGeo, sparkMat[i % 2]);
-      m.position.set(x, y, z0 + 0.01);
+  const burst = (at: THREE.Vector3, n: number, power: number): void => {
+    const scene = game().stage.scene;
+    for (let i = 0; i < n; i++) {
+      const s = new THREE.Mesh(sparkGeo, sparkMat[i % 3]);
+      s.position.copy(at);
       const a = Math.random() * Math.PI * 2;
-      const sp = 0.12 + Math.random() * 0.3;
-      game().stage.scene.add(m);
-      sparks.push({ m, v: new THREE.Vector3(Math.cos(a) * sp, Math.sin(a) * sp + 0.06, (Math.random() - 0.5) * 0.1), life: 0.3 + Math.random() * 0.25 });
+      const sp = (0.15 + Math.random() * 0.35) * power;
+      scene.add(s);
+      const max = 0.18 + Math.random() * 0.22;
+      sparks.push({ m: s, v: new THREE.Vector3(Math.cos(a) * sp, Math.sin(a) * sp + 0.05, (Math.random() - 0.5) * 0.12), life: max, max });
     }
-    const el = document.createElement('div');
-    el.className = 'pop';
-    el.textContent = blocked ? `BLOQUEO −${damage.toFixed(0)}` : `−${damage.toFixed(0)}`;
-    root.appendChild(el);
-    pops.push({ el, p: new THREE.Vector3(x, y + 0.012, z0 + 0.02), life: 0 });
-    shake = Math.max(shake, blocked ? 0.0008 : 0.0025);
   };
-
+  const ring = (at: THREE.Vector3, size: number, color: number): void => {
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide });
+    const r = new THREE.Mesh(ringGeo, mat);
+    r.position.copy(at);
+    r.quaternion.copy(game().stage.camera.quaternion);
+    r.scale.setScalar(size * 0.3);
+    game().stage.scene.add(r);
+    rings.push({ m: r, life: 0, max: 0.22, size });
+  };
   const fx = (dt: number): void => {
-    for (const s of sparks) {
-      s.life -= dt;
-      s.v.y -= 0.9 * dt;
-      s.m.position.addScaledVector(s.v, dt);
-    }
     for (let i = sparks.length - 1; i >= 0; i--) {
-      if (sparks[i].life <= 0) {
-        sparks[i].m.removeFromParent();
+      const s = sparks[i];
+      s.life -= dt;
+      s.v.y -= 0.8 * dt;
+      s.v.multiplyScalar(1 - 3 * dt);
+      s.m.position.addScaledVector(s.v, dt);
+      s.m.scale.setScalar(Math.max(0.05, s.life / s.max));
+      if (s.life <= 0) {
+        s.m.removeFromParent();
         sparks.splice(i, 1);
       }
     }
-    const cam = game().stage.camera;
-    const v = new THREE.Vector3();
-    for (let i = pops.length - 1; i >= 0; i--) {
-      const p = pops[i];
-      p.life += dt;
-      v.copy(p.p).project(cam);
-      p.el.style.left = `${((v.x + 1) / 2) * window.innerWidth}px`;
-      p.el.style.top = `${((1 - v.y) / 2) * window.innerHeight - p.life * 50}px`;
-      p.el.style.opacity = String(Math.max(0, 1 - p.life / 0.9));
-      if (p.life > 0.9) {
-        p.el.remove();
-        pops.splice(i, 1);
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const r = rings[i];
+      r.life += dt;
+      const k = r.life / r.max;
+      r.m.scale.setScalar(r.size * (0.3 + 0.9 * Math.sqrt(k)));
+      (r.m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - k);
+      if (k >= 1) {
+        r.m.removeFromParent();
+        (r.m.material as THREE.Material).dispose();
+        rings.splice(i, 1);
       }
     }
-    // Cámara: viaje suave al entrar/salir, y temblor de impacto sobre la vista fija.
-    const cam3 = game().stage.camera;
+    for (const d of debris) {
+      if (d.rest) continue;
+      d.v.y -= 6 * dt;
+      d.o.position.addScaledVector(d.v, dt);
+      d.o.rotation.x += d.w.x * dt;
+      d.o.rotation.y += d.w.y * dt;
+      d.o.rotation.z += d.w.z * dt;
+      if (d.o.position.y < 0.003) {
+        d.o.position.y = 0.003;
+        d.v.y = -d.v.y * 0.3;
+        d.v.x *= 0.6;
+        d.v.z *= 0.6;
+        d.w.multiplyScalar(0.5);
+        if (Math.abs(d.v.y) < 0.03) d.rest = true;
+      }
+    }
+    crumbs?.forEach((c) => c.update(dt));
+    // Estrellitas del mareo.
+    if (m && views) {
+      let n = 0;
+      m.f.forEach((f, i) => {
+        if (f.dizzyT <= 0) return;
+        const h = views![i].head();
+        for (let k = 0; k < 3; k++, n++) {
+          if (!stars[n]) {
+            stars[n] = new THREE.Mesh(starGeo, starMat);
+            game().stage.scene.add(stars[n]);
+          }
+          const a = performance.now() / 260 + (k * Math.PI * 2) / 3;
+          stars[n].visible = true;
+          stars[n].position.set(h.x + Math.cos(a) * 0.009, h.y + 0.002 + Math.sin(a * 2) * 0.0015, h.z + Math.sin(a) * 0.009);
+          stars[n].rotation.y += dt * 6;
+        }
+      });
+      for (; n < stars.length; n++) stars[n].visible = false;
+    }
+  };
+
+  const onEvent = (e: FightEvent): void => {
+    const g = game();
+    if (!m || !views) return;
+    switch (e.type) {
+      case 'round': {
+        const final = m.wins[0] === FIGHT.roundsToWin - 1 && m.wins[1] === FIGHT.roundsToWin - 1;
+        hud.announce(final ? 'ROUND FINAL' : `ROUND ${e.round}`, '', false, 1.5);
+        views.forEach((v) => v.reattach());
+        debris.length = 0;
+        camInit = false;
+        break;
+      }
+      case 'fight':
+        hud.announce('¡A PELEAR!', '', false, 0.9);
+        g.audio.play('crack', 1);
+        break;
+      case 'hit': {
+        const victim = (1 - e.by) as 0 | 1;
+        const at = P3(e.at[0], e.at[1]);
+        const big = e.damage >= 12 || e.heavy;
+        burst(at, e.blocked ? 6 : big ? 22 : 12, big ? 1.5 : 1);
+        ring(at, big ? 0.016 : 0.01, e.blocked ? 0x9fe0ff : e.kind === 'cut' ? 0xff5a7a : 0xffe066);
+        if (!e.blocked) crumbs?.[victim].emit(at, new THREE.Vector3(m.f[e.by].facing, 0.6, 0.3).normalize(), big ? 6 : 3);
+        views[victim].bump(Math.min(1, e.damage / 18) * (e.blocked ? 0.4 : 1));
+        shake = Math.max(shake, e.blocked ? 0.0008 : 0.0012 + e.damage * 0.00022);
+        const label = e.blocked ? 'BLOQUEO' : e.shield ? 'ESCUDO' : e.kind === 'heavy' ? '¡PESADO!' : e.kind === 'cut' ? 'CORTE' : '';
+        hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, label, e.blocked ? 'block' : e.kind === 'heavy' ? 'heavy' : e.kind === 'cut' ? 'cut' : '');
+        if (!e.blocked) hud.combo(e.by, e.combo);
+        if (big && !e.blocked) hud.flash(0.28);
+        g.audio.play(e.blocked ? 'drop' : e.heavy ? 'crunch' : 'crack', Math.min(1, 0.55 + e.damage / 20));
+        if (e.heavy && !e.blocked) g.audio.play('crack', 1);
+        break;
+      }
+      case 'shieldBreak': {
+        const o = views[e.who].detach(e.piece);
+        if (o) debris.push({ o, v: new THREE.Vector3(e.vel[0], e.vel[1], 0.08), w: new THREE.Vector3(9, 4, 12), rest: false });
+        hud.popup(e.at[0], e.at[1] + 0.018, '¡ESCUDO ROTO!', '', 'heavy');
+        g.audio.play('crack', 1);
+        break;
+      }
+      case 'swing':
+        if (e.heavy) g.audio.play('out', 0.5);
+        break;
+      case 'land':
+        g.audio.play('drop', 0.35);
+        break;
+      case 'dizzy': {
+        const f = m.f[e.who];
+        hud.popup(f.x, f.y + 0.05, '¡MAREADO!', '', 'heavy');
+        break;
+      }
+      case 'ko':
+        hud.announce('K.O.', '', true, 2.2);
+        hud.flash(0.7);
+        shake = 0.006;
+        g.audio.play('crunch', 1);
+        g.audio.play('crack', 1);
+        break;
+      case 'roundEnd': {
+        const who = e.winner === 'draw' ? '' : e.winner === 0 ? 'GANA TU CRIATURA' : 'GANA EL BRÓCOLI';
+        if (e.reason === 'time') hud.announce('¡TIEMPO!', e.winner === 'draw' ? 'EMPATE: RONDA EXTRA' : who, false, 2);
+        else hud.announce(e.winner === 'draw' ? '¡DOBLE K.O.!' : e.winner === 0 ? '¡BIEN!' : 'AY…', who, e.winner === 1, 2);
+        break;
+      }
+      case 'matchEnd': {
+        const win = e.winner === 0;
+        hud.announce(win ? '¡GANASTE!' : 'PERDISTE', '', !win, 99);
+        const buttons: { a: MenuAction; label: string; alt?: boolean }[] = [];
+        if (win && level < AI_LEVELS.length) buttons.push({ a: 'next', label: `Nivel ${level + 1} ▶` });
+        buttons.push({ a: 'again', label: 'Revancha', alt: win && level < AI_LEVELS.length }, { a: 'exit', label: 'Volver a armar', alt: true });
+        window.setTimeout(() => {
+          if (open && m?.phase === 'over') hud.showMenu(win ? '¡GANASTE!' : 'PERDISTE', win ? `Le ganaste al brócoli nivel ${level}.` : 'Probá cambiar brazos, piernas o el peso de tu criatura.', buttons);
+        }, 1400);
+        break;
+      }
+      default:
+        break;
+    }
+  };
+
+  // ── Cámara de pelea: lateral, sigue el medio de los dos y se aleja o acerca para que entren con aire ──
+  const camera = (dt: number): void => {
+    if (!m) return;
+    const cam = game().stage.camera;
+    cam.setFocalLength(42);
+    const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
+    const tanH = tanV * cam.aspect;
+    const [a, b] = m.f;
+    let mid = (a.x + b.x) / 2;
+    const span = Math.abs(a.x - b.x) + 0.12;
+    // Alto a encuadrar: del piso a la cabeza del más alto (salto incluido), dejando libre la franja del HUD de arriba.
+    const top = Math.max(...m.f.map((f) => f.y + Math.max(...f.model.body.map((sh) => Math.max(sh.a[1], sh.b[1]) + sh.r)))) + 0.012;
+    let D = Math.max(span / (2 * tanH), top / (2 * tanV * 0.8), 0.2);
+    let lookY = top * 0.5 + 0.004;
+    if (m.phase === 'intro') D *= 1 + 0.35 * Math.max(0, 1 - m.phaseT / FIGHT.introFrames);
+    if (m.phase === 'ko' || (m.phase === 'end' && m.f.some((f) => f.ko))) {
+      const loser = m.f.find((f) => f.ko) ?? a;
+      mid = mid * 0.4 + loser.x * 0.6;
+      D *= 0.82;
+      lookY -= 0.006;
+    }
+    D = Math.min(D, 0.5);
+    const elev = THREE.MathUtils.degToRad(8);
+    const tp = new THREE.Vector3(mid, lookY + D * Math.sin(elev), z0 + D * Math.cos(elev));
+    const tl = new THREE.Vector3(mid, lookY, z0);
+    if (!camInit) {
+      camPos.copy(tp);
+      camLook.copy(tl);
+      camInit = true;
+    }
+    const k = 1 - Math.exp(-dt * (m.phase === 'ko' ? 2.2 : 4.5));
+    camPos.lerp(tp, k);
+    camLook.lerp(tl, k);
+    shake *= Math.pow(0.002, dt);
+    const j = new THREE.Vector3((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, 0);
+    cam.position.copy(camPos).add(j);
+    cam.lookAt(camLook.clone().add(j.multiplyScalar(0.5)));
+    cam.updateMatrixWorld();
+    game().stage.focusTarget.copy(camLook);
+  };
+
+  // Viaje de cámara de entrada/salida.
+  let tween: { t: number; from: { pos: THREE.Vector3; quat: THREE.Quaternion }; done?: () => void } | null = null;
+
+  const step = (input: FightInput): void => {
+    if (!m) return;
+    if (cur) prev = cur;
+    stepMatch(m, [input, aiInput(m, ai, 1)]);
+    for (const e of m.events) onEvent(e);
+    cur = [poseOf(m.f[0]), poseOf(m.f[1])];
+    if (!prev) prev = cur;
+  };
+
+  const update = (dt: number): void => {
+    if (!m || !views) return;
+    const raw = dt;
+    if (!paused) {
+      const scale = m.phase === 'ko' ? 0.3 : 1;
+      acc += dt * scale;
+      let n = 0;
+      while (acc >= FIGHT.dt && n < 6) {
+        acc -= FIGHT.dt;
+        n++;
+        step(readInput());
+      }
+      if (m.phase === 'fight') {
+        fightT += dt;
+        if (fightT > 7) hud.hideKeys();
+      }
+    }
+    const t = m.hitstop > 0 ? 1 : Math.min(1, acc / FIGHT.dt);
+    if (prev && cur) views.forEach((v, i) => v.apply(blendPose(prev![i], cur![i], t), z0, raw));
     if (tween) {
-      tween.t = Math.min(1, tween.t + dt / 1.1);
-      const k = tween.t * tween.t * (3 - 2 * tween.t);
-      camBase.pos.lerpVectors(tween.from.pos, tween.to.pos, k);
-      camBase.quat.slerpQuaternions(tween.from.quat, tween.to.quat, k);
-      cam3.setFocalLength(THREE.MathUtils.lerp(tween.from.focal, tween.to.focal, k));
+      tween.t = Math.min(1, tween.t + raw / 1.0);
+      const e = tween.t * tween.t * (3 - 2 * tween.t);
+      camera(raw);
+      const cam = game().stage.camera;
+      const toPos = cam.position.clone();
+      const toQuat = cam.quaternion.clone();
+      cam.position.lerpVectors(tween.from.pos, toPos, e);
+      cam.quaternion.slerpQuaternions(tween.from.quat, toQuat, e);
+      cam.updateMatrixWorld();
       if (tween.t >= 1) {
         const d = tween.done;
         tween = null;
         d?.();
       }
-    }
-    shake *= Math.pow(0.0005, dt);
-    cam3.position.copy(camBase.pos).add(new THREE.Vector3((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, 0));
-    cam3.quaternion.copy(camBase.quat);
-    cam3.updateMatrixWorld();
+    } else camera(raw);
+    fx(raw);
+    hud.update(m, raw, project);
+    perf(raw);
   };
 
-  const enterLight = (): void => {
-    const g = game();
-    const st2 = g.stage;
-    const sceneRoot = st2.scene.getObjectByName('backdrop');
-    // Escenario despejado: la mesa y el fondo lejano se quedan; los recipientes y vasitos de la mesa se ocultan.
+  /** Si el cuadro tarda de más, baja la calidad de a poco (primero el desenfoque, después la resolución). */
+  let degrade: ((lv: number) => void) | null = null;
+  const perf = (dt: number): void => {
+    if (!degrade || dt <= 0) return;
+    perfN++;
+    perfAcc += dt;
+    if (perfN < 50) return;
+    const avg = perfAcc / perfN;
+    perfN = 0;
+    perfAcc = 0;
+    if (avg > 0.022 && level2 < 2) degrade(++level2);
+  };
+
+  /** Modo pelea: luz de contorno, color un poco más vivo, mesa despejada y lo caro apagado (fluidez). Devuelve cómo deshacerlo. */
+  const enterLook = (): (() => void) => {
+    const s = game().stage;
+    const sceneRoot = s.scene.getObjectByName('backdrop');
     const props = sceneRoot ? sceneRoot.children.filter((c) => c.name !== 'mesa' && c.name !== 'far-props' && c.visible) : [];
     props.forEach((o) => (o.visible = false));
-    const ao = st2.composer.passes.find((p) => 'configuration' in p && 'aoRadius' in (p as unknown as { configuration: object }).configuration);
+    const ao = s.composer.passes.find((p) => 'configuration' in p && 'aoRadius' in (p as unknown as { configuration: object }).configuration);
     const aoWas = ao?.enabled ?? false;
     if (ao) ao.enabled = false;
-    const shadowWas = st2.sun.castShadow;
-    st2.sun.castShadow = false;
-    const prWas = st2.renderer.getPixelRatio();
-    const dofWas = st2.dof.enabled;
+    const shadowWas = s.sun.castShadow;
+    s.sun.castShadow = false;
+    const rim = new THREE.DirectionalLight(0xdfe9ff, 2.2);
+    rim.position.set(0.15, 0.35, z0 - 0.6);
+    rim.target.position.set(0, 0.03, z0);
+    const key = new THREE.DirectionalLight(0xfff2e0, 0.9);
+    key.position.set(-0.25, 0.4, z0 + 0.5);
+    key.target.position.set(0, 0.03, z0);
+    s.scene.add(rim, rim.target, key, key.target);
+    const u = s.look.uniforms;
+    const lookWas = { sat: u.get('saturation')!.value as number, con: u.get('contrast')!.value as number };
+    u.get('saturation')!.value = lookWas.sat + 0.12;
+    u.get('contrast')!.value = lookWas.con + 0.06;
+    const vigWas = s.vignette.darkness;
+    s.vignette.darkness = 0.42;
+    const dofWas = { band: s.dof.focusBand, ramp: s.dof.blurRamp, max: s.dof.maxBlur, en: s.dof.enabled };
+    s.dof.focusBand = 2.2;
+    s.dof.blurRamp = 2.4;
+    const prWas = s.renderer.getPixelRatio();
     const setPR = (pr: number): void => {
-      st2.renderer.setPixelRatio(pr);
-      st2.resize();
+      s.renderer.setPixelRatio(pr);
+      s.resize();
     };
     setPR(Math.min(1, prWas));
-    light = {
-      degrade: (lv) => {
-        if (lv >= 1) st2.dof.enabled = false;
-        if (lv >= 2) setPR(Math.min(0.75, prWas));
-      },
-      restore: () => {
-        props.forEach((o) => (o.visible = true));
-        if (ao) ao.enabled = aoWas;
-        st2.sun.castShadow = shadowWas;
-        st2.dof.enabled = dofWas;
-        setPR(prWas);
-      },
+    degrade = (lv) => {
+      if (lv >= 1) s.dof.enabled = false;
+      if (lv >= 2) setPR(Math.min(0.75, prWas));
+    };
+    return () => {
+      props.forEach((o) => (o.visible = true));
+      if (ao) ao.enabled = aoWas;
+      s.sun.castShadow = shadowWas;
+      rim.removeFromParent();
+      rim.target.removeFromParent();
+      key.removeFromParent();
+      key.target.removeFromParent();
+      rim.dispose();
+      key.dispose();
+      u.get('saturation')!.value = lookWas.sat;
+      u.get('contrast')!.value = lookWas.con;
+      s.vignette.darkness = vigWas;
+      Object.assign(s.dof, { focusBand: dofWas.band, blurRamp: dofWas.ramp, maxBlur: dofWas.max, enabled: dofWas.en });
+      setPR(prWas);
+      degrade = null;
     };
   };
-  /** Si el cuadro tarda de más, baja la calidad de a poco (primero el desenfoque, después la resolución). */
-  const perf = (dt: number): void => {
-    if (!light || dt <= 0) return;
-    frames++;
-    acc2 += dt;
-    if (frames < 45) return;
-    const avg = acc2 / frames;
-    frames = 0;
-    acc2 = 0;
-    if (avg > 0.022 && level < 2) light.degrade(++level);
+
+  const restart = (lv = level): void => {
+    if (!model || !views) return;
+    level = Math.max(1, Math.min(AI_LEVELS.length, lv));
+    const bro = broccoliFighter(level);
+    m = createMatch([model, bro]);
+    ai = newAi(seed++, level);
+    hud.show([model.name, bro.name], warnings(model));
+    paused = false;
+    fightT = 0;
+    acc = 0;
+    prev = cur = null;
+    views.forEach((v) => v.reattach());
+    for (const e of m.events) onEvent(e);
+    cur = [poseOf(m.f[0]), poseOf(m.f[1])];
+    prev = cur;
+    camInit = false;
   };
 
-  const step = (input: SimInput): void => {
-    if (!state) return;
-    state = stepFight(state, [input, aiInput(state, ai)]);
-    for (const e of state.events) {
-      burst(e.at[0], e.at[1], e.blocked, e.damage);
-      if (!e.blocked) hitstop = FIGHT.hitstop;
+  const warnings = (md: FighterModel): string[] => {
+    const w: string[] = [];
+    const legs = md.limbs.filter((l) => l.role === 'leg').length;
+    const arms = md.limbs.filter((l) => l.role === 'arm').length;
+    if (!md.limbs.length) w.push('Tu criatura no tiene palitos: clavale brazos y piernas para pelear');
+    else {
+      if (legs === 0) w.push('Sin piernas: se arrastra (clavá palitos abajo, apuntando al piso)');
+      if (legs === 1) w.push('Una sola pierna: avanza a saltitos');
+      if (arms === 0) w.push('Sin brazos: pega con las piernas');
     }
-    capture();
-    setHud();
+    return w;
   };
 
-  /** Z = el mejor golpe disponible: con una estocada de brazo, un toque de Z la tira (no hace falta apretar → a la vez); ↑ / ↓ eligen golpe alto / barrida. */
-  const readInput = (): SimInput => {
-    const up = keys.has('ArrowUp');
-    const down = keys.has('ArrowDown');
-    const me = state?.f[0];
-    const attack = keys.has('KeyZ');
-    let move = ((keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0)) as -1 | 0 | 1;
-    if (me && attack && !me.sim.combat.attackHeld && !up && !down && me.plan.actions.some((a) => a.input === 'forward+attack')) move = me.sim.facing;
-    return { move, attack, guard: keys.has('KeyX'), vertical: (up ? 1 : 0) - (down ? 1 : 0) as -1 | 0 | 1 };
+  const pause = (on: boolean): void => {
+    if (!m || m.phase === 'over') return;
+    paused = on;
+    keys.clear();
+    if (on) hud.showMenu('PAUSA', 'La pelea está congelada.', [
+      { a: 'resume', label: 'Seguir' },
+      { a: 'again', label: 'Revancha', alt: true },
+      { a: 'exit', label: 'Volver a armar', alt: true },
+    ], true);
+    else hud.hideMenu();
   };
 
-  const restart = (): void => {
-    if (!posers) return;
-    state = createFight(posers[0].an, posers[1].an);
-    ai = newAi(seed++);
-    hitstop = 0;
-    curPoses = null;
-    capture();
-    alpha = 1;
-    pose();
-    setHud();
-  };
-
-  const frame = (now: number): void => {
-    raf = 0;
-    if (!open) return;
-    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
-    perf(dt);
-    last = now;
-    acc += dt;
-    let n = 0;
-    while (acc >= cfg.sim.dt && n < 8) {
-      acc -= cfg.sim.dt;
-      n++;
-      if (hitstop > 0) hitstop--;
-      else step(readInput());
-    }
-    alpha = hitstop > 0 ? 1 : Math.min(1, acc / cfg.sim.dt);
-    fx(dt);
-    raf = requestAnimationFrame(frame);
+  hud.onMenu = (a) => {
+    if (a === 'resume') pause(false);
+    if (a === 'again') restart(level);
+    if (a === 'next') restart(level + 1);
+    if (a === 'exit') controller.close();
   };
 
   const onKey = (down: boolean) => (e: KeyboardEvent): void => {
-    if (!open || e.ctrlKey || e.metaKey || e.altKey || !KEYS.has(e.code)) return;
+    if (!open || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!KEYS.has(e.code)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
-    if (down) {
-      if (e.code === 'Escape') return controller.close();
-      if (e.code === 'KeyR') return restart();
-      keys.add(e.code);
-    } else keys.delete(e.code);
+    if (!down) {
+      keys.delete(e.code);
+      return;
+    }
+    if (hud.menuOpen()) {
+      if (e.code === 'Escape' && paused) pause(false);
+      else if (!e.repeat) hud.menuKey(e.code);
+      return;
+    }
+    if (e.code === 'Escape') return pause(true);
+    if (e.code === 'KeyR' && m?.phase === 'over') return restart(level);
+    if (!e.repeat) edges.add(e.code);
+    keys.add(e.code);
   };
   const kd = onKey(true);
   const ku = onKey(false);
   const noWheel = (e: Event): void => {
     if (open) e.stopImmediatePropagation();
   };
+  const blur = (): void => {
+    keys.clear();
+    if (open && m?.phase === 'fight' && !paused) pause(true);
+  };
   window.addEventListener('keydown', kd, true);
   window.addEventListener('keyup', ku, true);
   window.addEventListener('wheel', noWheel, true);
-  window.addEventListener('blur', () => keys.clear());
-  root.addEventListener('click', (e) => {
-    const a = (e.target as HTMLElement).dataset?.a;
-    if (a === 'again') restart();
-    if (a === 'exit') controller.close();
-  });
-  const poll = window.setInterval(() => (btn.hidden = open || game().rig.inIntro), 400);
+  window.addEventListener('blur', blur);
+  const poll = window.setInterval(() => (btn.hidden = open || game().rig.inIntro), 300);
 
   const controller: FightController = {
     async open() {
-      if (open || game().rig.inIntro) return;
       const g = game();
-      // Si había algo en la mano (ketchup, un palito), se suelta con Esc como en el juego, antes de pasar a la pelea.
+      if (open || g.rig.inIntro) return;
+      // Si había algo en la mano (ketchup, un palito), se suelta con Esc como en el juego.
       for (let k = 0; k < 2; k++) window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }));
-      const an = deps.panel.state()?.analysis;
-      if (!an) return;
-      const facing = an.profile2D.facing;
-      const base = interpret(JSON.parse(vegRaw) as CreatureSnapshot, { facing: (-facing) as 1 | -1 });
-      const { an: rivalAn, ids } = broccoliAnalysis(base);
+      const snap = resolveSnapshot({ construction: g.construction, pieces: deps.pieces, orientation: 'construction' });
+      model = fighterFromSnapshot(snap, 'TU CRIATURA');
       z0 = g.pivot.position.z;
-      const rig = makeRig(g.construction, g.pivot, an, g.construction.front.clone(), g.construction.up.clone());
-      const player: Poser = { an, apply: (plan, st, pose, z, lean) => applyRig(rig, plan, st, pose, z, lean, cfg), dispose: () => resetRig(rig) };
-      posers = [player, broccoliPoser(g.stage.scene, rivalAn, ids)];
+      saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
+      g.interaction.enabled = false;
+      views = [creatureView(g.construction, g.pivot, model, g.stage.scene, g.stage.renderer), broccoliView(g.stage.scene, broccoliFighter(level), level)];
+      crumbs = [new Crumbs(g.stage.scene, '#f2c95a'), new Crumbs(g.stage.scene, '#5c9a35')];
       open = true;
       btn.hidden = true;
-      root.hidden = false;
-      for (const sel of ['.cs-panel', '#cs-prober-btn', '#cs-prober', '#help']) document.querySelectorAll<HTMLElement>(sel).forEach((el) => { if (el.style.display !== 'none') { hidden.push(el); el.dataset.cfDisplay = el.style.display; el.style.display = 'none'; } });
-      saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
-      camBase = { pos: saved.pos.clone(), quat: saved.quat.clone() };
-      g.interaction.enabled = false;
-      // El juego mueve el chizito en cada cuadro (sacudida, rotor): la pose de la pelea se aplica justo antes de dibujar.
+      for (const sel of ['.cs-panel', '#cs-prober-btn', '#cs-prober', '#help']) {
+        document.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+          if (el.style.display !== 'none') {
+            hidden.push(el);
+            el.dataset.cfDisplay = el.style.display;
+            el.style.display = 'none';
+          }
+        });
+      }
+      restore = enterLook();
+      level2 = 0;
+      perfN = 0;
+      perfAcc = 0;
+      // El juego mueve el chizito en cada cuadro (sacudida, rotor): la pelea se actualiza y se posa justo antes de dibujar.
       const stage = g.stage;
       const render = stage.render.bind(stage);
       stage.render = (dt: number) => {
-        if (open) pose();
+        if (open) update(dt);
         render(dt);
       };
-      patched = true;
-      startTween(fightCam());
-      // Avisos mínimos: lo que le falta a la criatura para moverse o pegar.
-      const feet = an.support.feet.length;
-      const warns: string[] = [];
-      if (feet === 0) warns.push('Sin piernas: sumá al menos 1 para caminar');
-      if (!an.actions.some((a) => a.limbId)) warns.push('Sin brazos que peguen: sumá al menos 1 para golpear');
-      warnEl.innerHTML = warns.map((w) => `<b>${w}</b>`).join('');
-      level = 0;
-      frames = 0;
-      acc2 = 0;
-      enterLight();
-      restart();
-      last = 0;
-      acc = 0;
-      raf = requestAnimationFrame(frame);
+      restart(level);
+      tween = { t: 0, from: { pos: saved.pos.clone(), quat: saved.quat.clone() } };
     },
     close() {
       if (!open) return;
       open = false;
+      paused = false;
       keys.clear();
-      root.hidden = true;
-      ko.style.display = 'none';
-      if (raf) cancelAnimationFrame(raf);
-      raf = 0;
+      hud.hide();
       const g = game();
-      light?.restore();
-      light = null;
-      if (patched) delete (g.stage as { render?: unknown }).render;
-      patched = false;
-      posers?.forEach((p) => p.dispose());
-      posers = null;
-      prevPoses = curPoses = null;
-      state = null;
+      delete (g.stage as { render?: unknown }).render;
+      views?.forEach((v) => v.dispose());
+      views = null;
+      restore?.();
+      restore = null;
+      crumbs?.forEach((c) => c.clear());
+      crumbs = null;
       for (const s of sparks) s.m.removeFromParent();
       sparks.length = 0;
-      for (const p of pops) p.el.remove();
-      pops.length = 0;
+      for (const r of rings) r.m.removeFromParent();
+      rings.length = 0;
+      debris.length = 0;
+      for (const s of stars) s.removeFromParent();
+      stars.length = 0;
       for (const el of hidden) el.style.display = el.dataset.cfDisplay ?? '';
       hidden.length = 0;
       if (saved) {
@@ -447,31 +608,30 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
       }
       tween = null;
       shake = 0;
+      m = null;
+      prev = cur = null;
       btn.hidden = false;
     },
     isOpen: () => open,
-    state: () => state,
+    match: () => m,
+    model: () => model,
+    paused: () => paused,
     advance(frames, input) {
       for (let f = 0; f < frames; f++) {
-        if (hitstop > 0) {
-          hitstop--;
-          continue;
-        }
+        if (!m) return;
         step(typeof input === 'function' ? input(f) : (input ?? readInput()));
       }
-      alpha = 1;
-      pose();
-      fx(frames / 60);
+      prev = cur;
     },
     restart,
-    posers: () => posers,
     destroy() {
       controller.close();
       window.clearInterval(poll);
       window.removeEventListener('keydown', kd, true);
       window.removeEventListener('keyup', ku, true);
       window.removeEventListener('wheel', noWheel, true);
-      root.remove();
+      window.removeEventListener('blur', blur);
+      hud.destroy();
       btn.remove();
       st.remove();
     },

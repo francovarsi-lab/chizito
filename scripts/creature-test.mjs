@@ -684,7 +684,8 @@ try {
   // ───────────── Tanda 7: aislamiento del resolver ─────────────
   section('tanda 7: solo resolve/ conoce three.js y el juego');
   const walkTs = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkTs(`${dir}/${e.name}`) : e.name.endsWith('.ts') ? [`${dir}/${e.name}`] : []));
-  const IMPURE = ['/resolve/', '/fixtures/', '/ui/highlight.ts', '/ui/mount.ts', '/ui/panel.ts', '/ui/index.ts'];
+  // La pelea dibuja: su render, montaje e instalación usan three.js; el motor (engine, fighter, ai, tuning, quat, hud) sigue puro.
+  const IMPURE = ['/resolve/', '/fixtures/', '/ui/highlight.ts', '/ui/mount.ts', '/ui/panel.ts', '/ui/index.ts', '/fight/mount.ts', '/fight/render.ts', '/fight/install.ts', '/fight/brocoli.ts'];
   const outside = walkTs('src/creature').filter((f) => !IMPURE.some((x) => f.includes(x)));
   const leaks = outside.filter((f) => /from ['"]three['"]|from ['"]\.\.\/\.\.\/|from ['"]three\//.test(fs.readFileSync(f, 'utf8')));
   ok(outside.length > 20 && leaks.length === 0, `el intérprete y el modelo del panel (${outside.length} archivos) no importan three.js ni nada del juego${leaks.length ? ': ' + leaks.join(', ') : ''}`);

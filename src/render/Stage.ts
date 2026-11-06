@@ -28,6 +28,9 @@ export class Stage {
   readonly sun: THREE.DirectionalLight;
   readonly composer: EffectComposer;
   readonly dof: BokehDofPass;
+  /** Ajuste de color y viñeta finales (la pelea los sube un poco). */
+  readonly look: LookEffect;
+  readonly vignette: VignetteEffect;
   /** Punto que la profundidad de campo mantiene en foco (el chizito o la pieza en la mano). */
   readonly focusTarget = new THREE.Vector3();
   private focusDistance = 0.2;
@@ -106,8 +109,10 @@ export class Stage {
             : ToneMappingMode.NEUTRAL,
     });
     const vignette = new VignetteEffect({ offset: 0.42, darkness: 0.16 });
+    this.vignette = vignette;
     // Look alegre y apetitoso: un poco más de color y de brillo.
     const look = new LookEffect(CONFIG.look);
+    this.look = look;
     const bloom = new BloomEffect({
       intensity: CONFIG.bloom.intensity,
       luminanceThreshold: CONFIG.bloom.threshold,

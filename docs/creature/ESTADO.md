@@ -92,5 +92,10 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 - Este chat: tanda 9 cerrada, espera OK. Las fixtures se regeneraron tras el merge (el chizito de la rama 3D cambió su porosidad: los puntos de entrada se movieron < 0,1 mm).
 
 
-## Pelea 3D (2026-11-06)
-- La pelea corre en la mesa real (`src/creature/fight/`). DECISIÓN NUEVA: palito clavado = brazo articulado en su punto de clavado, sin física del análisis. Detalle, estado y pendientes en `docs/creature/TRASPASO.md`.
+## Pelea 3D (2026-11-06, rama `claude/compassionate-carson-41ubkc`)
+- HECHA la decisión "palito clavado = brazo": motor nuevo en `src/creature/fight/` (ver la sección "Pelea" de `CLAUDE.md`).
+  Reemplaza a `rules.ts`, `rig3d.ts`, `broccoliAnalysis.ts` y `broccoliRig.ts` (borrados): la pelea ya no usa el análisis ni el
+  simulador del MVP 1 (`sim/` sigue para el panel y el probador).
+- El panel y el probador pasan a `?dev`. Sin flag: solo el botón PELEAR.
+- Pruebas: `creature-fight-test.mjs` (puras) y `fight-ui-test.mjs` (navegador). Las 2 fallas viejas de `creature-test.mjs`
+  quedaron resueltas (hoja `hitboxes.svg` regenerada; la prueba de "sin three.js" excluye el render/montaje de la pelea).

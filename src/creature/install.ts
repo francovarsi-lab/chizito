@@ -1,7 +1,6 @@
 import { ALL_DEFINITIONS } from '../pieces/definitions';
 import { PieceRegistry } from '../pieces/PieceRegistry';
 import { mountCreaturePanel, mountProber, type PanelController } from './ui';
-import { mountFight } from './fight/mount';
 
 /** Lo que el juego deja en `window.__chizito` (src/main.ts): lo único que el intérprete necesita de él. */
 interface GameHandle {
@@ -12,7 +11,7 @@ interface GameHandle {
 
 declare global {
   interface Window {
-    /** Controlador del panel (sólo existe con `?creature`). */
+    /** Controlador del panel (sólo existe con `?dev`). */
     __creature?: PanelController;
   }
 }
@@ -32,7 +31,7 @@ function whenReady(timeoutMs = 120000): Promise<GameHandle> {
 }
 
 /**
- * Activa el intérprete de criaturas sobre el juego (`?creature`): monta el panel "ESTRUCTURA DETECTADA", que lee la
+ * Activa el intérprete de criaturas sobre el juego (`?dev`): monta el panel "ESTRUCTURA DETECTADA", que lee la
  * criatura viva, la interpreta y se actualiza al clavar, sacar, deshacer y rehacer. No modifica el juego: sólo lee la
  * construcción y encadena `interaction.onChange`. Usa su propio registro de piezas con las mismas definiciones.
  */
@@ -42,8 +41,7 @@ export async function installCreature(): Promise<PanelController> {
   ALL_DEFINITIONS.forEach((d) => pieces.register(d));
   const panel = mountCreaturePanel({ construction: game.construction, interaction: game.interaction, persistence: game.persistence, pieces });
   window.__creature = panel;
-  // Probador (MVP 1): botón "▶ Probador" abajo a la izquierda; con `?creature&probador` arranca abierto.
-  window.__fight = mountFight({ panel });
+  // Probador (MVP 1): botón "▶ Probador" abajo a la izquierda; con `?dev&probador` arranca abierto.
   window.__prober = mountProber({ panel, startOpen: new URLSearchParams(location.search).has('probador') });
   return panel;
 }

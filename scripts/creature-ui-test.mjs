@@ -10,7 +10,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-await page.goto('http://localhost:5173/?capture&creature');
+await page.goto('http://localhost:5173/?capture&dev');
 await page.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
 
 let offFailed = false;
@@ -24,7 +24,7 @@ let offFailed = false;
   await off.waitForTimeout(1500);
   const st = await off.evaluate(() => ({ panel: !!document.getElementById('cs-panel'), ctl: !!window.__creature, err: document.body.dataset.error ?? null }));
   const offOk = !st.panel && !st.ctl && !st.err && !loaded.some((u) => /creature\/(install|ui)/.test(u));
-  console.log(`${offOk ? 'OK ' : 'FALLA'} sin ?creature: sin panel, sin controlador y sin cargar el intérprete`);
+  console.log(`${offOk ? 'OK ' : 'FALLA'} sin ?dev: sin panel, sin controlador y sin cargar el intérprete`);
   if (!offOk) offFailed = true;
   await off.close();
 }

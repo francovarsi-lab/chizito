@@ -1,19 +1,20 @@
-import type { SimInput } from '../sim';
-import type { AttackAction } from '../types';
-import { CREATURE_CONFIG } from '../config';
-import type { FightState } from './rules';
-import { FIGHT } from './tuning';
+import type { FightInput, Match } from './engine';
+import { AI_LEVELS } from './tuning';
 
+/** Memoria del rival (determinista: azar con semilla). */
 export interface AiMem {
   seed: number;
-  cool: number;
-  guardLeft: number;
-  /** Acción en curso: cuadros que faltan apretando el botón. */
-  press: number;
-  act: AttackAction | null;
+  level: number;
+  /** Cuadros hasta poder reaccionar a lo que hace el otro. */
+  react: number;
+  /** Acción en curso y cuadros que le quedan. */
+  doing: 'none' | 'guard' | 'retreat' | 'crouch';
+  left: number;
+  seenStrike: boolean;
+  wasAttack: boolean;
 }
 
-export const newAi = (seed = 1): AiMem => ({ seed, cool: 40, guardLeft: 0, press: 0, act: null });
+export const newAi = (seed = 1, level = 1): AiMem => ({ seed, level: Math.max(1, Math.min(AI_LEVELS.length, level)), react: 0, doing: 'none', left: 0, seenStrike: false, wasAttack: false });
 
 /** Azar chico y determinista (mulberry32). */
 function rnd(m: AiMem): number {
@@ -23,39 +24,57 @@ function rnd(m: AiMem): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-/** Entrada del rival (lado 1): se acerca hasta el alcance de su mejor golpe, pega con cadencia y a veces se guarda al ver uno. */
-export function aiInput(s: FightState, m: AiMem): SimInput {
-  const me = s.f[1];
-  const foe = s.f[0];
-  const dist = foe.sim.x - me.sim.x;
-  const dir: -1 | 1 = dist >= 0 ? 1 : -1;
-  const near = Math.abs(dist);
-  const acts = me.plan.actions;
-  const reach = acts.reduce((r, a) => Math.max(r, a.reach + a.hitRadius), 0);
-  const range = reach * 0.85 + me.half + foe.half;
-  m.cool = Math.max(0, m.cool - 1);
-
-  if (m.press > 0) {
-    m.press--;
-    const a = m.act;
-    return { move: a?.input === 'forward+attack' ? me.sim.facing : 0, attack: true, vertical: a?.input === 'up+attack' ? 1 : a?.input === 'down+attack' ? -1 : 0 };
+/**
+ * Entrada del luchador `who` manejado por la máquina: se acerca hasta su alcance, pega con cadencia según el nivel, a veces se
+ * guarda al ver venir un golpe (con tiempo de reacción), patea si el otro se agacha y se aleja un poco después de pegar.
+ */
+export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
+  const L = AI_LEVELS[mem.level - 1];
+  const me = s.f[who];
+  const foe = s.f[1 - who];
+  if (s.phase !== 'fight' || me.ko) return { x: 0 };
+  const dx = foe.x - me.x;
+  const dir: -1 | 1 = dx >= 0 ? 1 : -1;
+  const near = Math.abs(dx);
+  const reach = Math.max(0.02, ...me.model.limbs.filter((l) => l.role === 'arm').map((l) => l.reach + Math.max(0, l.pivot[0] * 0.5))) + 0.012;
+  const foeStriking = foe.limbs.some((q) => q.phase === 'windup' || q.phase === 'strike');
+  // Reacción: cuando el otro arranca un golpe, recién `reaction` cuadros después se puede guardar.
+  if (foeStriking && !mem.seenStrike) {
+    mem.seenStrike = true;
+    mem.react = L.reaction;
   }
-  if (m.guardLeft > 0) {
-    m.guardLeft--;
-    return { move: 0, guard: true };
+  if (!foeStriking) mem.seenStrike = false;
+  if (mem.react > 0) {
+    mem.react--;
+    if (mem.react === 0 && foeStriking && near < reach * 1.8 && rnd(mem) < L.guard) {
+      mem.doing = 'guard';
+      mem.left = 18 + Math.floor(rnd(mem) * 14);
+    }
   }
-  const foeStriking = foe.sim.combat.phase === 'startup' || foe.sim.combat.phase === 'active';
-  if (foeStriking && near < range * 1.4 && rnd(m) < FIGHT.aiGuardChance / 8) {
-    m.guardLeft = FIGHT.aiGuardFrames;
-    return { move: 0, guard: true };
+  if (mem.left > 0) {
+    mem.left--;
+    if (mem.doing === 'guard') return { x: 0, guard: true };
+    if (mem.doing === 'retreat') return { x: (-dir) as -1 | 1 };
+    if (mem.doing === 'crouch') return { x: 0, down: true };
   }
-  if (me.sim.combat.phase !== 'idle' || me.stun > 0) return { move: 0 };
-  if (near > range || me.sim.facing !== dir) return { move: dir };
-  if (m.cool === 0 && acts.length) {
-    const a = acts[Math.floor(rnd(m) * acts.length)];
-    m.act = a;
-    m.press = a.input === 'hold+attack' ? CREATURE_CONFIG.sim.holdFrames + 2 : 3;
-    m.cool = FIGHT.aiCooldown[0] + Math.floor(rnd(m) * (FIGHT.aiCooldown[1] - FIGHT.aiCooldown[0]));
+  mem.doing = 'none';
+  const attackPrev = mem.wasAttack;
+  mem.wasAttack = false;
+  if (me.stun > 0) return { x: 0 };
+  if (near > reach) {
+    const jump = rnd(mem) < L.jump && near < reach * 3;
+    return { x: dir, up: jump };
   }
-  return { move: 0 };
+  if (!attackPrev && rnd(mem) < L.aggression) {
+    mem.wasAttack = true;
+    const kick = foe.crouch > 0.5 || rnd(mem) < 0.22;
+    if (rnd(mem) < L.retreat) {
+      mem.doing = 'retreat';
+      mem.left = 10 + Math.floor(rnd(mem) * 20);
+    }
+    return { x: 0, attack: true, down: kick };
+  }
+  // A veces se acomoda: un pasito adelante o atrás.
+  const r = rnd(mem);
+  return { x: r < 0.04 ? dir : r < 0.07 ? ((-dir) as -1 | 1) : 0 };
 }

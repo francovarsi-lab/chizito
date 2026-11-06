@@ -1,9 +1,9 @@
 # Hombrecito de chizito — decisiones del proyecto
 
-MVP para validar UNA cosa: que clavar palitos salados (y papitas) en un chizito, eligiendo punto y ángulo,
-sea divertido, satisfactorio y se vea fotográficamente real. En el CONSTRUCTOR no hay combate, stats, progresión,
-economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive en el intérprete de criaturas (rama
-`claude/creature-interpreter`), que lee el archivo de criatura; de este lado sólo se guarda su frente de combate.
+Dos partes en la misma mesa 3D: el CONSTRUCTOR (clavar palitos y snacks en un chizito, eligiendo punto y ángulo;
+divertido, satisfactorio y fotográficamente real; sin stats ni economía) y la PELEA (botón PELEAR: la criatura armada
+pelea contra el brócoli con física propia; ver "Pelea"). Ramas: esta (`claude/compassionate-carson-41ubkc`) junta el
+constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/creature-interpreter`). NO pushear a `main`.
 
 ## Stack
 - Vite + TypeScript + Three.js (sin React). `postprocessing` (pmndrs) + `n8ao` para el AO.
@@ -285,14 +285,42 @@ economía, rarezas, puntuación ni desafíos (ni UI para eso). El combate vive e
    - Tope: 40 piezas por criatura.
 Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit, y esperar aprobación.
 
-## Intérprete de criaturas (`?creature`, rama `claude/creature-interpreter`)
+## Intérprete de criaturas (herramienta de desarrollo, `?dev`)
 - Lee la criatura viva y calcula extremidades, masa, apoyos, locomoción, acciones ofensivas y perfil 2D con cajas de golpe. Vive entero
   en `src/creature/` (no toca el constructor); contrato y campos: `docs/CREATURE_CONTRACT.md`; estado y pendientes: `docs/creature/ESTADO.md`.
-- Activación: `?creature` en la URL. Es UN bloque al final de `src/main.ts` que importa `src/creature/install.ts` bajo demanda; sin el
-  flag no se carga nada y la app es idéntica. Monta el panel "ESTRUCTURA DETECTADA" (se actualiza al clavar, sacar, deshacer y rehacer;
+- Activación: `?dev` en la URL (antes `?creature`; el jugador nunca ve el panel). Es UN bloque al final de `src/main.ts` que importa
+  `src/creature/install.ts` bajo demanda; sin el flag no se carga. Monta el panel "ESTRUCTURA DETECTADA" (se actualiza al clavar, sacar, deshacer y rehacer;
   resalta las extremidades en 3D; selector de criaturas de prueba A–E y vegetal; selector de frente). `window.__creature` es el panel.
 - Capas: archivo `CreatureFileV1` → resolver (`resolve/`, único código con three.js) → `CreatureSnapshot` (JSON puro) → `interpret()`.
 - Un solo archivo de umbrales (`src/creature/config.ts`) y uno de topes (`src/creature/limits.ts`: `MAX_PIECES` 40, `MAX_STROKES` 30;
   `src/config.ts` importa `MAX_PIECES` de ahí). Orientación de combate: arriba +X, frente −Y por defecto, giro de 180° = +Y.
 - Pruebas: `node scripts/creature-test.mjs` (módulos puros), `creature-resolve-test.mjs`, y con `npm run dev` corriendo:
   `creature-fixtures-test.mjs`, `creature-ui-test.mjs`, `creature-ui-keys-test.mjs`. Fixtures: `node scripts/make-fixtures.mjs`.
+
+## Pelea (Chizito Fight) — `src/creature/fight/`
+- Botón PELEAR abajo a la derecha (siempre, sin flag). Misma mesa, misma criatura real (sus mallas): la cámara pasa a una
+  vista lateral que sigue el medio de los dos y se aleja/acerca para encuadrarlos. Rival: brócoli malvado (niveles 1–3).
+- REGLA DEL USUARIO: cada vara clavada en el chizito (palito, escarbadientes, palito de la selva, chupetín) es un BRAZO o una
+  PIERNA rígida con la articulación en su punto de clavado, esté donde esté ("un brazo fuera de lugar igual se mueve como brazo
+  y golpea"). Pierna = sale de la mitad de abajo y apunta al piso; todo lo demás es brazo. Vara que atraviesa = un solo brazo que
+  gira por el medio. Papitas/nachos en el cuerpo = escudos fijos (papita 2 golpes, nacho 6) que saltan y caen a la mesa.
+  No se usa la física del análisis (calidad de ancla, rangos, arco de 140°): el panel `?dev` sigue con su análisis, aparte.
+- Capas: `fighter.ts` (snapshot → modelo: pivotes, puntos de masa por pieza, rol, tipo de golpe; brócoli), `engine.ts` (motor
+  PURO y determinista a 60 Hz), `ai.ts`, `tuning.ts` (TODOS los números), `quat.ts`; con three.js: `render.ts` (criatura real y
+  brócoli), `hud.ts` (HUD HTML), `mount.ts` (bucle, cámara, luz, efectos, teclado), `install.ts`.
+- Física: cuerpo 2D (x, y, inclinación) + articulaciones 3D con motor PD de torque limitado por la inercia de cada extremidad
+  (lo pesado arranca y vuelve más lento); frenar usa más torque que arrancar (el golpe se corta). Contrapeso: el cuerpo se inclina
+  hacia donde está el peso y recibe la reacción de cada giro. Daño = momento en el punto de contacto (masa efectiva I/r² ×
+  velocidad real), con exponente < 1. Pesos: tabla de la realidad del chat de mecánicas (`FIGHT.massGrams`).
+- Tipos: liviano (palito), corte (escarbadientes: sangra), pesado (aceituna, bola del chupetín: llena el mareo → aturde), escudo.
+- Golpe: carga → golpe → vuelta, siguiendo el ángulo a lo largo del eje del golpe (un brazo hacia atrás pasa por arriba, mazazo).
+  El eje sale de girar la dirección de reposo hacia el rival, en 3D (sirve para varas que apuntan a la cámara).
+- Formato: al mejor de 3 rounds, 90 s, vida 100, empate exacto = ronda extra. Controles: ← → moverse, ↑ saltar, ↓ agacharse,
+  Z/J golpe (cada toque usa el brazo siguiente, del más adelantado al más atrasado), ↓+Z patada, Z en el aire = en picada,
+  X/K guardia, Esc pausa. Mira siempre al rival: giro de 180° animado (no espejo; el brócoli, simétrico, se da vuelta como figurita).
+- Render: la parte de la vara que queda adentro del chizito se recorta con un plano por extremidad (`clippingPlanes`), así al girar
+  no asoma. Modo pelea: sin AO ni sombra del sol, props de la mesa ocultos, luz de contorno, color y viñeta un poco más fuertes,
+  resolución adaptativa si el cuadro tarda.
+- Pruebas: `node scripts/creature-fight-test.mjs` (puras: modelo, apoyo, contrapeso, caminar, golpes, peso, guardia, escudos,
+  rounds, tiempo, determinismo, rendimiento) y con `npm run dev`: `node scripts/fight-ui-test.mjs [dir] [criatura]` (navegador,
+  teclado real, capturas con HUD). Balance: `node scripts/fight-balance.mjs <criatura>`.

@@ -76,7 +76,7 @@ export interface ProberController {
 
 declare global {
   interface Window {
-    /** El probador del panel (solo existe con `?creature`). */
+    /** El probador del panel (solo existe con `?dev`). */
     __prober?: ProberController;
   }
 }

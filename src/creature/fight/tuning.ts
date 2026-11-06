@@ -1,37 +1,165 @@
-/** Números de la pelea (juego, no física). Los de la criatura salen del análisis; acá solo cómo se juega el cruce. */
+/**
+ * Números de la pelea (juego, no física real). Todo lo que se calibra está acá; el motor (`engine.ts`) no tiene números sueltos.
+ * Unidades: metros, segundos, kg, radianes. La simulación corre a 60 pasos por segundo.
+ */
 export const FIGHT = {
-  /** Vida de cada uno. */
+  dt: 1 / 60,
+
+  // ── Formato (chat de mecánicas): 1 vs 1, al mejor de 3 rounds, 90 s, vida 100. Empate exacto = ronda extra. ──
   hp: 100,
-  /** Daño del análisis (adimensional) → puntos de vida. */
-  damageScale: 2.5,
-  /** El análisis camina a mm/s; en la pelea se multiplica para que el cruce no dure minutos. */
-  speedMul: 7,
-  /** m: mitad del ancho de la arena (la sombra de contacto cubre ±0,16 m alrededor del chizito). */
-  arenaHalf: 0.125,
-  /** m: separación inicial entre los centros. */
-  startGap: 0.17,
-  /** El giro de 180° tarda esta fracción de lo que calcula el análisis (más ágil en pelea). */
-  turnMul: 0.4,
-  /** m: a partir de esta distancia al rival se da vuelta solo. */
-  autoFaceDist: 0.004,
-  /** m de margen extra en la caja de golpe (más permisivo). */
-  hitPad: 0.003,
-  /** Cuadros sin poder actuar al recibir un golpe (sin guardia). */
-  hitstun: 20,
-  /** Cuadros de pausa al impacto (da peso al golpe; lo aplica la pantalla). */
-  hitstop: 5,
-  /** m/s de empujón por punto de daño, dividido por (1 + masa / massRef). */
-  knockback: 0.02,
-  knockbackMin: 0.12,
-  knockbackDecay: 0.88,
-  /** Masa de referencia del cuerpo (kg de juego): la misma que usa el análisis para la locomoción. */
+  roundsToWin: 2,
+  roundSeconds: 90,
+  /** Cuadros de "ROUND N · ¡A PELEAR!", de cámara lenta del KO y de cartel de fin de round. */
+  introFrames: 110,
+  koFrames: 100,
+  endFrames: 130,
+
+  // ── Arena (sobre la mesa, alrededor del chizito) ──
+  arenaHalf: 0.15,
+  startGap: 0.15,
+
+  // ── Pesos (gramos), tabla de la realidad del chat de mecánicas. El palito de la selva usa la masa del intérprete. ──
+  massGrams: {
+    chizito: 3.3,
+    palito: 0.4,
+    escarbadientes: 0.2,
+    'escarbadientes:espadita': 0.6,
+    'palito-selva': 1.1,
+    papita: 1,
+    nacho: 1.5,
+    aceituna: 4,
+    chupetin: 0.3,
+    'chupetin-caramelo': 4.7,
+    default: 0.5,
+  },
+  /** Golpes que aguanta cada escudo antes de saltar (propuesta del chat de mecánicas). */
+  shieldHits: { papita: 2, nacho: 6 },
+  /** m: una vara cuenta como pasante (un solo brazo que gira por el medio) si asoma al menos esto del otro lado. */
+  throughMin: 0.004,
+  /** Pierna: pivote por debajo de esta fracción de medio largo del chizito (0 = el medio) y dirección con y < esto. */
+  legPivotMax: 0.2,
+  legDownMin: -0.3,
+
+  broccoli: { bodyGrams: 6, carrotGrams: 1 },
+
+  // ── Cuerpo ──
+  /** m/s²: gravedad de juego (más flotante que la real, para que los saltos se lean). */
+  gravity: 3.4,
+  /** m/s: caminar de una criatura de `massRef` con dos piernas. */
+  walkSpeed: 0.1,
   massRef: 0.006,
-  /** La guardia solo protege con esta fracción de levantada. */
-  guardReady: 0.5,
-  /** Fracción del ancho del cuerpo de cada uno que no se puede superponer. */
-  bodyGap: 1,
-  /** Rival: cuadros mínimo/máximo entre ataques, y chance de guardarse al ver un golpe. */
-  aiCooldown: [26, 70] as const,
-  aiGuardChance: 0.45,
-  aiGuardFrames: 22,
+  /** Exponente del peso sobre la velocidad: (massRef / masa)^esto, acotado. */
+  massSpeedExp: 0.5,
+  speedClamp: [0.4, 1.35] as const,
+  /** Factor de velocidad según cantidad de piernas: 0 (se arrastra), 1 (salta en una pata), 2+ (camina). */
+  legSpeed: [0.38, 0.8, 1] as const,
+  groundAccel: 1.6,
+  airAccel: 0.5,
+  /** m/s: velocidad del salto (↑). */
+  jumpSpeed: 0.56,
+  /** Saltito de una sola pierna al avanzar. */
+  hopSpeed: 0.26,
+  hopRest: 7,
+  /** El cuerpo rebota apenas al caer. */
+  landBounce: 0.12,
+  /** m: si venía apoyado y se despega menos que esto (por inclinarse), vuelve a apoyar. */
+  stickMax: 0.005,
+
+  // ── Equilibrio y contrapeso (inclinación del cuerpo sobre su apoyo) ──
+  /** Rigidez del "querer estar derecho", relativa a peso × altura de referencia. */
+  balanceK: 1.4,
+  balanceZeta: 0.32,
+  /** m: altura de referencia del centro de masa. */
+  balanceH: 0.025,
+  /** Cuánto inclina el contrapeso (centro de masa corrido del apoyo). */
+  leanGain: 0.35,
+  /** Cuánto vuelca cuando el centro de masa queda FUERA del apoyo. */
+  tipGain: 3,
+  /** m: cuánto cuenta como máximo el centro de masa fuera del apoyo. */
+  tipMax: 0.004,
+  /** Cuánto empuja al cuerpo el giro de una extremidad (reacción). */
+  reactGain: 0.7,
+  maxTilt: 0.85,
+  /** m: lo que está hasta esta altura sobre lo más bajo cuenta como apoyo. */
+  supportBand: 0.004,
+
+  // ── Articulaciones (motor PD con torque limitado por la inercia de cada extremidad) ──
+  /** rad/s: frecuencia natural de cada fase y amortiguación. */
+  joint: {
+    rest: { wn: 26, zeta: 0.42 },
+    windup: { wn: 34, zeta: 0.75 },
+    strike: { wn: 70, zeta: 0.3 },
+    recover: { wn: 22, zeta: 0.38 },
+    guard: { wn: 34, zeta: 0.6 },
+  },
+  /** Torque máximo = tau0 · (I / I0)^tauExp: una extremidad pesada tiene más "músculo", pero no tanto como su inercia. */
+  tau0: 9e-5,
+  I0: 3.3e-7,
+  tauExp: 0.55,
+  /** El golpe usa más torque que el resto. */
+  strikeBoost: 1.6,
+  /** Frenar puede usar este múltiplo del torque. */
+  brakeBoost: 3,
+  /** rad: cuánto pasa de largo el golpe más allá de apuntar al rival. */
+  overshoot: 0.38,
+  windup: 0.55,
+  windupHeavy: 0.8,
+  /** Cuadros: mínimo y máximo de la carga, máximo del golpe y de la recuperación. */
+  windMin: 3,
+  windMax: 16,
+  strikeMax: 22,
+  recoverMax: 34,
+  /** Cuadros entre dos golpes seguidos (aunque haya otro brazo libre). */
+  strikeGap: 5,
+  /** Cuadros que se recuerda un botón apretado antes de poder golpear. */
+  buffer: 9,
+  /** m/s de envión del cuerpo al golpear. */
+  lunge: 0.12,
+  /** Ángulo de la marcha (rad) y de las piernas al agacharse. */
+  gait: 0.42,
+  crouch: 0.62,
+  /** Las piernas abren el paso cada `stride` metros recorridos (por metro de pierna). */
+  strideK: 2.2,
+
+  // ── Golpe y daño (por momento lineal en el punto de contacto) ──
+  /** m/s: por debajo de esto el contacto no lastima (apoyar no es pegar). */
+  minHitSpeed: 0.14,
+  /** Daño = dmgK · (masa efectiva [g] · velocidad [m/s])^dmgExp. */
+  dmgK: 12,
+  dmgExp: 0.42,
+  dmgClamp: [2, 30] as const,
+  kindMul: { light: 1, cut: 0.75, heavy: 1.1, shield: 0.6 },
+  hitPad: 0.0015,
+  /** Guardia: fracción de daño que pasa, cuadros de bloqueo, y desde cuánto levantada protege. */
+  chip: 0.15,
+  blockstun: 10,
+  guardReady: 0.55,
+  /** Escudo: fracción del daño que pasa al cuerpo. */
+  shieldPass: 0.3,
+  /** Aturdimiento: cuadros = base + k · daño. Los pesados además llenan el mareo. */
+  hitstun: { base: 9, k: 0.9 },
+  dizzyMax: 38,
+  dizzyFrames: 90,
+  dizzyDecay: 0.06,
+  /** Sangrado del corte: vida por segundo, cuadros que dura, y cuántos a la vez. */
+  bleed: { dps: 1.6, frames: 180, max: 3 },
+  /** Empujón: m/s por (kg·m/s del golpe / kg del rival), acotado. */
+  knockback: 2.4,
+  kbClamp: [0.1, 0.62] as const,
+  kbUp: 0.28,
+  /** Giro que da un golpe al cuerpo del rival (arriba del centro de masa lo echa para atrás). */
+  hitTilt: 70,
+  /** La extremidad que pega rebota. */
+  recoil: 0.35,
+  /** Cuadros de congelamiento al impacto (da peso al golpe). */
+  hitstop: { base: 3, k: 0.28, max: 11 },
+  /** Un combo cuenta si el golpe llega antes de esta cantidad de cuadros del anterior. */
+  comboWindow: 50,
 } as const;
+
+/** Rival: cuán bien juega el brócoli en cada nivel. */
+export const AI_LEVELS = [
+  { reaction: 26, guard: 0.22, aggression: 0.035, jump: 0.002, retreat: 0.2 },
+  { reaction: 16, guard: 0.42, aggression: 0.06, jump: 0.004, retreat: 0.3 },
+  { reaction: 9, guard: 0.62, aggression: 0.09, jump: 0.006, retreat: 0.35 },
+] as const;

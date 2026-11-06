@@ -253,5 +253,7 @@ main().catch((err) => {
   document.body.dataset.error = String(err);
 });
 
-// ── Intérprete de criaturas (?creature): panel "ESTRUCTURA DETECTADA". Todo vive en src/creature/; sin el flag no se carga nada. ──
-if (new URLSearchParams(location.search).has('creature')) void import('./creature/install').then((m) => m.installCreature());
+// ── Pelea (botón PELEAR): siempre disponible, se carga aparte cuando el juego ya arrancó. ──
+void import('./creature/fight/install').then((m) => m.installFight());
+// ── Herramientas de desarrollo (?dev): panel "ESTRUCTURA DETECTADA" y probador del intérprete. No son para el jugador. ──
+if (new URLSearchParams(location.search).has('dev')) void import('./creature/install').then((m) => m.installCreature());
