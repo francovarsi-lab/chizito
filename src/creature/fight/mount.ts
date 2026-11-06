@@ -7,7 +7,6 @@ import { poseCreature, type Pose, type SimInput } from '../sim';
 import vegRaw from '../fixtures/veg.snapshot.json?raw';
 import type { CreatureSnapshot } from '../types';
 import type { PanelController } from '../ui/mount';
-import { actionsHelp } from '../ui/proberHud';
 import { aiInput, newAi, type AiMem } from './ai';
 import { broccoliAnalysis } from './broccoliAnalysis';
 import { broccoliPoser, type Poser } from './broccoliRig';
@@ -46,6 +45,8 @@ declare global {
 
 const INK = '#1a0d08';
 const css = `
+#cf .warn{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center}
+#cf .warn b{background:#fff6df;color:${INK};border:3px solid ${INK};border-radius:16px;padding:6px 14px;font:800 14px system-ui,sans-serif;box-shadow:3px 3px 0 ${INK}}
 #cf-btn{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:41;border:3px solid ${INK};border-radius:26px;padding:11px 28px;background:#ffd21f;color:${INK};font:900 17px "Arial Black",system-ui,sans-serif;letter-spacing:.08em;cursor:pointer;box-shadow:4px 4px 0 ${INK}}
 #cf-btn:hover{background:#ffe066}#cf-btn[hidden]{display:none}
 #cf{position:fixed;inset:0;z-index:60;pointer-events:none;font-family:"Arial Black",Impact,system-ui,sans-serif}
@@ -84,14 +85,14 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
   root.id = 'cf';
   root.hidden = true;
   root.innerHTML = `<div class="nm l">TU CRIATURA</div><div class="bar l"><b></b><i></i></div><div class="vs">VS</div><div class="nm r">BRÓCOLI</div><div class="bar r"><b></b><i></i></div>
-<div class="ko"><h1>KO</h1><h2></h2><button data-a="again">R · Revancha</button><button data-a="exit">Esc · Volver a armar</button></div><div class="help"></div>`;
+<div class="ko"><h1>KO</h1><h2></h2><button data-a="again">R · Revancha</button><button data-a="exit">Esc · Volver a armar</button></div><div class="warn"></div><div class="help">← → moverse · Z golpear (↑ / ↓ + Z: otros golpes) · X guardia · Esc salir</div>`;
   host.append(btn, root);
   const q = <T extends Element>(s: string): T => root.querySelector(s) as T;
   const bars = [q<HTMLElement>('.bar.l'), q<HTMLElement>('.bar.r')];
   const fills = bars.map((b) => b.querySelector('i') as HTMLElement);
   const chips = bars.map((b) => b.querySelector('b') as HTMLElement);
   const ko = q<HTMLElement>('.ko');
-  const help = q<HTMLElement>('.help');
+  const warnEl = q<HTMLElement>('.warn');
 
   const game = (): Game => (window as unknown as { __chizito: Game }).__chizito;
   const cfg = CREATURE_CONFIG;
@@ -115,6 +116,11 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
   let tween: { t: number; from: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number }; to: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number }; done?: () => void } | null = null;
   let shake = 0;
   let patched = false;
+  /** Modo liviano: la pelea apaga lo caro (oclusión, sombra del sol, props, resolución) para ir fluida; se restaura al salir. */
+  let light: { restore: () => void; degrade: (level: number) => void } | null = null;
+  let level = 0;
+  let frames = 0;
+  let acc2 = 0;
   const sparks: { m: THREE.Mesh; v: THREE.Vector3; life: number }[] = [];
   const pops: { el: HTMLElement; p: THREE.Vector3; life: number }[] = [];
   const sparkGeo = new THREE.SphereGeometry(0.0013, 6, 6);
@@ -153,9 +159,21 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
     lift: a.lift + (b.lift - a.lift) * t,
     limbs: b.limbs.map((l, k) => ({ ...l, deltaDeg: a.limbs[k] ? a.limbs[k].deltaDeg + (l.deltaDeg - a.limbs[k].deltaDeg) * t : l.deltaDeg })),
   });
+  const lean = [0, 0];
+  const leanOf = (f: FightState['f'][number]): number => {
+    const c = f.sim.combat;
+    if (f.stun > 0) return -0.24 * (f.stun / FIGHT.hitstun); // recibe el golpe: se echa hacia atrás
+    if (c.phase === 'startup') return -0.08; // carga el golpe
+    if (c.phase === 'active') return 0.16; // se tira hacia adelante
+    if (c.phase === 'recovery') return 0.05;
+    return 0;
+  };
   const pose = (): void => {
     if (!state || !posers || !prevPoses || !curPoses) return;
-    state.f.forEach((f, i) => posers![i].apply(f.plan, f.sim, blend(prevPoses![i], curPoses![i], alpha), z0));
+    state.f.forEach((f, i) => {
+      lean[i] += (leanOf(f) - lean[i]) * 0.35;
+      posers![i].apply(f.plan, f.sim, blend(prevPoses![i], curPoses![i], alpha), z0, lean[i]);
+    });
   };
   const capture = (): void => {
     if (!state) return;
@@ -227,6 +245,51 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
     cam3.updateMatrixWorld();
   };
 
+  const enterLight = (): void => {
+    const g = game();
+    const st2 = g.stage;
+    const sceneRoot = st2.scene.getObjectByName('backdrop');
+    // Escenario despejado: la mesa y el fondo lejano se quedan; los recipientes y vasitos de la mesa se ocultan.
+    const props = sceneRoot ? sceneRoot.children.filter((c) => c.name !== 'mesa' && c.name !== 'far-props' && c.visible) : [];
+    props.forEach((o) => (o.visible = false));
+    const ao = st2.composer.passes.find((p) => 'configuration' in p && 'aoRadius' in (p as unknown as { configuration: object }).configuration);
+    const aoWas = ao?.enabled ?? false;
+    if (ao) ao.enabled = false;
+    const shadowWas = st2.sun.castShadow;
+    st2.sun.castShadow = false;
+    const prWas = st2.renderer.getPixelRatio();
+    const dofWas = st2.dof.enabled;
+    const setPR = (pr: number): void => {
+      st2.renderer.setPixelRatio(pr);
+      st2.resize();
+    };
+    setPR(Math.min(1, prWas));
+    light = {
+      degrade: (lv) => {
+        if (lv >= 1) st2.dof.enabled = false;
+        if (lv >= 2) setPR(Math.min(0.75, prWas));
+      },
+      restore: () => {
+        props.forEach((o) => (o.visible = true));
+        if (ao) ao.enabled = aoWas;
+        st2.sun.castShadow = shadowWas;
+        st2.dof.enabled = dofWas;
+        setPR(prWas);
+      },
+    };
+  };
+  /** Si el cuadro tarda de más, baja la calidad de a poco (primero el desenfoque, después la resolución). */
+  const perf = (dt: number): void => {
+    if (!light || dt <= 0) return;
+    frames++;
+    acc2 += dt;
+    if (frames < 45) return;
+    const avg = acc2 / frames;
+    frames = 0;
+    acc2 = 0;
+    if (avg > 0.022 && level < 2) light.degrade(++level);
+  };
+
   const step = (input: SimInput): void => {
     if (!state) return;
     state = stepFight(state, [input, aiInput(state, ai)]);
@@ -238,12 +301,16 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
     setHud();
   };
 
-  const readInput = (): SimInput => ({
-    move: ((keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0)) as -1 | 0 | 1,
-    attack: keys.has('KeyZ'),
-    guard: keys.has('KeyX'),
-    vertical: ((keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0)) as -1 | 0 | 1,
-  });
+  /** Z = el mejor golpe disponible: con una estocada de brazo, un toque de Z la tira (no hace falta apretar → a la vez); ↑ / ↓ eligen golpe alto / barrida. */
+  const readInput = (): SimInput => {
+    const up = keys.has('ArrowUp');
+    const down = keys.has('ArrowDown');
+    const me = state?.f[0];
+    const attack = keys.has('KeyZ');
+    let move = ((keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0)) as -1 | 0 | 1;
+    if (me && attack && !me.sim.combat.attackHeld && !up && !down && me.plan.actions.some((a) => a.input === 'forward+attack')) move = me.sim.facing;
+    return { move, attack, guard: keys.has('KeyX'), vertical: (up ? 1 : 0) - (down ? 1 : 0) as -1 | 0 | 1 };
+  };
 
   const restart = (): void => {
     if (!posers) return;
@@ -260,11 +327,12 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
   const frame = (now: number): void => {
     raf = 0;
     if (!open) return;
-    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
+    perf(dt);
     last = now;
     acc += dt;
     let n = 0;
-    while (acc >= cfg.sim.dt && n < 5) {
+    while (acc >= cfg.sim.dt && n < 8) {
       acc -= cfg.sim.dt;
       n++;
       if (hitstop > 0) hitstop--;
@@ -305,6 +373,8 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
     async open() {
       if (open || game().rig.inIntro) return;
       const g = game();
+      // Si había algo en la mano (ketchup, un palito), se suelta con Esc como en el juego, antes de pasar a la pelea.
+      for (let k = 0; k < 2; k++) window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }));
       const an = deps.panel.state()?.analysis;
       if (!an) return;
       const facing = an.profile2D.facing;
@@ -312,7 +382,7 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
       const { an: rivalAn, ids } = broccoliAnalysis(base);
       z0 = g.pivot.position.z;
       const rig = makeRig(g.construction, g.pivot, an, g.construction.front.clone(), g.construction.up.clone());
-      const player: Poser = { an, apply: (plan, st, pose, z) => applyRig(rig, plan, st, pose, z, cfg), dispose: () => resetRig(rig) };
+      const player: Poser = { an, apply: (plan, st, pose, z, lean) => applyRig(rig, plan, st, pose, z, lean, cfg), dispose: () => resetRig(rig) };
       posers = [player, broccoliPoser(g.stage.scene, rivalAn, ids)];
       open = true;
       btn.hidden = true;
@@ -330,7 +400,16 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
       };
       patched = true;
       startTween(fightCam());
-      help.textContent = `← → moverse · Z atacar · X guardia · R revancha · Esc salir\nTus golpes: ${actionsHelp(an)}`;
+      // Avisos mínimos: lo que le falta a la criatura para moverse o pegar.
+      const feet = an.support.feet.length;
+      const warns: string[] = [];
+      if (feet === 0) warns.push('Sin piernas: sumá al menos 1 para caminar');
+      if (!an.actions.some((a) => a.limbId)) warns.push('Sin brazos que peguen: sumá al menos 1 para golpear');
+      warnEl.innerHTML = warns.map((w) => `<b>${w}</b>`).join('');
+      level = 0;
+      frames = 0;
+      acc2 = 0;
+      enterLight();
       restart();
       last = 0;
       acc = 0;
@@ -345,6 +424,8 @@ export function mountFight(deps: { panel: PanelController; host?: HTMLElement })
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
       const g = game();
+      light?.restore();
+      light = null;
       if (patched) delete (g.stage as { render?: unknown }).render;
       patched = false;
       posers?.forEach((p) => p.dispose());

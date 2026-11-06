@@ -45,7 +45,7 @@ export function makeRig(construction: Construction, pivot: THREE.Group, an: Crea
 const tmp = new THREE.Matrix4();
 
 /** Pone la criatura 3D como la pose 2D: posición, giro de lado, rodada, encogimiento y ángulo de cada extremidad. */
-export function applyRig(r: Rig3D, plan: SimPlan, st: SimState, pose: Pose, z0: number, cfg = CREATURE_CONFIG): void {
+export function applyRig(r: Rig3D, plan: SimPlan, st: SimState, pose: Pose, z0: number, lean = 0, cfg = CREATURE_CONFIG): void {
   const an = r.an;
   const pf = an.profile2D.facing;
   const O = an.profile2D.origin;
@@ -54,7 +54,8 @@ export function applyRig(r: Rig3D, plan: SimPlan, st: SimState, pose: Pose, z0: 
   const yaw = (flip: boolean) => new THREE.Matrix4().makeRotationY(flip ? Math.PI : 0);
   const guard = cfg.sim.guardFrames > 0 ? st.combat.guard / cfg.sim.guardFrames : 0;
   const curl = plan.defense.kind === 'curl' && guard > 0 ? 1 - (1 - cfg.sim.curlScale) * guard : 1;
-  const m = T(pose.x, pose.lift, z0);
+  // La inclinación (hacia adelante al pegar, hacia atrás al recibir) gira todo alrededor del pie.
+  const m = T(pose.x, 0, z0).multiply(new THREE.Matrix4().makeRotationZ(-st.facing * lean)).multiply(T(0, pose.lift, 0));
   // Orden = el de `poseCreature.place`: encoger, dar vuelta, rodar, y recién ahí trasladar.
   const roll = plan.mode === 'roll' ? T(C.x, C.y).multiply(new THREE.Matrix4().makeRotationZ(st.angle)).multiply(T(-C.x, -C.y)) : new THREE.Matrix4();
   const shrink = T(C.x, C.y).multiply(new THREE.Matrix4().makeScale(curl, curl, curl)).multiply(T(-C.x, -C.y));

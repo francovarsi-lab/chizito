@@ -33,6 +33,18 @@ const place = await page.evaluate(() => {
 console.log('cuerpo 3D', place);
 ok(Math.abs(place.cx - place.x) < 0.02, `el cuerpo 3D está en la x de la simulación (${place.cx.toFixed(3)} vs ${place.x.toFixed(3)})`);
 ok(place.miny > -0.005 && place.miny < 0.03, `apoyado sobre la mesa (y mínima ${place.miny.toFixed(4)})`);
+// Teclado de verdad (no entradas simuladas): flecha → camina, Z pega.
+const x0 = await page.evaluate(() => window.__fight.state().f[0].sim.x);
+await page.keyboard.down('ArrowRight');
+await page.waitForTimeout(1500);
+await page.keyboard.up('ArrowRight');
+const x1 = await page.evaluate(() => window.__fight.state().f[0].sim.x);
+ok(Math.abs(x1 - x0) > 0.02, `con la flecha → se mueve (x ${x0.toFixed(3)} → ${x1.toFixed(3)})`);
+await page.keyboard.down('KeyZ');
+const phases = new Set();
+for (let i = 0; i < 20; i++) { phases.add(await page.evaluate(() => window.__fight.state().f[0].sim.combat.phase)); await page.waitForTimeout(60); }
+await page.keyboard.up('KeyZ');
+ok(phases.has('startup') || phases.has('active'), `con Z golpea (fases ${[...phases]})`);
 for (let i = 0; i < 4; i++) {
   await page.evaluate(() => window.__fight.advance(70, (f) => ({ move: 1, attack: f % 40 > 33 })));
   await shot(`2-golpes-${i}`);

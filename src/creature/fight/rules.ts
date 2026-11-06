@@ -42,7 +42,7 @@ const cfg = CREATURE_CONFIG;
 
 function fighter(an: CreatureAnalysis, x: number, facing: 1 | -1): Fighter {
   const base = makeSimPlan(an, cfg);
-  const plan: SimPlan = { ...base, speed: base.speed * FIGHT.speedMul, accel: base.accel * FIGHT.speedMul, decel: base.decel * FIGHT.speedMul, hopSpeed: base.hopSpeed * FIGHT.speedMul };
+  const plan: SimPlan = { ...base, turnLock: base.turnLock * FIGHT.turnMul, speed: base.speed * FIGHT.speedMul, accel: base.accel * FIGHT.speedMul, decel: base.decel * FIGHT.speedMul, hopSpeed: base.hopSpeed * FIGHT.speedMul };
   const sim = { ...createSimState(plan, x), facing };
   const pose = poseCreature(an, plan, sim, cfg);
   const b = bounds2D(pose.body);
@@ -66,6 +66,10 @@ export function stepFight(s: FightState, inputs: [SimInput, SimInput]): FightSta
   const events: FightEvent[] = [];
   const f = s.f.map((q, i) => {
     const stunned = q.stun > 0 || over;
+    // Mira solo al rival cuando está libre (como en un juego de peleas): no hace falta apretar la flecha para darse vuelta.
+    const foe = s.f[1 - i];
+    const toFoe: 1 | -1 = foe.sim.x >= q.sim.x ? 1 : -1;
+    if (!stunned && q.sim.combat.phase === 'idle' && q.sim.turnTimer === 0 && !q.sim.air && q.sim.facing !== toFoe && Math.abs(foe.sim.x - q.sim.x) > FIGHT.autoFaceDist) q = { ...q, sim: { ...q.sim, turnTimer: q.plan.turnLock } };
     let sim = stepSim(q.sim, stunned ? { move: 0 } : inputs[i], q.plan, cfg);
     if (q.stun > 0) sim = { ...sim, combat: IDLE };
     let x = sim.x + q.kb * cfg.sim.dt;
@@ -96,7 +100,7 @@ export function stepFight(s: FightState, inputs: [SimInput, SimInput]): FightSta
     }
     const hb = a.pose.hitbox;
     if (!hb || a.landed || over) continue;
-    const circle = { kind: 'capsule' as const, a: hb.center, b: hb.center, r: hb.r };
+    const circle = { kind: 'capsule' as const, a: hb.center, b: hb.center, r: hb.r + FIGHT.hitPad };
     if (!b.pose.shapes.some((sh) => overlap2D(circle, sh))) continue;
     const act = a.plan.actions.find((q) => q.id === hb.actionId);
     if (!act) continue;

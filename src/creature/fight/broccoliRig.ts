@@ -8,7 +8,8 @@ import { createBrocoli } from './brocoli';
 /** Algo que se puede poner en la escena de pelea según la pose del simulador. */
 export interface Poser {
   an: CreatureAnalysis;
-  apply(plan: SimPlan, st: SimState, pose: Pose, z0: number): void;
+  /** `lean`: inclinación del cuerpo en rad (+ = hacia adelante), con el pie como eje. */
+  apply(plan: SimPlan, st: SimState, pose: Pose, z0: number, lean: number): void;
   dispose(): void;
 }
 
@@ -28,10 +29,11 @@ export function broccoliPoser(scene: THREE.Scene, an: CreatureAnalysis, ids: Rec
   const axis = new THREE.Vector3(0, 0, 1);
   return {
     an,
-    apply(plan, st, pose, z0) {
+    apply(plan, st, pose, z0, lean) {
       const turned = st.facing !== plan.facing;
       g.scale.set(BROCCOLI_K * (turned ? -1 : 1), BROCCOLI_K, BROCCOLI_K);
       g.position.set(pose.x, pose.lift, z0);
+      g.rotation.z = -st.facing * lean;
       for (const l of limbs) {
         const d = pose.limbs.find((q) => q.id === l.id)?.deltaDeg ?? 0;
         // Mismo giro que `poseGroup`: grados · facing, antihorario, alrededor del pivote (el origen de la malla de la zanahoria).

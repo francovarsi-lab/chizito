@@ -10,6 +10,12 @@ export const FIGHT = {
   arenaHalf: 0.125,
   /** m: separación inicial entre los centros. */
   startGap: 0.17,
+  /** El giro de 180° tarda esta fracción de lo que calcula el análisis (más ágil en pelea). */
+  turnMul: 0.4,
+  /** m: a partir de esta distancia al rival se da vuelta solo. */
+  autoFaceDist: 0.004,
+  /** m de margen extra en la caja de golpe (más permisivo). */
+  hitPad: 0.003,
   /** Cuadros sin poder actuar al recibir un golpe (sin guardia). */
   hitstun: 20,
   /** Cuadros de pausa al impacto (da peso al golpe; lo aplica la pantalla). */
