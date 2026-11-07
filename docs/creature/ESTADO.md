@@ -111,3 +111,15 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 - Próximas (propuestas, por decidir con el usuario): letras de impacto estilo arcade y gritos (cuando grabe los sonidos),
   cadenas de varias articulaciones que se cargan juntas, patada del chupetín sólo con contrapeso, texturas del chizito y de las
   piezas en Higgsfield (2K sólo lo final), más coherencia de luz entre el constructor y la pelea.
+
+## Pelea — tanda 4 (2026-11-07)
+- Chupetín: carga corta y visible (tope), envión al soltar; abajo es pierna fija que patea con el cuerpo. El aviso ya no dice
+  que "no se mueve".
+- Pararse sobre las piernas (`legPlant`), golpe con anticipación y peso, acierto que frena vs pifie que sigue de largo.
+- Combinaciones: UNO-DOS, RÁFAGA, PIÑA Y PATADA, CONTRA (el brócoli encadena desde el nivel 2). Lo apretado durante el
+  congelamiento ya no se pierde.
+- Piernas con fuerza y rapidez por pieza; salto según fuerza/peso con agachada previa.
+- Luz y arte hacia el arte clave: 3/4 de 40°, focos de cara, foco cenital con haz y polvo, cuarto oscuro, tabla grande, cara del
+  boceto sobre el brócoli 3D.
+- Pendiente (propuesto): letras de impacto y gritos con sus grabaciones, cadenas de varias articulaciones, texturas del chizito
+  en Higgsfield, y un pase de color más (la madera tira a rojo en los bordes).

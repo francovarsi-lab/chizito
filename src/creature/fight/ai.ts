@@ -61,6 +61,11 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   const attackPrev = mem.wasAttack;
   mem.wasAttack = false;
   if (me.stun > 0) return { x: 0 };
+  // Desde el nivel 2 encadena: si acaba de acertar, a veces sigue con otra piña (o una patada) mientras dura el impulso.
+  if (me.chain && rnd(mem) < L.chain) {
+    const kick = me.legs.length >= 2 && rnd(mem) < 0.3;
+    return { x: 0, punch: !kick, kick };
+  }
   if (near > reach) {
     const jump = rnd(mem) < L.jump && near < reach * 3;
     return { x: dir, up: jump };

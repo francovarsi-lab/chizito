@@ -87,6 +87,29 @@ function fromParts(parts: BroccoliParts, level: number): THREE.Group {
     });
   }
   root.add(body);
+  // La cara del modelo 3D salió muy tenue (al pasar la imagen a 3D se perdieron los ojos, las cejas y los dientes): se le pone
+  // la del boceto, apoyada sobre la superficie real del tallo (un rayo desde adelante por cada rasgo).
+  root.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  const meshes: THREE.Object3D[] = [];
+  body.traverse((o) => (o as THREE.Mesh).isMesh && meshes.push(o));
+  const zAt = (x: number, y: number): number | null => {
+    ray.set(new THREE.Vector3(x, y, 3), new THREE.Vector3(0, 0, -1));
+    const hit = ray.intersectObjects(meshes, false)[0];
+    return hit ? hit.point.z : null;
+  };
+  // Centro y ancho del tallo a cada altura, medidos con rayos (el tallo del modelo es más angosto y no está centrado).
+  const fit = (y: number): { cx: number; k: number } => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let x = -0.8; x <= 0.8; x += 0.02) {
+      if (zAt(x, y) === null) continue;
+      lo = Math.min(lo, x);
+      hi = Math.max(hi, x);
+    }
+    return hi > lo ? { cx: (lo + hi) / 2, k: Math.min(1.2, Math.max(0.5, (hi - lo) / 2 / 0.36)) } : { cx: 0, k: 1 };
+  };
+  addFace(root, zAt, level, mulberry32(31 + level), fit);
   return root;
 }
 
@@ -231,8 +254,8 @@ function stalk(): THREE.Mesh {
 function beetEye(): THREE.Mesh {
   const geo = new THREE.CylinderGeometry(0.135, 0.13, 0.035, 48, 1);
   geo.rotateX(Math.PI / 2);
-  const ring = col('#9e1a55');
-  const light = col('#d84b8a');
+  const ring = col('#b0235f');
+  const light = col('#ee70aa');
   const dark = col('#3a0318');
   paint(geo, (p) => {
     const r = Math.hypot(p.x, p.y) / 0.135;
@@ -256,6 +279,51 @@ function pepperBrow(a: THREE.Vector3, b: THREE.Vector3, thick: number): THREE.Me
   }
   geo.computeVertexNormals();
   return new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color: '#c3111f', roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.05 }));
+}
+
+/**
+ * Cara malvada del boceto sobre el tallo (mirando a +Z): ojos de rodaja de remolacha, cejas de tira de morrón y boca oscura con
+ * dientes de sésamo negro. `zAt(x, y)` = dónde está la superficie del tallo en esa altura (o null si no hay).
+ */
+function addFace(
+  root: THREE.Group,
+  zAt: (x: number, y: number) => number | null,
+  level: number,
+  rnd: () => number,
+  /** Centro y escala del tallo en cada altura (el boceto es un tallo de radio 0,36 centrado en x = 0). */
+  fit: (y: number) => { cx: number; k: number } = () => ({ cx: 0, k: 1 }),
+): void {
+  const at = (x: number, y: number, dz: number): THREE.Vector3 => {
+    const { cx, k } = fit(y);
+    const X = cx + x * k;
+    return new THREE.Vector3(X, y, (zAt(X, y) ?? Math.sqrt(Math.max(0, (0.36 * k) ** 2 - x * x * k * k))) + dz * k);
+  };
+  const k0 = fit(2.38).k;
+  for (const sx of [-1, 1]) {
+    const eye = beetEye();
+    const x = sx * 0.17;
+    eye.position.copy(at(x, 2.38, -0.004));
+    eye.rotation.set(0.08, Math.asin(Math.max(-1, Math.min(1, x / 0.36))), sx * 0.15);
+    eye.scale.set(1.3 * k0, 0.82 * 1.3 * k0, k0); // grandes (se leen en 3/4 y de lejos) y entrecerrados
+    root.add(eye);
+    // Cejas enojadas, inclinadas hacia adentro.
+    root.add(pepperBrow(at(sx * 0.31, 2.57, 0.03), at(sx * 0.06, 2.46, 0.025), (0.034 + (level - 1) * 0.006) * k0));
+  }
+  const km = fit(2.03).k;
+  const mouth = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshPhysicalMaterial({ color: '#2a0810', roughness: 0.35, clearcoat: 0.6 }));
+  mouth.position.copy(at(0, 2.03, -0.03));
+  mouth.scale.set(0.25 * km, 0.095 * km, 0.05 * km);
+  root.add(mouth);
+  const seedGeo = new THREE.SphereGeometry(1, 12, 8);
+  const seedMat = new THREE.MeshPhysicalMaterial({ color: '#16120f', roughness: 0.35, clearcoat: 0.8 });
+  for (let i = 0; i < 6; i++) {
+    const x = -0.15 + i * 0.06;
+    const tooth = new THREE.Mesh(seedGeo, seedMat);
+    tooth.position.copy(at(x, 2.08 - Math.abs(x) * 0.15, 0.006));
+    tooth.scale.set(0.027 * km, 0.042 * km, 0.016 * km);
+    tooth.rotation.z = (rnd() - 0.5) * 0.5;
+    root.add(tooth);
+  }
 }
 
 /** Crea el brócoli malvado. Devuelve un Group (los 4 primeros hijos son las zanahorias, en el orden de `SKETCH`). */
@@ -312,34 +380,7 @@ export function createBrocoli(options: BrocoliOptions = {}): THREE.Group {
     root.add(br);
   });
 
-  // 4) Cara (en el tallo, mirando a la cámara): ojos de remolacha, cejas de morrón, boca oscura con dientes de sésamo negro.
-  const R = 0.36;
-  for (const sx of [-1, 1]) {
-    const eye = beetEye();
-    const x = sx * 0.17;
-    const z = Math.sqrt(R * R - x * x) - 0.004;
-    eye.position.set(x, 2.38, z);
-    eye.rotation.set(0.08, Math.asin(x / R), sx * 0.15);
-    eye.scale.set(1, 0.82, 1); // entrecerrados
-    root.add(eye);
-    // Cejas enojadas, inclinadas hacia adentro.
-    const outer = new THREE.Vector3(sx * 0.31, 2.57, Math.sqrt(R * R - 0.31 * 0.31) + 0.03);
-    const inner = new THREE.Vector3(sx * 0.06, 2.46, R + 0.025);
-    root.add(pepperBrow(outer, inner, 0.034 + (level - 1) * 0.006));
-  }
-  const mouth = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshPhysicalMaterial({ color: '#2a0810', roughness: 0.35, clearcoat: 0.6 }));
-  mouth.position.set(0, 1.99, R - 0.03);
-  mouth.scale.set(0.25, 0.095, 0.05);
-  root.add(mouth);
-  const seedGeo = new THREE.SphereGeometry(1, 12, 8);
-  const seedMat = new THREE.MeshPhysicalMaterial({ color: '#16120f', roughness: 0.35, clearcoat: 0.8 });
-  for (let i = 0; i < 6; i++) {
-    const x = -0.15 + i * 0.06;
-    const tooth = new THREE.Mesh(seedGeo, seedMat);
-    tooth.position.set(x, 2.04 - Math.abs(x) * 0.15, Math.sqrt(R * R - x * x) + 0.006);
-    tooth.scale.set(0.027, 0.042, 0.016);
-    tooth.rotation.z = (rnd() - 0.5) * 0.5;
-    root.add(tooth);
-  }
+  // 4) Cara (en el tallo, mirando a la cámara).
+  addFace(root, (x) => Math.sqrt(Math.max(0, 0.36 * 0.36 - x * x)), level, rnd);
   return root;
 }

@@ -111,7 +111,7 @@ export class FightHud {
     r.innerHTML = `<div class="top">${side('l')}<div><div class="clock">90</div><div class="round">ROUND 1</div></div>${side('r')}</div>
 <div class="status l"></div><div class="status r"></div><div class="combo l"></div><div class="combo r"></div><div class="warn"></div>
 <div class="ann"></div><div class="flash"></div>
-<div class="keys"><span><kbd>←</kbd><kbd>→</kbd>moverse</span><span><kbd>↑</kbd>saltar</span><span><kbd>↓</kbd>agacharse</span><span><kbd>Z</kbd>piña</span><span><kbd>X</kbd>patada</span><span><kbd>C</kbd>guardia</span><span><kbd>Esc</kbd>pausa</span></div>
+<div class="keys"><span><kbd>←</kbd><kbd>→</kbd>moverse</span><span><kbd>↑</kbd>saltar</span><span><kbd>↓</kbd>agacharse</span><span><kbd>Z</kbd>piña</span><span><kbd>X</kbd>patada</span><span><kbd>C</kbd>guardia</span><span><kbd>Z</kbd><kbd>Z</kbd>uno-dos</span><span><kbd>Z</kbd><kbd>X</kbd>piña y patada</span><span><kbd>Esc</kbd>pausa</span></div>
 <div class="menu"><div class="card"></div></div>`;
     host.appendChild(r);
     this.root = r;
@@ -175,10 +175,11 @@ export class FightHud {
     this.keys.classList.add('off');
   }
 
-  combo(side: 0 | 1, n: number): void {
-    if (n < 2) return;
+  /** Contador de golpes seguidos y, si los encadenó como combinación, su nombre (UNO-DOS, RÁFAGA…) en grande. */
+  combo(side: 0 | 1, n: number, name: string | null = null): void {
+    if (n < 2 && !name) return;
     const c = this.combos[side];
-    c.innerHTML = `${n}<small>GOLPES</small>`;
+    c.innerHTML = name ? `${name}<small>${n >= 2 ? `${n} GOLPES` : 'COMBINACIÓN'}</small>` : `${n}<small>GOLPES</small>`;
     c.classList.remove('show');
     void c.offsetWidth;
     c.classList.add('show');
@@ -202,7 +203,7 @@ export class FightHud {
   showMenu(title: string, sub: string, buttons: { a: MenuAction; label: string; alt?: boolean }[], withKeys = false): void {
     const card = this.menu.querySelector('.card') as HTMLElement;
     const grid = withKeys
-      ? `<div class="grid"><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Z</kbd> o <kbd>J</kbd></span><span>piña: cada toque usa el brazo siguiente (errar con algo pesado cuesta)</span><span><kbd>X</kbd> o <kbd>K</kbd></span><span>patada: la pierna más adelantada</span><span><kbd>Z</kbd> en el aire</span><span>piña en picada</span><span><kbd>C</kbd> o <kbd>L</kbd></span><span>guardia (mantener): los brazos tapan</span></div>`
+      ? `<div class="grid"><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Z</kbd> o <kbd>J</kbd></span><span>piña: cada toque usa el brazo siguiente (errar con algo pesado cuesta)</span><span><kbd>X</kbd> o <kbd>K</kbd></span><span>patada: la pierna más adelantada</span><span><kbd>Z</kbd> en el aire</span><span>piña en picada</span><span><kbd>C</kbd> o <kbd>L</kbd></span><span>guardia (mantener): los brazos tapan</span><span><kbd>Z</kbd> <kbd>Z</kbd></span><span>UNO-DOS: si la piña acierta, otra con el otro brazo (con 3 brazos, RÁFAGA)</span><span><kbd>Z</kbd> <kbd>X</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>C</kbd> → <kbd>Z</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span></div>`
       : '';
     card.innerHTML = `<h2>${title}</h2><p>${sub}</p>${buttons.map((b, i) => `<button data-a="${b.a}" class="${b.alt ? 'alt' : ''}${i === 0 ? ' sel' : ''}">${b.label}</button>`).join('')}${grid}`;
     this.menuSel = 0;

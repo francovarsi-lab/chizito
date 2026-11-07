@@ -240,7 +240,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         shake = Math.max(shake, e.blocked ? 0.0008 : 0.0012 + e.damage * 0.00022);
         const label = e.blocked ? 'BLOQUEO' : e.shield ? 'ESCUDO' : e.kind === 'heavy' ? '¡PESADO!' : e.kind === 'cut' ? 'CORTE' : '';
         hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, label, e.blocked ? 'block' : e.kind === 'heavy' ? 'heavy' : e.kind === 'cut' ? 'cut' : '');
-        if (!e.blocked) hud.combo(e.by, e.combo);
+        if (!e.blocked) hud.combo(e.by, e.combo, e.chain);
+        if (e.chain) g.audio.play('combo', 1);
         if (big && !e.blocked) hud.flash(0.28);
         g.audio.play(e.blocked ? 'bloqueo' : big ? 'golpe-pesado' : 'golpe', Math.min(1, 0.55 + e.damage / 20));
         if (!e.blocked) g.audio.play('crunch', 0.8);
@@ -381,6 +382,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       v.apply({ ...p, y: p.y + GROUND }, z0, raw);
     });
     set?.update(raw);
+    // El foco de cara apunta a la altura de la cara (un tercio del centro a la coronilla), no a la punta de la cabeza.
+    if (set) views.forEach((v, i) => set!.track(i as 0 | 1, v.head().lerp(new THREE.Vector3(m!.f[i].x, m!.f[i].y + GROUND, z0), 0.65), m!.f[i].facing));
     if (tween) {
       tween.t = Math.min(1, tween.t + raw / 1.0);
       const e = tween.t * tween.t * (3 - 2 * tween.t);
@@ -443,7 +446,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       else if (f.jump === 0) w.push('Pesa más de lo que aguantan sus piernas: camina lento y no puede saltar');
       if (f.legs.length === 1) w.push('Una sola pierna: avanza a saltitos');
       if (f.arms.length === 0) w.push('Sin brazos: no da piñas ni se puede cubrir');
-      if (fixed) w.push(`${fixed === 1 ? 'Una pieza queda fija' : `${fixed} piezas quedan fijas`} (chupetín o atraviesa el chizito): pesa, pero no se mueve`);
+      if (fixed) w.push(`${fixed === 1 ? 'Una pieza queda fija' : `${fixed} piezas quedan fijas`} (chupetín o atraviesa el chizito): no gira sola; pega con el cuerpo entero`);
     }
     return w;
   };

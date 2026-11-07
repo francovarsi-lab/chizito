@@ -196,7 +196,7 @@ try {
   // ── Daño: la aceituna pega más fuerte que el palito ──
   {
     const m = fight(mine);
-    m.f[1].x = m.f[0].x + 0.038;
+    m.f[1].x = m.f[0].x + 0.034;
     const hits = [];
     for (let i = 0; i < 260; i++) {
       stepMatch(m, [{ x: 0, punch: i % 80 === 0 }, { x: 0 }]);
@@ -334,6 +334,157 @@ try {
     d.timer = 3;
     for (let i = 0; i < 10 + FIGHT.koFrames + FIGHT.endFrames; i++) stepMatch(d, [{ x: 0 }, { x: 0 }]);
     ok(d.wins[0] === 0 && d.wins[1] === 0 && d.round === 2, `empate exacto: ronda extra sin puntos (round ${d.round})`);
+  }
+
+  // ── Piernas según su pieza: palito de la selva = lento pero fuerte; escarbadientes = rápido pero débil ──
+  {
+    const A0 = fighterFromSnapshot(snap('A'));
+    const legIds = fight(A0).f[0].legs.map((k) => A0.limbs[k].id);
+    const legsAs = (type) => {
+      const s = snap('A');
+      for (const id of legIds) s.pieces.find((p) => p.id === id).type = type;
+      return fighterFromSnapshot(s);
+    };
+    const [selva, pal, esc] = ['palito-selva', 'palito', 'escarbadientes'].map(legsAs);
+    const [fs, fp, fe] = [selva, pal, esc].map((P) => fight(P).f[0]);
+    ok(fs.jump > fp.jump && fp.jump > fe.jump, `salto: selva ${fs.jump.toFixed(2)} > palito ${fp.jump.toFixed(2)} > escarbadientes ${fe.jump.toFixed(2)} m/s`);
+    ok(fe.speed > fp.speed && fp.speed > fs.speed, `marcha: escarbadientes ${(fe.speed * 100).toFixed(1)} > palito ${(fp.speed * 100).toFixed(1)} > selva ${(fs.speed * 100).toFixed(1)} cm/s`);
+    // Antes de despegar se agacha: las piernas lentas tardan más.
+    const jumpAt = (P) => {
+      const m = fight(P);
+      for (let i = 0; i < 30; i++) {
+        stepMatch(m, [{ x: 0, up: i === 0 }, { x: 0 }]);
+        if (m.events.some((e) => e.type === 'jump' && e.who === 0)) return i;
+      }
+      return -1;
+    };
+    const [js, je] = [jumpAt(selva), jumpAt(esc)];
+    ok(je >= 2 && js > je, `se agacha antes de saltar (escarbadientes ${je} cuadros, selva ${js})`);
+    // Más piernas suman fuerza, pero el peso la reparte: con lastre no salta más alto.
+    const heavy = { ...pal, armor: [...pal.armor, { p: [0, 0, 0], m: 0.004, r: 0.001, piece: 'lastre', kind: 'light', inside: true }], mass: pal.mass + 0.004 };
+    ok(fight(heavy).f[0].jump < fp.jump, 'con más peso salta menos');
+  }
+
+  // ── Golpe con lógica física: al pifiar el brazo sigue de largo y el cuerpo se va; al acertar frena contra el otro ──
+  {
+    const strikeOf = (gap) => {
+      const m = fight(mine);
+      m.f[1].x = m.f[0].x + gap;
+      const f = m.f[0];
+      const k = f.model.limbs.findIndex((l, j) => f.arms.includes(j) && l.kind !== 'heavy');
+      f.nextArm = f.arms.indexOf(k);
+      const x0 = f.x;
+      let maxRot = 0, hit = false, whiff = false;
+      for (let i = 0; i < 50; i++) {
+        stepMatch(m, [{ x: 0, punch: i === 0 }, { x: 0 }]);
+        maxRot = Math.max(maxRot, rot(f.limbs[k]));
+        for (const e of m.events) {
+          if (e.type === 'hit' && e.by === 0) hit = true;
+          if (e.type === 'whiff' && e.who === 0) whiff = true;
+        }
+      }
+      return { maxRot, hit, whiff, dx: f.x - x0 };
+    };
+    const H = strikeOf(0.034);
+    const Wf = strikeOf(0.2);
+    ok(H.hit && Wf.whiff, `acierto y pifie (${H.hit}, ${Wf.whiff})`);
+    ok(Wf.maxRot > H.maxRot + 0.3, `al pifiar el brazo sigue de largo (${(Wf.maxRot * 57.3).toFixed(0)}° vs ${(H.maxRot * 57.3).toFixed(0)}° al acertar)`);
+    ok(Wf.dx > H.dx, `el que pifia se va para adelante, el que acierta frena (${(Wf.dx * 1000).toFixed(1)} vs ${(H.dx * 1000).toFixed(1)} mm)`);
+    // Anticipación: al cargar el peso va atrás; al soltar, adelante.
+    const m = fight(mine);
+    m.f[1].x = 0.2;
+    const f = m.f[0];
+    f.nextArm = f.arms.indexOf(f.model.limbs.findIndex((l, j) => f.arms.includes(j) && l.kind !== 'heavy'));
+    const t0 = f.tilt;
+    let back = 0, fwd = 0;
+    for (let i = 0; i < 30; i++) {
+      stepMatch(m, [{ x: 0, punch: i === 0 }, { x: 0 }]);
+      const ph = f.limbs.find((q) => q.phase === 'windup' || q.phase === 'strike')?.phase;
+      if (ph === 'windup') back = Math.min(back, f.tilt - t0);
+      if (ph === 'strike') fwd = Math.max(fwd, f.tilt - t0);
+    }
+    ok(back < -0.01 && fwd > back + 0.03, `el peso va atrás al cargar y adelante al soltar (${back.toFixed(3)} → ${fwd.toFixed(3)} rad)`);
+  }
+
+  // ── Combinaciones: después de acertar se encadena (UNO-DOS, PIÑA Y PATADA); después de bloquear, CONTRA ──
+  {
+    const chainOf = (second) => {
+      const m = fight(mine);
+      // Contra la pared: el empujón no lo saca de alcance.
+      m.f[0].x = 0.111;
+      m.f[1].x = 0.145;
+      const f = m.f[0];
+      f.nextArm = f.arms.indexOf(f.model.limbs.findIndex((l, j) => f.arms.includes(j) && l.kind !== 'heavy'));
+      let first = -1, started = null, startAt = -1, hs = 0;
+      const landed = [];
+      for (let i = 0; i < 90; i++) {
+        const press = first >= 0 && i === first + 3;
+        stepMatch(m, [{ x: 0, punch: i === 0 || (second === 'punch' && press), kick: second === 'kick' && press }, { x: 0 }]);
+        for (const e of m.events) if (e.type === 'hit' && e.by === 0) { if (first < 0) { first = i; hs = m.hitstop; } if (e.chain) landed.push(e.chain); }
+        const c = f.limbs.find((q) => q.combo && q.phase !== 'rest');
+        if (c && !started) { started = c.combo; startAt = i; }
+      }
+      return { first, started, wait: startAt - first, hs, landed };
+    };
+    const p2 = chainOf('punch');
+    ok(p2.first >= 0 && p2.started === 'UNO-DOS', `piña que acierta + piña = UNO-DOS (${p2.started})`);
+    // Sale apenas termina el congelamiento del impacto, sin pagar el castigo de acertar (`hitLock`).
+    ok(p2.wait > 0 && p2.wait < p2.hs + FIGHT.hitLock, `la segunda sale sin esperar el castigo (${p2.wait} cuadros, congelamiento ${p2.hs})`);
+    ok(p2.landed.includes('UNO-DOS'), `y pega (${p2.landed})`);
+    const pk = chainOf('kick');
+    ok(pk.started === 'PIÑA Y PATADA', `piña que acierta + patada = PIÑA Y PATADA (${pk.started})`);
+    // Sin acertar no hay combinación: pifiar corta la cadena.
+    const solo = fight(mine);
+    solo.f[1].x = 0.2;
+    let any = false;
+    for (let i = 0; i < 120; i++) {
+      stepMatch(solo, [{ x: 0, punch: i % 12 === 0 }, { x: 0 }]);
+      any ||= solo.f[0].limbs.some((q) => q.combo);
+    }
+    ok(!any, 'sin acertar no hay combinación');
+    // CONTRA: bloquea con la guardia y suelta una piña enseguida.
+    const c = fight(mine);
+    c.f[1].x = c.f[0].x + 0.045;
+    let blockedAt = -1, contra = false;
+    for (let i = 0; i < 260 && !contra; i++) {
+      const guard = blockedAt < 0;
+      stepMatch(c, [{ x: 0, guard, punch: blockedAt >= 0 && i === blockedAt + FIGHT.blockstun + 4 }, { x: 0, punch: i % 45 === 10 }]);
+      for (const e of c.events) if (e.type === 'hit' && e.by === 1 && e.blocked && blockedAt < 0) blockedAt = i;
+      contra ||= c.f[0].limbs.some((q) => q.combo === 'CONTRA');
+    }
+    ok(blockedAt >= 0 && contra, `después de bloquear, la piña sale como CONTRA (bloqueó en ${blockedAt})`);
+  }
+
+  // ── Chupetín: carga corta y visible; abajo (pierna fija) patea con el cuerpo entero si tiene otra pierna ──
+  {
+    const withPop = (id) => {
+      const s = snap('criatura-20261011-1623');
+      const stick = s.pieces.find((p) => p.id === id);
+      stick.type = 'chupetin';
+      s.pieces.push({ id: `${id}~caramelo`, type: 'chupetin-caramelo', kind: 'blob', seed: 1, cosmetic: false, stability: 'stable', shape: { kind: 'capsule', a: stick.shape.b, b: stick.shape.b, radius: 0.0105 } });
+      s.links.push({ ...s.links.find((l) => l.childId === id), id: `lk-${id}`, parentId: id, childId: `${id}~caramelo`, mode: 'tail', exit: null, crossings: [] });
+      return fighterFromSnapshot(s);
+    };
+    const P = withPop('palito-mv47lm1n-2');
+    const m = fight(P);
+    const k = P.limbs.findIndex((l) => l.rigid);
+    m.f[0].nextArm = m.f[0].arms.indexOf(k);
+    let at = -1;
+    for (let i = 0; i < 60 && at < 0; i++) {
+      stepMatch(m, [{ x: 0, punch: i === 0 }, { x: 0 }]);
+      if (m.f[0].limbs[k].phase === 'strike') at = i;
+    }
+    ok(at > 0 && at <= FIGHT.swing.windFrames + FIGHT.swing.maxCharge + 2, `el chupetín suelta el golpe en ${at} cuadros (no espera un segundo)`);
+    const peg = withPop('palito-selva-mv47mu5p-6');
+    const g = fight(peg);
+    const pk = peg.limbs.findIndex((l) => l.rigid);
+    ok(g.f[0].pegs.includes(pk) && g.f[0].legs.length === 1, `el chupetín abajo es una pierna fija (${g.f[0].pegs}, piernas ${g.f[0].legs.length})`);
+    let swung = false;
+    for (let i = 0; i < 200; i++) {
+      stepMatch(g, [{ x: 0, kick: i % 60 === 0 }, { x: 0 }]);
+      swung ||= g.f[0].swing?.k === pk;
+    }
+    ok(swung, 'y patea balanceando el cuerpo entero');
   }
 
   // ── Rendimiento: 40 extremidades, dos luchadores ──

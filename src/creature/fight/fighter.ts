@@ -41,6 +41,9 @@ export interface LimbModel {
   rigid: boolean;
   /** kg que puede cargar si es pierna (articulada). */
   carry: number;
+  /** Si es pierna: fuerza (salto) y rapidez (marcha), según su pieza (`FIGHT.legKind`). */
+  power: number;
+  quick: number;
   /** Articulación = punto de clavado, sobre el perímetro del chizito (marco local). */
   pivot: V3;
   /** Dirección de reposo, del pivote al punto más lejano. */
@@ -207,6 +210,7 @@ export function fighterFromSnapshot(s: CreatureSnapshot, name = 'TU CHIZITO'): F
         role,
         rigid,
         carry: (FIGHT.legCarryGrams[piece.type as keyof typeof FIGHT.legCarryGrams] ?? FIGHT.legCarryGrams.default) / 1000,
+        ...(FIGHT.legKind[piece.type as keyof typeof FIGHT.legKind] ?? FIGHT.legKind.default),
         pivot,
         dir,
         reach,
@@ -265,6 +269,7 @@ export function broccoliFighter(level = 1): FighterModel {
       role: sk.arm ? 'arm' : 'leg',
       rigid: false,
       carry: FIGHT.broccoli.carrotCarryGrams / 1000,
+      ...FIGHT.legKind.zanahoria,
       pivot: a,
       dir: norm(sub(b, a)),
       reach: len(sub(b, a)),

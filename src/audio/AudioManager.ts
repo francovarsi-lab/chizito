@@ -12,10 +12,10 @@ import { probeFile } from '../assets/probe';
  *
  * Pelea (para reemplazar por grabaciones propias con el mismo nombre de archivo):
  *  golpe, golpe-pesado, bloqueo, zumbido (algo pesado que corta el aire), pifio, escudo (se rompe),
- *  ko, round (cartel ROUND), pelea (¡A PELEAR!)
+ *  ko, round (cartel ROUND), pelea (¡A PELEAR!), combo (sale una combinación: UNO-DOS, RÁFAGA…)
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea';
-const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea'];
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -136,6 +136,11 @@ export class AudioManager {
       case 'ko':
         this.burst({ freq: 500, q: 0.7, dur: 0.3, gain: 0.8, lowFreq: 60 });
         this.burst({ freq: 2800, q: 1.4, dur: 0.06, gain: 0.4, delay: 0.01 });
+        break;
+      case 'combo':
+        // Dos golpecitos que suben: "¡ta-tán!".
+        this.burst({ freq: 1300, q: 5, dur: 0.08, gain: 0.22 * intensity, lowFreq: 260 });
+        this.burst({ freq: 1900, q: 5, dur: 0.12, gain: 0.26 * intensity, lowFreq: 390, delay: 0.08 });
         break;
       case 'round':
       case 'pelea':

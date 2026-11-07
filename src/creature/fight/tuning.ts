@@ -16,8 +16,8 @@ export const FIGHT = {
 
   // ── Arena (sobre la mesa, alrededor del chizito) ──
   arenaHalf: 0.15,
-  /** rad: los luchadores se ven de perfil, girados esto hacia la cámara (guardia de 3/4), con la cara hacia el rival. */
-  stanceYaw: 0.45,
+  /** rad: los luchadores se enfrentan con la cara hacia el rival, girados esto hacia la cámara (3/4 claro, como el arte clave: se ven las caras). */
+  stanceYaw: 0.7,
   /** rad: cuánto puede girar una pierna para apoyar en la postura. */
   stanceMax: 0.9,
   startGap: 0.15,
@@ -47,6 +47,19 @@ export const FIGHT = {
   legDownMin: -0.3,
   /** Gramos que carga cada pierna según su pieza: si la criatura pesa más que lo que cargan sus piernas, camina lento y no salta. */
   legCarryGrams: { palito: 4, escarbadientes: 2.5, 'palito-selva': 6, default: 3 },
+  /**
+   * Cada tipo de pierna: FUERZA (empuja el salto) y RAPIDEZ (la marcha y lo que tarda en agacharse para saltar). Palito de la
+   * selva: lento pero fuerte; escarbadientes: rápido pero débil. Más piernas suman fuerza, pero el peso la reparte.
+   */
+  legKind: {
+    palito: { power: 1, quick: 1 },
+    escarbadientes: { power: 0.6, quick: 1.35 },
+    'palito-selva': { power: 1.6, quick: 0.7 },
+    zanahoria: { power: 1.25, quick: 1 },
+    default: { power: 1, quick: 1 },
+  },
+  /** Las piernas se acomodan contra la inclinación del cuerpo (fracción): la criatura se para SOBRE ellas. */
+  legPlant: 0.85,
 
   broccoli: { bodyGrams: 6, carrotGrams: 1, carrotCarryGrams: 6 },
 
@@ -64,9 +77,15 @@ export const FIGHT = {
   legSpeed: [0.38, 0.8, 1] as const,
   groundAccel: 1.6,
   airAccel: 0.5,
-  /** m/s: velocidad del salto (↑). Solo con piernas, y si cargan al menos `jumpMinCarry` de la masa. */
+  /**
+   * m/s: velocidad del salto (↑) = jumpSpeed · √(fuerza de las piernas / gramos / jumpRef), acotada. Solo con piernas, y si
+   * cargan al menos `jumpMinCarry` de la masa. Antes de despegar se agacha `squat` cuadros (más con piernas lentas).
+   */
   jumpSpeed: 0.56,
+  jumpRef: 0.4,
+  jumpClamp: [0.3, 0.85] as const,
   jumpMinCarry: 0.6,
+  squat: { base: 3, slow: 5 },
   /** Saltito de una sola pierna al avanzar. */
   hopSpeed: 0.26,
   hopRest: 7,
@@ -128,7 +147,7 @@ export const FIGHT = {
    * chizito); el giro que traía pasa al cuerpo (`transfer`) y lo arrastra hacia adelante (`lurch`); si se inclina más que
    * `stumbleTilt`, trastabilla. Una aceituna puede pesar más que el chizito.
    */
-  whiff: { base: 10, k: 26, max: 75, transfer: 0.9, lurch: 0.3, slack: 12 },
+  whiff: { base: 10, k: 26, max: 75, transfer: 0.9, lurch: 0.3, lurchBase: 0.05, slack: 12 },
   stumbleTilt: 0.45,
   stumbleFrames: 26,
   /** rad/s: hasta que el cuerpo no se bambolea menos que esto, no vuelve a golpear después de pifiar. */
@@ -139,14 +158,21 @@ export const FIGHT = {
    * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
    * (`stiff`); pega mientras gira más rápido que `activeW`. Pifiar cuesta `whiffMul` veces más y lo tira (`whiffKick`).
    */
-  swing: { back: 0.32, fwd: 0.7, stiff: 5, activeW: 1.6, windFrames: 8, strikeFrames: 22, chargeMul: 1.3, massShare: 0.6, whiffMul: 1.8, whiffKick: 2.6 },
+  swing: { back: 0.5, fwd: 0.75, stiff: 5, backStiff: 2.5, activeW: 1.6, windFrames: 8, maxCharge: 16, strikeFrames: 22, chargeMul: 1.3, massShare: 0.6, whiffMul: 1.8, whiffKick: 2.6, lunge: 0.22 },
   /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
   shieldFront: 0.35,
   shieldBack: 2.2,
   /** Cuadros que se recuerda un botón apretado antes de poder golpear. */
   buffer: 9,
-  /** m/s de envión del cuerpo al golpear. */
+  /** m/s de envión del cuerpo al SOLTAR el golpe (no al cargarlo: mientras carga, el peso va atrás). */
   lunge: 0.12,
+  /** Inclinación (rad) del cuerpo: el peso va atrás al cargar y adelante al soltar (piña); al revés para patear. */
+  bodyWind: 0.1,
+  bodyThrow: 0.16,
+  /** Al pifiar el brazo sigue de largo: rad de más (+ k · masa extremidad / masa chizito) durante `frames`. */
+  follow: { angle: 0.55, k: 0.35, frames: 14 },
+  /** Al acertar, el que pega frena contra el otro: m/s hacia atrás por (masa efectiva / su masa). */
+  impactBack: 0.5,
   /** Ángulo de la marcha (rad) y de las piernas al agacharse. */
   gait: 0.42,
   crouch: 0.62,
@@ -193,11 +219,21 @@ export const FIGHT = {
   hitstop: { base: 4, k: 0.4, max: 15 },
   /** Un combo cuenta si el golpe llega antes de esta cantidad de cuadros del anterior. */
   comboWindow: 50,
+  /**
+   * Combinaciones (encadenar después de ACERTAR, dentro de `window` cuadros; la siguiente sale sin carga y sin esperar el
+   * castigo): UNO-DOS (piña + piña con otro brazo, 2+ brazos), RÁFAGA (tercera piña, 3+ brazos), PIÑA Y PATADA (piña + patada,
+   * 2+ piernas para quedar parado en una), CONTRA (piña justo después de bloquear con la guardia). `mul` = daño.
+   */
+  chain: {
+    window: 26,
+    counterWindow: 22,
+    mul: { 'UNO-DOS': 1.15, 'RÁFAGA': 1.3, 'PIÑA Y PATADA': 1.25, CONTRA: 1.35 } as Record<string, number>,
+  },
 } as const;
 
 /** Rival: cuán bien juega el brócoli en cada nivel. */
 export const AI_LEVELS = [
-  { reaction: 26, guard: 0.22, aggression: 0.035, jump: 0.002, retreat: 0.2 },
-  { reaction: 16, guard: 0.42, aggression: 0.06, jump: 0.004, retreat: 0.3 },
-  { reaction: 9, guard: 0.62, aggression: 0.09, jump: 0.006, retreat: 0.35 },
+  { reaction: 26, guard: 0.22, aggression: 0.035, jump: 0.002, retreat: 0.2, chain: 0 },
+  { reaction: 16, guard: 0.42, aggression: 0.06, jump: 0.004, retreat: 0.3, chain: 0.04 },
+  { reaction: 9, guard: 0.62, aggression: 0.09, jump: 0.006, retreat: 0.35, chain: 0.09 },
 ] as const;
