@@ -47,7 +47,8 @@ const place = await page.evaluate(() => {
   const b = new T.Box3().setFromObject(window.__chizito.construction.root.object);
   return { miny: b.min.y, x: window.__fight.match().f[0].x, cx: (b.min.x + b.max.x) / 2 };
 });
-ok(place.miny > -0.004 && place.miny < 0.006, `apoyada en la mesa (y mínima ${place.miny.toFixed(4)})`);
+// La arena es una tabla de picar: el piso de la pelea está a GROUND (1,2 cm) sobre el mantel.
+ok(place.miny > 0.006 && place.miny < 0.018, `apoyada en la tabla de la arena (y mínima ${place.miny.toFixed(4)})`);
 // Teclado de verdad.
 const x0 = await page.evaluate(() => window.__fight.match().f[0].x);
 await page.keyboard.down('ArrowRight');
@@ -76,7 +77,8 @@ for (let k = 0; k < 10 && hits < 4; k++) {
 await shot('4-pelea', 24);
 const hp = await page.evaluate(() => window.__fight.match().f.map((f) => Math.round(f.hp)));
 ok(hp[1] < 100, `le saca vida al brócoli (vida ${hp})`);
-// Guardia (mantener C) y salto (↑).
+// Guardia (mantener C) y salto (↑). Antes, esperar a que pase el castigo de algún golpe errado (errar bloquea la guardia un rato).
+await page.evaluate(() => window.__fight.advance(90, () => ({ x: -1 })));
 await page.keyboard.down('KeyC');
 await page.evaluate(() => window.__chizito.renderFrames(14));
 ok(await page.evaluate(() => window.__fight.match().f[0].guard > 0.6), 'con C se cubre (los brazos adelante)');
