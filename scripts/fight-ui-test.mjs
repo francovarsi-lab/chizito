@@ -60,11 +60,14 @@ await shot('2-camina');
 await page.keyboard.press('KeyZ'); // piña
 const phases = new Set();
 let maxRot = 0;
-for (let i = 0; i < 14; i++) {
+// Lo pesado (p. ej. la aceituna) carga antes de pegar (`FIGHT.charge`): se espera hasta 60 cuadros a que salga el golpe.
+let since = -1;
+for (let i = 0; i < 60 && (since < 0 || i - since < 8); i++) {
   const r = await page.evaluate(() => { window.__chizito.renderFrames(1); const f = window.__fight.match().f[0]; return { ph: f.limbs.map((s) => s.phase), rot: Math.max(...f.limbs.map((s) => 2 * Math.acos(Math.min(1, Math.abs(s.q[3]))))) }; });
   r.ph.forEach((p) => phases.add(p));
   maxRot = Math.max(maxRot, r.rot);
-  if (i === 6) await shot('3-golpe');
+  if (since < 0 && r.ph.includes('strike')) since = i;
+  if (since >= 0 && i - since === 2) await shot('3-golpe');
 }
 ok(phases.has('strike'), `con Z (piña) un brazo golpea (fases ${[...phases]})`);
 ok(maxRot > 0.3, `el brazo gira en su punto de clavado (${(maxRot * 57.3).toFixed(0)}°)`);
