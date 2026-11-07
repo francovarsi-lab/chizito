@@ -57,6 +57,8 @@ await page.keyboard.up('ArrowRight');
 const x1 = await page.evaluate(() => window.__fight.match().f[0].x);
 ok(x1 - x0 > 0.01, `con → camina (x ${x0.toFixed(3)} → ${x1.toFixed(3)})`);
 await shot('2-camina');
+// El brócoli queda aturdido mientras se mide la piña: si le pega durante la carga (la aceituna carga ~0,5 s), se la corta.
+await page.evaluate(() => { window.__fight.match().f[1].stun = 120; });
 await page.keyboard.press('KeyZ'); // piña
 const phases = new Set();
 let maxRot = 0;
