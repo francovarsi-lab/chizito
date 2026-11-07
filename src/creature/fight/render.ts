@@ -6,7 +6,6 @@ import type { V3 } from '../types';
 import { BROCCOLI_TOP, createBrocoli, type BroccoliParts } from './brocoli';
 import { BROCCOLI_CY, BROCCOLI_K, type FighterModel } from './fighter';
 import type { Q } from './quat';
-import { FIGHT } from './tuning';
 
 /** Lo que el render necesita de un luchador en un instante (se mezcla entre dos pasos para que el movimiento sea fluido). */
 export interface RenderPose {
@@ -14,6 +13,8 @@ export interface RenderPose {
   y: number;
   tilt: number;
   facing: 1 | -1;
+  /** rad: giro hacia la cámara de ese luchador (el mismo que usa el motor). */
+  yaw: number;
   qs: Q[];
   broken: string[];
 }
@@ -25,6 +26,7 @@ export function blendPose(a: RenderPose, b: RenderPose, t: number): RenderPose {
     x: a.x + (b.x - a.x) * t,
     y: a.y + (b.y - a.y) * t,
     tilt: a.tilt + (b.tilt - a.tilt) * t,
+    yaw: a.yaw + (b.yaw - a.yaw) * t,
     qs: b.qs.map((q, i) => nlerp(a.qs[i] ?? q, q, t)),
   };
 }
@@ -56,8 +58,8 @@ export interface FighterView {
 }
 
 const V = (a: readonly number[]): THREE.Vector3 => new THREE.Vector3(a[0], a[1], a[2]);
-/** Giro de la vista según el lado: de perfil, con la cara hacia el rival y girada `stanceYaw` hacia la cámara (mismo criterio que el motor). */
-const yawFor = (facing: 1 | -1): number => (facing > 0 ? -FIGHT.stanceYaw : -Math.PI + FIGHT.stanceYaw);
+/** Giro de la vista según el lado: la cara hacia el rival, girada `yaw` hacia la cámara (mismo criterio que el motor). */
+const yawFor = (facing: 1 | -1, yaw: number): number => (facing > 0 ? -yaw : -Math.PI + yaw);
 const tmpM = new THREE.Matrix4();
 
 /** Resorte de aplastón compartido por las dos vistas. */
@@ -193,7 +195,7 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
   return {
     root: pivot,
     apply(p, z0, dt) {
-      const target = yawFor(p.facing);
+      const target = yawFor(p.facing, p.yaw);
       if (!psiInit) {
         psi = target;
         psiInit = true;
@@ -312,7 +314,7 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
   return {
     root: outer,
     apply(p, z0, dt) {
-      const target = yawFor(p.facing);
+      const target = yawFor(p.facing, p.yaw);
       if (!init) {
         psi = target;
         init = true;

@@ -12,10 +12,10 @@ import { probeFile } from '../assets/probe';
  *
  * Pelea (para reemplazar por grabaciones propias con el mismo nombre de archivo):
  *  golpe, golpe-pesado, bloqueo, zumbido (algo pesado que corta el aire), pifio, escudo (se rompe),
- *  ko, round (cartel ROUND), pelea (¡A PELEAR!), combo (sale una combinación: UNO-DOS, RÁFAGA…)
+ *  ko, round (cartel ROUND), pelea (¡A PELEAR!), combo (sale una combinación: UNO-DOS, RÁFAGA…), japish (el grito ¡JAPISH!)
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo';
-const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo'];
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -136,6 +136,11 @@ export class AudioManager {
       case 'ko':
         this.burst({ freq: 500, q: 0.7, dur: 0.3, gain: 0.8, lowFreq: 60 });
         this.burst({ freq: 2800, q: 1.4, dur: 0.06, gain: 0.4, delay: 0.01 });
+        break;
+      case 'japish':
+        // Placeholder del grito: un "ja" grave y un "pish" de aire, hasta que esté la grabación.
+        this.burst({ freq: 700, q: 4, dur: 0.11, gain: 0.3 * intensity, lowFreq: 180 });
+        this.burst({ freq: 5200, q: 1.2, dur: 0.18, gain: 0.22 * intensity, delay: 0.1 });
         break;
       case 'combo':
         // Dos golpecitos que suben: "¡ta-tán!".

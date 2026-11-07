@@ -55,7 +55,9 @@ const css = `
 @keyframes cfh-in{from{transform:skewX(-8deg) scale(2.4);opacity:0}to{transform:skewX(-8deg) scale(1);opacity:1}}
 #cfh .pop{position:absolute;transform:translate(-50%,-50%);font:400 28px/1 "Bungee",Impact,sans-serif;color:#fff;-webkit-text-stroke:2px var(--ink);text-shadow:0 4px 0 var(--ink);white-space:nowrap;text-align:center}
 #cfh .pop small{display:block;font-size:12px;letter-spacing:.1em;-webkit-text-stroke:0;color:var(--gold)}
-#cfh .pop.heavy{font-size:40px;color:var(--gold)}#cfh .pop.cut{color:#ff9fb0}#cfh .pop.block{color:#aee8ff;font-size:20px}
+#cfh .pop.heavy{font-size:40px;color:var(--gold)}
+#cfh .pop.shout{font-size:58px;color:#ffe14d;-webkit-text-stroke:3px #b3121f;text-shadow:0 5px 0 #5a0710,0 0 26px rgba(255,90,40,.7);animation:cfh-shout .5s cubic-bezier(.2,1.7,.4,1)}
+@keyframes cfh-shout{0%{transform:translate(-50%,-50%) scale(.2) rotate(-14deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(-6deg)}}#cfh .pop.cut{color:#ff9fb0}#cfh .pop.block{color:#aee8ff;font-size:20px}
 #cfh .warn{position:absolute;top:120px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;transition:opacity .6s}
 #cfh .warn b{font:800 15px/1.2 "Baloo 2",sans-serif;padding:7px 16px;border-radius:999px;background:var(--panel);box-shadow:0 0 0 2px var(--gold)}
 #cfh .keys{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;max-width:94vw;

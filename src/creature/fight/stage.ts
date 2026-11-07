@@ -41,33 +41,25 @@ export async function preloadFightSet(): Promise<void> {
   boardTex = tex;
 }
 
-export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], extraHidden: THREE.Object3D[] = []): FightSet {
-  const scene = s.scene;
-  const added: THREE.Object3D[] = [];
+/**
+ * Lo propio de la pelea (focos, haz con polvo, tabla, restos de fiesta, lucecitas): se arma UNA vez y queda guardado entre
+ * peleas (y lo arma antes el ensayo invisible `prewarmFight`, así PELEAR no traba).
+ */
+interface Arena {
+  objects: THREE.Object3D[];
+  update(t: number): void;
+  track(i: 0 | 1, head: THREE.Vector3, facing: 1 | -1): void;
+  resetTrack(): void;
+}
+
+let arenaCache: { z0: number; arena: Arena } | null = null;
+
+function getArena(z0: number): Arena {
+  if (arenaCache && arenaCache.z0 === z0) return arenaCache.arena;
+  const objects: THREE.Object3D[] = [];
   const add = (...o: THREE.Object3D[]): void => {
-    scene.add(...o);
-    added.push(...o);
+    objects.push(...o);
   };
-  const hidden: Hide[] = [];
-  const hide = (obj: THREE.Object3D | undefined | null): void => {
-    if (!obj || !obj.visible) return;
-    hidden.push({ obj, was: obj.visible });
-    obj.visible = false;
-  };
-
-  // ── Mesa despejada: se van los recipientes del frente y la sombra que compartían (la mancha oscura sobre el mantel). ──
-  const backdrop = scene.getObjectByName('backdrop');
-  backdrop?.children.filter((c) => c.name !== 'mesa' && c.name !== 'far-props').forEach(hide);
-  extraHidden.forEach(hide);
-
-  // ── De noche (como el arte clave): el cuarto casi negro, sólo lucecitas y velas; la luz es la del show sobre la arena. ──
-  const env = { e: scene.environmentIntensity, b: scene.backgroundIntensity };
-  scene.environmentIntensity = env.e * 0.06;
-  scene.backgroundIntensity = env.b * 0.05;
-  const sun = { i: s.sun.intensity, cast: s.sun.castShadow };
-  s.sun.intensity = sun.i * 0.02;
-  s.sun.castShadow = false;
-
   // Foco cenital apenas detrás de la arena: el cono de luz baja sobre la tabla (se ve el haz con polvo) y las sombras de los
   // luchadores caen hacia adelante, sobre la madera. Alcance limitado: no ilumina la pared.
   const keyPos = new THREE.Vector3(0.02, 0.62, z0 - 0.12);
@@ -170,19 +162,6 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
   };
   placeDust(0);
 
-  // Los luchadores proyectan la sombra del foco (en el constructor usan sólo la sombra de contacto).
-  const casters: { m: THREE.Mesh; cast: boolean }[] = [];
-  for (const f of fighters) {
-    f.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.isMesh) {
-        casters.push({ m, cast: m.castShadow });
-        m.castShadow = true;
-        m.receiveShadow = true;
-      }
-    });
-  }
-
   // ── Arena: tabla de picar de haya (foto generada de una tabla usada: vetas, tablillas pegadas, marcas de cuchillo y
   //    manchas), aceitada y mate para que no espeje el cuarto; el relieve sale de la misma foto. ──
   // Gris neutro: oscurece la haya sin correrle el tono (bajo el foco cálido se iba a naranja y el chizito amarillo se perdía).
@@ -249,6 +228,129 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
   strand(new THREE.Vector3(-1.0, 0.42, -1.18), new THREE.Vector3(1.0, 0.4, -1.18), 0.12, 46, 0.007, false);
   strand(new THREE.Vector3(-0.9, 0.3, -1.05), new THREE.Vector3(0.6, 0.28, -1.1), 0.08, 30, 0.006, true);
 
+  const arena: Arena = {
+    objects,
+    update(t) {
+      // Titileo leve, como lucecitas reales.
+      for (const b of bulbs) b.m.scale.y = b.m.scale.x * (1.3 + 0.04 * Math.sin(t * 3 + b.ph));
+      for (const b of bulbs) (b.m.material as THREE.MeshBasicMaterial).color.copy(b.base).multiplyScalar(0.9 + 0.1 * Math.sin(t * 2.3 + b.ph));
+      placeDust(t);
+    },
+    track(i, head, facing) {
+      // Delante de la cara: hacia el rival, hacia la cámara y un poco arriba; se mueve suave (al darse vuelta cruza).
+      const l = faces[i];
+      const want = new THREE.Vector3(head.x + facing * 0.1, head.y + 0.06, z0 + 0.17);
+      if (!faceInit[i]) l.position.copy(want);
+      else l.position.lerp(want, 0.18);
+      faceInit[i] = true;
+      l.target.position.set(head.x, head.y, z0);
+    },
+    resetTrack() {
+      faceInit[0] = faceInit[1] = false;
+    },
+  };
+  arenaCache = { z0, arena };
+  return arena;
+}
+
+/**
+ * Ensayo invisible de la pelea, en un rato libre mientras se arma el chizito: la arena se arma y los shaders de TODA la escena
+ * se compilan con la luz de la pelea (en paralelo, con KHR_parallel_shader_compile), sin agregar nada a lo que se ve. Así, al
+ * apretar PELEAR no hay que recompilar todo (cambiar la cantidad de luces obliga a rehacer cada shader).
+ */
+export async function prewarmFight(s: Stage, z0: number, extra: THREE.Object3D[] = [], heroes: THREE.Object3D[] = []): Promise<void> {
+  await preloadFightSet();
+  const arena = getArena(z0);
+  const rehearsal = new THREE.Scene();
+  rehearsal.environment = s.scene.environment;
+  rehearsal.add(...arena.objects, ...extra);
+  // Como en la pelea: el sol sin sombra y los luchadores proyectando y recibiendo la del foco.
+  const sunCast = s.sun.castShadow;
+  s.sun.castShadow = false;
+  const flags: { m: THREE.Mesh; c: boolean; r: boolean }[] = [];
+  for (const h of [...heroes, ...extra]) {
+    h.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      flags.push({ m, c: m.castShadow, r: m.receiveShadow });
+      m.castShadow = m.receiveShadow = true;
+    });
+  }
+  // La escena se dibuja en el buffer del posprocesado (no en la pantalla): eso cambia la variante del shader (espacio de color
+  // de salida), así que se compila con ese mismo destino.
+  const prevTarget = s.renderer.getRenderTarget();
+  s.renderer.setRenderTarget(s.composer.inputBuffer);
+  try {
+    s.renderer.compile(s.scene, s.camera, rehearsal);
+    const done = s.renderer.compileAsync(rehearsal, s.camera, s.scene);
+    s.renderer.setRenderTarget(prevTarget);
+    for (const f of flags) {
+      f.m.castShadow = f.c;
+      f.m.receiveShadow = f.r;
+    }
+    s.sun.castShadow = sunCast;
+    // Texturas a la GPU de a una (la del brócoli es grande).
+    rehearsal.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      if (!m) return;
+      for (const t of [m.map, m.normalMap, m.roughnessMap, m.bumpMap]) if (t) s.renderer.initTexture(t);
+    });
+    await done;
+  } finally {
+    s.renderer.setRenderTarget(prevTarget);
+    for (const f of flags) {
+      f.m.castShadow = f.c;
+      f.m.receiveShadow = f.r;
+    }
+    s.sun.castShadow = sunCast;
+    rehearsal.remove(...arena.objects, ...extra);
+  }
+}
+
+export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], extraHidden: THREE.Object3D[] = []): FightSet {
+  const scene = s.scene;
+  const added: THREE.Object3D[] = [];
+  const add = (...o: THREE.Object3D[]): void => {
+    scene.add(...o);
+    added.push(...o);
+  };
+  const hidden: Hide[] = [];
+  const hide = (obj: THREE.Object3D | undefined | null): void => {
+    if (!obj || !obj.visible) return;
+    hidden.push({ obj, was: obj.visible });
+    obj.visible = false;
+  };
+
+  // ── Mesa despejada: se van los recipientes del frente y la sombra que compartían (la mancha oscura sobre el mantel). ──
+  const backdrop = scene.getObjectByName('backdrop');
+  backdrop?.children.filter((c) => c.name !== 'mesa' && c.name !== 'far-props').forEach(hide);
+  extraHidden.forEach(hide);
+
+  // ── De noche (como el arte clave): el cuarto casi negro, sólo lucecitas y velas; la luz es la del show sobre la arena. ──
+  const env = { e: scene.environmentIntensity, b: scene.backgroundIntensity };
+  scene.environmentIntensity = env.e * 0.06;
+  scene.backgroundIntensity = env.b * 0.05;
+  const sun = { i: s.sun.intensity, cast: s.sun.castShadow };
+  s.sun.intensity = sun.i * 0.02;
+  s.sun.castShadow = false;
+
+  const arena = getArena(z0);
+  arena.resetTrack();
+  add(...arena.objects);
+
+  // Los luchadores proyectan la sombra del foco (en el constructor usan sólo la sombra de contacto).
+  const casters: { m: THREE.Mesh; cast: boolean }[] = [];
+  for (const f of fighters) {
+    f.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        casters.push({ m, cast: m.castShadow });
+        m.castShadow = true;
+        m.receiveShadow = true;
+      }
+    });
+  }
+
   // ── Color y postprocesado: más contraste y profundidad, negros sin lavar, brillo en las luces. ──
   const u = s.look.uniforms;
   const lookWas = { sat: u.get('saturation')!.value as number, con: u.get('contrast')!.value as number, lift: (u.get('lift')!.value as THREE.Vector3).clone() };
@@ -282,19 +384,10 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
   return {
     update(dt) {
       t += dt;
-      // Titileo leve, como lucecitas reales.
-      for (const b of bulbs) b.m.scale.y = b.m.scale.x * (1.3 + 0.04 * Math.sin(t * 3 + b.ph));
-      for (const b of bulbs) (b.m.material as THREE.MeshBasicMaterial).color.copy(b.base).multiplyScalar(0.9 + 0.1 * Math.sin(t * 2.3 + b.ph));
-      placeDust(t);
+      arena.update(t);
     },
     track(i, head, facing) {
-      // Delante de la cara: hacia el rival, hacia la cámara y un poco arriba; se mueve suave (al darse vuelta cruza).
-      const l = faces[i];
-      const want = new THREE.Vector3(head.x + facing * 0.1, head.y + 0.06, z0 + 0.17);
-      if (!faceInit[i]) l.position.copy(want);
-      else l.position.lerp(want, 0.18);
-      faceInit[i] = true;
-      l.target.position.set(head.x, head.y, z0);
+      arena.track(i, head, facing);
     },
     degrade(lv) {
       if (lv >= 1 && ao) ao.enabled = false;
@@ -302,22 +395,8 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
       if (lv >= 3) setPR(Math.min(0.8, prWas));
     },
     restore() {
-      for (const o of added) {
-        o.removeFromParent();
-        o.traverse((c) => {
-          const m = c as THREE.Mesh;
-          if (m.isMesh) {
-            m.geometry?.dispose();
-            if (m.material !== wireMat && m.material !== wood) (m.material as THREE.Material).dispose();
-          }
-        });
-        if ((o as THREE.Light).isLight) (o as THREE.Light).dispose();
-      }
-      wireMat.dispose();
-      dustMat.dispose();
-      dotTex.dispose();
-      wood.dispose(); // la foto de la tabla queda en caché para la próxima pelea
-      bulbsGeo.dispose();
+      // La arena queda armada para la próxima pelea: sólo se saca de la escena.
+      for (const o of added) o.removeFromParent();
       for (const h of hidden) h.obj.visible = h.was;
       for (const c of casters) c.m.castShadow = c.cast;
       scene.environmentIntensity = env.e;

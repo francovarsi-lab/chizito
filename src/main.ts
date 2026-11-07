@@ -238,6 +238,8 @@ async function main() {
     shake.intro(0.045);
   }
   document.body.classList.add('ready');
+  // El cargador del arranque se desvanece con el velo; después se saca (sus animaciones no siguen corriendo).
+  window.setTimeout(() => document.getElementById('boot')?.remove(), 1600);
   let frames = 0;
   const loop = (t: number) => {
     timer.update(t);

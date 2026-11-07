@@ -80,6 +80,8 @@ export interface FighterModel {
   mass: number;
   /** Escudos: golpes que aguanta cada pieza escudo. */
   shields: Record<string, number>;
+  /** rad: cuánto se gira hacia la cámara (si no, `FIGHT.stanceYaw`). El brócoli va más de frente: su cara se tiene que leer. */
+  yaw?: number;
 }
 
 const ROD_TYPES = new Set(['palito', 'escarbadientes', 'palito-selva', 'chupetin']);
@@ -296,5 +298,6 @@ export function broccoliFighter(level = 1): FighterModel {
     limbs,
     mass: bodyMass + limbs.reduce((s, l) => s + l.mass, 0),
     shields: {},
+    yaw: FIGHT.broccoli.yaw,
   };
 }

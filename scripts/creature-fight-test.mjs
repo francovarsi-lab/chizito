@@ -202,9 +202,11 @@ try {
       stepMatch(m, [{ x: 0, punch: i % 80 === 0 }, { x: 0 }]);
       for (const e of m.events) if (e.type === 'hit' && e.by === 0) hits.push(e);
     }
-    const light = hits.find((e) => !e.heavy);
-    const heavy = hits.find((e) => e.heavy);
-    ok(light && heavy, `pegan los dos brazos (${hits.map((e) => (e.heavy ? 'aceituna' : 'palito') + ' ' + e.damage.toFixed(1))})`);
+    // El brazo de la aceituna puede tocar primero con su palito: se lo reconoce por sus piezas, no por el punto que tocó.
+    const oliveArm = olive.pieceIds;
+    const heavy = hits.find((e) => oliveArm.includes(e.piece));
+    const light = hits.find((e) => !oliveArm.includes(e.piece));
+    ok(light && heavy, `pegan los dos brazos (${hits.map((e) => (oliveArm.includes(e.piece) ? 'aceituna' : 'palito') + ' ' + e.damage.toFixed(1))})`);
     if (light && heavy) ok(heavy.damage > light.damage * 1.3, `la aceituna pega más (${heavy.damage.toFixed(1)} vs ${light.damage.toFixed(1)})`);
   }
 

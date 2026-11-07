@@ -13,6 +13,8 @@ import { probeFile } from './probe';
  */
 export class AssetRegistry {
   private glbTemplates = new Map<string, THREE.Object3D>();
+  /** Utilería ('prop') ya generada por tipo + semilla + parámetros: los bowls repiten formas, se generan una sola vez. */
+  private propCache = new Map<string, THREE.Object3D>();
 
   constructor(private readonly pieces: PieceRegistry) {}
 
@@ -57,6 +59,16 @@ export class AssetRegistry {
     const variant = typeof params?.variant === 'string' ? params.variant : null;
     const tpl = (variant && this.glbTemplates.get(`${type}-${variant}`)) || this.glbTemplates.get(type);
     if (tpl) return tpl.clone(true);
+    if (detail === 'prop') {
+      // Comparte geometría y materiales (nadie los modifica: el resaltado clona su material) y abarata el arranque.
+      const key = `${type}|${seed}|${params ? JSON.stringify(params) : ''}`;
+      let t = this.propCache.get(key);
+      if (!t) {
+        t = normalizeToFrame(def.procedural(seed, detail, params), def, false);
+        this.propCache.set(key, t);
+      }
+      return t.clone(true);
+    }
     return normalizeToFrame(def.procedural(seed, detail, params), def, false);
   }
 }

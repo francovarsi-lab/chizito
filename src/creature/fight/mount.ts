@@ -7,13 +7,13 @@ import type { CameraRig } from '../../render/CameraRig';
 import type { Stage } from '../../render/Stage';
 import { BUILDER_FACE, DEFAULT_COMBAT_UP } from '../../model/Construction';
 import { resolveSnapshot } from '../resolve';
-import { loadBroccoliParts } from './brocoli';
+import { createBrocoli, loadBroccoliParts } from './brocoli';
 import { aiInput, newAi, type AiMem } from './ai';
 import { createMatch, stepMatch, type FightEvent, type FightInput, type Match } from './engine';
 import { broccoliFighter, fighterFromSnapshot, type FighterModel } from './fighter';
 import { FightHud, type MenuAction } from './hud';
 import { blendPose, broccoliView, creatureView, type FighterView, type RenderPose } from './render';
-import { enterFightSet, GROUND, preloadFightSet, type FightSet } from './stage';
+import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT } from './tuning';
 
 /** Lo que el juego deja en `window.__chizito`: la MISMA escena, cámara y criatura del constructor. */
@@ -39,6 +39,8 @@ export interface FightController {
   advance(frames: number, input?: FightInput | ((frame: number) => FightInput)): void;
   restart(level?: number): void;
   paused(): boolean;
+  /** Deja la pelea lista de antemano (lo hace solo en ratos libres; expuesto para medir). */
+  warm(): Promise<void>;
   destroy(): void;
 }
 
@@ -62,7 +64,7 @@ const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-wid
 
 const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'Escape', 'Enter', 'Space']);
 
-const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken] });
+const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken] });
 
 /**
  * La pelea en LA MISMA mesa donde se arma la criatura: la cámara pasa a una vista lateral que sigue y encuadra a los dos, y tu
@@ -98,6 +100,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const hidden: HTMLElement[] = [];
   let saved: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number; enabled: boolean } | null = null;
   let shake = 0;
+  let whiffN = 0;
+  let lastShout = -999;
   let fightT = 0;
   let level2 = 0;
   let perfN = 0;
@@ -241,6 +245,13 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const label = e.blocked ? 'BLOQUEO' : e.shield ? 'ESCUDO' : e.kind === 'heavy' ? '¡PESADO!' : e.kind === 'cut' ? 'CORTE' : '';
         hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, label, e.blocked ? 'block' : e.kind === 'heavy' ? 'heavy' : e.kind === 'cut' ? 'cut' : '');
         if (!e.blocked) hud.combo(e.by, e.combo, e.chain);
+        // ¡JAPISH!: el grito de los golpes que valen la pena (pesados, fuertes o el cierre de una combinación), no de todos.
+        if (!e.blocked && (big || e.chain) && m.frame - lastShout > 120) {
+          lastShout = m.frame;
+          const f = m.f[e.by];
+          hud.popup(f.x, f.y + 0.06, '¡JAPISH!', '', 'shout');
+          g.audio.play('japish', 1);
+        }
         if (e.chain) g.audio.play('combo', 1);
         if (big && !e.blocked) hud.flash(0.28);
         g.audio.play(e.blocked ? 'bloqueo' : big ? 'golpe-pesado' : 'golpe', Math.min(1, 0.55 + e.damage / 20));
@@ -256,9 +267,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         break;
       }
       case 'whiff': {
-        // Cada golpe que no toca nada: ¡PIFIÓ! (sin más texto: el cuerpo que se desarma ya lo explica).
+        // Cada golpe que no toca nada: ¡PIFIÓ! y ¡PIF!, intercalados (sin más texto: el cuerpo que se desarma ya lo explica).
         const f = m.f[e.who];
-        hud.popup(f.x, f.y + 0.045, '¡PIFIÓ!', '', e.heavy ? 'heavy' : 'block');
+        hud.popup(f.x, f.y + 0.045, whiffN++ % 2 ? '¡PIF!' : '¡PIFIÓ!', '', e.heavy ? 'heavy' : 'block');
         g.audio.play('pifio', e.heavy ? 1 : 0.5);
         break;
       }
@@ -504,6 +515,44 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   window.addEventListener('blur', blur);
   const poll = window.setInterval(() => (btn.hidden = open || game().rig.inIntro), 300);
 
+  // ── Ensayo invisible: mientras se arma el chizito, en ratos libres y de a un paso, se deja todo listo (modelos del brócoli,
+  //    foto de la tabla, la arena armada y los shaders compilados con la luz de la pelea) para que PELEAR salga al instante. ──
+  let warm: Promise<void> | null = null;
+  let hurry = false;
+  const wakers: (() => void)[] = [];
+  const idle = (): Promise<void> =>
+    hurry
+      ? Promise.resolve()
+      : new Promise((r) => {
+          wakers.push(r);
+          const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+          if (ric) ric(() => r(), { timeout: 1500 });
+          else window.setTimeout(r, 250);
+        });
+  const prewarm = (): Promise<void> =>
+    (warm ??= (async () => {
+      await idle();
+      const parts = await loadBroccoliParts();
+      await idle();
+      // La primera cara del brócoli tira sus rayos (quedan guardados) y sus materiales entran al ensayo.
+      const bro = createBrocoli({ level: 1, parts });
+      await idle();
+      const g = game();
+      await prewarmFight(g.stage, g.pivot.position.z, [bro], [g.pivot]);
+    })().catch((err) => console.warn('[pelea] no se pudo dejar lista de antemano', err)));
+  const hurryUp = (): void => {
+    hurry = true;
+    wakers.splice(0).forEach((r) => r());
+  };
+  // Arranca cuando ya se está armando (pasó la intro) y el juego lleva unos segundos andando.
+  let since = 0;
+  const warmPoll = window.setInterval(() => {
+    if (game().rig.inIntro) return;
+    if ((since += 1) < 3) return;
+    window.clearInterval(warmPoll);
+    void prewarm();
+  }, 1000);
+
   const controller: FightController = {
     async open() {
       const g = game();
@@ -513,7 +562,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       // El frente de la pelea es la CARA que marca la F en el constructor (+Z del chizito), con arriba = su eje largo (+X):
       // de enfrentarse, se ven de perfil y la cara mira al rival.
       const snap = resolveSnapshot({ construction: g.construction, pieces: deps.pieces, orientation: { front: [...BUILDER_FACE], up: [...DEFAULT_COMBAT_UP] } });
-      const [parts] = await Promise.all([loadBroccoliParts(), preloadFightSet()]);
+      // Si el ensayo no terminó (se apretó PELEAR enseguida), termina ya, sin esperar ratos libres.
+      hurryUp();
+      await prewarm();
+      const parts = await loadBroccoliParts();
       model = fighterFromSnapshot(snap, 'TU CHIZITO');
       z0 = g.pivot.position.z;
       saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
@@ -597,9 +649,11 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       prev = cur;
     },
     restart,
+    warm: () => prewarm(),
     destroy() {
       controller.close();
       window.clearInterval(poll);
+      window.clearInterval(warmPoll);
       window.removeEventListener('keydown', kd, true);
       window.removeEventListener('keyup', ku, true);
       window.removeEventListener('wheel', noWheel, true);

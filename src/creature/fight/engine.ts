@@ -120,6 +120,10 @@ export interface FighterState {
   chain: { n: number; last: 'arm' | 'kick'; t: number } | null;
   /** Cuadros en que una piña sale como CONTRA (después de bloquear con la guardia). */
   counter: number;
+  /** rad: giro hacia la cámara (base del modelo + torso), con su coseno y seno. */
+  yaw: number;
+  yc: number;
+  ys: number;
 }
 
 export type FightEvent =
@@ -175,14 +179,13 @@ const posed = (q: Q, pivot: V3, p: V3): V3 => addv(pivot, rot(q, sub(p, pivot)))
 
 // Perfil 3D: el frente de la criatura (la cara que marca la F en el constructor) mira al rival, girado `stanceYaw` hacia la
 // cámara (guardia de 3/4). Al cambiar de lado gira de verdad 180°: lo que daba a la cámara pasa a quedar del otro lado.
-const SC = Math.cos(FIGHT.stanceYaw);
-const SS = Math.sin(FIGHT.stanceYaw);
+// Cada luchador tiene su giro (`f.yaw`: el de su modelo, más el giro del torso al pegar).
 /** Coordenada "hacia el rival" de un punto (o dirección) local. */
-const fwd = (f: FighterState, p: V3): number => p[0] * SC - f.facing * p[2] * SS;
+const fwd = (f: FighterState, p: V3): number => p[0] * f.yc - f.facing * p[2] * f.ys;
 /** Eje "hacia el rival" en el marco local. */
-const fwdAxis = (f: FighterState): V3 => [SC, 0, -f.facing * SS];
+const fwdAxis = (f: FighterState): V3 => [f.yc, 0, -f.facing * f.ys];
 /** Eje de la marcha (perpendicular al avance y a la vertical), en el marco local. */
-const gaitAxis = (f: FighterState): V3 => [f.facing * SS, 0, SC];
+const gaitAxis = (f: FighterState): V3 => [f.facing * f.ys, 0, f.yc];
 
 function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterState {
   // Solo lo articulado camina o pega; lo rígido (chupetín, varas que atraviesan) es peso y apoyo.
@@ -272,6 +275,9 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     squatN: Math.round(FIGHT.squat.base + FIGHT.squat.slow * Math.max(0, 1 / quick - 0.75)),
     chain: null,
     counter: 0,
+    yaw: model.yaw ?? FIGHT.stanceYaw,
+    yc: Math.cos(model.yaw ?? FIGHT.stanceYaw),
+    ys: Math.sin(model.yaw ?? FIGHT.stanceYaw),
   };
   // Apoyarlo en el piso antes del primer cuadro.
   settle(f);
@@ -723,7 +729,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       // Guardia: los brazos se cruzan DELANTE del cuerpo en diagonal (uno arriba, tapando la cabeza, y otro abajo), así son
       // ellos los que reciben el golpe. Lo que pase por fuera de los brazos, pega.
       const n = f.arms.indexOf(k);
-      const gx = Math.max(...M.body.map((b) => b.r)) + l.reach * 0.3;
+      // Delante de lo que más sobresale del cuerpo hacia el rival (con el 3/4, la copa del brócoli asoma más que el tallo).
+      const gx = Math.max(...M.body.map((b) => Math.max(fwd(f, b.a), fwd(f, b.b)) + b.r)) + l.reach * 0.3;
       // El de arriba tapa la cabeza (lo que más asoma con el 3/4: la copa del brócoli, la punta del chizito).
       const gy = l.pivot[1] + l.reach * (n % 2 === 0 ? 0.8 : -0.4);
       const gq = qFromTo(l.dir, normv(addv(scl(fwdAxis(f), Math.max(gx - fwd(f, l.pivot), l.reach * 0.25)), [0, gy - l.pivot[1], 0])));

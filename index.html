@@ -56,6 +56,26 @@
         opacity: 1; transition: opacity 1.4s cubic-bezier(.3,.6,.2,1) 0.15s;
       }
       body.ready::after { opacity: 0; }
+      /* Cargador del arranque: vive arriba del velo y se mueve con animaciones de transform/opacity, que el navegador corre
+         aparte del JavaScript (aunque el juego esté generando la mesa, el chizito sigue saltando). */
+      #boot {
+        position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+        pointer-events: none; transition: opacity 0.6s ease; font: 700 clamp(15px, 1.7vw, 19px)/1 "Nunito", ui-rounded, system-ui, sans-serif;
+        color: #9a6a62; letter-spacing: 0.04em;
+      }
+      body.ready #boot { opacity: 0; }
+      #boot .chz {
+        width: 34px; height: 76px; border-radius: 17px; will-change: transform;
+        background: radial-gradient(circle at 35% 28%, #fde69a 0 18%, transparent 19%), radial-gradient(circle at 62% 64%, #e8ad2c55 0 12%, transparent 13%),
+          linear-gradient(90deg, #e8ad2c, #f6cb43 35%, #fbe189 55%, #f0bb36);
+        box-shadow: inset -4px -6px 0 #d9982055; animation: boot-hop 0.9s cubic-bezier(.3,.7,.4,1) infinite;
+      }
+      #boot .sh { width: 40px; height: 8px; margin-top: -16px; border-radius: 50%; background: #c99a8f55; animation: boot-sh 0.9s cubic-bezier(.3,.7,.4,1) infinite; }
+      #boot .dots span { display: inline-block; animation: boot-dot 1.2s ease-in-out infinite; }
+      #boot .dots span:nth-child(2) { animation-delay: 0.15s; } #boot .dots span:nth-child(3) { animation-delay: 0.3s; }
+      @keyframes boot-hop { 0%, 100% { transform: translateY(0) scale(1.12, 0.88); } 18% { transform: translateY(-6px) scale(0.92, 1.1); } 50% { transform: translateY(-42px) scale(1, 1) rotate(8deg); } 82% { transform: translateY(-4px) scale(0.95, 1.06); } }
+      @keyframes boot-sh { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(0.55); opacity: 0.4; } }
+      @keyframes boot-dot { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
       #angle {
         position: fixed; left: 0; top: 0; pointer-events: none; user-select: none;
         padding: 3px 8px; border-radius: 999px;
@@ -126,6 +146,7 @@
     </style>
   </head>
   <body>
+    <div id="boot"><div class="chz"></div><div class="sh"></div><div>armando la fiesta<span class="dots"><span>.</span><span>.</span><span>.</span></span></div></div>
     <div id="help">arrastrá para girar · tocá un recipiente para agarrar · F muestra el frente · Ctrl+S guarda la criatura</div>
     <script type="module" src="/src/main.ts"></script>
   </body>

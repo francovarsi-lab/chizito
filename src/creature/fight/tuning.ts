@@ -61,7 +61,8 @@ export const FIGHT = {
   /** Las piernas se acomodan contra la inclinación del cuerpo (fracción): la criatura se para SOBRE ellas. */
   legPlant: 0.85,
 
-  broccoli: { bodyGrams: 6, carrotGrams: 1, carrotCarryGrams: 6 },
+  /** `yaw`: el brócoli se planta más de frente que la criatura (≈ 60°, como en el arte clave): su cara se tiene que leer. */
+  broccoli: { bodyGrams: 6, carrotGrams: 1, carrotCarryGrams: 6, yaw: 1.05 },
 
   // ── Cuerpo ──
   /** m/s²: gravedad de juego (más flotante que la real, para que los saltos se lean). */
