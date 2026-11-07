@@ -300,27 +300,43 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 ## Pelea (Chizito Fight) — `src/creature/fight/`
 - Botón PELEAR abajo a la derecha (siempre, sin flag). Misma mesa, misma criatura real (sus mallas): la cámara pasa a una
   vista lateral que sigue el medio de los dos y se aleja/acerca para encuadrarlos. Rival: brócoli malvado (niveles 1–3).
-- REGLA DEL USUARIO: cada vara clavada en el chizito (palito, escarbadientes, palito de la selva, chupetín) es un BRAZO o una
-  PIERNA rígida con la articulación en su punto de clavado, esté donde esté ("un brazo fuera de lugar igual se mueve como brazo
-  y golpea"). Pierna = sale de la mitad de abajo y apunta al piso; todo lo demás es brazo. Vara que atraviesa = un solo brazo que
-  gira por el medio. Papitas/nachos en el cuerpo = escudos fijos (papita 2 golpes, nacho 6) que saltan y caen a la mesa.
+- REGLA DEL USUARIO: cada vara clavada en el chizito (palito, escarbadientes, palito de la selva) es un BRAZO o una PIERNA
+  rígida con la articulación en su punto de clavado, SOBRE EL PERÍMETRO del chizito, esté donde esté ("un brazo fuera de lugar
+  igual se mueve como brazo y golpea"). Pierna = sale de la mitad de abajo y apunta al piso; todo lo demás es brazo.
+  FIJAS (sin articulación: pesan, tocan y apoyan, pero no pegan ni caminan): el CHUPETÍN siempre, y toda vara que ATRAVIESA el
+  chizito (el chizito sólo se atraviesa al armar; girarla lo rompería). Lo que asoma < 1 cm (p. ej. un palito clavado al 90 %)
+  no es extremidad: es sólo peso. Papitas/nachos en el cuerpo = escudos (papita 2 golpes, nacho 6) que se astillan con cada
+  golpe y al romperse se deshacen en migas (no caen enteros).
   No se usa la física del análisis (calidad de ancla, rangos, arco de 140°): el panel `?dev` sigue con su análisis, aparte.
 - Capas: `fighter.ts` (snapshot → modelo: pivotes, puntos de masa por pieza, rol, tipo de golpe; brócoli), `engine.ts` (motor
   PURO y determinista a 60 Hz), `ai.ts`, `tuning.ts` (TODOS los números), `quat.ts`; con three.js: `render.ts` (criatura real y
   brócoli), `hud.ts` (HUD HTML), `mount.ts` (bucle, cámara, luz, efectos, teclado), `install.ts`.
 - Física: cuerpo 2D (x, y, inclinación) + articulaciones 3D con motor PD de torque limitado por la inercia de cada extremidad
   (lo pesado arranca y vuelve más lento); frenar usa más torque que arrancar (el golpe se corta). Contrapeso: el cuerpo se inclina
-  hacia donde está el peso y recibe la reacción de cada giro. Daño = momento en el punto de contacto (masa efectiva I/r² ×
-  velocidad real), con exponente < 1. Pesos: tabla de la realidad del chat de mecánicas (`FIGHT.massGrams`).
+  hacia donde está el peso y recibe la reacción de cada giro. Pesos: tabla de la realidad del chat de mecánicas (`FIGHT.massGrams`).
+- Daño = `dmgK · masaEfectiva^0,4 · velocidad^1,3` (masa efectiva = I/r² en el punto que toca): la VELOCIDAD manda; algo pesado
+  que casi no se mueve pega poco (lo que no se puede mover se penaliza, no se premia).
+- Un golpe por vez. ERRAR cuesta: el freno queda flojo (sigue de largo), el giro que traía pasa al cuerpo (lo inclina y lo
+  arrastra) y la criatura no puede golpear ni cubrirse por `base + k · masaExtremidad/masaChizito` cuadros (una aceituna pesa más
+  que el chizito: ~40 cuadros); si se inclina de más, TRASTABILLA. Acertar cuesta poco (`hitLock`).
+- GUARDIA FÍSICA: los brazos se cruzan delante del cuerpo (uno en diagonal arriba, otro abajo) y sólo bloquea si el golpe TOCA
+  un brazo; lo que pasa por fuera pega. Sin brazos no hay guardia.
+- PIERNAS Y PESO: cada pierna carga gramos según su pieza (`legCarryGrams`); si la criatura pesa más, camina lento; si las piernas
+  cargan menos del 60 % de la masa, o no hay piernas, NO SALTA. Sin piernas se arrastra.
 - Tipos: liviano (palito), corte (escarbadientes: sangra), pesado (aceituna, bola del chupetín: llena el mareo → aturde), escudo.
 - Golpe: carga → golpe → vuelta, siguiendo el ángulo a lo largo del eje del golpe (un brazo hacia atrás pasa por arriba, mazazo).
   El eje sale de girar la dirección de reposo hacia el rival, en 3D (sirve para varas que apuntan a la cámara).
-- Formato: al mejor de 3 rounds, 90 s, vida 100, empate exacto = ronda extra. Controles: ← → moverse, ↑ saltar, ↓ agacharse,
-  Z/J golpe (cada toque usa el brazo siguiente, del más adelantado al más atrasado), ↓+Z patada, Z en el aire = en picada,
-  X/K guardia, Esc pausa. Mira siempre al rival: giro de 180° animado (no espejo; el brócoli, simétrico, se da vuelta como figurita).
+- Formato: al mejor de 3 rounds, 90 s, vida 100, empate exacto = ronda extra. Controles (botones separados, sin combinar con
+  flechas): ← → moverse, ↑ saltar, ↓ agacharse, Z/J PIÑA (el brazo siguiente; en el aire, en picada), X/K PATADA (la pierna más
+  adelantada), C/L GUARDIA (mantener), Esc pausa. Mira siempre al rival: giro de 180° animado (no espejo; el brócoli, simétrico,
+  se da vuelta como figurita).
+- Escenario (`stage.ts`): la misma mesa de NOCHE. Arena = tabla de picar de madera oscura (`GROUND` = 1,2 cm: el piso del motor
+  está ahí), foco cálido con sombras reales (los luchadores proyectan sombra), contorno frío, guirnaldas de lucecitas y velas como
+  bokeh, AO, más contraste y viñeta. Se esconden los recipientes y su sombra de grupo. Calidad adaptativa: AO → DoF → resolución.
+- Brócoli (`brocoli.ts`, procedural): copa de floretes granulados en 3D, tallo fibroso, brazos/piernas de zanahoria con anillos y
+  punta cortada, ojos de rodaja de remolacha, cejas de tira de morrón, boca con dientes de sésamo negro. Silueta del boceto.
 - Render: la parte de la vara que queda adentro del chizito se recorta con un plano por extremidad (`clippingPlanes`), así al girar
-  no asoma. Modo pelea: sin AO ni sombra del sol, props de la mesa ocultos, luz de contorno, color y viñeta un poco más fuertes,
-  resolución adaptativa si el cuadro tarda.
+  no asoma.
 - Pruebas: `node scripts/creature-fight-test.mjs` (puras: modelo, apoyo, contrapeso, caminar, golpes, peso, guardia, escudos,
   rounds, tiempo, determinismo, rendimiento) y con `npm run dev`: `node scripts/fight-ui-test.mjs [dir] [criatura]` (navegador,
   teclado real, capturas con HUD). Balance: `node scripts/fight-balance.mjs <criatura>`.

@@ -16,6 +16,8 @@ const GRAVITY = -9.8;
 
 export class Crumbs {
   private readonly crumbs: Crumb[] = [];
+  /** Altura del piso donde quedan (0 = el mantel; la pelea las apoya sobre su tabla). */
+  floorY = 0;
   private readonly geos: THREE.BufferGeometry[] = [];
   private readonly mat: THREE.MeshStandardMaterial;
 
@@ -136,7 +138,7 @@ export class Crumbs {
       c.mesh.rotation.x += c.spin.x * dt;
       c.mesh.rotation.y += c.spin.y * dt;
       c.mesh.rotation.z += c.spin.z * dt;
-      const floor = 0.0008 + c.mesh.scale.x * 0.35;
+      const floor = this.floorY + 0.0008 + c.mesh.scale.x * 0.35;
       if (c.mesh.position.y <= floor) {
         c.mesh.position.y = floor;
         if (Math.abs(c.vel.y) > 0.15) {

@@ -11,6 +11,7 @@ import { createMatch, stepMatch, type FightEvent, type FightInput, type Match } 
 import { broccoliFighter, fighterFromSnapshot, type FighterModel } from './fighter';
 import { FightHud, type MenuAction } from './hud';
 import { blendPose, broccoliView, creatureView, type FighterView, type RenderPose } from './render';
+import { enterFightSet, GROUND, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT } from './tuning';
 
 /** Lo que el juego deja en `window.__chizito`: la MISMA escena, cámara y criatura del constructor. */
@@ -21,6 +22,9 @@ export interface Game {
   construction: Construction;
   interaction: { enabled: boolean };
   audio: AudioManager;
+  /** Sombras suaves del constructor (la de los recipientes y la del chizito): en la pelea se esconden. */
+  bowlShadow?: { decal: THREE.Object3D };
+  contactShadow?: { decal: THREE.Object3D };
 }
 
 export interface FightController {
@@ -91,7 +95,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const edges = new Set<string>();
   const hidden: HTMLElement[] = [];
   let saved: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number; enabled: boolean } | null = null;
-  let restore: (() => void) | null = null;
   let shake = 0;
   let fightT = 0;
   let level2 = 0;
@@ -124,7 +127,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   };
 
   // ── Efectos ──
-  const P3 = (x: number, y: number, dz = 0.008): THREE.Vector3 => new THREE.Vector3(x, y, z0 + dz);
+  /** Punto del plano de la pelea (y del motor) en el mundo: el piso es la tabla. */
+  const P3 = (x: number, y: number, dz = 0.008): THREE.Vector3 => new THREE.Vector3(x, y + GROUND, z0 + dz);
   const project = (x: number, y: number): [number, number] | null => {
     const v = P3(x, y).project(game().stage.camera);
     if (v.z > 1) return null;
@@ -321,9 +325,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       lookY -= 0.006;
     }
     D = Math.min(D, 0.5);
-    const elev = THREE.MathUtils.degToRad(8);
-    const tp = new THREE.Vector3(mid, lookY + D * Math.sin(elev), z0 + D * Math.cos(elev));
-    const tl = new THREE.Vector3(mid, lookY, z0);
+    const elev = THREE.MathUtils.degToRad(11);
+    const tp = new THREE.Vector3(mid, GROUND + lookY + D * Math.sin(elev), z0 + D * Math.cos(elev));
+    const tl = new THREE.Vector3(mid, GROUND + lookY, z0);
     if (!camInit) {
       camPos.copy(tp);
       camLook.copy(tl);
@@ -370,7 +374,11 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       }
     }
     const t = m.hitstop > 0 ? 1 : Math.min(1, acc / FIGHT.dt);
-    if (prev && cur) views.forEach((v, i) => v.apply(blendPose(prev![i], cur![i], t), z0, raw));
+    if (prev && cur) views.forEach((v, i) => {
+      const p = blendPose(prev![i], cur![i], t);
+      v.apply({ ...p, y: p.y + GROUND }, z0, raw);
+    });
+    set?.update(raw);
     if (tween) {
       tween.t = Math.min(1, tween.t + raw / 1.0);
       const e = tween.t * tween.t * (3 - 2 * tween.t);
@@ -392,73 +400,17 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     perf(raw);
   };
 
-  /** Si el cuadro tarda de más, baja la calidad de a poco (primero el desenfoque, después la resolución). */
-  let degrade: ((lv: number) => void) | null = null;
+  /** Si el cuadro tarda de más, baja la calidad de a poco (oclusión, desenfoque, resolución). */
+  let set: FightSet | null = null;
   const perf = (dt: number): void => {
-    if (!degrade || dt <= 0) return;
+    if (!set || dt <= 0) return;
     perfN++;
     perfAcc += dt;
     if (perfN < 50) return;
     const avg = perfAcc / perfN;
     perfN = 0;
     perfAcc = 0;
-    if (avg > 0.022 && level2 < 2) degrade(++level2);
-  };
-
-  /** Modo pelea: luz de contorno, color un poco más vivo, mesa despejada y lo caro apagado (fluidez). Devuelve cómo deshacerlo. */
-  const enterLook = (): (() => void) => {
-    const s = game().stage;
-    const sceneRoot = s.scene.getObjectByName('backdrop');
-    const props = sceneRoot ? sceneRoot.children.filter((c) => c.name !== 'mesa' && c.name !== 'far-props' && c.visible) : [];
-    props.forEach((o) => (o.visible = false));
-    const ao = s.composer.passes.find((p) => 'configuration' in p && 'aoRadius' in (p as unknown as { configuration: object }).configuration);
-    const aoWas = ao?.enabled ?? false;
-    if (ao) ao.enabled = false;
-    const shadowWas = s.sun.castShadow;
-    s.sun.castShadow = false;
-    const rim = new THREE.DirectionalLight(0xdfe9ff, 2.2);
-    rim.position.set(0.15, 0.35, z0 - 0.6);
-    rim.target.position.set(0, 0.03, z0);
-    const key = new THREE.DirectionalLight(0xfff2e0, 0.9);
-    key.position.set(-0.25, 0.4, z0 + 0.5);
-    key.target.position.set(0, 0.03, z0);
-    s.scene.add(rim, rim.target, key, key.target);
-    const u = s.look.uniforms;
-    const lookWas = { sat: u.get('saturation')!.value as number, con: u.get('contrast')!.value as number };
-    u.get('saturation')!.value = lookWas.sat + 0.12;
-    u.get('contrast')!.value = lookWas.con + 0.06;
-    const vigWas = s.vignette.darkness;
-    s.vignette.darkness = 0.42;
-    const dofWas = { band: s.dof.focusBand, ramp: s.dof.blurRamp, max: s.dof.maxBlur, en: s.dof.enabled };
-    s.dof.focusBand = 2.2;
-    s.dof.blurRamp = 2.4;
-    const prWas = s.renderer.getPixelRatio();
-    const setPR = (pr: number): void => {
-      s.renderer.setPixelRatio(pr);
-      s.resize();
-    };
-    setPR(Math.min(1, prWas));
-    degrade = (lv) => {
-      if (lv >= 1) s.dof.enabled = false;
-      if (lv >= 2) setPR(Math.min(0.75, prWas));
-    };
-    return () => {
-      props.forEach((o) => (o.visible = true));
-      if (ao) ao.enabled = aoWas;
-      s.sun.castShadow = shadowWas;
-      rim.removeFromParent();
-      rim.target.removeFromParent();
-      key.removeFromParent();
-      key.target.removeFromParent();
-      rim.dispose();
-      key.dispose();
-      u.get('saturation')!.value = lookWas.sat;
-      u.get('contrast')!.value = lookWas.con;
-      s.vignette.darkness = vigWas;
-      Object.assign(s.dof, { focusBand: dofWas.band, blurRamp: dofWas.ramp, maxBlur: dofWas.max, enabled: dofWas.en });
-      setPR(prWas);
-      degrade = null;
-    };
+    if (avg > 0.022 && level2 < 3) set.degrade(++level2);
   };
 
   const restart = (lv = level): void => {
@@ -561,6 +513,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       views = [creatureView(g.construction, g.pivot, model, g.stage.renderer), broccoliView(g.stage.scene, broccoliFighter(level), level)];
       crumbs = [new Crumbs(g.stage.scene, '#f2c95a'), new Crumbs(g.stage.scene, '#5c9a35')];
       chips = new Crumbs(g.stage.scene, '#e0a640');
+      for (const c of [...crumbs, chips]) c.floorY = GROUND;
       open = true;
       btn.hidden = true;
       for (const sel of ['.cs-panel', '#cs-prober-btn', '#cs-prober', '#help']) {
@@ -572,7 +525,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           }
         });
       }
-      restore = enterLook();
+      set = enterFightSet(g.stage, z0, views.map((v) => v.root), [g.bowlShadow?.decal, g.contactShadow?.decal].filter((d): d is THREE.Object3D => !!d));
       level2 = 0;
       perfN = 0;
       perfAcc = 0;
@@ -596,8 +549,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       delete (g.stage as { render?: unknown }).render;
       views?.forEach((v) => v.dispose());
       views = null;
-      restore?.();
-      restore = null;
+      set?.restore();
+      set = null;
       crumbs?.forEach((c) => c.clear());
       crumbs = null;
       chips?.clear();

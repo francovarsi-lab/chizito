@@ -36,6 +36,8 @@ function nlerp(a: Q, b: Q, t: number): Q {
 }
 
 export interface FighterView {
+  /** El objeto raíz en la escena (para las sombras del escenario). */
+  root: THREE.Object3D;
   apply(p: RenderPose, z0: number, dt: number): void;
   /** Aplastón de impacto (0..1): el cuerpo se achata y rebota. */
   bump(strength: number): void;
@@ -135,6 +137,7 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
   const sc = new THREE.Matrix4();
 
   return {
+    root: pivot,
     apply(p, z0, dt) {
       const target = p.facing > 0 ? 0 : Math.PI;
       if (!psiInit) {
@@ -234,6 +237,7 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1)
   let init = false;
   const squash = new Squash();
   return {
+    root: outer,
     apply(p, z0, dt) {
       if (!init) {
         sx = p.facing;
