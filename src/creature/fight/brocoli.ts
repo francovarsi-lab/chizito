@@ -5,12 +5,89 @@
 // cada una con el origen en el punto donde entra al tronco (punta fina adentro) y +Y hacia el extremo libre (parte gruesa).
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { prepareGlb } from '../../assets/AssetRegistry';
+import { probeFile } from '../../assets/probe';
 import { mulberry32, Simplex3 } from '../../util/noise';
 import { SKETCH } from './fighter';
 
+/** Modelos 3D de EL BROCOLOCO (generados en Higgsfield desde el arte aprobado): cuerpo (copa + tallo + cara) y una zanahoria real. */
+export interface BroccoliParts {
+  body: THREE.Object3D;
+  carrot: THREE.Object3D;
+}
+
 export interface BrocoliOptions {
-  /** Nivel del rival: 1, 2, etc. (más nivel = copa más oscura y cejas más gruesas). */
+  /** Nivel del rival: 1, 2, etc. (más nivel = copa más oscura). */
   level?: number;
+  /** Si están los GLB, se usan; si no, el procedural. */
+  parts?: BroccoliParts | null;
+}
+
+/** Unidades del boceto: base del tallo y punta de la copa. */
+const STALK_Y0 = 1.42;
+export const BROCCOLI_TOP = 3.97;
+
+let partsCache: Promise<BroccoliParts | null> | null = null;
+/** Carga (una sola vez) `public/assets/models/brocoli-cuerpo.glb` y `zanahoria.glb`. null si falta alguno. */
+export function loadBroccoliParts(): Promise<BroccoliParts | null> {
+  partsCache ??= (async () => {
+    const base = import.meta.env.BASE_URL;
+    const [b, c] = await Promise.all([probeFile(`${base}assets/models/brocoli-cuerpo.glb`, 'glTF'), probeFile(`${base}assets/models/zanahoria.glb`, 'glTF')]);
+    if (!b || !c) return null;
+    const loader = new GLTFLoader();
+    const [gb, gc] = await Promise.all([loader.parseAsync(b, ''), loader.parseAsync(c, '')]);
+    for (const g of [gb.scene, gc.scene]) {
+      prepareGlb(g);
+      g.traverse((o) => (o.userData.shared = true));
+    }
+    return { body: gb.scene, carrot: gc.scene };
+  })().catch((err) => {
+    console.warn('[brócoli] no se pudieron leer los GLB, uso el procedural', err);
+    return null;
+  });
+  return partsCache;
+}
+
+/** Brócoli con los modelos reales: el cuerpo GLB (la cara del GLB mira a −Z: se gira) y una zanahoria real por extremidad. */
+function fromParts(parts: BroccoliParts, level: number): THREE.Group {
+  const root = new THREE.Group();
+  root.name = 'brocoli';
+  root.userData.level = level;
+  for (const s of SKETCH) {
+    const a = new THREE.Vector3(s.from[0], s.from[1], 0);
+    const dir = new THREE.Vector3(s.to[0], s.to[1], 0).sub(a);
+    const L = dir.length();
+    const holder = new THREE.Group();
+    holder.position.copy(a);
+    holder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    // La zanahoria del GLB va a lo largo de Z con la punta fina en +Z: la punta queda en el origen (adentro del tallo).
+    const c = parts.carrot.clone();
+    c.rotation.x = Math.PI / 2;
+    c.scale.set(L * 0.78, L, L * 0.78);
+    c.position.y = L / 2;
+    holder.add(c);
+    root.add(holder);
+  }
+  const body = parts.body.clone();
+  const h = BROCCOLI_TOP - STALK_Y0;
+  body.rotation.y = Math.PI;
+  body.scale.setScalar(h);
+  body.position.y = STALK_Y0 + h / 2;
+  if (level > 1) {
+    // Más nivel: copa más oscura (material propio, no el compartido).
+    body.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const mat = (m.material as THREE.MeshStandardMaterial).clone();
+      mat.color.multiplyScalar(1 - (level - 1) * 0.12);
+      m.material = mat;
+      m.userData.shared = false;
+      m.userData.ownGeometry = false;
+    });
+  }
+  root.add(body);
+  return root;
 }
 
 const noise = new Simplex3(7);
@@ -184,6 +261,7 @@ function pepperBrow(a: THREE.Vector3, b: THREE.Vector3, thick: number): THREE.Me
 /** Crea el brócoli malvado. Devuelve un Group (los 4 primeros hijos son las zanahorias, en el orden de `SKETCH`). */
 export function createBrocoli(options: BrocoliOptions = {}): THREE.Group {
   const level = options.level ?? 1;
+  if (options.parts) return fromParts(options.parts, level);
   const root = new THREE.Group();
   root.name = 'brocoli';
   root.userData.level = level;

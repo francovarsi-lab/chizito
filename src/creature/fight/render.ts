@@ -3,9 +3,10 @@ import type { Construction, PieceNode } from '../../model/Construction';
 import { markHero } from '../../render/ContactShadow';
 import { ownMeshes } from '../resolve/measure';
 import type { V3 } from '../types';
-import { createBrocoli } from './brocoli';
+import { BROCCOLI_TOP, createBrocoli, type BroccoliParts } from './brocoli';
 import { BROCCOLI_CY, BROCCOLI_K, type FighterModel } from './fighter';
 import type { Q } from './quat';
+import { FIGHT } from './tuning';
 
 /** Lo que el render necesita de un luchador en un instante (se mezcla entre dos pasos para que el movimiento sea fluido). */
 export interface RenderPose {
@@ -53,6 +54,8 @@ export interface FighterView {
 }
 
 const V = (a: readonly number[]): THREE.Vector3 => new THREE.Vector3(a[0], a[1], a[2]);
+/** Giro de la vista según el lado: de perfil, con la cara hacia el rival y girada `stanceYaw` hacia la cámara (mismo criterio que el motor). */
+const yawFor = (facing: 1 | -1): number => (facing > 0 ? -FIGHT.stanceYaw : -Math.PI + FIGHT.stanceYaw);
 const tmpM = new THREE.Matrix4();
 
 /** Resorte de aplastón compartido por las dos vistas. */
@@ -65,8 +68,15 @@ class Squash {
   step(dt: number): number {
     const k = 900;
     const c = 24;
-    this.v += (-k * this.x - c * this.v) * dt;
-    this.x += this.v * dt;
+    // Subpasos de 1/240 s: con el cuadro de un juego lento (< ~24 fps) el resorte divergía, oscilando con signo alternado,
+    // y la criatura se agrandaba titilando hasta salirse de la pantalla.
+    const n = Math.max(1, Math.ceil(dt * 240));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) {
+      this.v += (-k * this.x - c * this.v) * h;
+      this.x += this.v * h;
+    }
+    this.x = Math.max(-0.25, Math.min(0.25, this.x));
     return this.x;
   }
 }
@@ -139,19 +149,19 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
   return {
     root: pivot,
     apply(p, z0, dt) {
-      const target = p.facing > 0 ? 0 : Math.PI;
+      const target = yawFor(p.facing);
       if (!psiInit) {
         psi = target;
         psiInit = true;
       }
-      // Giro de 180° (no espejo), rápido y con un poco de arrastre.
-      psi += (target - psi) * Math.min(1, dt * 16);
+      // Giro real (no espejo) al cambiar de lado: pasa mostrando la cara a la cámara.
+      psi += (target - psi) * Math.min(1, dt * 14);
       const s = squash.step(dt);
       sc.makeScale(1 - s * 0.5, 1 + s, 1 - s * 0.5);
       const W = new THREE.Matrix4()
         .makeTranslation(p.x, p.y, z0)
+        .multiply(rz.makeRotationZ(-p.facing * p.tilt))
         .multiply(ry.makeRotationY(psi))
-        .multiply(rz.makeRotationZ(-p.tilt))
         .multiply(sc)
         .multiply(B)
         .multiply(new THREE.Matrix4().makeTranslation(-O.x, -O.y, -O.z));
@@ -223,36 +233,55 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
   };
 }
 
-/** El brócoli malvado: de frente a la cámara (como el boceto), con brazos y piernas de zanahoria articulados. Simétrico: al darse vuelta se da vuelta como una figurita (se afina y se espeja). */
-export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1): FighterView {
+/**
+ * EL BROCOLOCO: de perfil como la criatura (la cara hacia el rival, en 3/4 hacia la cámara) y con giro real al cambiar de lado.
+ * Brazos y piernas de zanahoria articulados en su punto de entrada al tallo.
+ */
+export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1, parts: BroccoliParts | null = null): FighterView {
   const outer = new THREE.Group();
-  const inner = createBrocoli({ level });
+  outer.matrixAutoUpdate = false;
+  const inner = createBrocoli({ level, parts });
   outer.add(inner);
   markHero(outer);
   scene.add(outer);
   const K = BROCCOLI_K;
-  inner.position.set(0, -BROCCOLI_CY * K, 0);
-  const carrots = model.limbs.map((_, i) => ({ mesh: inner.children[i] as THREE.Mesh, base: (inner.children[i] as THREE.Mesh).quaternion.clone() }));
-  let sx = 0;
+  const b = model.basis;
+  const B = new THREE.Matrix4().makeBasis(V(b.f), V(b.u), V(b.s)).transpose();
+  const Bq = new THREE.Quaternion().setFromRotationMatrix(B);
+  const BqInv = Bq.clone().invert();
+  const base = new THREE.Matrix4().makeScale(K, K, K).multiply(new THREE.Matrix4().makeTranslation(0, -BROCCOLI_CY, 0));
+  const carrots = model.limbs.map((_, i) => ({ obj: inner.children[i], base: inner.children[i].quaternion.clone() }));
+  let psi = 0;
   let init = false;
   const squash = new Squash();
+  const ry = new THREE.Matrix4();
+  const rz = new THREE.Matrix4();
+  const sc = new THREE.Matrix4();
+  const tq = new THREE.Quaternion();
   return {
     root: outer,
     apply(p, z0, dt) {
+      const target = yawFor(p.facing);
       if (!init) {
-        sx = p.facing;
+        psi = target;
         init = true;
       }
-      sx += (p.facing - sx) * Math.min(1, dt * 16);
+      psi += (target - psi) * Math.min(1, dt * 14);
       const s = squash.step(dt);
-      outer.position.set(p.x, p.y, z0);
-      outer.rotation.z = -p.facing * p.tilt;
-      outer.scale.set(1 - s * 0.5, 1 + s, 1 - s * 0.5);
-      const flat = Math.sign(sx || 1) * Math.max(0.08, Math.abs(sx));
-      inner.scale.set(K * flat, K, K);
+      sc.makeScale(1 - s * 0.5, 1 + s, 1 - s * 0.5);
+      outer.matrix
+        .makeTranslation(p.x, p.y, z0)
+        .multiply(rz.makeRotationZ(-p.facing * p.tilt))
+        .multiply(ry.makeRotationY(psi))
+        .multiply(sc)
+        .multiply(B)
+        .multiply(base);
+      outer.matrixWorldNeedsUpdate = true;
       carrots.forEach((c, k) => {
         const q = p.qs[k];
-        c.mesh.quaternion.set(q[0], q[1], q[2], q[3]).multiply(c.base);
+        // Giro en el marco del luchador llevado al del modelo: Bᵀ · q · B.
+        tq.set(q[0], q[1], q[2], q[3]);
+        c.obj.quaternion.copy(BqInv).multiply(tq).multiply(Bq).multiply(c.base);
       });
     },
     bump(st) {
@@ -263,13 +292,14 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1)
     reattach() {},
     head() {
       outer.updateMatrixWorld(true);
-      return outer.localToWorld(new THREE.Vector3(0, (3.9 - BROCCOLI_CY) * K, 0));
+      return new THREE.Vector3(0, BROCCOLI_TOP, 0).applyMatrix4(outer.matrixWorld);
     },
     dispose() {
       outer.removeFromParent();
       outer.traverse((o) => {
         const m = o as THREE.Mesh;
-        m.geometry?.dispose();
+        if (!m.isMesh || m.userData.shared) return;
+        if (m.userData.ownGeometry !== false) m.geometry?.dispose();
         (m.material as THREE.Material | undefined)?.dispose?.();
       });
     },

@@ -133,7 +133,7 @@ function segDist(p: V3, a: V3, b: V3): number {
 }
 
 /** Luchador a partir de la criatura armada (el snapshot que ya produce el resolver del constructor). */
-export function fighterFromSnapshot(s: CreatureSnapshot, name = 'TU CRIATURA'): FighterModel {
+export function fighterFromSnapshot(s: CreatureSnapshot, name = 'TU CHIZITO'): FighterModel {
   const basis = makeBasis(s.orientation.front, s.orientation.up);
   const core = s.pieces.find((p) => p.id === s.coreId);
   if (!core || core.shape.kind !== 'capsule') throw new Error('la criatura no tiene chizito raíz');
@@ -243,7 +243,8 @@ export const SKETCH = [
 /** El brócoli malvado como luchador: tronco + copa, brazos y piernas de zanahoria (gruesas afuera). */
 export function broccoliFighter(level = 1): FighterModel {
   const K = BROCCOLI_K;
-  const P = (x: number, y: number, z = 0): V3 => [x * K, (y - BROCCOLI_CY) * K, z * K];
+  // Marco local: el frente es la CARA (+Z del modelo), arriba +Y, profundidad = frente × arriba = −X del modelo.
+  const P = (x: number, y: number, z = 0): V3 => [z * K, (y - BROCCOLI_CY) * K, -x * K];
   const carrotG = FIGHT.broccoli.carrotGrams / 1000;
   const limbs: LimbModel[] = SKETCH.map((sk) => {
     const a = P(sk.from[0], sk.from[1]);
@@ -254,8 +255,8 @@ export function broccoliFighter(level = 1): FighterModel {
     const wsum = Array.from({ length: n }, (_, i) => 0.3 + i / (n - 1)).reduce((x, y) => x + y, 0);
     for (let i = 0; i < n; i++) {
       const t = i / (n - 1);
-      const p: V3 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 0];
-      const inTrunk = Math.abs(p[0]) < 0.33 * K && p[1] > P(0, 1.45)[1];
+      const p: V3 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+      const inTrunk = Math.hypot(p[0], p[2]) < 0.33 * K && p[1] > P(0, 1.45)[1];
       points.push({ p, m: (carrotG * (0.3 + t)) / wsum, r: (0.03 + 0.08 * t) * K + 0.0006, piece: sk.id, kind: 'light', inside: inTrunk });
     }
     return {
@@ -277,12 +278,13 @@ export function broccoliFighter(level = 1): FighterModel {
   });
   const bodyMass = FIGHT.broccoli.bodyGrams / 1000;
   return {
-    name: `BRÓCOLI · NIVEL ${level}`,
-    basis: { f: [1, 0, 0], u: [0, 1, 0], s: [0, 0, 1] },
+    name: `EL BROCOLOCO · NIVEL ${level}`,
+    basis: { f: [0, 0, 1], u: [0, 1, 0], s: [-1, 0, 0] },
     origin: [0, 0, 0],
     body: [
-      { a: P(0, 1.48), b: P(0, 2.72), r: 0.36 * K },
-      { a: P(-0.25, 3.12), b: P(0.35, 3.12), r: 0.62 * K },
+      { a: P(0, 1.5), b: P(0, 2.75), r: 0.34 * K },
+      // Copa: ancha hacia los costados (en profundidad), por encima de la cara.
+      { a: P(-0.6, 3.25), b: P(0.6, 3.25), r: 0.6 * K },
     ],
     bodyMass,
     armor: [],

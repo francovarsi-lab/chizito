@@ -5,6 +5,19 @@ divertido, satisfactorio y fotográficamente real; sin stats ni economía) y la 
 pelea contra el brócoli con física propia; ver "Pelea"). Ramas: esta (`claude/compassionate-carson-41ubkc`) junta el
 constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/creature-interpreter`). NO pushear a `main`.
 
+## Forma de trabajo del usuario (Franco) — vale para TODO el proyecto, siempre
+- "Hay que apuntar al 100 para llegar al 10": nivel de juego top, con todos los detalles analizados para destacar según su
+  nivel y atención. Siempre hay más detalles para agregar; lo que separa es la DECISIÓN: no todo se hace, pero cada detalle
+  posible se analiza y se ejecuta cuando vale la pena por la especificidad que consigue. Mejorar siempre, ser únicos,
+  combinar arte, estilo, concepto y creatividad, sin dejar de lado la funcionalidad de una web (fluidez primero).
+- Bello, diferente, único, que atraiga desde el arte (no sólo funcional); no hace falta hiperrealismo al milímetro.
+- Cada cambio de arte en la pelea tiene que ser coherente con la escena del constructor (mismo mundo: 3D, texturas,
+  profundidad, luz). La pelea es un "show": reflectores, golpes, barras, movimientos.
+- Generación de imágenes en Higgsfield: Nano Banana 2.1 en 1K (~1,5 créditos) para explorar; 2K (~2) sólo para lo final.
+  Mantener el gasto bajo y avisar si algo se dispara. 3D: SAM 3 (1 crédito, con `prompt` del objeto) antes que Tripo (9) o
+  Meshy (30).
+- Sonidos: los va a grabar él; dejar ids de sonido listos para reemplazar por archivos.
+
 ## Stack
 - Vite + TypeScript + Three.js (sin React). `postprocessing` (pmndrs) + `n8ao` para el AO.
 - Sin motor de física ni CSG: el clavado es geométrico (raycast + transformaciones); la parte del palito

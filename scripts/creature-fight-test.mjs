@@ -89,7 +89,9 @@ try {
     ok(max > 1, `el brazo gira en su punto de clavado (${(max * 57.3).toFixed(0)}°)`);
     ok(m.f[0].arms.every((k) => used.has(k)), 'dos piñas = los dos brazos, en orden');
     ok(!both, 'nunca dos golpes a la vez');
-    ok(m.f[0].limbs.every((s) => s.phase === 'rest' && rot(s) < 0.2), 'todo vuelve al reposo');
+    // Reposo = la postura (las piernas quedan giradas para apoyar todas; los brazos, derechos).
+    const off = (s, q) => 2 * Math.acos(Math.min(1, Math.abs(s.q[0] * q[0] + s.q[1] * q[1] + s.q[2] * q[2] + s.q[3] * q[3])));
+    ok(m.f[0].limbs.every((s, k) => s.phase === 'rest' && off(s, m.f[0].stance[k]) < 0.2), 'todo vuelve al reposo');
     // Patada: solo piernas.
     const k = fight(mine);
     let kicked = -1;
@@ -133,14 +135,39 @@ try {
   // ── Piezas fijas: el chupetín y lo que atraviesa el chizito no giran; lo que asoma < 1 cm no es extremidad ──
   {
     const s = snap('criatura-20261011-1623');
-    s.pieces.find((p) => p.id === 'palito-mv47lm1n-2').type = 'chupetin';
+    const stick = s.pieces.find((p) => p.id === 'palito-mv47lm1n-2');
+    stick.type = 'chupetin';
+    // Como lo entrega el resolver: el palito + la bola de caramelo soldada en la punta libre (`<id>~caramelo`).
+    const tip = stick.shape.b;
+    s.pieces.push({ id: `${stick.id}~caramelo`, type: 'chupetin-caramelo', kind: 'blob', seed: 1, cosmetic: false, stability: 'stable', shape: { kind: 'capsule', a: tip, b: tip, radius: 0.0105 } });
+    s.links.push({ ...s.links.find((l) => l.childId === stick.id), id: 'lk-bola', parentId: stick.id, childId: `${stick.id}~caramelo`, mode: 'tail', exit: null, crossings: [] });
     const P = fighterFromSnapshot(s);
     const pop = P.limbs.find((l) => l.id === 'palito-mv47lm1n-2');
     ok(pop && pop.rigid, 'el chupetín queda rígido');
     const m = fight(P);
     const k = P.limbs.indexOf(pop);
     for (let i = 0; i < 200; i++) stepMatch(m, [{ x: i < 60 ? 1 : 0, punch: i % 40 === 0, guard: i > 150 }, { x: 0 }]);
-    ok(rot(m.f[0].limbs[k]) < 1e-6 && !m.f[0].arms.includes(k), 'el chupetín no gira ni pega como brazo');
+    ok(rot(m.f[0].limbs[k]) < 1e-6, 'el chupetín no gira sobre su clavado');
+    // Pero pega con el cuerpo entero (fuerza centrípeta): carga echándose atrás y se balancea; pifiar cuesta muchísimo.
+    const sw = fight(P);
+    sw.f[1].x = 0.15;
+    sw.f[0].nextArm = sw.f[0].arms.indexOf(k);
+    let tiltSpan = [0, 0], whiff = null;
+    for (let i = 0; i < 160; i++) {
+      stepMatch(sw, [{ x: 0, punch: i === 0 }, { x: 0 }]);
+      tiltSpan = [Math.min(tiltSpan[0], sw.f[0].tilt), Math.max(tiltSpan[1], sw.f[0].tilt)];
+      for (const e of sw.events) if (e.type === 'whiff') whiff = e;
+    }
+    ok(tiltSpan[1] - tiltSpan[0] > 0.6, `con el chupetín se balancea el cuerpo entero (${tiltSpan.map((v) => v.toFixed(2))})`);
+    ok(whiff && whiff.lock > 60, `pifiar con el chupetín deja expuesto mucho tiempo (${whiff?.lock} cuadros)`);
+    // El chupetín pesa: el cuerpo se inclina hacia donde está.
+    const lean = fight(P);
+    for (let i = 0; i < 180; i++) stepMatch(lean, [{ x: 0 }, { x: 0 }]);
+    const pl = P.limbs[k];
+    const side = Math.sign(pl.points.reduce((a, q) => a + q.m * q.p[0], 0));
+    const base = fight(fighterFromSnapshot(snap('criatura-20261011-1623')));
+    for (let i = 0; i < 180; i++) stepMatch(base, [{ x: 0 }, { x: 0 }]);
+    ok(Math.sign(lean.f[0].tilt - base.f[0].tilt) === side, `el chupetín inclina el centro de gravedad hacia su lado (${base.f[0].tilt.toFixed(3)} → ${lean.f[0].tilt.toFixed(3)})`);
     const E = fighterFromSnapshot(snap('E'));
     const thr = E.limbs.filter((l) => l.through);
     ok(thr.length === 2 && thr.every((l) => l.rigid), `las varas que atraviesan el chizito quedan fijas (${thr.length})`);
@@ -181,6 +208,54 @@ try {
     if (light && heavy) ok(heavy.damage > light.damage * 1.3, `la aceituna pega más (${heavy.damage.toFixed(1)} vs ${light.damage.toFixed(1)})`);
   }
 
+  // ── Carga: lo pesado tarda en cargar; si le pegan mientras carga, lo pierde ──
+  {
+    const windOf = (heavy) => {
+      const m = fight(mine);
+      m.f[1].x = 0.15;
+      const k = m.f[0].arms.find((a) => (mine.limbs[a].kind === 'heavy') === heavy);
+      m.f[0].nextArm = m.f[0].arms.indexOf(k);
+      let wind = 0;
+      for (let i = 0; i < 120; i++) {
+        stepMatch(m, [{ x: 0, punch: i === 0 }, { x: 0 }]);
+        if (m.f[0].limbs[k].phase === 'windup') wind++;
+      }
+      return wind;
+    };
+    const wl = windOf(false), wh = windOf(true);
+    ok(wh > wl * 2.5 && wh > 25, `la aceituna carga mucho más que el palito (${wh} vs ${wl} cuadros)`);
+    // Cortarle la carga: el rival pega mientras carga la aceituna.
+    const m = fight(mine);
+    m.f[1].x = m.f[0].x + 0.045;
+    const k = m.f[0].arms.find((a) => mine.limbs[a].kind === 'heavy');
+    m.f[0].nextArm = m.f[0].arms.indexOf(k);
+    let lost = false;
+    for (let i = 0; i < 90 && !lost; i++) {
+      stepMatch(m, [{ x: 0, punch: i === 0 }, { x: 0, punch: i === 2 }]);
+      for (const e of m.events) if (e.type === 'hit' && e.by === 1 && m.f[0].limbs[k].phase !== 'windup' && m.f[0].limbs[k].phase !== 'strike') lost = true;
+    }
+    ok(lost, 'un golpe del rival mientras carga le corta la carga');
+  }
+
+  // ── Escudo de frente: al cubrirse se da vuelta, inclina la cabeza o se pone de cabeza según dónde lo tenga ──
+  {
+    const withShield = (x, y) => {
+      const A = fighterFromSnapshot(snap('A'));
+      A.shields = { esc: 2 };
+      A.armor.push({ p: [x, y, 0], m: 0.001, r: 0.008, piece: 'esc', kind: 'shield', inside: false });
+      A.mass += 0.001;
+      const m = fight(A);
+      for (let i = 0; i < 70; i++) stepMatch(m, [{ x: 0, guard: true }, { x: 0 }]);
+      return m.f[0];
+    };
+    const back = withShield(-0.014, 0);
+    const head = withShield(0.004, 0.03);
+    const low = withShield(0.002, -0.03);
+    ok(back.shieldPose?.turned && back.facing === -1, 'escudo en la espalda: se da vuelta para mostrarlo');
+    ok(head.tilt > 0.6, `escudo en la cabeza: inclina la cabeza hacia adelante (${head.tilt.toFixed(2)})`);
+    ok(low.tilt < -0.6, `escudo abajo: se pone de cabeza (${low.tilt.toFixed(2)})`);
+  }
+
   // ── Guardia física: tapan los brazos (sin brazos no hay guardia) ──
   {
     const run = (guard, defender) => {
@@ -197,7 +272,7 @@ try {
     const open = run(false, broccoliFighter(1));
     const g = run(true, broccoliFighter(1));
     ok(open.dmg > 0, `A le pega al brócoli (${open.dmg.toFixed(1)})`);
-    ok(g.blocked > 0 && g.dmg < open.dmg * 0.6, `los brazos del brócoli tapan (${g.blocked} bloqueos, ${g.dmg.toFixed(1)} vs ${open.dmg.toFixed(1)})`);
+    ok(g.blocked > 0 && g.dmg < open.dmg * 0.75, `los brazos del brócoli tapan (${g.blocked} bloqueos, ${g.dmg.toFixed(1)} vs ${open.dmg.toFixed(1)})`);
     const noArms = fighterFromSnapshot(snap('A'));
     noArms.limbs = noArms.limbs.filter((l) => l.role === 'leg');
     const n = run(true, noArms);

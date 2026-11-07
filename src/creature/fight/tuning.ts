@@ -16,6 +16,10 @@ export const FIGHT = {
 
   // ── Arena (sobre la mesa, alrededor del chizito) ──
   arenaHalf: 0.15,
+  /** rad: los luchadores se ven de perfil, girados esto hacia la cámara (guardia de 3/4), con la cara hacia el rival. */
+  stanceYaw: 0.45,
+  /** rad: cuánto puede girar una pierna para apoyar en la postura. */
+  stanceMax: 0.9,
   startGap: 0.15,
 
   // ── Pesos (gramos), tabla de la realidad del chat de mecánicas. El palito de la selva usa la masa del intérprete. ──
@@ -127,6 +131,18 @@ export const FIGHT = {
   whiff: { base: 10, k: 26, max: 75, transfer: 0.9, lurch: 0.3, slack: 12 },
   stumbleTilt: 0.45,
   stumbleFrames: 26,
+  /** rad/s: hasta que el cuerpo no se bambolea menos que esto, no vuelve a golpear después de pifiar. */
+  stableW: 0.8,
+  /** Carga del golpe: cuadros = k · (masa extremidad / masa chizito − free). Temblor mientras carga (rad). */
+  charge: { k: 26, free: 0.3, tremble: 0.05 },
+  /**
+   * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
+   * (`stiff`); pega mientras gira más rápido que `activeW`. Pifiar cuesta `whiffMul` veces más y lo tira (`whiffKick`).
+   */
+  swing: { back: 0.32, fwd: 0.7, stiff: 5, activeW: 1.6, windFrames: 8, strikeFrames: 22, chargeMul: 1.3, massShare: 0.6, whiffMul: 1.8, whiffKick: 2.6 },
+  /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
+  shieldFront: 0.35,
+  shieldBack: 2.2,
   /** Cuadros que se recuerda un botón apretado antes de poder golpear. */
   buffer: 9,
   /** m/s de envión del cuerpo al golpear. */

@@ -5,7 +5,9 @@ import type { Construction } from '../../model/Construction';
 import type { PieceRegistry } from '../../pieces/PieceRegistry';
 import type { CameraRig } from '../../render/CameraRig';
 import type { Stage } from '../../render/Stage';
+import { BUILDER_FACE, DEFAULT_COMBAT_UP } from '../../model/Construction';
 import { resolveSnapshot } from '../resolve';
+import { loadBroccoliParts } from './brocoli';
 import { aiInput, newAi, type AiMem } from './ai';
 import { createMatch, stepMatch, type FightEvent, type FightInput, type Match } from './engine';
 import { broccoliFighter, fighterFromSnapshot, type FighterModel } from './fighter';
@@ -74,7 +76,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const btn = document.createElement('button');
   btn.id = 'cf-btn';
   btn.innerHTML = `${SWORDS}PELEAR`;
-  btn.title = 'Pelear con tu criatura contra el brócoli';
+  btn.title = 'Pelear con tu chizito contra EL BROCOLOCO';
   host.append(btn);
   const hud = new FightHud(host);
 
@@ -250,18 +252,15 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         g.audio.play('crack', 0.8);
         break;
       }
-      case 'whiff':
-        if (e.heavy) {
-          const f = m.f[e.who];
-          hud.popup(f.x, f.y + 0.045, '¡ERRÓ!', 'el peso sigue de largo', 'block');
-        }
-        break;
-      case 'stumble': {
+      case 'whiff': {
+        // Cada golpe que no toca nada: ¡PIFIÓ! (sin más texto: el cuerpo que se desarma ya lo explica).
         const f = m.f[e.who];
-        hud.popup(f.x, f.y + 0.05, '¡TRASTABILLA!', '', 'heavy');
-        g.audio.play('drop', 0.8);
+        hud.popup(f.x, f.y + 0.045, '¡PIFIÓ!', '', e.heavy ? 'heavy' : 'block');
         break;
       }
+      case 'stumble':
+        g.audio.play('drop', 0.8);
+        break;
       case 'swing':
         if (e.heavy) g.audio.play('out', 0.5);
         break;
@@ -281,7 +280,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         g.audio.play('crack', 1);
         break;
       case 'roundEnd': {
-        const who = e.winner === 'draw' ? '' : e.winner === 0 ? 'GANA TU CRIATURA' : 'GANA EL BRÓCOLI';
+        const who = e.winner === 'draw' ? '' : e.winner === 0 ? 'GANA TU CHIZITO' : 'GANA EL BROCOLOCO';
         if (e.reason === 'time') hud.announce('¡TIEMPO!', e.winner === 'draw' ? 'EMPATE: RONDA EXTRA' : who, false, 2);
         else hud.announce(e.winner === 'draw' ? '¡DOBLE K.O.!' : e.winner === 0 ? '¡BIEN!' : 'AY…', who, e.winner === 1, 2);
         break;
@@ -293,7 +292,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         if (win && level < AI_LEVELS.length) buttons.push({ a: 'next', label: `Nivel ${level + 1} ▶` });
         buttons.push({ a: 'again', label: 'Revancha', alt: win && level < AI_LEVELS.length }, { a: 'exit', label: 'Volver a armar', alt: true });
         window.setTimeout(() => {
-          if (open && m?.phase === 'over') hud.showMenu(win ? '¡GANASTE!' : 'PERDISTE', win ? `Le ganaste al brócoli nivel ${level}.` : 'Probá cambiar brazos, piernas o el peso de tu criatura.', buttons);
+          if (open && m?.phase === 'over') hud.showMenu(win ? '¡GANASTE!' : 'PERDISTE', win ? `Le ganaste a EL BROCOLOCO nivel ${level}.` : 'Probá cambiar brazos, piernas o el peso de tu chizito.', buttons);
         }, 1400);
         break;
       }
@@ -505,12 +504,15 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       if (open || g.rig.inIntro) return;
       // Si había algo en la mano (ketchup, un palito), se suelta con Esc como en el juego.
       for (let k = 0; k < 2; k++) window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }));
-      const snap = resolveSnapshot({ construction: g.construction, pieces: deps.pieces, orientation: 'construction' });
-      model = fighterFromSnapshot(snap, 'TU CRIATURA');
+      // El frente de la pelea es la CARA que marca la F en el constructor (+Z del chizito), con arriba = su eje largo (+X):
+      // de enfrentarse, se ven de perfil y la cara mira al rival.
+      const snap = resolveSnapshot({ construction: g.construction, pieces: deps.pieces, orientation: { front: [...BUILDER_FACE], up: [...DEFAULT_COMBAT_UP] } });
+      const parts = await loadBroccoliParts();
+      model = fighterFromSnapshot(snap, 'TU CHIZITO');
       z0 = g.pivot.position.z;
       saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
       g.interaction.enabled = false;
-      views = [creatureView(g.construction, g.pivot, model, g.stage.renderer), broccoliView(g.stage.scene, broccoliFighter(level), level)];
+      views = [creatureView(g.construction, g.pivot, model, g.stage.renderer), broccoliView(g.stage.scene, broccoliFighter(level), level, parts)];
       crumbs = [new Crumbs(g.stage.scene, '#f2c95a'), new Crumbs(g.stage.scene, '#5c9a35')];
       chips = new Crumbs(g.stage.scene, '#e0a640');
       for (const c of [...crumbs, chips]) c.floorY = GROUND;
