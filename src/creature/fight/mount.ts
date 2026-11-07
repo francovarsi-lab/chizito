@@ -13,7 +13,7 @@ import { createMatch, stepMatch, type FightEvent, type FightInput, type Match } 
 import { broccoliFighter, fighterFromSnapshot, type FighterModel } from './fighter';
 import { FightHud, type MenuAction } from './hud';
 import { blendPose, broccoliView, creatureView, type FighterView, type RenderPose } from './render';
-import { enterFightSet, GROUND, type FightSet } from './stage';
+import { enterFightSet, GROUND, preloadFightSet, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT } from './tuning';
 
 /** Lo que el juego deja en `window.__chizito`: la MISMA escena, cámara y criatura del constructor. */
@@ -22,7 +22,7 @@ export interface Game {
   pivot: THREE.Group;
   rig: CameraRig;
   construction: Construction;
-  interaction: { enabled: boolean };
+  interaction: { enabled: boolean; hideFront(): void };
   audio: AudioManager;
   /** Sombras suaves del constructor (la de los recipientes y la del chizito): en la pelea se esconden. */
   bowlShadow?: { decal: THREE.Object3D };
@@ -212,13 +212,14 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       case 'round': {
         const final = m.wins[0] === FIGHT.roundsToWin - 1 && m.wins[1] === FIGHT.roundsToWin - 1;
         hud.announce(final ? 'ROUND FINAL' : `ROUND ${e.round}`, '', false, 1.5);
+        g.audio.play('round', 1);
         views.forEach((v) => v.reattach());
         camInit = false;
         break;
       }
       case 'fight':
         hud.announce('¡A PELEAR!', '', false, 0.9);
-        g.audio.play('crack', 1);
+        g.audio.play('pelea', 1);
         break;
       case 'hit': {
         const victim = (1 - e.by) as 0 | 1;
@@ -234,13 +235,15 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           if (c) chips?.emit(c, new THREE.Vector3(m.f[e.by].facing, 0.7, 0.3).normalize(), 7);
         } else if (!e.blocked) crumbs?.[victim].emit(at, new THREE.Vector3(m.f[e.by].facing, 0.6, 0.3).normalize(), big ? 6 : 3);
         views[victim].bump(Math.min(1, e.damage / 18) * (e.blocked ? 0.4 : 1));
+        // Destello blanco y vibración del que lo recibe (el congelamiento lo pone el motor: `hitstop`).
+        views[victim].hurt(e.blocked ? 0.35 : big ? 1 : 0.75, e.blocked ? 0.0008 : 0.0016 + e.damage * 0.00012);
         shake = Math.max(shake, e.blocked ? 0.0008 : 0.0012 + e.damage * 0.00022);
         const label = e.blocked ? 'BLOQUEO' : e.shield ? 'ESCUDO' : e.kind === 'heavy' ? '¡PESADO!' : e.kind === 'cut' ? 'CORTE' : '';
         hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, label, e.blocked ? 'block' : e.kind === 'heavy' ? 'heavy' : e.kind === 'cut' ? 'cut' : '');
         if (!e.blocked) hud.combo(e.by, e.combo);
         if (big && !e.blocked) hud.flash(0.28);
-        g.audio.play(e.blocked ? 'drop' : e.heavy ? 'crunch' : 'crack', Math.min(1, 0.55 + e.damage / 20));
-        if (e.heavy && !e.blocked) g.audio.play('crack', 1);
+        g.audio.play(e.blocked ? 'bloqueo' : big ? 'golpe-pesado' : 'golpe', Math.min(1, 0.55 + e.damage / 20));
+        if (!e.blocked) g.audio.play('crunch', 0.8);
         break;
       }
       case 'shieldBreak': {
@@ -248,21 +251,21 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const c = views[e.who].shatter(e.piece);
         if (c) chips?.emit(c, new THREE.Vector3(e.vel[0], 0.8, 0.3).normalize(), 22);
         hud.popup(e.at[0], e.at[1] + 0.018, '¡ESCUDO ROTO!', '', 'heavy');
-        g.audio.play('crunch', 1);
-        g.audio.play('crack', 0.8);
+        g.audio.play('escudo', 1);
         break;
       }
       case 'whiff': {
         // Cada golpe que no toca nada: ¡PIFIÓ! (sin más texto: el cuerpo que se desarma ya lo explica).
         const f = m.f[e.who];
         hud.popup(f.x, f.y + 0.045, '¡PIFIÓ!', '', e.heavy ? 'heavy' : 'block');
+        g.audio.play('pifio', e.heavy ? 1 : 0.5);
         break;
       }
       case 'stumble':
         g.audio.play('drop', 0.8);
         break;
       case 'swing':
-        if (e.heavy) g.audio.play('out', 0.5);
+        if (e.heavy) g.audio.play('zumbido', 0.8);
         break;
       case 'land':
         g.audio.play('drop', 0.35);
@@ -276,8 +279,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         hud.announce('K.O.', '', true, 2.2);
         hud.flash(0.7);
         shake = 0.006;
-        g.audio.play('crunch', 1);
-        g.audio.play('crack', 1);
+        views[e.who].hurt(1, 0.003);
+        g.audio.play('ko', 1);
         break;
       case 'roundEnd': {
         const who = e.winner === 'draw' ? '' : e.winner === 0 ? 'GANA TU CHIZITO' : 'GANA EL BROCOLOCO';
@@ -507,11 +510,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       // El frente de la pelea es la CARA que marca la F en el constructor (+Z del chizito), con arriba = su eje largo (+X):
       // de enfrentarse, se ven de perfil y la cara mira al rival.
       const snap = resolveSnapshot({ construction: g.construction, pieces: deps.pieces, orientation: { front: [...BUILDER_FACE], up: [...DEFAULT_COMBAT_UP] } });
-      const parts = await loadBroccoliParts();
+      const [parts] = await Promise.all([loadBroccoliParts(), preloadFightSet()]);
       model = fighterFromSnapshot(snap, 'TU CHIZITO');
       z0 = g.pivot.position.z;
       saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
       g.interaction.enabled = false;
+      g.interaction.hideFront();
       views = [creatureView(g.construction, g.pivot, model, g.stage.renderer), broccoliView(g.stage.scene, broccoliFighter(level), level, parts)];
       crumbs = [new Crumbs(g.stage.scene, '#f2c95a'), new Crumbs(g.stage.scene, '#5c9a35')];
       chips = new Crumbs(g.stage.scene, '#e0a640');

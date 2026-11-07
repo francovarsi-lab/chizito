@@ -190,7 +190,7 @@ export const FIGHT = {
   /** La extremidad que pega rebota. */
   recoil: 0.35,
   /** Cuadros de congelamiento al impacto (da peso al golpe). */
-  hitstop: { base: 3, k: 0.28, max: 11 },
+  hitstop: { base: 4, k: 0.4, max: 15 },
   /** Un combo cuenta si el golpe llega antes de esta cantidad de cuadros del anterior. */
   comboWindow: 50,
 } as const;

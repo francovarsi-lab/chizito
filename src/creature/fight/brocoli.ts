@@ -64,7 +64,7 @@ function fromParts(parts: BroccoliParts, level: number): THREE.Group {
     // La zanahoria del GLB va a lo largo de Z con la punta fina en +Z: la punta queda en el origen (adentro del tallo).
     const c = parts.carrot.clone();
     c.rotation.x = Math.PI / 2;
-    c.scale.set(L * 0.78, L, L * 0.78);
+    c.scale.set(L * 0.8, L * 0.8, L); // el largo del GLB está en Z; X e Y son el grosor
     c.position.y = L / 2;
     holder.add(c);
     root.add(holder);

@@ -42,6 +42,8 @@ export interface FighterView {
   apply(p: RenderPose, z0: number, dt: number): void;
   /** Aplastón de impacto (0..1): el cuerpo se achata y rebota. */
   bump(strength: number): void;
+  /** Golpe recibido: destello blanco (0..1) y vibración (m). */
+  hurt(flash: number, shake: number): void;
   /** Un escudo recibe un golpe: se achica hacia donde está clavado (se va astillando). Devuelve su centro en el mundo (para las migas). */
   chip(pieceId: string, left01: number): THREE.Vector3 | null;
   /** Un escudo se rompe: desaparece (queda en migas). Devuelve su centro en el mundo. */
@@ -78,6 +80,47 @@ class Squash {
     }
     this.x = Math.max(-0.25, Math.min(0.25, this.x));
     return this.x;
+  }
+}
+
+/** Destello blanco (emisivo) y vibración del que recibe un golpe. Guarda y devuelve el emisivo original de cada material. */
+class Hurt {
+  private mats: { m: THREE.MeshStandardMaterial; color: THREE.Color; i: number }[] = [];
+  flash = 0;
+  shake = 0;
+  readonly offset = new THREE.Vector3();
+  constructor(root: THREE.Object3D) {
+    const seen = new Set<THREE.Material>();
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        const sm = m as THREE.MeshStandardMaterial;
+        if (!sm.isMeshStandardMaterial || seen.has(m)) continue;
+        seen.add(m);
+        this.mats.push({ m: sm, color: sm.emissive.clone(), i: sm.emissiveIntensity });
+      }
+    });
+  }
+  step(dt: number): void {
+    this.flash *= Math.exp(-dt * 16);
+    this.shake *= Math.exp(-dt * 22);
+    for (const e of this.mats) {
+      if (this.flash > 0.01) {
+        e.m.emissive.setRGB(1, 1, 1);
+        e.m.emissiveIntensity = this.flash * 0.9;
+      } else {
+        e.m.emissive.copy(e.color);
+        e.m.emissiveIntensity = e.i;
+      }
+    }
+    this.offset.set((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake, 0);
+  }
+  restore(): void {
+    for (const e of this.mats) {
+      e.m.emissive.copy(e.color);
+      e.m.emissiveIntensity = e.i;
+    }
   }
 }
 
@@ -139,6 +182,7 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
   let psi = 0;
   let psiInit = false;
   const squash = new Squash();
+  const hurt = new Hurt(pivot);
   const ry = new THREE.Matrix4();
   const rz = new THREE.Matrix4();
   const lr = new THREE.Matrix4();
@@ -157,9 +201,10 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
       // Giro real (no espejo) al cambiar de lado: pasa mostrando la cara a la cámara.
       psi += (target - psi) * Math.min(1, dt * 14);
       const s = squash.step(dt);
+      hurt.step(dt);
       sc.makeScale(1 - s * 0.5, 1 + s, 1 - s * 0.5);
       const W = new THREE.Matrix4()
-        .makeTranslation(p.x, p.y, z0)
+        .makeTranslation(p.x + hurt.offset.x, p.y + hurt.offset.y, z0)
         .multiply(rz.makeRotationZ(-p.facing * p.tilt))
         .multiply(ry.makeRotationY(psi))
         .multiply(sc)
@@ -188,6 +233,10 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
     bump(st) {
       squash.kick(st);
     },
+    hurt(f, sh) {
+      hurt.flash = Math.max(hurt.flash, f);
+      hurt.shake = Math.max(hurt.shake, sh);
+    },
     chip(id, left01) {
       const h = shieldHome.get(id);
       if (!h) return null;
@@ -214,6 +263,7 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
       return v.applyMatrix4(pivot.matrixWorld);
     },
     dispose() {
+      hurt.restore();
       this.reattach();
       home.parent?.add(pivot);
       pivot.position.copy(home.position);
@@ -254,6 +304,7 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
   let psi = 0;
   let init = false;
   const squash = new Squash();
+  const hurt = new Hurt(outer);
   const ry = new THREE.Matrix4();
   const rz = new THREE.Matrix4();
   const sc = new THREE.Matrix4();
@@ -268,9 +319,10 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
       }
       psi += (target - psi) * Math.min(1, dt * 14);
       const s = squash.step(dt);
+      hurt.step(dt);
       sc.makeScale(1 - s * 0.5, 1 + s, 1 - s * 0.5);
       outer.matrix
-        .makeTranslation(p.x, p.y, z0)
+        .makeTranslation(p.x + hurt.offset.x, p.y + hurt.offset.y, z0)
         .multiply(rz.makeRotationZ(-p.facing * p.tilt))
         .multiply(ry.makeRotationY(psi))
         .multiply(sc)
@@ -287,6 +339,10 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
     bump(st) {
       squash.kick(st);
     },
+    hurt(f, sh) {
+      hurt.flash = Math.max(hurt.flash, f);
+      hurt.shake = Math.max(hurt.shake, sh);
+    },
     chip: () => null,
     shatter: () => null,
     reattach() {},
@@ -295,6 +351,7 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
       return new THREE.Vector3(0, BROCCOLI_TOP, 0).applyMatrix4(outer.matrixWorld);
     },
     dispose() {
+      hurt.restore();
       outer.removeFromParent();
       outer.traverse((o) => {
         const m = o as THREE.Mesh;

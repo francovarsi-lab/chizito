@@ -1127,6 +1127,12 @@ export class InteractionController {
     this.frontMark.visible = true;
   }
 
+  /** Apaga la marca del frente ya (la pelea no la actualiza: quedaría fija sobre el chizito). */
+  hideFront(): void {
+    this.frontT = 0;
+    this.frontMark.visible = false;
+  }
+
   private updateFrontMark(dt: number): void {
     if (this.frontT <= 0) return;
     this.frontT -= dt;

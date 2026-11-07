@@ -99,3 +99,15 @@ Chupetín: el resolver lo entrega como DOS piezas, el palito (Ø 3,4 mm × ≈ 5
 - El panel y el probador pasan a `?dev`. Sin flag: solo el botón PELEAR.
 - Pruebas: `creature-fight-test.mjs` (puras) y `fight-ui-test.mjs` (navegador). Las 2 fallas viejas de `creature-test.mjs`
   quedaron resueltas (hoja `hitboxes.svg` regenerada; la prueba de "sin three.js" excluye el render/montaje de la pelea).
+
+## Pelea — tanda 3 (2026-11-07)
+- Etapa A (hecha): bug del zoom (squash en subpasos), nombres TU CHIZITO / EL BROCOLOCO, "¡PIFIÓ!" en cada yerro (la palabra
+  "trastabilla" no aparece), perfil 3D con la cara de la F hacia el rival y guardia de 3/4, piernas que apoyan todas (IK de
+  postura), carga de lo pesado (un golpe la corta), estabilizarse antes de volver a pegar tras pifiar, chupetín que corre el
+  centro de gravedad y pega con el cuerpo entero, escudos que se presentan en la guardia.
+- Etapa B (hecha): congelamiento, destello blanco y vibración del que recibe, migas variadas, sonidos con ids grabables.
+- Etapa C (hecha en parte): EL BROCOLOCO y las zanahorias en 3D (Higgsfield), tabla de picar con textura, restos de fiesta en
+  capas (caramelos genéricos, carozos, servilletas) en la pelea y al fondo del constructor.
+- Próximas (propuestas, por decidir con el usuario): letras de impacto estilo arcade y gritos (cuando grabe los sonidos),
+  cadenas de varias articulaciones que se cargan juntas, patada del chupetín sólo con contrapeso, texturas del chizito y de las
+  piezas en Higgsfield (2K sólo lo final), más coherencia de luz entre el constructor y la pelea.

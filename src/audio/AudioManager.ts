@@ -9,8 +9,13 @@ import { probeFile } from '../assets/probe';
  *  crack  — primer contacto de la punta con el chizito (crack seco)
  *  crunch — crujido mínimo mientras entra (granos de ruido esporádicos)
  *  out    — la pieza sale del todo
+ *
+ * Pelea (para reemplazar por grabaciones propias con el mismo nombre de archivo):
+ *  golpe, golpe-pesado, bloqueo, zumbido (algo pesado que corta el aire), pifio, escudo (se rompe),
+ *  ko, round (cartel ROUND), pelea (¡A PELEAR!)
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out';
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -54,9 +59,8 @@ export class AudioManager {
   }
 
   private async loadFiles(): Promise<void> {
-    const ids: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out'];
     await Promise.all(
-      ids.map(async (id) => {
+      IDS.map(async (id) => {
         for (const [ext, magic] of EXTENSIONS) {
           const buf = await probeFile(`${import.meta.env.BASE_URL}assets/sounds/${id}.${ext}`, magic);
           if (!buf) continue;
@@ -106,6 +110,36 @@ export class AudioManager {
         break;
       case 'out':
         this.burst({ freq: 1400, q: 1.2, dur: 0.04, gain: 0.16 });
+        break;
+      // ── Pelea: placeholders hasta que estén las grabaciones ──
+      case 'golpe':
+        this.burst({ freq: 1500, q: 1.1, dur: 0.06, gain: 0.45 * intensity, lowFreq: 150 });
+        this.burst({ freq: 3600, q: 2, dur: 0.025, gain: 0.2 * intensity, delay: 0.005 });
+        break;
+      case 'golpe-pesado':
+        this.burst({ freq: 700, q: 0.9, dur: 0.14, gain: 0.7 * intensity, lowFreq: 85 });
+        this.burst({ freq: 2400, q: 1.6, dur: 0.05, gain: 0.35 * intensity, delay: 0.01 });
+        break;
+      case 'bloqueo':
+        this.burst({ freq: 620, q: 3.5, dur: 0.05, gain: 0.35 * intensity, lowFreq: 200 });
+        break;
+      case 'zumbido':
+        this.burst({ freq: 900, q: 0.6, dur: 0.16, gain: 0.12 * intensity });
+        break;
+      case 'pifio':
+        this.burst({ freq: 600, q: 0.5, dur: 0.22, gain: 0.12 * intensity });
+        this.burst({ freq: 300, q: 0.8, dur: 0.1, gain: 0.08 * intensity, delay: 0.12, lowFreq: 110 });
+        break;
+      case 'escudo':
+        for (let k = 0; k < 4; k++) this.burst({ freq: 2000 + Math.random() * 2500, q: 2.2, dur: 0.03, gain: 0.3 * intensity, delay: k * 0.025 });
+        break;
+      case 'ko':
+        this.burst({ freq: 500, q: 0.7, dur: 0.3, gain: 0.8, lowFreq: 60 });
+        this.burst({ freq: 2800, q: 1.4, dur: 0.06, gain: 0.4, delay: 0.01 });
+        break;
+      case 'round':
+      case 'pelea':
+        this.burst({ freq: id === 'round' ? 1100 : 1600, q: 6, dur: 0.35, gain: 0.25, lowFreq: id === 'round' ? 220 : 330 });
         break;
     }
   }

@@ -312,44 +312,64 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 
 ## Pelea (Chizito Fight) — `src/creature/fight/`
 - Botón PELEAR abajo a la derecha (siempre, sin flag). Misma mesa, misma criatura real (sus mallas): la cámara pasa a una
-  vista lateral que sigue el medio de los dos y se aleja/acerca para encuadrarlos. Rival: brócoli malvado (niveles 1–3).
+  vista lateral que sigue el medio de los dos y se aleja/acerca para encuadrarlos. Rival: EL BROCOLOCO (niveles 1–3); la
+  criatura del jugador es TU CHIZITO.
+- PERFIL Y FRENTE: el frente de la pelea es la CARA que marca la F en el constructor (`BUILDER_FACE`, +Z del chizito; arriba =
+  eje largo +X). Se ven de perfil, con la cara hacia el rival y girados `stanceYaw` (0,45 rad) hacia la cámara: guardia de 3/4.
+  Al cambiar de lado se dan vuelta con un giro 3D real (no espejo). En el motor: `fwd`/`fwdAxis`/`gaitAxis` proyectan el 3D.
 - REGLA DEL USUARIO: cada vara clavada en el chizito (palito, escarbadientes, palito de la selva) es un BRAZO o una PIERNA
   rígida con la articulación en su punto de clavado, SOBRE EL PERÍMETRO del chizito, esté donde esté ("un brazo fuera de lugar
-  igual se mueve como brazo y golpea"). Pierna = sale de la mitad de abajo y apunta al piso; todo lo demás es brazo.
-  FIJAS (sin articulación: pesan, tocan y apoyan, pero no pegan ni caminan): el CHUPETÍN siempre, y toda vara que ATRAVIESA el
-  chizito (el chizito sólo se atraviesa al armar; girarla lo rompería). Lo que asoma < 1 cm (p. ej. un palito clavado al 90 %)
-  no es extremidad: es sólo peso. Papitas/nachos en el cuerpo = escudos (papita 2 golpes, nacho 6) que se astillan con cada
-  golpe y al romperse se deshacen en migas (no caen enteros).
+  igual se mueve como brazo y golpea"). Pierna = sale de la mitad de abajo y apunta al piso; todo lo demás es brazo. Todas las
+  piernas apoyan: la postura de cada una sale de una IK que la estira hasta el piso común (`stance`, tope `stanceMax`).
+  FIJAS (sin articulación): toda vara que ATRAVIESA el chizito (girarla lo rompería) y el CHUPETÍN. El chupetín corre el centro
+  de gravedad hacia su lado y pega con el CUERPO ENTERO (`FIGHT.swing`: se echa atrás, carga, y se tira adelante; pega mientras
+  gira rápido); errar con él desestabiliza muchísimo (`whiffMul`, `whiffKick`). Lo que asoma < 1 cm no es extremidad: es peso.
+  Papitas/nachos en el cuerpo = escudos (papita 2 golpes, nacho 6) que se astillan con cada golpe y al romperse se deshacen en
+  migas (no caen enteros).
   No se usa la física del análisis (calidad de ancla, rangos, arco de 140°): el panel `?dev` sigue con su análisis, aparte.
 - Capas: `fighter.ts` (snapshot → modelo: pivotes, puntos de masa por pieza, rol, tipo de golpe; brócoli), `engine.ts` (motor
   PURO y determinista a 60 Hz), `ai.ts`, `tuning.ts` (TODOS los números), `quat.ts`; con three.js: `render.ts` (criatura real y
-  brócoli), `hud.ts` (HUD HTML), `mount.ts` (bucle, cámara, luz, efectos, teclado), `install.ts`.
+  brócoli, destello y vibración al recibir), `brocoli.ts`, `stage.ts`, `hud.ts` (HUD HTML), `mount.ts` (bucle, cámara, luz,
+  efectos, sonidos, teclado), `install.ts`.
 - Física: cuerpo 2D (x, y, inclinación) + articulaciones 3D con motor PD de torque limitado por la inercia de cada extremidad
   (lo pesado arranca y vuelve más lento); frenar usa más torque que arrancar (el golpe se corta). Contrapeso: el cuerpo se inclina
   hacia donde está el peso y recibe la reacción de cada giro. Pesos: tabla de la realidad del chat de mecánicas (`FIGHT.massGrams`).
+- CARGA: lo pesado se carga antes de pegar (`FIGHT.charge`: cuadros = k · (masa extremidad / masa chizito − free), con temblor);
+  un golpe recibido durante la carga la corta. La aceituna pega más fuerte pero bastante más lenta.
 - Daño = `dmgK · masaEfectiva^0,4 · velocidad^1,3` (masa efectiva = I/r² en el punto que toca): la VELOCIDAD manda; algo pesado
   que casi no se mueve pega poco (lo que no se puede mover se penaliza, no se premia).
-- Un golpe por vez. ERRAR cuesta: el freno queda flojo (sigue de largo), el giro que traía pasa al cuerpo (lo inclina y lo
-  arrastra) y la criatura no puede golpear ni cubrirse por `base + k · masaExtremidad/masaChizito` cuadros (una aceituna pesa más
-  que el chizito: ~40 cuadros); si se inclina de más, TRASTABILLA. Acertar cuesta poco (`hitLock`).
+- Un golpe por vez. ERRAR cuesta: cartel "¡PIFIÓ!" en cada yerro; el freno queda flojo (sigue de largo), el giro que traía pasa
+  al cuerpo (lo inclina y lo arrastra) y no puede golpear ni cubrirse por `base + k · masaExtremidad/masaChizito` cuadros; además
+  no vuelve a pegar hasta ESTABILIZARSE (`stableW`). Si se inclina de más, se tambalea (sólo el sonido: la palabra
+  "trastabilla" NO aparece nunca en pantalla, pedido del usuario). Acertar cuesta poco (`hitLock`).
 - GUARDIA FÍSICA: los brazos se cruzan delante del cuerpo (uno en diagonal arriba, otro abajo) y sólo bloquea si el golpe TOCA
-  un brazo; lo que pasa por fuera pega. Sin brazos no hay guardia.
+  un brazo; lo que pasa por fuera pega. Sin brazos no hay guardia. CON ESCUDOS, la guardia PRESENTA el escudo (`shieldPose`):
+  en la cabeza se inclina adelante, en la espalda se da vuelta, abajo se pone cabeza abajo; sin escudos vuelven los brazos.
 - PIERNAS Y PESO: cada pierna carga gramos según su pieza (`legCarryGrams`); si la criatura pesa más, camina lento; si las piernas
   cargan menos del 60 % de la masa, o no hay piernas, NO SALTA. Sin piernas se arrastra.
 - Tipos: liviano (palito), corte (escarbadientes: sangra), pesado (aceituna, bola del chupetín: llena el mareo → aturde), escudo.
 - Golpe: carga → golpe → vuelta, siguiendo el ángulo a lo largo del eje del golpe (un brazo hacia atrás pasa por arriba, mazazo).
   El eje sale de girar la dirección de reposo hacia el rival, en 3D (sirve para varas que apuntan a la cámara).
+- EFECTOS DE GOLPE: congelamiento (`hitstop`), destello blanco leve y vibración del que recibe (`Hurt` en `render.ts`), estallido,
+  anillo, migas (`fx/Crumbs.ts`: 12 formas redondeadas distintas con manchas tostadas, muchas chicas y pocas grandes) y astillas.
+- SONIDOS: ids listos para que el usuario grabe los suyos (`public/assets/sounds/<id>.ogg|mp3|wav`; si no hay archivo, suena
+  un sintetizado): `golpe`, `golpe-pesado`, `bloqueo`, `zumbido` (golpe pesado que arranca), `pifio`, `escudo` (se rompe),
+  `ko`, `round`, `pelea`, más los del constructor (`pick`, `drop`, `crack`, `crunch`, `out`).
 - Formato: al mejor de 3 rounds, 90 s, vida 100, empate exacto = ronda extra. Controles (botones separados, sin combinar con
   flechas): ← → moverse, ↑ saltar, ↓ agacharse, Z/J PIÑA (el brazo siguiente; en el aire, en picada), X/K PATADA (la pierna más
-  adelantada), C/L GUARDIA (mantener), Esc pausa. Mira siempre al rival: giro de 180° animado (no espejo; el brócoli, simétrico,
-  se da vuelta como figurita).
-- Escenario (`stage.ts`): la misma mesa de NOCHE. Arena = tabla de picar de madera oscura (`GROUND` = 1,2 cm: el piso del motor
-  está ahí), foco cálido con sombras reales (los luchadores proyectan sombra), contorno frío, guirnaldas de lucecitas y velas como
-  bokeh, AO, más contraste y viñeta. Se esconden los recipientes y su sombra de grupo. Calidad adaptativa: AO → DoF → resolución.
-- Brócoli (`brocoli.ts`, procedural): copa de floretes granulados en 3D, tallo fibroso, brazos/piernas de zanahoria con anillos y
-  punta cortada, ojos de rodaja de remolacha, cejas de tira de morrón, boca con dientes de sésamo negro. Silueta del boceto.
+  adelantada), C/L GUARDIA (mantener), Esc pausa. Mira siempre al rival.
+- Escenario (`stage.ts`): la misma mesa de NOCHE. Arena = tabla de picar de haya (`public/assets/fight/tabla.jpg`, se precarga
+  con `preloadFightSet`; `GROUND` = 1,2 cm: el piso del motor está ahí), foco cálido con alcance limitado (no ilumina la pared)
+  y sombras reales, contorno frío, guirnaldas de lucecitas y velas como bokeh, AO, más contraste y viñeta. Se esconden los
+  recipientes y su sombra de grupo. Calidad adaptativa: AO → DoF → resolución. RESTOS DE FIESTA (`render/PartyProps.ts`, los
+  mismos en el constructor, al fondo de la mesa): caramelos masticables envueltos (`public/assets/fight/sugus.jpg`, genérico,
+  sin marca), carozos de aceituna comidos y servilletas usadas hechas un bollo con ketchup, en capas detrás y delante de los
+  luchadores (sobre el borde de la tabla), desenfocados por la profundidad.
+- Brócoli (`brocoli.ts`): modelos 3D hechos en Higgsfield (imagen Nano Banana → SAM 3D): `public/assets/models/brocoli-cuerpo.glb`
+  (cara hacia −Z, se gira) y `zanahoria.glb` (una zanahoria real por extremidad); arte en `docs/arte/`. Si faltan los GLB, queda
+  el procedural (floretes, tallo, ojos de remolacha, cejas de morrón, dientes de sésamo).
 - Render: la parte de la vara que queda adentro del chizito se recorta con un plano por extremidad (`clippingPlanes`), así al girar
-  no asoma.
+  no asoma. El squash de la criatura se integra en subpasos (a < 24 fps divergía: era el bug del zoom que crecía y parpadeaba).
 - Pruebas: `node scripts/creature-fight-test.mjs` (puras: modelo, apoyo, contrapeso, caminar, golpes, peso, guardia, escudos,
-  rounds, tiempo, determinismo, rendimiento) y con `npm run dev`: `node scripts/fight-ui-test.mjs [dir] [criatura]` (navegador,
-  teclado real, capturas con HUD). Balance: `node scripts/fight-balance.mjs <criatura>`.
+  carga, chupetín, rounds, tiempo, determinismo, rendimiento) y con `npm run dev`: `node scripts/fight-ui-test.mjs [dir] [criatura]`
+  (navegador, teclado real, capturas con HUD). Balance: `node scripts/fight-balance.mjs <criatura>`.

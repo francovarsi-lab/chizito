@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Simplex3 } from '../util/noise';
 
 /**
  * Migas diminutas que se desprenden del punto de entrada y caen a la mesa (y = 0), con un rebote
@@ -25,25 +26,38 @@ export class Crumbs {
     private readonly scene: THREE.Scene,
     color = '#f2c95a',
   ) {
-    // Unas pocas formas irregulares reutilizables.
-    for (let k = 0; k < 4; k++) {
-      const g = new THREE.IcosahedronGeometry(0.5, 0);
+    // Doce formas reutilizables, todas distintas: bultitos redondeados e irregulares (algunos achatados, otros alargados),
+    // con manchitas tostadas en los colores de los vértices (multiplican el color de la miga).
+    const noise = new Simplex3(Math.floor(Math.random() * 1e5));
+    for (let k = 0; k < 12; k++) {
+      const g = new THREE.IcosahedronGeometry(0.5, 1);
       const pos = g.getAttribute('position');
+      const sx = 0.75 + Math.random() * 0.5;
+      const sy = 0.5 + Math.random() * 0.45;
+      const sz = 0.75 + Math.random() * 0.5;
+      const col = new Float32Array(pos.count * 3);
+      const v = new THREE.Vector3();
       for (let i = 0; i < pos.count; i++) {
-        const f = 0.65 + Math.random() * 0.6;
-        pos.setXYZ(i, pos.getX(i) * f, pos.getY(i) * f * 0.8, pos.getZ(i) * f);
+        v.fromBufferAttribute(pos, i);
+        const n = noise.noise(v.x * 2.2 + k * 7, v.y * 2.2, v.z * 2.2);
+        const f = 0.8 + 0.28 * n + (Math.random() - 0.5) * 0.08;
+        pos.setXYZ(i, v.x * f * sx, v.y * f * sy, v.z * f * sz);
+        const toast = 0.78 + 0.3 * (noise.noise(v.x * 5 + k, v.y * 5, v.z * 5 + 3) * 0.5 + 0.5);
+        col[3 * i] = col[3 * i + 1] = col[3 * i + 2] = toast;
       }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
       g.computeVertexNormals();
       this.geos.push(g);
     }
-    this.mat = new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true });
+    this.mat = new THREE.MeshStandardMaterial({ color, roughness: 0.88, vertexColors: true });
   }
 
   /** Suelta `n` migas desde `point` (mundo), empujadas levemente hacia `away` (normal saliente). */
   emit(point: THREE.Vector3, away: THREE.Vector3, n = 2): void {
     for (let i = 0; i < n; i++) {
       const mesh = new THREE.Mesh(this.geos[Math.floor(Math.random() * this.geos.length)], this.mat);
-      mesh.scale.setScalar(0.0009 + Math.random() * 0.0009);
+      // Muchas chicas y pocas grandes.
+      mesh.scale.setScalar(0.0007 + Math.pow(Math.random(), 2.2) * 0.0016);
       mesh.position.copy(point).addScaledVector(away, 0.0012);
       mesh.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
       mesh.castShadow = false;

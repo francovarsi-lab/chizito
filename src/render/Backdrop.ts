@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { litter } from './PartyProps';
 import type { AssetRegistry } from '../assets/AssetRegistry';
 import { stripesTexture } from '../assets/procedural/surfaces';
 import { mulberry32 } from '../util/noise';
@@ -126,6 +127,21 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   bgBowl2.position.set(0.36, 0, -0.85);
   bgBowl2.add(fillBowl(assets, 'papita', 0.08, 0.048, 40, 31));
   farProps.add(bgBowl2);
+
+  // Restos de fiesta (los mismos que en la pelea: mismo mundo): servilleta usada, carozos y caramelos, al fondo y a los costados.
+  farProps.add(
+    litter(
+      [
+        { kind: 'napkin', x: -0.22, z: -0.38, rot: 0.7 },
+        { kind: 'pit', x: -0.165, z: -0.34, rot: 0.3 },
+        { kind: 'pit', x: -0.15, z: -0.365, rot: 2.4 },
+        { kind: 'candy', x: 0.235, z: -0.36, rot: 0.4, flavor: 2 },
+        { kind: 'candy', x: 0.27, z: -0.405, rot: -0.3, flavor: 0 },
+        { kind: 'candy', x: 0.205, z: -0.425, rot: 1.2, flavor: 4 },
+      ],
+      5,
+    ),
+  );
 
   // Pocos objetos y lejos: el centro de la mesa queda despejado para el juego.
   farProps.add(makeCup('#b9d8f2', -0.5, -0.95));

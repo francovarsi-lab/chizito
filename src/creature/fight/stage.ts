@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { woodMaterial } from '../../assets/procedural/surfaces';
+import { litter } from '../../render/PartyProps';
 import type { Stage } from '../../render/Stage';
 
 /** m: alto de la tabla de picar donde se pelea (el piso de la pelea queda a esta altura sobre el mantel). */
@@ -22,6 +22,19 @@ export interface FightSet {
 interface Hide {
   obj: THREE.Object3D;
   was: boolean;
+}
+
+let boardTex: THREE.Texture | null = null;
+/** La foto de la tabla se carga antes de entrar: si no, los primeros cuadros la muestran negra. */
+export async function preloadFightSet(): Promise<void> {
+  if (boardTex) return;
+  const tex = await new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}assets/fight/tabla.jpg`).catch(() => null);
+  if (!tex) return;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.repeat.set(1, 0.57); // tabla de 44 × 14 cm sobre una foto de 16:9
+  tex.offset.set(0, 0.2);
+  boardTex = tex;
 }
 
 export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], extraHidden: THREE.Object3D[] = []): FightSet {
@@ -52,7 +65,7 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
   s.sun.castShadow = false;
 
   // Foco angosto: la luz cae sobre la arena y el resto del cuarto queda en penumbra.
-  const key = new THREE.SpotLight(0xffe4c4, 7, 0, 0.27, 0.8, 0);
+  const key = new THREE.SpotLight(0xffe4c4, 7, 1.2, 0.27, 0.8, 0);
   key.position.set(-0.18, 0.5, z0 + 0.38);
   key.target.position.set(0, 0.02, z0);
   key.castShadow = true;
@@ -63,14 +76,14 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
   key.shadow.normalBias = 0.0006;
   key.shadow.radius = 5;
   // Contorno frío desde atrás, angosto: recorta las siluetas sin iluminar la mesa del fondo.
-  const rim = new THREE.SpotLight(0xa9c6ff, 5, 0, 0.2, 0.7, 0);
+  const rim = new THREE.SpotLight(0xa9c6ff, 5, 0.9, 0.2, 0.7, 0);
   rim.position.set(0.12, 0.3, z0 - 0.48);
   rim.target.position.set(0, 0.03, z0);
   const fill = new THREE.DirectionalLight(0xffd8c0, 0.2);
   fill.position.set(0.4, 0.12, z0 + 0.5);
   fill.target.position.set(0, 0.03, z0);
   // Resplandor cálido de las guirnaldas sobre la pared y la mesa del fondo.
-  const glowA = new THREE.PointLight(0xffb070, 0.3, 1.4, 2);
+  const glowA = new THREE.PointLight(0xffb070, 0.08, 1.4, 2);
   glowA.position.set(-0.4, 0.32, -0.9);
   const glowB = glowA.clone();
   glowB.position.set(0.45, 0.3, -0.95);
@@ -89,19 +102,50 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     });
   }
 
-  // ── Arena: tabla de picar de madera oscura, aceitada, con el canto a la vista. ──
-  const wood = woodMaterial();
-  // Madera natural aceitada, mate: que no espeje el cuarto.
-  wood.color.set('#9a8672');
-  wood.specularIntensity = 0.25;
-  wood.clearcoat = 0.06;
-  wood.clearcoatRoughness = 0.55;
-  wood.envMapIntensity = 0.35;
+  // ── Arena: tabla de picar de haya (foto generada de una tabla usada: vetas, tablillas pegadas, marcas de cuchillo y
+  //    manchas), aceitada y mate para que no espeje el cuarto; el relieve sale de la misma foto. ──
+  // Gris neutro: oscurece la haya sin correrle el tono (bajo el foco cálido se iba a naranja y el chizito amarillo se perdía).
+  const wood = new THREE.MeshPhysicalMaterial({ color: '#b4b4b4', map: boardTex, bumpMap: boardTex, bumpScale: 0.6, roughness: 0.62, specularIntensity: 0.3, envMapIntensity: 0.35 });
+  if (!boardTex) wood.color.set('#7a5a40');
   const board = new THREE.Mesh(new RoundedBoxGeometry(0.44, GROUND, 0.14, 4, 0.004), wood);
   board.position.set(0, GROUND / 2, z0);
   board.receiveShadow = true;
   board.castShadow = true;
   add(board);
+
+  // ── Restos de cumpleaños en capas: detrás de la arena (bollo de servilleta, carozos, caramelos) y delante, contra la cámara
+  //    (desenfocados por la profundidad de campo). Dan escala y profundidad: los luchadores miden lo que un caramelo. ──
+  add(
+    litter(
+      [
+        { kind: 'napkin', x: -0.17, z: z0 - 0.14, rot: 0.6 },
+        { kind: 'pit', x: -0.115, z: z0 - 0.105, rot: 0.4 },
+        { kind: 'pit', x: -0.1, z: z0 - 0.125, rot: 2.1 },
+        { kind: 'candy', x: 0.15, z: z0 - 0.125, rot: 0.35, flavor: 2 },
+        { kind: 'candy', x: 0.178, z: z0 - 0.16, rot: -0.5, flavor: 0 },
+        { kind: 'candy', x: 0.125, z: z0 - 0.175, rot: 1.1, flavor: 4 },
+        { kind: 'napkin', x: 0.3, z: z0 - 0.24, rot: 2.4, size: 0.05 },
+        { kind: 'candy', x: -0.3, z: z0 - 0.2, rot: 0.9, flavor: 3 },
+        // Delante de la tabla, contra la cámara.
+        { kind: 'candy', x: -0.11, z: z0 + 0.1, rot: 0.25, flavor: 1 },
+        { kind: 'pit', x: 0.06, z: z0 + 0.092, rot: 1.3 },
+        { kind: 'candy', x: 0.21, z: z0 + 0.105, rot: -0.7, flavor: 2 },
+        { kind: 'napkin', x: -0.26, z: z0 + 0.11, rot: 0.2, size: 0.035 },
+      ],
+      11,
+    ),
+  );
+  // Sobre el borde delantero de la tabla, entre la cámara y los pies: tapan apenas a los luchadores al pasar.
+  const onBoard = litter(
+    [
+      { kind: 'pit', x: -0.045, z: z0 + 0.054, rot: 0.8 },
+      { kind: 'candy', x: 0.185, z: z0 + 0.05, rot: 0.3, flavor: 0 },
+      { kind: 'napkin', x: -0.19, z: z0 + 0.048, rot: 1.7, size: 0.03 },
+    ],
+    23,
+  );
+  onBoard.position.y = GROUND;
+  add(onBoard);
 
   // ── Guirnaldas de lucecitas detrás de la mesa: de lejos, con el desenfoque, son círculos de luz. ──
   const bulbsGeo = new THREE.SphereGeometry(1, 10, 8);
@@ -185,7 +229,7 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
         if ((o as THREE.Light).isLight) (o as THREE.Light).dispose();
       }
       wireMat.dispose();
-      wood.dispose();
+      wood.dispose(); // la foto de la tabla queda en caché para la próxima pelea
       bulbsGeo.dispose();
       for (const h of hidden) h.obj.visible = h.was;
       for (const c of casters) c.m.castShadow = c.cast;
