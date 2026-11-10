@@ -22,6 +22,7 @@ import { Persistence } from './persistence/Persistence';
 import { Title, type TitleStyle } from './ui/Title';
 import { ZoneGuides } from './render/ZoneGuides';
 import { InfoCard } from './ui/InfoCard';
+import { createBulbs } from './render/Bulbs';
 
 async function main() {
   const canvas = document.createElement('canvas');
@@ -38,6 +39,9 @@ async function main() {
 
   const backdrop = buildBackdrop(assets);
   stage.scene.add(backdrop.root);
+  // Las lucecitas de la pelea también están de día, suaves: es la misma mesa (la pelea las enciende a pleno).
+  const bulbs = createBulbs(CONFIG.chizitoCenter.z);
+  backdrop.farProps.add(bulbs.group);
 
   // Telón fotográfico opcional (public/assets/backdrop.jpg): reemplaza la pared y el fondo modelado.
   const photo = await loadPhotoBackdrop(stage.camera);
@@ -175,6 +179,7 @@ async function main() {
     rig.update(dt);
     if (rig.moved && photo) photo.layout();
     backdrop.party.update(dt);
+    bulbs.update(dt);
     interaction.update(dt);
     shake.busy = interaction.busy;
     shake.update(dt);

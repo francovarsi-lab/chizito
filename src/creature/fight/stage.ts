@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { litter } from '../../render/PartyProps';
+import { BULBS_NAME, type Bulbs } from '../../render/Bulbs';
 import type { Stage } from '../../render/Stage';
 
 /** m: alto de la tabla de picar donde se pelea (el piso de la pelea queda a esta altura sobre el mantel). */
@@ -200,40 +201,9 @@ function getArena(z0: number): Arena {
   onBoard.position.y = GROUND;
   add(onBoard, litter(items.filter((it) => !onWood(it)), 11));
 
-  // ── Guirnaldas de lucecitas detrás de la mesa: de lejos, con el desenfoque, son círculos de luz. ──
-  const bulbsGeo = new THREE.SphereGeometry(1, 10, 8);
-  const wireMat = new THREE.MeshStandardMaterial({ color: '#2b2420', roughness: 0.7 });
-  const warm = [new THREE.Color(5, 3.6, 1.6), new THREE.Color(5, 2.8, 1.1), new THREE.Color(4.2, 3.9, 3.2)];
-  const party = [new THREE.Color(4.5, 1.4, 2.2), new THREE.Color(1.4, 3.6, 3.4), new THREE.Color(4.6, 3.4, 0.9)];
-  const bulbs: { m: THREE.Mesh; base: THREE.Color; ph: number }[] = [];
-  const strand = (a: THREE.Vector3, b: THREE.Vector3, sag: number, n: number, r: number, colorful: boolean): void => {
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 30; i++) {
-      const t = i / 30;
-      pts.push(new THREE.Vector3().lerpVectors(a, b, t).add(new THREE.Vector3(0, -sag * 4 * t * (1 - t), 0)));
-    }
-    const curve = new THREE.CatmullRomCurve3(pts);
-    add(new THREE.Mesh(new THREE.TubeGeometry(curve, 60, r * 0.12, 4), wireMat));
-    for (let i = 0; i < n; i++) {
-      const base = (colorful && i % 3 === 1 ? party : warm)[i % 3].clone();
-      const mat = new THREE.MeshBasicMaterial({ color: base.clone(), toneMapped: false });
-      const m = new THREE.Mesh(bulbsGeo, mat);
-      m.scale.set(r, r * 1.3, r);
-      m.position.copy(curve.getPointAt((i + 0.5) / n)).add(new THREE.Vector3(0, -r * 1.4, 0));
-      add(m);
-      bulbs.push({ m, base, ph: i * 1.7 });
-    }
-  };
-  strand(new THREE.Vector3(-0.7, 0.2, z0 - 0.55), new THREE.Vector3(0.7, 0.19, z0 - 0.6), 0.07, 34, 0.0042, true);
-  strand(new THREE.Vector3(-1.0, 0.42, -1.18), new THREE.Vector3(1.0, 0.4, -1.18), 0.12, 46, 0.007, false);
-  strand(new THREE.Vector3(-0.9, 0.3, -1.05), new THREE.Vector3(0.6, 0.28, -1.1), 0.08, 30, 0.006, true);
-
   const arena: Arena = {
     objects,
     update(t) {
-      // Titileo leve, como lucecitas reales.
-      for (const b of bulbs) b.m.scale.y = b.m.scale.x * (1.3 + 0.04 * Math.sin(t * 3 + b.ph));
-      for (const b of bulbs) (b.m.material as THREE.MeshBasicMaterial).color.copy(b.base).multiplyScalar(0.9 + 0.1 * Math.sin(t * 2.3 + b.ph));
       placeDust(t);
     },
     track(i, head, facing) {
@@ -337,6 +307,10 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
   const arena = getArena(z0);
   arena.resetTrack();
   add(...arena.objects);
+  // Las lucecitas del constructor (las mismas) se encienden a pleno.
+  const bulbs = scene.getObjectByName(BULBS_NAME)?.userData.bulbs as Bulbs | undefined;
+  const bulbsWas = bulbs?.level ?? 0;
+  if (bulbs) bulbs.level = 1;
 
   // Los luchadores proyectan la sombra del foco (en el constructor usan sólo la sombra de contacto).
   const casters: { m: THREE.Mesh; cast: boolean }[] = [];
@@ -397,6 +371,7 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     restore() {
       // La arena queda armada para la próxima pelea: sólo se saca de la escena.
       for (const o of added) o.removeFromParent();
+      if (bulbs) bulbs.level = bulbsWas;
       for (const h of hidden) h.obj.visible = h.was;
       for (const c of casters) c.m.castShadow = c.cast;
       scene.environmentIntensity = env.e;
