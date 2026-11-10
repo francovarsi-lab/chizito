@@ -15,6 +15,7 @@ import { FightHud, type MenuAction } from './hud';
 import { blendPose, broccoliView, creatureView, type FighterView, type RenderPose } from './render';
 import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT } from './tuning';
+import { qFromTo, type Q } from './quat';
 import type { Quad } from '../zones';
 
 /** Lo que el juego deja en `window.__chizito`: la MISMA escena, cámara y criatura del constructor. */
@@ -110,6 +111,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const camPos = new THREE.Vector3();
   const camLook = new THREE.Vector3();
   let camInit = false;
+  // ── Presentación de los luchadores (con los MISMOS modelos del juego), antes del round 1. Se saltea con cualquier tecla. ──
+  let present: { t: number; pending: FightEvent[]; fired: Set<string> } | null = null;
+  const wantsPresent = (): boolean => {
+    const q = new URLSearchParams(location.search);
+    return !q.has('capture') || q.has('presentacion');
+  };
   let crumbs: [Crumbs, Crumbs] | null = null;
   /** Migas de los escudos (papita, nacho). */
   let chips: Crumbs | null = null;
@@ -323,6 +330,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // ── Cámara de pelea: lateral, sigue el medio de los dos y se aleja o acerca para que entren con aire ──
   const camera = (dt: number): void => {
     if (!m) return;
+    if (present) return presentCamera();
     const cam = game().stage.camera;
     cam.setFocalLength(42);
     const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
@@ -374,10 +382,131 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (!prev) prev = cur;
   };
 
+  // Presentación: 0–2,8 s TU CHIZITO (la cámara lo rodea, se estira y le tira piñas a la cámara con sus brazos reales),
+  // 2,8–5,3 s EL BROCOLOCO (primer plano de la cara, levanta las zanahorias y se ríe). Después, ROUND 1.
+  const P_CHIZ = 2.8;
+  const P_END = 5.3;
+  const once = (key: string, at: number, fn: () => void): void => {
+    if (!present || present.t < at || present.fired.has(key)) return;
+    present.fired.add(key);
+    fn();
+  };
+  const presentStep = (dt: number): void => {
+    if (!present || !m || !views) return;
+    present.t += dt;
+    const t = present.t;
+    const g = game();
+    const f0 = m.f[0];
+    if (t < P_CHIZ) {
+      const parts = [`${f0.arms.length} brazo${f0.arms.length === 1 ? '' : 's'}`, `${f0.legs.length} pierna${f0.legs.length === 1 ? '' : 's'}`, `${(f0.model.mass * 1000).toFixed(1).replace('.', ',')} g`];
+      hud.present(0, 'TU CHIZITO', parts.join(' · '));
+    } else hud.present(1, 'EL BROCOLOCO', `NIVEL ${level} · el vegetal más malo de la mesa`);
+    // Se estira (el resorte del aplastón) y tira piñas; el brócoli se ríe a los saltos.
+    once('estira1', 0.25, () => views![0].bump(-0.9));
+    once('estira2', 2.15, () => views![0].bump(-1));
+    for (const [i, at] of [0.95, 1.45, 1.95].entries()) once(`pina${i}`, at, () => g.audio.play('zumbido', 0.7));
+    for (const at of [3.15, 3.55, 3.95, 4.35]) once(`risa${at}`, at, () => views![1].bump(0.7));
+    once('risa', 3.1, () => g.audio.play('risa', 1));
+    if (t >= P_END) endPresent();
+  };
+  /** Pose de la presentación: la del motor (quieto) con los brazos animados. */
+  const presentPose = (i: 0 | 1, base: RenderPose): RenderPose => {
+    if (!present || !m) return base;
+    const t = present.t;
+    const f = m.f[i];
+    const L = f.model.limbs;
+    const cam = game().stage.camera.position;
+    const psi = f.facing > 0 ? -f.yaw : -Math.PI + f.yaw;
+    const toLocal = (v: THREE.Vector3): [number, number, number] => {
+      const d = v.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), -psi);
+      return [d.x, d.y, d.z];
+    };
+    const qs = base.qs.map((q) => [...q] as Q);
+    const blend = (k: number, target: Q, a: number): void => {
+      const A = new THREE.Quaternion(...base.qs[k]);
+      const B = new THREE.Quaternion(...target);
+      const r = A.slerp(B, Math.max(0, Math.min(1, a)));
+      qs[k] = [r.x, r.y, r.z, r.w];
+    };
+    if (i === 0) {
+      // Piñas a la cámara: cada brazo (articulado) apunta a la lente y vuelve, uno por vez.
+      const arms = f.arms.filter((k) => !L[k].rigid);
+      [0.95, 1.45, 1.95].forEach((at, n) => {
+        if (!arms.length) return;
+        const k = arms[n % arms.length];
+        const u = t - at;
+        if (u < 0 || u > 0.45) return;
+        const a = u < 0.12 ? 1 - (1 - u / 0.12) ** 3 : u < 0.2 ? 1 : 1 - (u - 0.2) / 0.25;
+        const pivotW = new THREE.Vector3(f.x, f.y + GROUND, z0);
+        blend(k, qFromTo(L[k].dir, toLocal(cam.clone().sub(pivotW))), a);
+      });
+      return { ...base, qs, tilt: base.tilt + 0.07 * Math.sin(t * 7) * (t < P_CHIZ ? 1 : 0) };
+    }
+    // El brócoli: zanahorias arriba, sacudiéndose (furioso y riéndose).
+    if (t > P_CHIZ - 0.2) {
+      f.arms.forEach((k, n) => {
+        const d = L[k].dir;
+        const up: [number, number, number] = [d[0] * 0.35, 1, d[2] * 0.35];
+        const l = Math.hypot(...up);
+        blend(k, qFromTo(d, [up[0] / l, up[1] / l, up[2] / l]), Math.min(1, (t - P_CHIZ + 0.2) * 4) * (0.75 + 0.25 * Math.sin(t * 16 + n * 2)));
+      });
+    }
+    return { ...base, qs };
+  };
+  /** Cámara de la presentación: rodea al chizito; después, primer plano de la cara del brócoli (que está de frente). */
+  const presentCamera = (): void => {
+    if (!present || !m) return;
+    const cam = game().stage.camera;
+    const t = present.t;
+    let pos: THREE.Vector3;
+    let look: THREE.Vector3;
+    if (t < P_CHIZ) {
+      const f = m.f[0];
+      const c = new THREE.Vector3(f.x, f.y + GROUND + 0.006, z0);
+      const k = t / P_CHIZ;
+      const a = -0.6 + 0.85 * (k * k * (3 - 2 * k));
+      const D = 0.17 - 0.03 * k;
+      pos = c.clone().add(new THREE.Vector3(Math.sin(a) * D, 0.022 - 0.012 * k, Math.cos(a) * D));
+      look = c;
+      cam.setFocalLength(50);
+    } else {
+      const f = m.f[1];
+      const face = new THREE.Vector3(f.x, f.y + GROUND + 0.01, z0);
+      // La cara mira al rival y hacia la cámara (su giro propio): la toma va de frente a ella, acercándose.
+      const n = new THREE.Vector3(f.facing * Math.cos(f.yaw), 0, Math.sin(f.yaw));
+      const k = Math.min(1, (t - P_CHIZ) / (P_END - P_CHIZ));
+      pos = face.clone().addScaledVector(n, 0.14 - 0.035 * k).add(new THREE.Vector3(0, 0.012, 0));
+      look = face;
+      cam.setFocalLength(50);
+    }
+    // Entra suave desde donde esté la cámara (el constructor o la toma anterior).
+    const kk = 1 - Math.exp(-0.016 * 9);
+    camPos.lerp(pos, camInit ? kk : 1);
+    camLook.lerp(look, camInit ? kk : 1);
+    camInit = true;
+    cam.position.copy(camPos);
+    cam.lookAt(camLook);
+    cam.updateMatrixWorld();
+    game().stage.focusTarget.copy(camLook);
+  };
+  const endPresent = (): void => {
+    if (!present) return;
+    const pending = present.pending;
+    present = null;
+    hud.present(null);
+    for (const e of pending) onEvent(e);
+    // De la última toma a la de pelea, en movimiento (no de golpe).
+    const cam = game().stage.camera;
+    camPos.copy(cam.position);
+    camInit = true;
+  };
+
   const update = (dt: number): void => {
     if (!m || !views) return;
     const raw = dt;
-    if (!paused) {
+    if (present && !paused) {
+      presentStep(raw);
+    } else if (!paused) {
       const scale = m.phase === 'ko' ? 0.3 : 1;
       acc += dt * scale;
       let n = 0;
@@ -393,7 +522,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     }
     const t = m.hitstop > 0 ? 1 : Math.min(1, acc / FIGHT.dt);
     if (prev && cur) views.forEach((v, i) => {
-      const p = blendPose(prev![i], cur![i], t);
+      const p = present ? presentPose(i as 0 | 1, cur![i]) : blendPose(prev![i], cur![i], t);
       v.apply({ ...p, y: p.y + GROUND }, z0, raw);
     });
     set?.update(raw);
@@ -433,7 +562,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (avg > 0.022 && level2 < 3) set.degrade(++level2);
   };
 
-  const restart = (lv = level): void => {
+  const restart = (lv = level, withPresent = false): void => {
     if (!model || !views) return;
     level = Math.max(1, Math.min(AI_LEVELS.length, lv));
     const bro = broccoliFighter(level);
@@ -449,7 +578,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     acc = 0;
     prev = cur = null;
     views.forEach((v) => v.reattach());
-    for (const e of m.events) onEvent(e);
+    if (withPresent) present = { t: 0, pending: [...m.events], fired: new Set() };
+    else for (const e of m.events) onEvent(e);
     cur = [poseOf(m.f[0]), poseOf(m.f[1])];
     prev = cur;
     camInit = false;
@@ -503,6 +633,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       else if (!e.repeat) hud.menuKey(e.code);
       return;
     }
+    if (present) return endPresent();
     if (e.code === 'Escape') return pause(true);
     if (e.code === 'KeyR' && m?.phase === 'over') return restart(level);
     if (!e.repeat) edges.add(e.code);
@@ -605,7 +736,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         if (open) update(dt);
         render(dt);
       };
-      restart(level);
+      restart(level, wantsPresent());
       tween = { t: 0, from: { pos: saved.pos.clone(), quat: saved.quat.clone() } };
     },
     close() {

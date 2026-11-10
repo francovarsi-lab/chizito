@@ -179,6 +179,11 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
   chizito/aceituna que se ensarta (`mount`) y el ketchup no se miden; el cargador no revisa choques de archivos viejos.
   Prueba: `node scripts/solidball-test.mjs`.
 - La ayuda en la mano sale de `PieceDefinition.holdHint`.
+- SECCIONES PARA PELEAR (`render/ZoneGuides.ts`): línea punteada sobre el chizito (cabeza / brazos / piernas, izquierda /
+  derecha) con carteles de la tecla de cada sección (Q W brazos, A S piernas, cabeza sin botón); se ve con una pieza en la mano
+  o con el cartel abierto. Va aparte de la construcción (copia el giro del pivote): no se agarra ni entra al archivo.
+  CARTEL "ELEGÍ LOS INGREDIENTES" (`ui/InfoCard.ts`): sale al llegar a la mesa; explica las secciones, escudos, aceituna y que el
+  KETCHUP ES PARA DIBUJARLE LA CARA. Se cierra con el botón o al agarrar la primera pieza; I lo abre y cierra.
 - Chizito extra (DESCARTADO por el usuario como pieza suelta: no hay bowl ni se va a agregar; el mecanismo `mountsOnTail` queda porque lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
   pasar el mouse muestra el anillo; clic en el chizito = punto de entrada → AIMING (mouse = ángulo, invertido porque se
@@ -320,7 +325,10 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   real (no espejo): una cara dibujada de costado queda del otro lado. En el motor: `fwd`/`fwdAxis`/`gaitAxis` proyectan el 3D.
 - REGLA DEL USUARIO: cada vara clavada en el chizito (palito, escarbadientes, palito de la selva) es un BRAZO o una PIERNA
   rígida con la articulación en su punto de clavado, SOBRE EL PERÍMETRO del chizito, esté donde esté ("un brazo fuera de lugar
-  igual se mueve como brazo y golpea"). Pierna = sale de la mitad de abajo y apunta al piso; todo lo demás es brazo. Todas las
+  igual se mueve como brazo y golpea"). SECCIONES (`src/creature/zones.ts`, compartidas con el constructor): según DÓNDE se
+  clava a lo largo del eje largo: PIERNAS = el pedazo de abajo (25 % del largo, `legBelow`), CABEZA = arriba (`headAbove`: no es
+  brazo, lo que tenga pesa y protege, sin botón), BRAZOS = el medio. Izquierda/derecha como se arma (de frente): izquierda =
+  +Y del chizito raíz. Todas las
   piernas apoyan: la postura de cada una sale de una IK que la estira hasta el piso común (`stance`, tope `stanceMax`), y con 2+
   piernas se acomodan contra la inclinación (`legPlant`): la criatura se para SOBRE sus piernas.
   FIJAS (sin articulación): toda vara que ATRAVIESA el chizito (girarla lo rompería) y el CHUPETÍN. El chupetín corre el centro
@@ -370,10 +378,22 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   anillo, migas (`fx/Crumbs.ts`: 12 formas redondeadas distintas con manchas tostadas, muchas chicas y pocas grandes) y astillas.
 - SONIDOS: ids listos para que el usuario grabe los suyos (`public/assets/sounds/<id>.ogg|mp3|wav`; si no hay archivo, suena
   un sintetizado): `golpe`, `golpe-pesado`, `bloqueo`, `zumbido` (golpe pesado que arranca), `pifio`, `escudo` (se rompe),
-  `ko`, `round`, `pelea`, `combo` (sale una combinación), más los del constructor (`pick`, `drop`, `crack`, `crunch`, `out`).
-- Formato: al mejor de 3 rounds, 90 s, vida 100, empate exacto = ronda extra. Controles (botones separados, sin combinar con
-  flechas): ← → moverse, ↑ saltar, ↓ agacharse, Z/J PIÑA (el brazo siguiente; en el aire, en picada), X/K PATADA (la pierna más
-  adelantada), C/L GUARDIA (mantener), Esc pausa. Mira siempre al rival.
+  `ko`, `round`, `pelea`, `combo` (sale una combinación), `japish` (el grito ¡JAPISH!, en golpes fuertes y combinaciones),
+  `risa` (presentación del brócoli), más los del constructor (`pick`, `drop`, `crack`, `crunch`, `out`). Los yerros alternan
+  ¡PIFIÓ! y ¡PIF!.
+- Formato: al mejor de 3 rounds, 90 s, vida 100, empate exacto = ronda extra. CONTROLES = un botón por CUADRANTE del chizito
+  (mano izquierda, como se ve al armarlo): Q brazos izquierdos, W brazos derechos, A piernas izquierdas, S piernas derechas;
+  cada toque usa la SIGUIENTE extremidad de ese cuadrante (de a una, cada cuadrante lleva su cuenta: mil escarbadientes de un
+  lado y una aceituna del otro = un botón los usa de a uno, el otro carga sólo la pesada). D guardia (mantener). Flechas:
+  ← → moverse, ↑ saltar (un brazo en el aire = en picada), ↓ agacharse. Esc pausa. Atajos: Z/X/C (o J/K/L) = cualquier brazo,
+  cualquier pierna, guardia. El HUD muestra el chizito dividido con la tecla y cuántas extremidades hay en cada cuadrante.
+  Mira siempre al rival.
+- PRESENTACIÓN (antes del round 1, con los modelos reales del juego, se saltea con cualquier tecla): la cámara rodea a TU
+  CHIZITO, que se estira y le tira piñas a la cámara con sus brazos; después primer plano de EL BROCOLOCO, que levanta las
+  zanahorias y se ríe (sonido `risa`). En `?capture` no sale salvo con `&presentacion`.
+- CUERPO ENTERO: el torso gira con el golpe (`FIGHT.twist`: el hombro va atrás al cargar y adelante al soltar; física y dibujo
+  con el mismo giro, `f.yaw`) y las piernas apoyadas ponen el pie bajo el centro de masa (`FIGHT.support`; mucho más mientras
+  otra patea: se para sobre ésa).
 - Escenario (`stage.ts`), con el arte clave `docs/arte/arte-clave-pelea.jpg` como norte: la misma mesa de NOCHE, el cuarto casi
   negro (entorno ×0,06, sólo lucecitas y velas como bokeh, sombras apenas frías con `look.lift`). Arena = tabla de picar grande
   (50 × 32 cm, corrida hacia atrás para que el foco caiga sobre madera; `public/assets/fight/tabla.jpg`, se precarga con
@@ -384,10 +404,18 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   mismos en el constructor, al fondo de la mesa): caramelos masticables envueltos (`public/assets/fight/sugus.jpg`, genérico,
   sin marca), carozos de aceituna comidos y servilletas usadas hechas un bollo con ketchup, en capas detrás y delante de los
   luchadores (sobre el borde de la tabla), desenfocados por la profundidad.
+- CARGA SIN ESPERA: mientras se arma, en ratos libres (`requestIdleCallback`), un ENSAYO invisible deja la pelea lista: modelos
+  del brócoli, foto de la tabla, la arena armada (`getArena`, queda guardada entre peleas) y los shaders de toda la escena
+  compilados con la luz de la pelea (`prewarmFight`: `renderer.compile` con los focos en una escena aparte y apuntando al
+  buffer del posprocesado, que cambia la variante del shader). Medido: abrir la pelea pasa de ~1 s a ~0,1 s y no compila
+  ningún shader nuevo (antes 28). Al abrir la web, cargador animado con CSS (sigue andando aunque el JS esté ocupado); la
+  utilería repetida de los bowls se genera una vez por forma (`AssetRegistry`, caché de 'prop').
 - Brócoli (`brocoli.ts`): modelos 3D hechos en Higgsfield (imagen Nano Banana → SAM 3D): `public/assets/models/brocoli-cuerpo.glb`
   (cara hacia −Z, se gira) y `zanahoria.glb` (una zanahoria real por extremidad); arte en `docs/arte/`. Al pasar a 3D la cara se
-  perdió: se le pone la del boceto (`addFace`: ojos de remolacha, cejas de morrón, boca con dientes de sésamo) apoyada con rayos
-  sobre la superficie real del tallo. Si faltan los GLB, queda el procedural entero.
+  perdió: se le pone la del boceto (`addFace`: ojos de remolacha grandes con brillo, cejas gruesas de morrón, boca oscura con
+  dientes de sésamo BLANCO para que se lea de lejos) apoyada con rayos sobre la superficie real del tallo (los rayos se tiran
+  una vez y quedan guardados). EL BROCOLOCO tiene su propio giro hacia la cámara (`FIGHT.broccoli.yaw` ≈ 60°, más de frente que
+  la criatura): PRIORIDAD del usuario, su cara se tiene que entender fácil. Si faltan los GLB, queda el procedural entero.
 - Render: la parte de la vara que queda adentro del chizito se recorta con un plano por extremidad (`clippingPlanes`), así al girar
   no asoma. El squash de la criatura se integra en subpasos (a < 24 fps divergía: era el bug del zoom que crecía y parpadeaba).
 - Pruebas: `node scripts/creature-fight-test.mjs` (puras: modelo, apoyo, contrapeso, caminar, golpes, peso, guardia, escudos,
