@@ -130,6 +130,10 @@ export interface FighterState {
   counter: number;
   /** rad: giro hacia la cámara (base del modelo + torso), con su coseno y seno. */
   yaw: number;
+  /** rad: giro del torso al pegar (se suma al del modelo). */
+  twist: number;
+  /** Centro de masa hacia el rival (marco local, del paso anterior): las piernas apoyadas ponen el pie debajo. */
+  comX: number;
   yc: number;
   ys: number;
 }
@@ -285,6 +289,8 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     chain: null,
     counter: 0,
     yaw: model.yaw ?? FIGHT.stanceYaw,
+    twist: 0,
+    comX: 0,
     yc: Math.cos(model.yaw ?? FIGHT.stanceYaw),
     ys: Math.sin(model.yaw ?? FIGHT.stanceYaw),
   };
@@ -748,7 +754,14 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       let ang = gaitAmp * Math.sin(f.gait + (n % 2) * Math.PI) + front * FIGHT.crouch * f.crouch;
       if (f.air > 5) ang = front * 0.35 + (f.vy > 0 ? -0.15 : 0.1);
       // Parado sobre sus piernas: si el cuerpo se inclina, las piernas se acomodan para seguir apoyando debajo.
-      else if (f.legs.length >= 2) ang += FIGHT.legPlant * f.tilt;
+      else if (f.legs.length >= 2) {
+        ang += FIGHT.legPlant * f.tilt;
+        // Sostenerse: el pie apoyado va debajo del centro de masa (mucho más si otra pierna está pateando: se para en ésta).
+        const kicking = f.legs.some((j) => j !== k && (f.limbs[j].phase === 'windup' || f.limbs[j].phase === 'strike'));
+        const foot = fwd(f, posed(f.stance[k], l.pivot, addv(l.pivot, scl(l.dir, l.reach))));
+        const gain = kicking ? FIGHT.support.kick : FIGHT.support.rest;
+        if (s.phase === 'rest' || s.phase === 'recover') ang += clamp((gain * (f.comX - foot)) / l.reach, -FIGHT.support.max, FIGHT.support.max);
+      }
       // Postura (todas las piernas apoyan) y, encima, el paso.
       target = qMul(qAxis(gaitAxis(f), ang), f.stance[k]);
     } else if (l.role === 'arm' && f.guard > 0.02 && s.phase === 'rest' && !f.shieldPose) {
@@ -765,6 +778,28 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     } else if (f.air > 5 && l.role === 'arm') target = qAxis(gaitAxis(f), 0.3);
     react += drive(f, k, target, g);
   });
+
+  // ── Torso: gira con el golpe (el hombro que pega va atrás al cargar y adelante al soltar) ──
+  {
+    const base = M.yaw ?? FIGHT.stanceYaw;
+    const T = FIGHT.twist;
+    let want = 0;
+    let rate: number = T.rate.rest;
+    const sk = f.limbs.findIndex((q, j) => !M.limbs[j].rigid && (q.phase === 'windup' || q.phase === 'strike'));
+    if (sk >= 0 && !f.ko) {
+      const l = M.limbs[sk];
+      // Hacia dónde girar para llevar ESE hombro hacia el rival: derivada de fwd(pivote) respecto del giro.
+      const d = -l.pivot[0] * f.ys - f.facing * l.pivot[2] * f.yc;
+      const sg = Math.sign(d) || 1;
+      const amt = l.role === 'leg' ? T.kick : T.arm;
+      want = f.limbs[sk].phase === 'windup' ? -sg * amt * T.wind : sg * amt;
+      rate = f.limbs[sk].phase === 'windup' ? T.rate.windup : T.rate.strike;
+    }
+    f.twist += (want - f.twist) * Math.min(1, rate * dt);
+    f.yaw = clamp(base + f.twist, T.min, T.max);
+    f.yc = Math.cos(f.yaw);
+    f.ys = Math.sin(f.yaw);
+  }
 
   // ── Cuerpo: avanzar ──
   const wantVx = canAct ? input.x * f.speed * (1 - 0.65 * f.guard) * (1 - f.crouch) : 0;
@@ -788,6 +823,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   });
   for (const p of M.armor) if (!f.broken.includes(p.piece)) comX += p.m * fwd(f, p.p);
   comX /= M.mass;
+  f.comX = comX;
   const W = M.mass * G;
   let tau = 0;
   if (f.ko) {

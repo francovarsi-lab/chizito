@@ -171,6 +171,13 @@ export const FIGHT = {
   follow: { angle: 0.55, k: 0.35, frames: 14 },
   /** Al acertar, el que pega frena contra el otro: m/s hacia atrás por (masa efectiva / su masa). */
   impactBack: 0.5,
+  /**
+   * Giro del torso (rad) al pegar con el cuerpo entero: el hombro que pega va atrás al cargar y adelante al soltar (piña); la
+   * cadera gira menos en una patada. `rate` = qué tan rápido sigue al objetivo (1/s).
+   */
+  twist: { arm: 0.3, kick: 0.15, wind: 0.6, rate: { strike: 16, windup: 9, rest: 6 }, min: 0.1, max: 1.4 },
+  /** Pies bajo el centro de masa: cuánto corrigen las piernas apoyadas (normal / mientras otra patea) y hasta cuánto (rad). */
+  support: { rest: 0.25, kick: 0.9, max: 0.45 },
   /** Ángulo de la marcha (rad) y de las piernas al agacharse. */
   gait: 0.42,
   crouch: 0.62,

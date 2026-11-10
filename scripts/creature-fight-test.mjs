@@ -521,6 +521,33 @@ try {
     ok(kicked >= 0 && mine.limbs[kicked].role === 'leg' && mine.limbs[kicked].side === legSide, `A/S patea con la pierna de ese lado (${kicked})`);
   }
 
+  // ── Cuerpo entero: el torso gira con el golpe y, al patear, la pierna que queda apoyada se acomoda bajo el cuerpo ──
+  {
+    const m = fight(mine);
+    m.f[1].x = 0.2;
+    const f = m.f[0];
+    f.nextArm = f.arms.indexOf(f.model.limbs.findIndex((l, j) => f.arms.includes(j) && l.kind !== 'heavy'));
+    let wind = 0, strike = 0;
+    for (let i = 0; i < 30; i++) {
+      stepMatch(m, [{ x: 0, punch: i === 0 }, { x: 0 }]);
+      const ph = f.limbs.find((q) => q.phase === 'windup' || q.phase === 'strike')?.phase;
+      if (ph === 'windup' && Math.abs(f.twist) > Math.abs(wind)) wind = f.twist;
+      if (ph === 'strike' && Math.abs(f.twist) > Math.abs(strike)) strike = f.twist;
+    }
+    ok(Math.abs(strike) > 0.12 && Math.sign(strike) !== Math.sign(wind), `el torso gira al pegar: atrás al cargar, adelante al soltar (${wind.toFixed(2)} → ${strike.toFixed(2)} rad)`);
+    const k = fight(mine);
+    const kf = k.f[0];
+    for (let i = 0; i < 60; i++) stepMatch(k, [{ x: 0 }, { x: 0 }]);
+    const rest = kf.limbs.map((q) => [...q.q]);
+    let kicker = -1, moved = 0;
+    for (let i = 0; i < 20; i++) {
+      stepMatch(k, [{ x: 0, kick: i === 0 }, { x: 0 }]);
+      kf.limbs.forEach((q, j) => (q.phase === 'windup' || q.phase === 'strike') && (kicker = j));
+      for (const j of kf.legs) if (j !== kicker && kicker >= 0) moved = Math.max(moved, 2 * Math.acos(Math.min(1, Math.abs(kf.limbs[j].q.reduce((a, v, c) => a + v * rest[j][c], 0)))));
+    }
+    ok(kicker >= 0 && moved > 0.03, `al patear, la otra pierna se acomoda para sostenerlo (${(moved * 57.3).toFixed(1)}°)`);
+  }
+
   // ── Rendimiento: 40 extremidades, dos luchadores ──
   {
     const m = fight(fighterFromSnapshot(snap('F40')));
