@@ -1,44 +1,81 @@
-# Resumen unificado para UNA sola sesión de Claude Code (Chizito Fight)
+# Resumen para un chat nuevo — CUMPLEAÑITO / Chizito Fight
 
-Junta dos líneas de trabajo sobre la misma rama `claude/creature-interpreter`: (A) la sesión del intérprete, hasta `531606c`, y (B) la sesión de la pelea 3D, hasta `a9acdaf` (su `docs/creature/TRASPASO.md` es la fuente operativa más nueva de B). Estado medido al armar este resumen, el 2026-11-06.
+Al 2026-11-10. Repo privado `francovarsi-lab/chizito`, rama de trabajo `claude/compassionate-carson-41ubkc` (último commit de
+código `d49feec`). La fuente de verdad detallada es `CLAUDE.md` (secciones "Forma de trabajo", constructor y "Pelea").
 
-## Reglas permanentes del usuario
-- Responder en español (usa Claude versión escritorio, sesión en la nube). Informes cortos (20–30 líneas), sin código, con hash del commit y qué mirar. Al cerrar una tanda, frenar y esperar el OK.
-- NO pushear a `main` (dispara Pages y no comparte historia con estas ramas). No tocar `claude/friendly-faraday-2lyzl2` (constructor 3D). No avanzar a la tanda 4 sin que lo pida.
-- Números nuevos en `src/creature/config.ts`; topes desde `src/creature/limits.ts` (40 piezas, 30 trazos). Sin red externa, sin Supabase, sin stats del MVP 2, sin colores de aceituna ni palito, solo herramientas gratis, sin tareas programadas, sin dependencias nuevas. Pruebas puras (sin render) siempre que se pueda. Un commit por cambio; push solo a esta rama; nunca forzar.
+## Reglas permanentes del usuario (Franco)
+- Español rioplatense. Usa Claude de escritorio (Windows); las sesiones corren en la nube. Informes cortos, con hash del commit
+  y qué mirar. Él no siempre puede probar: avanzar igual y dejar todo subido.
+- NO pushear a `main` (no comparte historia con esta rama). No tocar `claude/friendly-faraday-2lyzl2`. Trabajar y pushear sólo
+  en esta rama. Sin PRs salvo que los pida. Commits con autor Franco Varsi (`-c user.name/-c user.email`).
+- "Apuntar al 100 para llegar al 10": nivel de juego top; analizar cada detalle y DECIDIR cuál vale; bello, único, arte +
+  función, fluidez primero. La pelea es un show; tiene que tener la MISMA estética que el constructor (mismo mundo).
+- Higgsfield: Nano Banana 2.1 en 1K (~1,5 créditos) para explorar, 2K (~2) sólo lo final; 3D con SAM 3 (1 crédito, con
+  `prompt`). Gasto bajo y avisar si se dispara. Sonidos: los graba él; dejar ids listos.
+
+## Cómo probar
+- En su PC: `git clone https://github.com/francovarsi-lab/chizito.git` → `cd chizito` →
+  `git checkout claude/compassionate-carson-41ubkc` → `npm install` → `npm run dev` → http://localhost:5173 (Chrome).
+- Vercel (se actualiza con cada push): https://chizito-git-claude-compassionate-carson-41ubkc-el-mejor-lugar.vercel.app/ —
+  tiene "Vercel Authentication" activada: sólo con sesión de Vercel del equipo el-mejor-lugar (se desactiva en Settings →
+  Deployment Protection; no lo cambiamos sin que lo pida).
 
 ## Qué es
-Juego de lucha lateral 1v1 arcade: la criatura se arma clavando snacks (chizito, palitos, papitas, nachos, aceitunas, escarbadientes, ketchup, palito de la selva, chupetín) en un chizito 3D. Repo privado `francovarsi-lab/chizito`. Todo el código de pelea e intérprete vive en `src/creature/`.
+Dos partes en la misma mesa 3D (Vite + TypeScript + Three.js): el CONSTRUCTOR (clavar palitos, escarbadientes, palitos de la
+selva, chupetín, papitas, nachos, aceitunas y ketchup en un chizito) y la PELEA (botón PELEAR): TU CHIZITO, con sus mallas
+reales, contra EL BROCOLOCO (niveles 1–3). Pelea en `src/creature/fight/`: `fighter.ts` (snapshot → modelo), `engine.ts`
+(motor puro y determinista a 60 Hz), `ai.ts`, `tuning.ts` (TODOS los números), `render.ts`, `brocoli.ts`, `stage.ts`,
+`hud.ts`, `mount.ts`. Secciones compartidas en `src/creature/zones.ts`.
 
-## Línea A — intérprete (hecho y probado)
-- Capas: archivo `CreatureFileV1` → resolver (`resolve/`) → `CreatureSnapshot` (JSON puro) → `interpret()` → `CreatureAnalysis` → simulación (`sim/`) y panel/probador (`ui/`). Frente de combate = dato `Construction.front` (`creature.front`): por defecto −Y; el giro de 180° (+Y) cambia el dato y entra al historial (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z).
-- MVP 0 (tandas 0–9): extremidades por capacidades, masa, apoyos, locomoción (camina, salta, se arrastra, rueda, inmóvil), 7 acciones ofensivas, defensa, perfil 2D con cajas de golpe, panel "ESTRUCTURA DETECTADA" (`?creature`, un único bloque al final de `main.ts`).
-- Reglas del análisis aprobadas: >140° del frente no golpea; una acción por tipo (gana la de más capacidad, a igual la más liviana); el panel dice el rol de cada extremidad; apiñamiento solo entre vecinas del mismo golpe; varas en profundidad largas = estocada; palito de la selva (≈1,1 g, densidad 550) y chupetín (maza).
-- MVP 1: tandas 1 y 2 (simulación cinemática a 60 Hz + animación por rangos), 3 (estados de combate), 5 (probador `?creature&probador`). La tanda 4 (adaptación en vivo) NO está hecha.
-- Documentos: `docs/creature/ESTADO.md`, `docs/CREATURE_CONTRACT.md`, sección final de `CLAUDE.md`, `docs/creature/TRASPASO.md`.
+## Estado de la pelea (hecho)
+- Regla base: cada vara clavada es un brazo o pierna rígida articulada en su punto de clavado. SECCIONES del chizito (las
+  mismas que muestra el constructor): PIERNAS = el pedazo de abajo (25 % del largo), CABEZA = arriba (no es brazo: pesa y
+  protege), BRAZOS = el medio; izquierda/derecha como se arma (izquierda = +Y del chizito).
+- CONTROLES por cuadrante: Q brazos izq, W brazos der, A piernas izq, S piernas der (cada toque usa la siguiente extremidad de
+  ese cuadrante, de a una), D guardia, flechas mover/saltar/agacharse, Esc pausa. Z/X/C quedan como atajos. HUD con el chizito
+  dividido y la cantidad por cuadrante.
+- Física: motores PD con torque según la inercia, contrapeso, piernas que se paran sobre el piso y ponen el pie bajo el centro
+  de masa (más al patear), torso que gira con el golpe, anticipación (peso atrás al cargar, adelante al soltar), envión al
+  soltar. Acertar frena y rebota; pifiar sigue de largo y cuesta tiempo (y estabilizarse). Daño = masa^0,4 · velocidad^1,3.
+- Lo pesado se carga (un golpe recibido la corta). Chupetín: pega con el cuerpo entero (carga corta y visible); abajo es pierna
+  fija que patea con contrapeso. Varas que atraviesan = fijas. Escudos (papita 2 golpes, nacho 6) que se astillan; la guardia
+  los presenta (cabeza, espalda, abajo). Guardia física con los brazos.
+- Piernas con fuerza y rapidez por pieza (selva lento y fuerte, escarbadientes rápido y débil); salto según fuerza/peso con
+  agachada previa; sin piernas no salta.
+- Combinaciones tras acertar: UNO-DOS, RÁFAGA (3+ brazos), PIÑA Y PATADA, CONTRA (tras bloquear). Lo apretado durante el
+  congelamiento del impacto se guarda. El brócoli encadena desde nivel 2.
+- Efectos: congelamiento, destello blanco y vibración, migas variadas, astillas, ¡JAPISH! en golpes fuertes/combos, ¡PIFIÓ! y
+  ¡PIF! alternados, nombres TU CHIZITO / EL BROCOLOCO. Sonidos grabables (`public/assets/sounds/<id>.ogg|mp3|wav`): golpe,
+  golpe-pesado, bloqueo, zumbido, pifio, escudo, ko, round, pelea, combo, japish, risa (+ los del constructor).
+- PRESENTACIÓN antes del round 1 con los modelos reales: la cámara rodea a TU CHIZITO, que se estira y le tira piñas a la
+  cámara; primer plano de EL BROCOLOCO que levanta las zanahorias y se ríe. Se saltea con cualquier tecla.
+- Escenario de noche según el arte clave (`docs/arte/arte-clave-pelea.jpg`): cuarto oscuro con bokeh, foco cenital con haz y
+  polvo, focos de cara que siguen a cada luchador, tabla de picar grande con textura, restos de fiesta en capas (caramelos sin
+  marca, carozos, servilletas), lucecitas. Giro hacia la cámara: criatura 40°, brócoli 60° (su cara se tiene que leer: es
+  prioridad del usuario). Brócoli 3D de Higgsfield (GLB) con la cara del boceto pegada sobre el tallo (ojos de remolacha con
+  brillo, cejas de morrón, dientes de sésamo blanco).
+- Carga: ensayo invisible en ratos libres mientras se arma (modelos, arena, shaders compilados con la luz de la pelea): abrir
+  la pelea pasó de ~1 s a ~0,1 s y no compila shaders nuevos (antes 28). Cargador animado al abrir la web.
 
-## Línea B — pelea jugable en la mesa 3D (según TRASPASO.md; no la verifiqué entera)
-- `src/creature/fight/`: reglas (daño, guardia, empuje, aturdimiento, KO), rival IA, rival brócoli 3D articulado (modelo del usuario), la criatura REAL del constructor movida por la pose 2D, bucle, cámara lateral, HUD, modo liviano. Botón ⚔ PELEAR; ← → mover, Z mejor golpe, X guardia, R revancha, Esc salir. Paleta de panel "dibujito con borde".
-- Publicación privada en Vercel (con login), se recompila con cada push a la rama: `https://chizito-git-claude-creature-interpreter-el-mejor-lugar.vercel.app/?creature` (detalles en TRASPASO.md). `vite.config.ts`: en Vercel la base es `/`; en Pages `/chizito/`.
-- Lo que el usuario reportó en su última prueba: se ve muy feo; las articulaciones NO se mueven en sus criaturas (en la fixture A sí); se traba.
+## Constructor (cambios recientes)
+- Línea punteada sobre el chizito (cabeza / brazos / piernas, izquierda / derecha) con carteles de las teclas, visible con una
+  pieza en la mano o con el cartel abierto. Cartel "ELEGÍ LOS INGREDIENTES" (incluye que el ketchup es para dibujarle la
+  cara); se cierra al agarrar una pieza; I lo abre y cierra.
+- Mismo mundo que la pelea: lucecitas (suaves de día), restos de fiesta al fondo, un poco más de contraste y color.
 
-## DECISIÓN NUEVA (agendada, falta implementar): "palito clavado = brazo"
-Para la pelea se deja de lado la física del análisis: un palito clavado pasa a ser un brazo (o pierna) rígido que gira alrededor de su punto de clavado, con animación de golpe fija y legible; hace falta al menos 1 pierna para trasladarse y 1 brazo para golpear (solo avisar). Clasificación pierna/brazo sin definir (propuesta: punta libre hacia abajo = pierna). Tensión a resolver: esto contradice, para la pelea, reglas de la línea A (arco de 140°, una acción por tipo, calidad de ancla, rangos de movilidad). El panel y el probador seguirían con el análisis; hay que decidir si conviven o se unifican.
+## Pruebas (última corrida)
+- `npx tsc --noEmit -p .` limpio. `node scripts/creature-fight-test.mjs` → 151 OK. `node scripts/creature-test.mjs` → 1697 OK.
+- Con `npm run dev`: `node scripts/fight-ui-test.mjs <dir>` (navegador, teclado real) → 16 OK en la última corrida completa.
+- Capturas con Playwright y `?capture` (WebGL por software: lento y el primer cuadro exagera la compilación; no representa una
+  GPU real). `?capture&presentacion` muestra la presentación. Chromium en `/opt/pw-browsers/chromium`.
 
-## Estado de las pruebas (medido hoy, sin tocar código)
-- `tsc` limpio. Pelea (`creature-fight-test.mjs`): 18 OK, 0 fallas.
-- Pruebas puras del intérprete (`creature-test.mjs`): **1695 OK y 2 fallas**, ambas por cambios de la línea B:
-  1. "hitboxes.svg coincide con lo que genera el código": la paleta nueva cambió los colores; hay que regenerar con `node scripts/make-fixtures.mjs`.
-  2. "el intérprete y el modelo del panel no importan three.js": ahora lo rompen 4 archivos de `fight/` (`broccoliRig.ts`, `brocoli.ts`, `mount.ts`, `rig3d.ts`). Decisión: sacar `fight/` del alcance de esa prueba y dejarlo escrito (hoy el contrato dice que solo `resolve/` usa three.js).
-- Sin re-correr tras los cambios de B: las pruebas de navegador del panel, teclado y probador, el resolver y el KO completo de la pelea.
-- fps: nunca medidos en una PC con GPU (acá solo Chromium sin GPU, ≈40–50 fps en el probador con 40 extremidades). El usuario reportó trabas: pedirle modelo de GPU o fps.
-
-## Pendientes en orden sugerido
-1. Arreglar las 2 fallas (regenerar fixtures/hojas; acotar la prueba de independencia de three.js a `fight/`).
-2. Decidir y escribir cómo conviven el análisis físico (panel/probador) y "palito clavado = brazo" (pelea); implementarlo y verificarlo con criaturas armadas a mano, no solo fixtures.
-3. Arreglar fluidez y estética en la PC del usuario (captura real con HUD; iluminación y cámara).
-4. Correr todo antes de cerrar: puras (`node scripts/creature-test.mjs`), pelea, y de navegador con `npm run dev` (`creature-ui-test`, `creature-ui-keys-test`, `creature-prober-test`, `creature-resolve-test`, `creature-fixtures-test`, `creature-fight-ui-test`).
-5. Backlog abierto: tanda 4, autoguardado del frente, merge a `main` (historias sin relación; decidir con el chat 3D), masa del palito de la selva (1,1 g vs 2,3 g declarados por el chat 3D), "giro corto" (idea), tiempo de espera/escudo, desafío por link.
-
-## Prompt sugerido para la sesión única
-"Continuá en el repo francovarsi-lab/chizito, rama `claude/creature-interpreter`. Leé `docs/creature/RESUMEN_NUEVA_CONVERSACION.md`, `docs/creature/TRASPASO.md` y `docs/creature/ESTADO.md`. Respetá las reglas permanentes (español, informes cortos con hash, no pushear a main, no tocar friendly-faraday, no avanzar a la tanda 4). Primero arreglá las 2 fallas de las pruebas puras y mostrame el plan de 10 líneas para 'palito clavado = brazo' antes de escribir código. Mi pedido: [una sola tarea]."
+## Pendientes / propuestas (decidir con el usuario)
+1. Que el usuario pruebe en su PC: giro de 40° (`FIGHT.stanceYaw`), botones Q W A S D, combinaciones, chupetín, presentación,
+   tiempos de carga.
+2. Arranque: compilar los shaders del constructor en paralelo antes del primer cuadro (`compileAsync`, como el ensayo de la
+   pelea). Opcional: hornear o cachear las texturas procedurales (madera, mantel, chizito) — se evaluó y se dejó.
+3. Estética del constructor más cerca de la pelea (decisión de arte: luz de atardecer, la tabla bajo el chizito).
+4. Letras de impacto estilo arcade, grabaciones de sonido, texturas del chizito en Higgsfield (2K final), cadenas de varias
+   articulaciones. La madera de la tabla todavía tira a rojo en los bordes.
+5. Integrar con `main` (historias distintas): decidir antes cómo.
+- Higgsfield gastado: ~9,5 créditos en total (5 imágenes 1K + 2 modelos SAM 3); nada en las últimas tandas.
