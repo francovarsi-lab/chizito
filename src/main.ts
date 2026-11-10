@@ -253,6 +253,12 @@ async function main() {
     shake.intro(0.045);
     infoCard.show(true);
   }
+  // Shaders del constructor compilados en paralelo (KHR_parallel_shader_compile) mientras se ve el cargador,
+  // así el primer cuadro no se traba. Tope de 4 s por si el driver nunca avisa.
+  await Promise.race([
+    stage.renderer.compileAsync(stage.scene, stage.camera).catch(() => undefined),
+    new Promise((r) => window.setTimeout(r, 4000)),
+  ]);
   document.body.classList.add('ready');
   // El cargador del arranque se desvanece con el velo; después se saca (sus animaciones no siguen corriendo).
   window.setTimeout(() => document.getElementById('boot')?.remove(), 1600);
