@@ -164,6 +164,11 @@ export class InteractionController {
   private readonly leaving: { obj: THREE.Object3D; t: number; from: number }[] = [];
   private time = 0;
   /** true mientras el jugador tiene algo en la mano (la flotación del chizito se calma). */
+  /** Tipo de la pieza que está en la mano (agarrada, apuntando o entrando), o null. */
+  get holdingType(): string | null {
+    return this.active && this.state !== InteractionState.PLACED && this.state !== InteractionState.SELECTED_PLACED_PIECE ? this.active.def.type : null;
+  }
+
   get busy(): boolean {
     return (this.active !== null && this.state !== InteractionState.IDLE) || this.state === InteractionState.DRAWING;
   }

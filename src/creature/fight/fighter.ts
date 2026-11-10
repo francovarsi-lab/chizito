@@ -2,6 +2,7 @@ import { makeBasis, type Basis } from '../math/basis';
 import { cross, dist, dot, len, mid, norm, sub } from '../math/vec';
 import type { CreatureSnapshot, SnapLink, SnapPiece, V3 } from '../types';
 import { FIGHT } from './tuning';
+import { zoneOf, type Side } from '../zones';
 
 /**
  * Modelo de luchador (JSON puro, sin three.js): lo que la pelea necesita saber de una criatura.
@@ -33,7 +34,13 @@ export interface LimbModel {
   id: string;
   /** La pieza y todo lo que cuelga de ella. */
   pieceIds: string[];
-  role: 'arm' | 'leg';
+  /**
+   * Según DÓNDE está clavada (sección del chizito, la misma línea punteada del constructor): brazo, pierna o cabeza (la
+   * cabeza no es brazo: lo que tenga es peso y contacto, no se maneja con botones).
+   */
+  role: 'arm' | 'leg' | 'head';
+  /** Lado, como se ve el chizito al armarlo: elige el botón (Q/W brazos, A/S piernas). */
+  side: Side;
   /**
    * Sin articulación: el chupetín (rígido) y toda vara que ATRAVIESA el chizito (girarla rompería el chizito). Pesa, toca y apoya,
    * pero no pega ni camina.
@@ -199,17 +206,19 @@ export function fighterFromSnapshot(s: CreatureSnapshot, name = 'TU CHIZITO'): F
         continue;
       }
       const dir = norm(sub(far.p, pivot));
-      const rigid = through || ids.some((id) => byId.get(id)?.type === 'chupetin');
+      // Sección del chizito donde entra (a lo largo del eje largo): piernas abajo (un pedazo chico), cabeza arriba, brazos al medio.
+      const role = zoneOf(pivot[1], half);
+      const rigid = through || role === 'head' || ids.some((id) => byId.get(id)?.type === 'chupetin');
       const mass = points.reduce((a, q) => a + q.m, 0);
       const kinds = new Set(points.map((q) => q.kind));
       const kind: HitKind = kinds.has('heavy') ? 'heavy' : kinds.has('cut') ? 'cut' : 'light';
-      // Pierna: sale de la mitad de abajo (o casi) y apunta hacia el piso. Todo lo demás es brazo, esté donde esté.
-      const role = pivot[1] < half * FIGHT.legPivotMax && dir[1] < FIGHT.legDownMin ? 'leg' : 'arm';
       const names = ids.map((id) => byId.get(id)?.type).filter((t): t is string => !!t && t !== 'ketchup');
       limbs.push({
         id: piece.id,
         pieceIds: ids,
         role,
+        // Izquierda = +Y del chizito = profundidad local positiva (por dónde sale la vara, a mitad de camino).
+        side: pivot[2] + dir[2] * reach * 0.5 >= 0 ? 'L' : 'R',
         rigid,
         carry: (FIGHT.legCarryGrams[piece.type as keyof typeof FIGHT.legCarryGrams] ?? FIGHT.legCarryGrams.default) / 1000,
         ...(FIGHT.legKind[piece.type as keyof typeof FIGHT.legKind] ?? FIGHT.legKind.default),
@@ -269,6 +278,7 @@ export function broccoliFighter(level = 1): FighterModel {
       id: sk.id,
       pieceIds: [sk.id],
       role: sk.arm ? 'arm' : 'leg',
+      side: sk.from[0] < 0 ? 'L' : 'R',
       rigid: false,
       carry: FIGHT.broccoli.carrotCarryGrams / 1000,
       ...FIGHT.legKind.zanahoria,

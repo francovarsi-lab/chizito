@@ -2,6 +2,7 @@ import type { V3 } from '../types';
 import type { FighterModel, HitKind, MassPoint } from './fighter';
 import { qAxis, qConj, qFromTo, QI, qIntegrate, qMul, qToVec, type Q } from './quat';
 import { FIGHT } from './tuning';
+import type { Quad } from '../zones';
 
 /**
  * Motor de la pelea (TypeScript puro, sin three.js, determinista): un solo motor para el jugador y el rival.
@@ -24,6 +25,11 @@ export interface FightInput {
   kick?: boolean;
   /** Guardia (mantenida): los brazos se cruzan delante del cuerpo. */
   guard?: boolean;
+  /**
+   * Botón de un cuadrante (flanco): brazo izquierdo/derecho o pierna izquierda/derecha, como se ve el chizito al armarlo. Si en
+   * ese cuadrante hay varias extremidades, cada toque usa la siguiente (de a una); cada cuadrante va por su lado.
+   */
+  quad?: Quad;
 }
 
 export const IDLE: FightInput = { x: 0 };
@@ -89,7 +95,9 @@ export interface FighterState {
   swing: { k: number; sign: 1 | -1 } | null;
   /** Se cubre con un escudo: inclinación (rad) para ponerlo de frente; `turned` = se dio vuelta para mostrar la espalda. */
   shieldPose: { tilt: number; turned: boolean } | null;
-  buffer: { kind: 'arm' | 'kick' | 'air'; t: number } | null;
+  buffer: { kind: 'arm' | 'kick' | 'air'; t: number; quad?: Quad } | null;
+  /** Por cuadrante: cuál toca la próxima vez (de a una). */
+  nextQ: Record<Quad, number>;
   gait: number;
   hopCool: number;
   shields: Record<string, number>;
@@ -254,6 +262,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     swing: null,
     shieldPose: null,
     buffer: null,
+    nextQ: { LA: 0, RA: 0, LL: 0, RL: 0 },
     gait: 0,
     hopCool: 0,
     shields: { ...model.shields },
@@ -492,9 +501,25 @@ function comboFor(f: FighterState, kind: 'arm' | 'kick' | 'air'): string | null 
   return null;
 }
 
-/** Piña = el brazo siguiente que esté listo; patada = la pierna lista más adelantada. Sin brazos no hay piña, sin piernas no hay patada. */
-function pickLimb(f: FighterState, kind: 'arm' | 'kick' | 'air', chained = false): number {
+/**
+ * Con el botón de un cuadrante: la siguiente extremidad lista de ESE cuadrante (de a una; cada cuadrante lleva su cuenta). Sin
+ * cuadrante (la máquina, Z/X): piña = el brazo siguiente; patada = la pierna lista más adelantada. Sin brazos no hay piña, sin
+ * piernas no hay patada.
+ */
+function pickLimb(f: FighterState, kind: 'arm' | 'kick' | 'air', chained = false, quad?: Quad): number {
   const L = f.model.limbs;
+  if (quad) {
+    const side = quad[0] as 'L' | 'R';
+    // Una pierna fija (chupetín abajo) patea con el cuerpo entero, pero necesita otra pierna para pararse (contrapeso).
+    const pool = (kind === 'kick' ? (chained || !f.legs.length ? f.legs : [...f.legs, ...f.pegs]) : f.arms).filter((k) => L[k].side === side && !(chained && L[k].rigid));
+    for (let n = 0; n < pool.length; n++) {
+      const idx = (f.nextQ[quad] + n) % pool.length;
+      if (!ready(f.limbs[pool[idx]])) continue;
+      f.nextQ[quad] = idx + 1;
+      return pool[idx];
+    }
+    return -1;
+  }
   if (kind === 'kick') {
     const ahead = (k: number): number => fwd(f, L[k].pivot) + fwd(f, L[k].dir) * L[k].reach;
     // Una pierna fija (chupetín abajo) patea con el cuerpo entero, pero necesita otra pierna para pararse (contrapeso).
@@ -631,6 +656,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   f.guard += ((guardHeld ? 1 : 0) - f.guard) * 0.22;
   f.crouch += ((crouchHeld ? 1 : 0) - f.crouch) * (f.squat > 0 ? 0.45 : 0.2);
   if (input.punch) f.buffer = { kind: f.grounded ? 'arm' : 'air', t: FIGHT.buffer };
+  if (input.quad) f.buffer = { kind: input.quad[1] === 'L' ? 'kick' : f.grounded ? 'arm' : 'air', t: FIGHT.buffer, quad: input.quad };
   if (input.kick) f.buffer = { kind: 'kick', t: FIGHT.buffer };
   // Saltar necesita piernas que aguanten el peso (`f.jump` es 0 si no). Primero se agacha (las piernas lentas tardan más) y
   // recién ahí despega: el salto se lee y se puede castigar.
@@ -646,7 +672,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   if (f.buffer && canAct && !busy && !f.wobbly && f.guard < 0.3 && f.squat <= 0) {
     const combo = comboFor(f, f.buffer.kind);
     if ((f.strikeCool <= 0 && f.lock <= 0) || combo) {
-      const k = pickLimb(f, f.buffer.kind, !!combo);
+      const k = pickLimb(f, f.buffer.kind, !!combo, f.buffer.quad);
       if (k >= 0) {
         startStrike(m, i, k, f.buffer.kind, combo);
         f.buffer = null;
@@ -1029,6 +1055,8 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
     m.f.forEach((f, i) => {
       if (m.phase !== 'fight' || f.ko) return;
       if (inputs[i].punch) f.buffer = { kind: f.grounded ? 'arm' : 'air', t: FIGHT.buffer };
+      const q = inputs[i].quad;
+      if (q) f.buffer = { kind: q[1] === 'L' ? 'kick' : f.grounded ? 'arm' : 'air', t: FIGHT.buffer, quad: q };
       if (inputs[i].kick) f.buffer = { kind: 'kick', t: FIGHT.buffer };
     });
     return;

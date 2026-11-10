@@ -42,9 +42,6 @@ export const FIGHT = {
   throughMin: 0.004,
   /** m: lo que asoma menos que esto (p. ej. un palito clavado al 90 %) no es extremidad: no llega a nada, es solo peso. */
   minReach: 0.01,
-  /** Pierna: pivote por debajo de esta fracción de medio largo del chizito (0 = el medio) y dirección con y < esto. */
-  legPivotMax: 0.2,
-  legDownMin: -0.3,
   /** Gramos que carga cada pierna según su pieza: si la criatura pesa más que lo que cargan sus piernas, camina lento y no salta. */
   legCarryGrams: { palito: 4, escarbadientes: 2.5, 'palito-selva': 6, default: 3 },
   /**

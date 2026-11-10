@@ -20,6 +20,8 @@ import { BOWL_LAYER, ContactShadow, markBowl, markHero } from './render/ContactS
 import { addPhotoFade, loadPhotoBackdrop, updatePhotoResolution } from './render/PhotoBackdrop';
 import { Persistence } from './persistence/Persistence';
 import { Title, type TitleStyle } from './ui/Title';
+import { ZoneGuides } from './render/ZoneGuides';
+import { InfoCard } from './ui/InfoCard';
 
 async function main() {
   const canvas = document.createElement('canvas');
@@ -108,8 +110,13 @@ async function main() {
       chizitoModel = assets.create(CHIZITO.type, seed, 'hero');
       markHero(chizitoModel);
       pivot.add(chizitoModel);
+      guides.rebuild(chizitoModel);
     },
   });
+  // Línea punteada de secciones (cabeza / brazos / piernas, izquierda / derecha) y cartel informativo de los ingredientes.
+  const guides = new ZoneGuides(stage.scene, stage.camera, pivot);
+  guides.rebuild(chizitoModel);
+  const infoCard = new InfoCard();
   const persistence = new Persistence(interaction, pieces, overlay, CHIZITO.type);
   persistence.install();
 
@@ -123,6 +130,7 @@ async function main() {
     switch (e) {
       case 'pick':
         audio.play('pick');
+        infoCard.show(false); // ya eligió un ingrediente: el cartel se va (I lo vuelve a abrir)
         break;
       case 'drop':
       case 'remove':
@@ -171,6 +179,8 @@ async function main() {
     shake.busy = interaction.busy;
     shake.update(dt);
     crumbs.update(dt);
+    // Las secciones se ven con el cartel abierto o con una pieza en la mano (para saber dónde va a quedar: brazo, pierna o cabeza).
+    guides.update(dt, interaction.enabled && (infoCard.open || interaction.holdingType !== null));
     stage.focusTarget.copy(rig.focus);
     contactShadow.update(stage.renderer);
     bowlShadow.update(stage.renderer);
@@ -198,7 +208,7 @@ async function main() {
       // Al llegar, el chizito "salta" a escena y se muestra dónde está su frente.
       shake.intro(0.03);
       interaction.showFront();
-      overlay.flash('tocá un recipiente para agarrar un snack · F muestra el frente', 3600);
+      infoCard.show(true);
     });
   };
   const wantsIntro = params.has('capture') ? params.has('intro') : !params.has('sinintro');
@@ -236,6 +246,7 @@ async function main() {
     window.addEventListener('keydown', go, true);
   } else {
     shake.intro(0.045);
+    infoCard.show(true);
   }
   document.body.classList.add('ready');
   // El cargador del arranque se desvanece con el velo; después se saca (sus animaciones no siguen corriendo).

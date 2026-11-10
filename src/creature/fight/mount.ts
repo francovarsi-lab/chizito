@@ -15,6 +15,7 @@ import { FightHud, type MenuAction } from './hud';
 import { blendPose, broccoliView, creatureView, type FighterView, type RenderPose } from './render';
 import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT } from './tuning';
+import type { Quad } from '../zones';
 
 /** Lo que el juego deja en `window.__chizito`: la MISMA escena, cámara y criatura del constructor. */
 export interface Game {
@@ -62,7 +63,7 @@ const btnCss = `
 `;
 const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/></svg>`;
 
-const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'Escape', 'Enter', 'Space']);
+const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyQ', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'Escape', 'Enter', 'Space']);
 
 const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken] });
 
@@ -125,9 +126,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const held = (...c: string[]): boolean => c.some((k) => keys.has(k));
   const took = (...c: string[]): boolean => c.some((k) => edges.has(k));
   const readInput = (): FightInput => {
-    const x = ((held('ArrowRight', 'KeyD') ? 1 : 0) - (held('ArrowLeft', 'KeyA') ? 1 : 0)) as -1 | 0 | 1;
-    // Botones separados, sin combinar con flechas: Z piña · X patada · C guardia (o J · K · L).
-    const inp: FightInput = { x, up: took('ArrowUp', 'KeyW', 'Space'), down: held('ArrowDown', 'KeyS'), punch: took('KeyZ', 'KeyJ'), kick: took('KeyX', 'KeyK'), guard: held('KeyC', 'KeyL') };
+    const x = ((held('ArrowRight') ? 1 : 0) - (held('ArrowLeft') ? 1 : 0)) as -1 | 0 | 1;
+    // Un botón por cuadrante del chizito (como se armó, de frente): Q W brazos izq/der, A S piernas izq/der, D guardia. Las
+    // flechas mueven. Z/X/C (o J/K/L) quedan como atajo: cualquier brazo, cualquier pierna, guardia.
+    const quad: Quad | undefined = took('KeyQ') ? 'LA' : took('KeyW') ? 'RA' : took('KeyA') ? 'LL' : took('KeyS') ? 'RL' : undefined;
+    if (quad) hud.padHit(quad);
+    const inp: FightInput = { x, up: took('ArrowUp', 'Space'), down: held('ArrowDown'), punch: took('KeyZ', 'KeyJ'), kick: took('KeyX', 'KeyK'), guard: held('KeyD', 'KeyC', 'KeyL'), quad };
     edges.clear();
     return inp;
   };
@@ -436,6 +440,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     m = createMatch([model, bro]);
     ai = newAi(seed++, level);
     hud.show([model.name, bro.name], warnings(m.f[0]));
+    // Cuántas extremidades hay en cada cuadrante del chizito (lo que maneja cada botón).
+    const f0 = m.f[0];
+    const count = (q: Quad): number => (q[1] === 'A' ? f0.arms : [...f0.legs, ...f0.pegs]).filter((k) => model!.limbs[k].side === q[0]).length;
+    hud.pad({ LA: count('LA'), RA: count('RA'), LL: count('LL'), RL: count('RL') });
     paused = false;
     fightT = 0;
     acc = 0;

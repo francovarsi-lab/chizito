@@ -1,5 +1,6 @@
 import type { Match } from './engine';
 import { FIGHT } from './tuning';
+import { QUAD_KEYS, type Quad } from '../zones';
 
 /**
  * HUD de juego de pelea (HTML sobre el canvas): barras de vida con daño "fantasma", reloj, rounds ganados, nombres,
@@ -63,6 +64,16 @@ const css = `
 #cfh .keys{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;max-width:94vw;
   padding:10px 18px;border-radius:14px;background:var(--panel);box-shadow:0 0 0 2px rgba(255,255,255,.75);font:700 14px/1.2 "Baloo 2",sans-serif;transition:opacity .8s,transform .8s}
 #cfh .keys.off{opacity:0;transform:translate(-50%,14px)}
+#cfh .pad{position:absolute;left:22px;bottom:22px;width:78px;height:146px;pointer-events:none}
+#cfh .pad .cap{position:absolute;inset:0;border-radius:39px;overflow:hidden;background:linear-gradient(90deg,#e8ad2c,#f6cb43 38%,#fbe189 58%,#f0bb36);box-shadow:0 0 0 3px #fff,0 0 0 6px var(--ink),0 6px 0 6px var(--ink)}
+#cfh .pad .ln{position:absolute;left:0;right:0;border-top:2px dashed rgba(13,16,36,.55)}
+#cfh .pad .vl{position:absolute;top:19%;bottom:0;left:50%;border-left:2px dashed rgba(13,16,36,.55)}
+#cfh .pad .hd{position:absolute;top:5%;left:0;right:0;text-align:center;font:800 9px/1 "Nunito",sans-serif;letter-spacing:.08em;color:rgba(13,16,36,.55)}
+#cfh .pad .q{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:400 18px/1 "Bungee",Impact,sans-serif;color:var(--ink)}
+#cfh .pad .q small{font:800 8px/1 "Nunito",sans-serif;letter-spacing:.04em;opacity:.75}
+#cfh .pad .q.empty{opacity:.28}
+#cfh .pad .q.hit{animation:cfh-q .28s ease-out}
+@keyframes cfh-q{0%{background:rgba(255,255,255,.85);transform:scale(1.15)}100%{background:transparent;transform:scale(1)}}
 #cfh kbd{display:inline-block;min-width:22px;padding:2px 6px 1px;margin-right:4px;border-radius:6px;background:#fff;color:var(--ink);font:400 12px/1.4 "Bungee",sans-serif;text-align:center;box-shadow:0 3px 0 #9aa0c0}
 #cfh .menu{position:absolute;inset:0;display:none;place-items:center;background:radial-gradient(ellipse at center,rgba(13,16,36,.35),rgba(13,16,36,.78));pointer-events:auto}
 #cfh .menu.on{display:grid}
@@ -93,6 +104,7 @@ export class FightHud {
   private readonly roundEl: HTMLElement;
   private readonly ann: HTMLElement;
   private readonly keys: HTMLElement;
+  private readonly quads: Record<Quad, HTMLElement>;
   private readonly warn: HTMLElement;
   private readonly menu: HTMLElement;
   private readonly flashEl: HTMLElement;
@@ -113,7 +125,10 @@ export class FightHud {
     r.innerHTML = `<div class="top">${side('l')}<div><div class="clock">90</div><div class="round">ROUND 1</div></div>${side('r')}</div>
 <div class="status l"></div><div class="status r"></div><div class="combo l"></div><div class="combo r"></div><div class="warn"></div>
 <div class="ann"></div><div class="flash"></div>
-<div class="keys"><span><kbd>←</kbd><kbd>→</kbd>moverse</span><span><kbd>↑</kbd>saltar</span><span><kbd>↓</kbd>agacharse</span><span><kbd>Z</kbd>piña</span><span><kbd>X</kbd>patada</span><span><kbd>C</kbd>guardia</span><span><kbd>Z</kbd><kbd>Z</kbd>uno-dos</span><span><kbd>Z</kbd><kbd>X</kbd>piña y patada</span><span><kbd>Esc</kbd>pausa</span></div>
+<div class="keys"><span><kbd>Q</kbd><kbd>W</kbd>brazos izq · der</span><span><kbd>A</kbd><kbd>S</kbd>piernas izq · der</span><span><kbd>D</kbd>guardia</span><span><kbd>←</kbd><kbd>→</kbd>moverse</span><span><kbd>↑</kbd>saltar</span><span><kbd>↓</kbd>agacharse</span><span><kbd>Esc</kbd>pausa</span></div>
+<div class="pad"><div class="cap"><div class="ln" style="top:19%"></div><div class="ln" style="top:75%"></div><div class="vl"></div><div class="hd">cabeza</div>
+<div class="q" data-q="LA" style="left:0;top:19%;width:50%;height:56%"></div><div class="q" data-q="RA" style="left:50%;top:19%;width:50%;height:56%"></div>
+<div class="q" data-q="LL" style="left:0;top:75%;width:50%;height:25%"></div><div class="q" data-q="RL" style="left:50%;top:75%;width:50%;height:25%"></div></div></div>
 <div class="menu"><div class="card"></div></div>`;
     host.appendChild(r);
     this.root = r;
@@ -130,6 +145,7 @@ export class FightHud {
     this.roundEl = q('.round');
     this.ann = q('.ann');
     this.keys = q('.keys');
+    this.quads = Object.fromEntries(qa('.pad .q').map((e) => [e.dataset.q!, e])) as Record<Quad, HTMLElement>;
     this.warn = q('.warn');
     this.menu = q('.menu');
     this.flashEl = q('.flash');
@@ -173,6 +189,24 @@ export class FightHud {
     this.flashEl.style.opacity = '0';
   }
 
+  /**
+   * El chizito dividido como se armó (de frente): Q/W brazos izq/der, A/S piernas izq/der (pedazo chico), la cabeza sin botón. En
+   * cada cuadrante, cuántas extremidades tiene (el botón las usa de a una); vacío = apagado.
+   */
+  pad(counts: Record<Quad, number>): void {
+    for (const [qd, el] of Object.entries(this.quads) as [Quad, HTMLElement][]) {
+      el.innerHTML = `${QUAD_KEYS[qd]}<small>${counts[qd] ? `${qd[1] === 'A' ? 'brazo' : 'pierna'}${counts[qd] > 1 ? `s ×${counts[qd]}` : ''}` : 'nada'}</small>`;
+      el.classList.toggle('empty', !counts[qd]);
+    }
+  }
+
+  padHit(qd: Quad): void {
+    const el = this.quads[qd];
+    el.classList.remove('hit');
+    void el.offsetWidth;
+    el.classList.add('hit');
+  }
+
   hideKeys(): void {
     this.keys.classList.add('off');
   }
@@ -205,7 +239,7 @@ export class FightHud {
   showMenu(title: string, sub: string, buttons: { a: MenuAction; label: string; alt?: boolean }[], withKeys = false): void {
     const card = this.menu.querySelector('.card') as HTMLElement;
     const grid = withKeys
-      ? `<div class="grid"><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Z</kbd> o <kbd>J</kbd></span><span>piña: cada toque usa el brazo siguiente (errar con algo pesado cuesta)</span><span><kbd>X</kbd> o <kbd>K</kbd></span><span>patada: la pierna más adelantada</span><span><kbd>Z</kbd> en el aire</span><span>piña en picada</span><span><kbd>C</kbd> o <kbd>L</kbd></span><span>guardia (mantener): los brazos tapan</span><span><kbd>Z</kbd> <kbd>Z</kbd></span><span>UNO-DOS: si la piña acierta, otra con el otro brazo (con 3 brazos, RÁFAGA)</span><span><kbd>Z</kbd> <kbd>X</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>C</kbd> → <kbd>Z</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span></div>`
+      ? `<div class="grid"><span><kbd>Q</kbd> <kbd>W</kbd></span><span>brazos izquierdos / derechos (como armaste el chizito, de frente): cada toque usa el siguiente de ese lado</span><span><kbd>A</kbd> <kbd>S</kbd></span><span>piernas izquierdas / derechas (la parte de abajo del chizito)</span><span><kbd>D</kbd></span><span>guardia (mantener): los brazos tapan</span><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar (brazo en el aire = en picada)</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Q</kbd> <kbd>W</kbd></span><span>UNO-DOS: si la piña acierta, otra enseguida (con 3 brazos, RÁFAGA)</span><span><kbd>Q</kbd> <kbd>A</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>D</kbd> → <kbd>Q</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span><span>cabeza</span><span>lo que tenga arriba no es brazo: pesa y protege</span></div>`
       : '';
     card.innerHTML = `<h2>${title}</h2><p>${sub}</p>${buttons.map((b, i) => `<button data-a="${b.a}" class="${b.alt ? 'alt' : ''}${i === 0 ? ' sel' : ''}">${b.label}</button>`).join('')}${grid}`;
     this.menuSel = 0;

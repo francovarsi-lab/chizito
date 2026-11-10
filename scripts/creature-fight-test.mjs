@@ -489,6 +489,38 @@ try {
     ok(swung, 'y patea balanceando el cuerpo entero');
   }
 
+  // ── Secciones y botones por cuadrante: piernas abajo (pedazo chico), cabeza arriba (no es brazo), brazos al medio; Q/W brazos
+  //    izq/der, A/S piernas izq/der, cada botón de a una extremidad y cada cuadrante por su lado ──
+  {
+    const { zoneOf, ZONES, quadOf } = await server.ssrLoadModule('/src/creature/zones.ts');
+    ok(zoneOf(-0.9, 1) === 'leg' && zoneOf(0, 1) === 'arm' && zoneOf(0.9, 1) === 'head', 'secciones: pierna abajo, brazo al medio, cabeza arriba');
+    ok(1 + ZONES.legBelow < 0.6 && quadOf('head', 'L') === null && quadOf('leg', 'R') === 'RL', `la sección de piernas es un pedazo chico (${((1 + ZONES.legBelow) * 50).toFixed(0)} % del largo) y la cabeza no tiene botón`);
+    ok(mine.limbs.every((l) => l.side === 'L' || l.side === 'R'), 'cada extremidad tiene lado');
+    // Los dos brazos del mismo lado: ese botón los usa de a uno, el del otro lado no hace nada.
+    const both = { ...mine, limbs: mine.limbs.map((l) => (l.role === 'arm' ? { ...l, side: 'L' } : l)) };
+    const m = fight(both);
+    m.f[1].x = 0.2;
+    const used = [];
+    let other = false;
+    for (let i = 0; i < 240; i++) {
+      stepMatch(m, [{ x: 0, quad: i === 0 || i === 120 ? 'LA' : i === 200 ? 'RA' : undefined }, { x: 0 }]);
+      m.f[0].limbs.forEach((q, k) => {
+        if (q.phase === 'windup' && q.t === 1) (i >= 200 ? (other = true) : used.push(k));
+      });
+    }
+    ok(used.length === 2 && used[0] !== used[1] && used.every((k) => both.limbs[k].role === 'arm'), `Q dos veces = los dos brazos de ese lado, de a uno (${used})`);
+    ok(!other, 'W sin brazos en ese lado no hace nada');
+    // Patada por cuadrante: sólo las piernas de ese lado.
+    const legs = fight(mine);
+    const legSide = mine.limbs.find((l) => l.role === 'leg').side;
+    let kicked = -1;
+    for (let i = 0; i < 40; i++) {
+      stepMatch(legs, [{ x: 0, quad: i === 0 ? `${legSide}L` : undefined }, { x: 0 }]);
+      legs.f[0].limbs.forEach((q, k) => q.phase === 'strike' && (kicked = k));
+    }
+    ok(kicked >= 0 && mine.limbs[kicked].role === 'leg' && mine.limbs[kicked].side === legSide, `A/S patea con la pierna de ese lado (${kicked})`);
+  }
+
   // ── Rendimiento: 40 extremidades, dos luchadores ──
   {
     const m = fight(fighterFromSnapshot(snap('F40')));
