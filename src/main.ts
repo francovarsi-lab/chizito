@@ -275,7 +275,26 @@ async function main() {
 main().catch((err) => {
   console.error(err);
   document.body.dataset.error = String(err);
+  bootMessage(
+    /WebGL/i.test(String(err))
+      ? 'Este navegador no puede dibujar en 3D (WebGL apagado). Abrilo en Chrome y activá «Usar aceleración por hardware» en Configuración → Sistema.'
+      : `No arrancó: ${String(err)}`,
+  );
 });
+
+// Si el arranque se cuelga, el cargador no se queda girando para siempre sin decir nada.
+window.setTimeout(() => {
+  if (!document.body.dataset.ready && !document.body.dataset.error)
+    bootMessage('Está tardando mucho. Probá recargar, o abrilo en Chrome con la aceleración por hardware activada.');
+}, 30000);
+
+function bootMessage(text: string): void {
+  const boot = document.getElementById('boot');
+  if (!boot) return;
+  boot.querySelector('.chz')?.setAttribute('style', 'animation:none');
+  boot.lastElementChild!.textContent = text;
+  boot.style.cssText += ';max-width:560px;margin:auto;text-align:center;line-height:1.4;padding:0 24px';
+}
 
 // ── Pelea (botón PELEAR): siempre disponible, se carga aparte cuando el juego ya arrancó. ──
 void import('./creature/fight/install').then((m) => m.installFight());
