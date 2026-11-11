@@ -17,8 +17,11 @@ export const CONFIG = {
     far: 6,
   },
   light: {
-    /** Dirección HACIA la luz (ventana de tarde, adelante a la izquierda, alta). */
-    direction: new THREE.Vector3(-0.2, 0.55, 0.81).normalize(),
+    /**
+     * Dirección HACIA la luz (ventana adelante a la izquierda, ALTA: ~55°). Así todas las sombras de la mesa caen cortas, cerca
+     * de cada cosa y hacia el mismo lado; con la luz rasante (33°) la del chizito caía 15 cm atrás y no se la asociaba con él.
+     */
+    direction: new THREE.Vector3(-0.28, 0.82, 0.5).normalize(),
     color: new THREE.Color('#fff4ea'),
     intensity: 2.7,
   },
