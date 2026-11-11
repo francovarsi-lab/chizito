@@ -49,10 +49,10 @@ export function loadBroccoliParts(): Promise<BroccoliParts | null> {
   return partsCache;
 }
 
-const zMemo = new Map<string, number | null>();
-const fitMemo = new Map<number, { cx: number; k: number }>();
-
-/** Brócoli con los modelos reales: el cuerpo GLB (la cara del GLB mira a −Z: se gira) y una zanahoria real por extremidad. */
+/**
+ * Brócoli con los modelos reales: la COPA del GLB (la cara del GLB mira a −Z: se gira), un tallo propio del grosor del boceto
+ * (tapa el tallo del GLB, que es angosto y trae restos de cara deformes) y una zanahoria real CLAVADA por extremidad.
+ */
 function fromParts(parts: BroccoliParts, level: number): THREE.Group {
   const root = new THREE.Group();
   root.name = 'brocoli';
@@ -64,65 +64,39 @@ function fromParts(parts: BroccoliParts, level: number): THREE.Group {
     const holder = new THREE.Group();
     holder.position.copy(a);
     holder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
-    // La zanahoria del GLB va a lo largo de Z con la punta fina en +Z: la punta queda en el origen (adentro del tallo).
+    // Clavada: la punta fina queda ADENTRO del tallo (hasta cerca del eje) y lo que asoma ya es zanahoria gruesa (antes se
+    // veía pegada por un hilito). La zanahoria del GLB va a lo largo de Z con la punta fina en +Z.
+    const inner = s.arm ? 0.4 : 0.5;
     const c = parts.carrot.clone();
     c.rotation.x = Math.PI / 2;
-    c.scale.set(L * 0.8, L * 0.8, L); // el largo del GLB está en Z; X e Y son el grosor
-    c.position.y = L / 2;
+    c.scale.set(L * 0.8, L * 0.8, L + inner);
+    c.position.y = (L - inner) / 2;
     holder.add(c);
     root.add(holder);
   }
+  root.add(stalk());
   const body = parts.body.clone();
   const h = BROCCOLI_TOP - STALK_Y0;
   body.rotation.y = Math.PI;
   body.scale.setScalar(h);
   body.position.y = STALK_Y0 + h / 2;
-  if (level > 1) {
-    // Más nivel: copa más oscura (material propio, no el compartido).
-    body.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      const mat = (m.material as THREE.MeshStandardMaterial).clone();
-      mat.color.multiplyScalar(1 - (level - 1) * 0.12);
-      m.material = mat;
-      m.userData.shared = false;
-      m.userData.ownGeometry = false;
-    });
-  }
+  // Del GLB sólo queda la COPA: todo lo que está debajo de `CROWN_CUT` (su tallo y sus restos de cara) se recorta con un plano.
+  // El plano está en el marco del brócoli; `syncCrownClip` lo lleva al mundo cada cuadro. Material propio por brócoli (y más
+  // oscuro con más nivel).
+  const clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -CROWN_CUT);
+  root.userData.crownClip = { local: clip.clone(), world: clip };
+  body.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const mat = (m.material as THREE.MeshStandardMaterial).clone();
+    if (level > 1) mat.color.multiplyScalar(1 - (level - 1) * 0.12);
+    mat.clippingPlanes = [clip];
+    m.material = mat;
+    m.userData.shared = false;
+    m.userData.ownGeometry = false;
+  });
   root.add(body);
-  // La cara del modelo 3D salió muy tenue (al pasar la imagen a 3D se perdieron los ojos, las cejas y los dientes): se le pone
-  // la del boceto, apoyada sobre la superficie real del tallo. Los rayos se tiran una sola vez (quedan guardados: el cuerpo es
-  // siempre el mismo), así armar otro brócoli no traba.
-  root.updateMatrixWorld(true);
-  const ray = new THREE.Raycaster();
-  const meshes: THREE.Object3D[] = [];
-  body.traverse((o) => (o as THREE.Mesh).isMesh && meshes.push(o));
-  const zAt = (x: number, y: number): number | null => {
-    const key = `${x.toFixed(3)}|${y.toFixed(3)}`;
-    if (zMemo.has(key)) return zMemo.get(key)!;
-    ray.set(new THREE.Vector3(x, y, 3), new THREE.Vector3(0, 0, -1));
-    const hit = ray.intersectObjects(meshes, false)[0];
-    const z = hit ? hit.point.z : null;
-    zMemo.set(key, z);
-    return z;
-  };
-  // Centro y ancho del tallo (el del modelo es más angosto y no está centrado): medido cada 5 mm de alto del boceto.
-  const fit = (y0: number): { cx: number; k: number } => {
-    const y = Math.round(y0 * 20) / 20;
-    const got = fitMemo.get(y);
-    if (got) return got;
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (let x = -0.8; x <= 0.8; x += 0.04) {
-      if (zAt(x, y) === null) continue;
-      lo = Math.min(lo, x);
-      hi = Math.max(hi, x);
-    }
-    const r = hi > lo ? { cx: (lo + hi) / 2, k: Math.min(1.2, Math.max(0.5, (hi - lo) / 2 / 0.36)) } : { cx: 0, k: 1 };
-    fitMemo.set(y, r);
-    return r;
-  };
-  addFace(root, zAt, level, mulberry32(31 + level), fit);
+  addFace(root, level);
   return root;
 }
 
@@ -232,10 +206,25 @@ function floret(radius: number, seed: number, palette: { dark: THREE.Color; mid:
 }
 
 /** Tallo del brócoli: cilindro apenas irregular, con fibras verticales más claras. */
+/** Radio del tallo a cada altura (unidades del boceto): parejo abajo y abierto arriba, donde se reparte en las ramas de la copa. */
+const STALK_TOP = 2.98;
+/** Altura (boceto) desde la que se ve la copa del GLB: más abajo manda el tallo propio. */
+const CROWN_CUT = 2.66;
+function stalkRadius(y: number): number {
+  return 0.37 - 0.03 * THREE.MathUtils.smoothstep(y, 1.42, 2.3) + 0.2 * Math.pow(THREE.MathUtils.smoothstep(y, 2.5, STALK_TOP), 1.6);
+}
+
+/** Punto de la superficie del tallo (frente, +Z) para la coordenada x del boceto, a la altura y, separado `dz` hacia afuera. */
+function onStalk(x: number, y: number, dz = 0): THREE.Vector3 {
+  const R = stalkRadius(y);
+  const a = Math.asin(THREE.MathUtils.clamp(x / R, -1, 1));
+  return new THREE.Vector3(Math.sin(a) * (R + dz), y, Math.cos(a) * (R + dz));
+}
+
 function stalk(): THREE.Mesh {
-  const y0 = 1.42;
-  const y1 = 2.8;
-  const geo = new THREE.CylinderGeometry(0.335, 0.37, y1 - y0, 72, 36, false);
+  const y0 = STALK_Y0;
+  const y1 = STALK_TOP;
+  const geo = new THREE.CylinderGeometry(1, 1, y1 - y0, 72, 48, false);
   geo.translate(0, (y0 + y1) / 2, 0);
   const pos = geo.getAttribute('position');
   const v = new THREE.Vector3();
@@ -244,21 +233,29 @@ function stalk(): THREE.Mesh {
     v.fromBufferAttribute(pos, i);
     const a = Math.atan2(v.z, v.x);
     const r = Math.hypot(v.x, v.z);
-    if (r < 0.2) continue; // tapas
+    const R = stalkRadius(v.y);
+    if (r < 0.5) {
+      pos.setXYZ(i, v.x * R, v.y, v.z * R); // tapas
+      continue;
+    }
     const f = Math.pow(0.5 + 0.5 * Math.sin(a * 9 + noise.noise(a, v.y * 1.5, 3) * 1.6), 4);
-    const bulge = noise.fbm(Math.cos(a), v.y * 1.2, Math.sin(a), 3) * 0.035;
+    // Las fibras se marcan más arriba, donde el tallo se abre en ramas. Sin bultos en la cara (y 1,8–2,7, de frente).
+    const front = THREE.MathUtils.smoothstep(Math.cos(a - Math.PI / 2), 0.3, 0.8) * (v.y > 1.8 && v.y < 2.7 ? 1 : 0);
+    const bulge = noise.fbm(Math.cos(a), v.y * 1.2, Math.sin(a), 3) * 0.03 * (1 - front);
+    const flare = THREE.MathUtils.smoothstep(v.y, 2.5, y1);
     fiber[i] = f;
-    const k = 1 + f * 0.01 + bulge;
+    const k = R * (1 + f * (0.01 + flare * 0.08) + bulge);
     pos.setXYZ(i, v.x * k, v.y, v.z * k);
   }
   geo.computeVertexNormals();
-  const base = col('#93c262');
-  const pale = col('#c9e3a2');
-  const deep = col('#5c9238');
+  const base = col('#a6cd74');
+  const pale = col('#d6eab3');
+  const deep = col('#6a9c44');
   paint(geo, (p, i) => {
     const n = noise.fbm(p.x * 3, p.y * 2, p.z * 3, 3) * 0.5 + 0.5;
     const cut = THREE.MathUtils.smoothstep(1.6 - p.y, 0, 0.18); // la base cortada es más clara
-    return base.clone().lerp(deep, (1 - n) * 0.3).lerp(pale, fiber[i] * 0.3).lerp(col('#e3f0c4'), cut * 0.6);
+    const top = THREE.MathUtils.smoothstep(p.y, 2.5, STALK_TOP); // arriba, hacia la copa, más verde
+    return base.clone().lerp(deep, (1 - n) * 0.25 + top * 0.35).lerp(pale, fiber[i] * 0.35).lerp(col('#eef6da'), cut * 0.6);
   });
   return new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, clearcoat: 0.3, clearcoatRoughness: 0.45, sheen: 0.4, sheenColor: col('#e8f7c8') }));
 }
@@ -281,77 +278,95 @@ function beetEye(): THREE.Mesh {
 
 /** Tira de morrón (ceja): tubo achatado y curvo, rojo brillante. */
 function pepperBrow(a: THREE.Vector3, b: THREE.Vector3, thick: number): THREE.Mesh {
-  const mid = a.clone().lerp(b, 0.5).add(new THREE.Vector3(0, 0.025, 0.02));
+  // Arqueada hacia afuera del tallo (la normal en el medio), así queda apoyada y no se hunde en la curva del tallo.
+  const mid = a.clone().lerp(b, 0.5);
+  const out = new THREE.Vector3(mid.x, 0, mid.z).normalize();
+  mid.addScaledVector(out, 0.03).y += 0.02;
   const geo = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, mid, b), 24, thick, 10);
-  // Achatada: más ancha que gruesa.
-  const pos = geo.getAttribute('position');
-  const c = mid.clone();
-  for (let i = 0; i < pos.count; i++) {
-    const z = pos.getZ(i);
-    pos.setZ(i, c.z + (z - c.z) * 0.55);
-  }
-  geo.computeVertexNormals();
   return new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color: '#c3111f', roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.05 }));
 }
 
 /**
- * Cara malvada del boceto sobre el tallo (mirando a +Z): ojos de rodaja de remolacha, cejas de tira de morrón y boca oscura con
- * dientes de sésamo negro. `zAt(x, y)` = dónde está la superficie del tallo en esa altura (o null si no hay).
+ * Cara malvada del boceto, sobre el tallo (mirando a +Z), armada para que se lea de lejos y de cerca: dos rodajas de remolacha
+ * (ojos) separadas, con pupila y brillo; una tira de morrón por ceja, cada una sobre SU ojo, en V enojada; y una sonrisa
+ * malvada en media luna, oscura, con dientes blancos de sésamo arriba y abajo.
  */
-function addFace(
-  root: THREE.Group,
-  zAt: (x: number, y: number) => number | null,
-  level: number,
-  rnd: () => number,
-  /** Centro y escala del tallo en cada altura (el boceto es un tallo de radio 0,36 centrado en x = 0). */
-  fit: (y: number) => { cx: number; k: number } = () => ({ cx: 0, k: 1 }),
-): void {
+function addFace(root: THREE.Group, level: number): void {
   const M = faceMaterials();
-  const at = (x: number, y: number, dz: number): THREE.Vector3 => {
-    const { cx, k } = fit(y);
-    const X = cx + x * k;
-    return new THREE.Vector3(X, y, (zAt(X, y) ?? Math.sqrt(Math.max(0, (0.36 * k) ** 2 - x * x * k * k))) + dz * k);
-  };
-  const shared = (m: THREE.Mesh): THREE.Mesh => {
+  const shared = <T extends THREE.Object3D>(m: T): T => {
     m.userData.shared = true;
     return m;
   };
-  // Se tiene que entender la cara de lejos y de 3/4: ojos grandes con brillo, cejas gruesas, dientes claros en boca oscura.
-  const k0 = fit(2.38).k;
+  const EY = 2.37;
   for (const sx of [-1, 1]) {
+    const x = sx * 0.172;
     const eye = shared(new THREE.Mesh(M.eyeGeo, M.eye));
-    const x = sx * 0.17;
-    eye.position.copy(at(x, 2.38, -0.004));
-    eye.rotation.set(0.08, Math.asin(Math.max(-1, Math.min(1, x / 0.36))), sx * 0.15);
-    eye.scale.set(1.6 * k0, 0.82 * 1.6 * k0, k0); // grandes y entrecerrados
+    eye.position.copy(onStalk(x, EY, 0.004));
+    eye.rotation.set(0.06, Math.asin(x / stalkRadius(EY)), -sx * 0.18);
+    eye.scale.set(1.2, 0.86, 1); // radio 0,16, entrecerrados y caídos hacia afuera: entre los dos queda tallo a la vista
+    eye.name = 'ojo';
     root.add(eye);
-    // Brillo del ojo (le da vida y lo despega del tallo).
+    // Pupila mirando al centro y abajo (mirada torva) y su brillo.
+    const pupil = shared(new THREE.Mesh(M.ball, M.mouth));
+    pupil.position.copy(onStalk(x - sx * 0.035, EY - 0.03, 0.03));
+    pupil.scale.set(0.042, 0.042, 0.016);
+    pupil.name = 'pupila';
+    root.add(pupil);
     const glint = shared(new THREE.Mesh(M.ball, M.glint));
-    glint.position.copy(eye.position).add(new THREE.Vector3(-0.055 * k0, 0.05 * k0, 0.035 * k0));
-    glint.scale.setScalar(0.028 * k0);
+    glint.position.copy(onStalk(x - sx * 0.055, EY - 0.005, 0.036));
+    glint.scale.setScalar(0.02);
+    glint.name = 'brillo';
     root.add(glint);
-    // Cejas enojadas, inclinadas hacia adentro.
-    const brow = pepperBrow(at(sx * 0.33, 2.6, 0.03), at(sx * 0.05, 2.45, 0.025), (0.045 + (level - 1) * 0.006) * k0);
+    // Ceja: de afuera-arriba a adentro-abajo, apoyada sobre el borde de arriba del ojo (no se cruzan).
+    const brow = pepperBrow(onStalk(sx * 0.3, EY + 0.19, 0.03), onStalk(sx * 0.03, EY + 0.07, 0.035), 0.036 + (level - 1) * 0.005);
     (brow.material as THREE.Material).dispose();
     brow.material = M.brow;
+    brow.name = 'ceja';
     root.add(shared(brow));
   }
-  const km = fit(2.03).k;
-  const mouth = shared(new THREE.Mesh(M.ball, M.mouth));
-  mouth.position.copy(at(0, 2.03, -0.03));
-  mouth.scale.set(0.27 * km, 0.1 * km, 0.05 * km);
-  root.add(mouth);
-  for (let i = 0; i < 6; i++) {
-    const x = -0.16 + i * 0.064;
-    const tooth = shared(new THREE.Mesh(M.ball, M.seed));
-    tooth.position.copy(at(x, 2.07 - Math.abs(x) * 0.15, 0.008));
-    tooth.scale.set(0.03 * km, 0.048 * km, 0.016 * km);
-    tooth.rotation.z = (rnd() - 0.5) * 0.5;
-    root.add(tooth);
+  // Sonrisa en media luna (las puntas suben) con dientes: se arma plana y se apoya sobre el tallo.
+  const W = 0.23;
+  const topY = (x: number): number => 2.02 + 0.07 * (x / W) ** 2;
+  const botY = (x: number): number => 1.92 + 0.17 * (x / W) ** 2;
+  const surface = (tris: [number, number][], dz: number): THREE.BufferGeometry => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(tris.flatMap(([x, y]) => onStalk(x, y, dz).toArray()), 3));
+    g.computeVertexNormals();
+    return g;
+  };
+  const mouthTris: [number, number][] = [];
+  const N = 24;
+  for (let i = 0; i < N; i++) {
+    const x0 = -W + (2 * W * i) / N;
+    const x1 = -W + (2 * W * (i + 1)) / N;
+    mouthTris.push([x0, topY(x0)], [x0, botY(x0)], [x1, botY(x1)], [x0, topY(x0)], [x1, botY(x1)], [x1, topY(x1)]);
   }
+  M.mouthGeo ??= surface(mouthTris, 0.006);
+  const mouth = shared(new THREE.Mesh(M.mouthGeo, M.mouthIn));
+  mouth.name = 'boca';
+  root.add(mouth);
+  // Dientes: fila de arriba colgando (en punta) y fila de abajo más corta, desparejos.
+  const teeth: [number, number][] = [];
+  const top = 7;
+  for (let i = 0; i < top; i++) {
+    const xc = -W * 0.78 + (1.56 * W * i) / (top - 1);
+    const w = 0.026;
+    const h = 0.045 * (1 - 0.35 * Math.abs(xc / W)) * (i % 2 ? 0.85 : 1);
+    teeth.push([xc - w, topY(xc - w)], [xc, topY(xc) - h], [xc + w, topY(xc + w)]);
+  }
+  for (let i = 0; i < top - 2; i++) {
+    const xc = -W * 0.55 + (1.1 * W * i) / (top - 3);
+    const w = 0.022;
+    const h = 0.032 * (i % 2 ? 0.8 : 1);
+    teeth.push([xc - w, botY(xc - w)], [xc + w, botY(xc + w)], [xc, botY(xc) + h]);
+  }
+  M.teethGeo ??= surface(teeth, 0.01);
+  const t = shared(new THREE.Mesh(M.teethGeo, M.teeth));
+  t.name = 'dientes';
+  root.add(t);
 }
 
-let faceMats: { eyeGeo: THREE.BufferGeometry; ball: THREE.BufferGeometry; eye: THREE.Material; glint: THREE.Material; brow: THREE.Material; mouth: THREE.Material; seed: THREE.Material } | null = null;
+let faceMats: { eyeGeo: THREE.BufferGeometry; ball: THREE.BufferGeometry; eye: THREE.Material; glint: THREE.Material; brow: THREE.Material; mouth: THREE.Material; seed: THREE.Material; mouthIn: THREE.Material; teeth: THREE.Material; mouthGeo?: THREE.BufferGeometry; teethGeo?: THREE.BufferGeometry } | null = null;
 /** Materiales y formas de la cara, compartidos por todos los brócolis (se compilan una vez en el ensayo de la pelea). */
 function faceMaterials(): NonNullable<typeof faceMats> {
   if (faceMats) return faceMats;
@@ -365,8 +380,17 @@ function faceMaterials(): NonNullable<typeof faceMats> {
     mouth: new THREE.MeshPhysicalMaterial({ color: '#3a0812', roughness: 0.35, clearcoat: 0.6 }),
     // Sésamo blanco: sobre la boca oscura se leen como dientes (el negro del boceto no se veía de lejos).
     seed: new THREE.MeshPhysicalMaterial({ color: '#efe3c2', roughness: 0.4, clearcoat: 0.6 }),
+    // Boca y dientes: geometría plana apoyada en el tallo, se ven de los dos lados.
+    mouthIn: new THREE.MeshPhysicalMaterial({ color: '#2a0610', roughness: 0.4, clearcoat: 0.5, side: THREE.DoubleSide }),
+    teeth: new THREE.MeshPhysicalMaterial({ color: '#f4ecd6', roughness: 0.35, clearcoat: 0.7, side: THREE.DoubleSide }),
   };
   return faceMats;
+}
+
+/** Lleva el plano que recorta la copa del GLB al mundo (llamar después de mover el brócoli). */
+export function syncCrownClip(root: THREE.Object3D): void {
+  const c = root.userData.crownClip as { local: THREE.Plane; world: THREE.Plane } | undefined;
+  if (c) c.world.copy(c.local).applyMatrix4(root.matrixWorld);
 }
 
 /** Crea el brócoli malvado. Devuelve un Group (los 4 primeros hijos son las zanahorias, en el orden de `SKETCH`). */
@@ -424,6 +448,6 @@ export function createBrocoli(options: BrocoliOptions = {}): THREE.Group {
   });
 
   // 4) Cara (en el tallo, mirando a la cámara).
-  addFace(root, (x) => Math.sqrt(Math.max(0, 0.36 * 0.36 - x * x)), level, rnd);
+  addFace(root, level);
   return root;
 }

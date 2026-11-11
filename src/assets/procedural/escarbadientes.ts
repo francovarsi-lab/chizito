@@ -5,11 +5,11 @@ import { buildTube } from './tube';
 /**
  * Escarbadientes de madera clara (Ø 2 mm × 3 cm, punta afilada en los dos extremos) y su variante
  * "espadita de cotillón" (plástico brillante pastel: hoja con filo, guarda y mango con pomo).
- * Marco 'tip': la punta de entrada en el origen, el cuerpo hacia +Y.
+ * Marco 'tip': la punta de entrada en el origen, el cuerpo hacia +Y. La espadita entra por el POMO (mango adentro, hoja afuera).
  */
 export const ESCARBADIENTES_LENGTH = 0.03;
 export const ESCARBADIENTES_RADIUS = 0.001;
-/** Largo de la hoja de la espadita (desde la punta hasta la guarda en cruz). */
+/** Largo de la hoja de la espadita (desde la punta hasta la guarda en cruz). La espadita se clava por el mango. */
 export const ESPADITA_BLADE = ESCARBADIENTES_LENGTH * 0.7;
 /** Radio de la barra de la guarda. */
 export const ESPADITA_GUARD_R = 0.0007;
@@ -147,5 +147,13 @@ function createEspadita(seed: number, detail: 'hero' | 'prop'): THREE.Group {
       o.receiveShadow = true;
     }
   });
-  return g;
+  // Se clava AL REVÉS (pedido del usuario): entra el mango por el pomo y queda afuera la hoja que corta.
+  // Se da vuelta el modelo entero: el pomo queda en el origen y la punta de la hoja en +Y.
+  const flipped = new THREE.Group();
+  flipped.name = 'espadita';
+  g.name = 'espadita-modelo';
+  g.rotation.z = Math.PI;
+  g.position.y = L;
+  flipped.add(g);
+  return flipped;
 }

@@ -104,6 +104,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   let shake = 0;
   let whiffN = 0;
   let lastShout = -999;
+  let lastHint = -999;
   let fightT = 0;
   let level2 = 0;
   let perfN = 0;
@@ -138,6 +139,23 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     // flechas mueven. Z/X/C (o J/K/L) quedan como atajo: cualquier brazo, cualquier pierna, guardia.
     const quad: Quad | undefined = took('KeyQ') ? 'LA' : took('KeyW') ? 'RA' : took('KeyA') ? 'LL' : took('KeyS') ? 'RL' : undefined;
     if (quad) hud.padHit(quad);
+    // Si la tecla no puede hacer nada, se dice por qué (si no, parece que el juego no respondió).
+    const f = m?.f[0];
+    if (f && m!.phase === 'fight' && (quad || took('KeyZ', 'KeyJ', 'KeyX', 'KeyK')) && m!.frame - lastHint > 50) {
+      const role = quad ? (quad[1] === 'A' ? 'arm' : 'leg') : took('KeyX', 'KeyK') ? 'leg' : 'arm';
+      const has = f.model.limbs.some((l) => l.role === role && (!quad || l.side === quad[0]));
+      const why = !has
+        ? `NO HAY ${role === 'arm' ? 'BRAZO' : 'PIERNA'}${!quad ? '' : role === 'arm' ? (quad[0] === 'L' ? ' IZQUIERDO' : ' DERECHO') : quad[0] === 'L' ? ' IZQUIERDA' : ' DERECHA'}`
+        : f.wobbly || f.lock > 0
+          ? 'SE ESTÁ ESTABILIZANDO…'
+          : f.stun > 0
+            ? 'ATONTADO…'
+            : null;
+      if (why) {
+        lastHint = m!.frame;
+        hud.popup(f.x, f.y + 0.07, why, '', 'hint');
+      }
+    }
     const inp: FightInput = { x, up: took('ArrowUp', 'Space'), down: held('ArrowDown'), punch: took('KeyZ', 'KeyJ'), kick: took('KeyX', 'KeyK'), guard: held('KeyD', 'KeyC', 'KeyL'), quad };
     edges.clear();
     return inp;
@@ -171,6 +189,74 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     r.scale.setScalar(size * 0.3);
     game().stage.scene.add(r);
     rings.push({ m: r, life: 0, max: 0.22, size });
+  };
+  // ── Estela de cada golpe: la punta de la extremidad deja un trazo mientras pega (y uno tenue mientras carga), así se lee
+  // qué extremidad golpea, desde dónde y hacia dónde. Dorado el chizito, verde el brócoli. ──
+  const TRAIL_N = 16;
+  const trailMats = [0xffc94a, 0x8dff6a].map((c) => new THREE.MeshBasicMaterial({ color: c, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+  const trails = new Map<string, { pts: THREE.Vector3[]; mesh: THREE.Mesh; heat: number }>();
+  const trackTrails = (): void => {
+    if (!m) return;
+    m.f.forEach((f, i) => f.model.limbs.forEach((l, k) => {
+      const s = f.limbs[k];
+      const key = `${i}:${k}`;
+      let t = trails.get(key);
+      const live = s.phase === 'strike' || s.phase === 'windup';
+      if (!t) {
+        if (!live) return;
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 6), 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 6), 3));
+        const idx: number[] = [];
+        for (let n = 0; n < TRAIL_N - 1; n++) idx.push(2 * n, 2 * n + 1, 2 * n + 2, 2 * n + 1, 2 * n + 3, 2 * n + 2);
+        geo.setIndex(idx);
+        const mesh = new THREE.Mesh(geo, trailMats[i]);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 5;
+        game().stage.scene.add(mesh);
+        t = { pts: [], mesh, heat: 0 };
+        trails.set(key, t);
+      }
+      const j = l.points.length - 1;
+      const tip = P3(f.cur[k][2 * j], f.cur[k][2 * j + 1], 0.012);
+      t.heat = s.phase === 'strike' ? 1 : s.phase === 'windup' ? 0.35 : t.heat;
+      if (live) t.pts.unshift(tip);
+      else if (t.pts.length) t.pts.pop();
+      if (t.pts.length > TRAIL_N) t.pts.length = TRAIL_N;
+    }));
+  };
+  const drawTrails = (): void => {
+    for (const [key, t] of trails) {
+      const pos = t.mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const col = t.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+      const n = t.pts.length;
+      t.mesh.visible = n > 1;
+      if (n < 2) {
+        if (!n) {
+          t.mesh.removeFromParent();
+          t.mesh.geometry.dispose();
+          trails.delete(key);
+        }
+        continue;
+      }
+      for (let q = 0; q < TRAIL_N; q++) {
+        const j = Math.min(q, n - 1);
+        const a = t.pts[j];
+        const [p0, p1] = j + 1 < n ? [a, t.pts[j + 1]] : [t.pts[j - 1], a];
+        const dx = p0.x - p1.x;
+        const dy = p0.y - p1.y;
+        const l = Math.hypot(dx, dy) || 1;
+        const k = q < n ? 1 - q / (n - 1) : 0;
+        const w = 0.0035 * k * (0.4 + 0.6 * t.heat);
+        pos.setXYZ(2 * q, a.x - (dy / l) * w, a.y + (dx / l) * w, a.z);
+        pos.setXYZ(2 * q + 1, a.x + (dy / l) * w, a.y - (dx / l) * w, a.z);
+        const c = k * k * t.heat;
+        col.setXYZ(2 * q, c, c, c);
+        col.setXYZ(2 * q + 1, c, c, c);
+      }
+      pos.needsUpdate = true;
+      col.needsUpdate = true;
+    }
   };
   const fx = (dt: number): void => {
     for (let i = sparks.length - 1; i >= 0; i--) {
@@ -339,7 +425,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // ── Cámara de pelea: lateral, sigue el medio de los dos y se aleja o acerca para que entren con aire ──
   const camera = (dt: number): void => {
     if (!m) return;
-    if (present) return presentCamera();
+    if (present) return presentCamera(dt);
     const cam = game().stage.camera;
     cam.setFocalLength(42);
     const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
@@ -387,35 +473,86 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (cur) prev = cur;
     stepMatch(m, [input, aiInput(m, ai, 1)]);
     for (const e of m.events) onEvent(e);
+    trackTrails();
     cur = [poseOf(m.f[0]), poseOf(m.f[1])];
     if (!prev) prev = cur;
   };
 
-  // Presentación: 0–2,8 s TU CHIZITO (la cámara lo rodea, se estira y le tira piñas a la cámara con sus brazos reales),
-  // 2,8–5,3 s EL BROCOLOCO (primer plano de la cara, levanta las zanahorias y se ríe). Después, ROUND 1.
-  const P_CHIZ = 2.8;
-  const P_END = 5.3;
+  // ── Presentación, como la de una pelea de verdad (con los MISMOS modelos del juego; cualquier tecla la saltea) ──
+  // 0–3,4 s TU CHIZITO: se despierta en un primer plano desde abajo, de frente (la cara que se le dibujó), le tira piñas a la
+  //   cámara (cada una sacude la toma) y termina en pose de héroe con la cámara que se aleja.
+  // 3,4–7 s EL BROCOLOCO: la toma sube desde las zanahorias hasta la cara; se ríe (boca, cejas, zanahorias arriba) y de golpe
+  //   SE TE TIRA ENCIMA: zoom brusco, sacudida, destello y su nombre.
+  // 7–8 s: los dos frente a frente, VS. Después, ROUND 1.
+  const P_CHIZ = 3.4;
+  const P_BRO = 7.0;
+  const P_END = 8.0;
+  let presShake = 0;
   const once = (key: string, at: number, fn: () => void): void => {
     if (!present || present.t < at || present.fired.has(key)) return;
     present.fired.add(key);
     fn();
   };
+  const smooth = (x: number): number => {
+    const k = Math.max(0, Math.min(1, x));
+    return k * k * (3 - 2 * k);
+  };
+  const PUNCHES = [1.35, 1.75, 2.15];
   const presentStep = (dt: number): void => {
     if (!present || !m || !views) return;
     present.t += dt;
     const t = present.t;
     const g = game();
     const f0 = m.f[0];
+    presShake *= Math.exp(-dt * 9);
     if (t < P_CHIZ) {
-      const parts = [`${f0.arms.length} brazo${f0.arms.length === 1 ? '' : 's'}`, `${f0.legs.length} pierna${f0.legs.length === 1 ? '' : 's'}`, `${(f0.model.mass * 1000).toFixed(1).replace('.', ',')} g`];
-      hud.present(0, 'TU CHIZITO', parts.join(' · '));
-    } else hud.present(1, 'EL BROCOLOCO', `NIVEL ${level} · el vegetal más malo de la mesa`);
-    // Se estira (el resorte del aplastón) y tira piñas; el brócoli se ríe a los saltos.
-    once('estira1', 0.25, () => views![0].bump(-0.9));
-    once('estira2', 2.15, () => views![0].bump(-1));
-    for (const [i, at] of [0.95, 1.45, 1.95].entries()) once(`pina${i}`, at, () => g.audio.play('zumbido', 0.7));
-    for (const at of [3.15, 3.55, 3.95, 4.35]) once(`risa${at}`, at, () => views![1].bump(0.7));
-    once('risa', 3.1, () => g.audio.play('risa', 1));
+      if (t <= 0.35) hud.present(0);
+      else {
+        const parts = [`${f0.arms.length} brazo${f0.arms.length === 1 ? '' : 's'}`, `${f0.legs.length} pierna${f0.legs.length === 1 ? '' : 's'}`, `${(f0.model.mass * 1000).toFixed(1).replace('.', ',')} g`];
+        hud.present(0, 'TU CHIZITO', parts.join(' · '));
+      }
+    } else if (t < P_BRO) {
+      if (t > P_CHIZ + 2.6) hud.present(1, 'EL BROCOLOCO', `NIVEL ${level} · el vegetal más malo de la mesa`);
+      else hud.present(1);
+    } else hud.present(2, 'VS', 'TU CHIZITO · EL BROCOLOCO');
+    // Chizito: se despierta (se estira de golpe), tiembla de bronca, piñas a la cámara y pose final.
+    once('despierta', 0.3, () => {
+      views![0].bump(-1);
+      g.audio.play('zumbido', 0.6);
+    });
+    once('bronca', 0.95, () => views![0].hurt(0, 0.0012));
+    PUNCHES.forEach((at, i) =>
+      once(`pina${i}`, at + 0.1, () => {
+        presShake = Math.max(presShake, 0.0016);
+        g.audio.play(i === 2 ? 'golpe-pesado' : 'golpe', 0.8);
+      }),
+    );
+    once('heroe', 2.55, () => {
+      views![0].bump(-0.8);
+      g.audio.play('combo', 0.8);
+    });
+    // Brócoli: aparece, se ríe y se te tira encima.
+    once('bro-sube', P_CHIZ + 0.05, () => g.audio.play('zumbido', 0.5));
+    once('risa', P_CHIZ + 1.25, () => g.audio.play('risa', 1));
+    for (const at of [1.3, 1.6, 1.9, 2.2]) once(`rebote${at}`, P_CHIZ + at, () => views![1].bump(0.6));
+    once('susto', P_CHIZ + 2.6, () => {
+      presShake = 0.004;
+      views![1].bump(1);
+      hud.flash(0.5);
+      g.audio.play('golpe-pesado', 1);
+      g.audio.play('ko', 0.7);
+    });
+    once('vs', P_BRO, () => {
+      g.audio.play('round', 1);
+      hud.flash(0.25);
+    });
+    // Gesto de la cara del brócoli: tranquilo y torvo → se ríe (boca que se abre y cierra, cejas arriba) → furia (boca abierta,
+    // cejas abajo).
+    const u = t - P_CHIZ;
+    if (u < 1.2) views[1].face?.(0.05, -0.3);
+    else if (u < 2.6) views[1].face?.(0.25 + 0.55 * Math.abs(Math.sin((u - 1.2) * 11)), 0.6);
+    else if (u < 3.6) views[1].face?.(1, -1);
+    else views[1].face?.(0.15, -0.6);
     if (t >= P_END) endPresent();
   };
   /** Pose de la presentación: la del motor (quieto) con los brazos animados. */
@@ -437,64 +574,129 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const r = A.slerp(B, Math.max(0, Math.min(1, a)));
       qs[k] = [r.x, r.y, r.z, r.w];
     };
+    const raise = (k: number, a: number, wiggle: number): void => {
+      const d = L[k].dir;
+      const up: [number, number, number] = [d[0] * 0.35, 1, d[2] * 0.35];
+      const l = Math.hypot(...up);
+      blend(k, qFromTo(d, [up[0] / l, up[1] / l, up[2] / l]), a * (0.8 + 0.2 * Math.sin(t * 16 + k * 2) * wiggle));
+    };
+    const arms = f.arms.filter((k) => !L[k].rigid);
     if (i === 0) {
+      if (t > P_CHIZ) return base;
       // Piñas a la cámara: cada brazo (articulado) apunta a la lente y vuelve, uno por vez.
-      const arms = f.arms.filter((k) => !L[k].rigid);
-      [0.95, 1.45, 1.95].forEach((at, n) => {
+      PUNCHES.forEach((at, n) => {
         if (!arms.length) return;
         const k = arms[n % arms.length];
         const u = t - at;
         if (u < 0 || u > 0.45) return;
-        const a = u < 0.12 ? 1 - (1 - u / 0.12) ** 3 : u < 0.2 ? 1 : 1 - (u - 0.2) / 0.25;
+        const a = u < 0.1 ? 1 - (1 - u / 0.1) ** 3 : u < 0.2 ? 1 : 1 - (u - 0.2) / 0.25;
         const pivotW = new THREE.Vector3(f.x, f.y + GROUND, z0);
         blend(k, qFromTo(L[k].dir, toLocal(cam.clone().sub(pivotW))), a);
       });
-      return { ...base, qs, tilt: base.tilt + 0.07 * Math.sin(t * 7) * (t < P_CHIZ ? 1 : 0) };
+      // Pose de héroe: todos los brazos arriba.
+      if (t > 2.5) arms.forEach((k) => raise(k, smooth((t - 2.5) * 4), 0.4));
+      // Se despierta: un temblor de bronca antes de las piñas.
+      const shiver = t > 0.9 && t < 1.3 ? 0.05 * Math.sin(t * 60) : 0;
+      return { ...base, qs, tilt: base.tilt + shiver + 0.05 * Math.sin(t * 5) * (t < 2.5 ? 1 : 0) };
     }
-    // El brócoli: zanahorias arriba, sacudiéndose (furioso y riéndose).
-    if (t > P_CHIZ - 0.2) {
-      f.arms.forEach((k, n) => {
-        const d = L[k].dir;
-        const up: [number, number, number] = [d[0] * 0.35, 1, d[2] * 0.35];
-        const l = Math.hypot(...up);
-        blend(k, qFromTo(d, [up[0] / l, up[1] / l, up[2] / l]), Math.min(1, (t - P_CHIZ + 0.2) * 4) * (0.75 + 0.25 * Math.sin(t * 16 + n * 2)));
-      });
-    }
-    return { ...base, qs };
+    // El brócoli: respira, después zanahorias arriba sacudiéndose (furioso y riéndose).
+    const u = t - P_CHIZ;
+    if (u > 1.1) arms.forEach((k) => raise(k, smooth((u - 1.1) * 4), 1));
+    return { ...base, qs, tilt: base.tilt + (u > 0 && u < 1.2 ? 0.02 * Math.sin(u * 4) : 0) };
   };
-  /** Cámara de la presentación: rodea al chizito; después, primer plano de la cara del brócoli (que está de frente). */
-  const presentCamera = (): void => {
+  /** Cámara de la presentación (planos de cine: contrapicado, primer plano, grúa, zoom de golpe, plano de los dos). */
+  const presentCamera = (dt: number): void => {
     if (!present || !m) return;
     const cam = game().stage.camera;
     const t = present.t;
+    const front = (i: 0 | 1): THREE.Vector3 => new THREE.Vector3(m!.f[i].facing * Math.cos(m!.f[i].yaw), 0, Math.sin(m!.f[i].yaw));
+    // Altura a lo largo del cuerpo principal (el chizito, o el tallo del brócoli: ahí está la cara), de abajo (0) a arriba (1).
+    const at = (i: 0 | 1, k: number): THREE.Vector3 => {
+      const f = m!.f[i];
+      const b = f.model.body[0];
+      const lo = Math.min(b.a[1], b.b[1]) - b.r;
+      const hi = Math.max(b.a[1], b.b[1]) + b.r;
+      return new THREE.Vector3(f.x, f.y + GROUND + lo + (hi - lo) * k, z0);
+    };
     let pos: THREE.Vector3;
     let look: THREE.Vector3;
+    let rate = 7;
+    let focal = 50;
+    let roll = 0;
     if (t < P_CHIZ) {
-      const f = m.f[0];
-      const c = new THREE.Vector3(f.x, f.y + GROUND + 0.006, z0);
-      const k = t / P_CHIZ;
-      const a = -0.6 + 0.85 * (k * k * (3 - 2 * k));
-      const D = 0.17 - 0.03 * k;
-      pos = c.clone().add(new THREE.Vector3(Math.sin(a) * D, 0.022 - 0.012 * k, Math.cos(a) * D));
-      look = c;
-      cam.setFocalLength(50);
+      const n = front(0);
+      const side = new THREE.Vector3(-n.z, 0, n.x);
+      const face = at(0, 0.62);
+      if (t < 1.3) {
+        // Contrapicado muy cerca, entrando de a poco: se despierta.
+        const k = smooth(t / 1.3);
+        pos = face.clone().addScaledVector(n, 0.1 - 0.025 * k).addScaledVector(side, 0.025 * (1 - k)).add(new THREE.Vector3(0, -0.028 + 0.01 * k, 0));
+        look = face.clone().add(new THREE.Vector3(0, 0.004, 0));
+        rate = 5;
+        focal = 42;
+      } else if (t < 2.5) {
+        // De frente: le pega a la lente.
+        pos = face.clone().addScaledVector(n, 0.085).add(new THREE.Vector3(0, -0.01, 0));
+        look = face;
+        rate = 9;
+        focal = 40;
+      } else {
+        // Pose de héroe: la cámara se aleja rápido y queda en contrapicado, apenas inclinada.
+        const k = smooth((t - 2.5) / 0.6);
+        pos = face.clone().addScaledVector(n, 0.085 + 0.08 * k).addScaledVector(side, -0.03 * k).add(new THREE.Vector3(0, -0.01 - 0.012 * k, 0));
+        look = at(0, 0.55);
+        rate = 12;
+        focal = 40;
+        roll = -0.08 * k;
+      }
+    } else if (t < P_BRO) {
+      const u = t - P_CHIZ;
+      const n = front(1);
+      const face = at(1, 0.55);
+      const feet = new THREE.Vector3(m.f[1].x, GROUND + 0.006, z0);
+      if (u < 1.2) {
+        // Grúa: arranca en las zanahorias y sube hasta la cara.
+        const k = smooth(u / 1.2);
+        pos = feet.clone().lerp(face, k).addScaledVector(n, 0.13 - 0.03 * k).add(new THREE.Vector3(0, -0.01 + 0.005 * k, 0));
+        look = feet.clone().lerp(face, k);
+        rate = 8;
+        focal = 45;
+      } else if (u < 2.6) {
+        // Primer plano de la cara: se ríe.
+        pos = face.clone().addScaledVector(n, 0.095).add(new THREE.Vector3(0, 0.004, 0));
+        look = face;
+        focal = 50;
+      } else {
+        // ¡SE TE TIRA ENCIMA! Zoom de golpe a la cara y queda ahí, torcido.
+        const k = smooth((u - 2.6) / 0.12);
+        pos = face.clone().addScaledVector(n, 0.095 - 0.045 * k);
+        look = face;
+        rate = 40;
+        focal = 50 + 8 * k;
+        roll = 0.1 * k;
+      }
     } else {
-      const f = m.f[1];
-      const face = new THREE.Vector3(f.x, f.y + GROUND + 0.01, z0);
-      // La cara mira al rival y hacia la cámara (su giro propio): la toma va de frente a ella, acercándose.
-      const n = new THREE.Vector3(f.facing * Math.cos(f.yaw), 0, Math.sin(f.yaw));
-      const k = Math.min(1, (t - P_CHIZ) / (P_END - P_CHIZ));
-      pos = face.clone().addScaledVector(n, 0.14 - 0.035 * k).add(new THREE.Vector3(0, 0.012, 0));
-      look = face;
-      cam.setFocalLength(50);
+      // Los dos frente a frente: plano general bajo, de frente.
+      const mid = at(0, 0.4).lerp(at(1, 0.4), 0.5);
+      const gap = Math.abs(m.f[1].x - m.f[0].x);
+      pos = mid.clone().add(new THREE.Vector3(0, 0.005, 0.12 + gap * 0.9));
+      look = mid;
+      rate = 6;
+      focal = 40;
     }
-    // Entra suave desde donde esté la cámara (el constructor o la toma anterior).
-    const kk = 1 - Math.exp(-0.016 * 9);
-    camPos.lerp(pos, camInit ? kk : 1);
-    camLook.lerp(look, camInit ? kk : 1);
+    // Corte seco al empezar cada parte (como en el cine); adentro de cada una, la cámara se mueve suave.
+    const shot = t < P_CHIZ ? 'toma-chizito' : t < P_BRO ? 'toma-brocoli' : 'toma-vs';
+    const cut = !present.fired.has(shot);
+    present.fired.add(shot);
+    const kk = cut ? 1 : 1 - Math.exp(-dt * rate);
+    camPos.lerp(pos, kk);
+    camLook.lerp(look, kk);
     camInit = true;
+    cam.setFocalLength(cut ? focal : cam.getFocalLength() + (focal - cam.getFocalLength()) * Math.min(1, kk * 1.5));
     cam.position.copy(camPos);
+    if (presShake > 1e-5) cam.position.add(new THREE.Vector3((Math.random() - 0.5) * presShake, (Math.random() - 0.5) * presShake, 0));
     cam.lookAt(camLook);
+    if (roll) cam.rotateZ(roll);
     cam.updateMatrixWorld();
     game().stage.focusTarget.copy(camLook);
   };
@@ -503,6 +705,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const pending = present.pending;
     present = null;
     hud.present(null);
+    views?.[1].face?.(0, 0);
     for (const e of pending) onEvent(e);
     // De la última toma a la de pelea, en movimiento (no de golpe).
     const cam = game().stage.camera;
@@ -554,6 +757,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       }
     } else camera(raw);
     fx(raw);
+    drawTrails();
     hud.update(m, raw, project);
     perf(raw);
   };
@@ -770,6 +974,11 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       rings.length = 0;
       for (const s of stars) s.removeFromParent();
       stars.length = 0;
+      for (const t of trails.values()) {
+        t.mesh.removeFromParent();
+        t.mesh.geometry.dispose();
+      }
+      trails.clear();
       for (const el of hidden) el.style.display = el.dataset.cfDisplay ?? '';
       hidden.length = 0;
       if (saved) {

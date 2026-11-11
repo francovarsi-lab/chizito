@@ -3,7 +3,7 @@ import type { Construction, PieceNode } from '../../model/Construction';
 import { markHero } from '../../render/ContactShadow';
 import { ownMeshes } from '../resolve/measure';
 import type { V3 } from '../types';
-import { BROCCOLI_TOP, createBrocoli, type BroccoliParts } from './brocoli';
+import { BROCCOLI_TOP, createBrocoli, syncCrownClip, type BroccoliParts } from './brocoli';
 import { BROCCOLI_CY, BROCCOLI_K, type FighterModel } from './fighter';
 import type { Q } from './quat';
 
@@ -54,6 +54,8 @@ export interface FighterView {
   reattach(): void;
   /** Punto de mundo de la cabeza (para las estrellitas de mareo). */
   head(): THREE.Vector3;
+  /** Gesto de la cara, si tiene una armada (el brócoli): boca abierta 0..1 y cejas (−1 furia, abajo; +1 arriba). */
+  face?(open: number, brow: number): void;
   dispose(): void;
 }
 
@@ -312,6 +314,11 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
   const BqInv = Bq.clone().invert();
   const base = new THREE.Matrix4().makeScale(K, K, K).multiply(new THREE.Matrix4().makeTranslation(0, -BROCCOLI_CY, 0));
   const carrots = model.limbs.map((_, i) => ({ obj: inner.children[i], base: inner.children[i].quaternion.clone() }));
+  // Partes de la cara (ver `addFace`): la boca y los dientes se estiran hacia abajo desde su borde de arriba; las cejas suben o bajan.
+  const faceParts = (name: string): THREE.Object3D[] => inner.children.filter((o) => o.name === name);
+  const mouthParts = [...faceParts('boca'), ...faceParts('dientes')];
+  const brows = faceParts('ceja');
+  const MOUTH_TOP = 2.05;
   let psi = 0;
   let init = false;
   const squash = new Squash();
@@ -340,6 +347,8 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
         .multiply(B)
         .multiply(base);
       outer.matrixWorldNeedsUpdate = true;
+      outer.updateMatrixWorld(true);
+      syncCrownClip(inner);
       carrots.forEach((c, k) => {
         const q = p.qs[k];
         // Giro en el marco del luchador llevado al del modelo: Bᵀ · q · B.
@@ -360,6 +369,14 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
     head() {
       outer.updateMatrixWorld(true);
       return new THREE.Vector3(0, BROCCOLI_TOP, 0).applyMatrix4(outer.matrixWorld);
+    },
+    face(open, brow) {
+      const sy = 1 + 1.6 * Math.max(0, open);
+      for (const o of mouthParts) {
+        o.scale.y = sy;
+        o.position.y = MOUTH_TOP * (1 - sy);
+      }
+      for (const o of brows) o.position.y = 0.05 * brow;
     },
     dispose() {
       hurt.restore();

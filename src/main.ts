@@ -71,15 +71,13 @@ async function main() {
   markHero(pivot);
   const contactShadow = new ContactShadow(stage.scene, CONFIG.chizitoCenter);
   stage.scene.add(contactShadow.decal);
-  // Los recipientes de la mesa comparten UNA sombra suave (misma dirección de luz, misma intensidad),
-  // en vez de sombras duras de distinto largo y oscuridad cada uno. Es estática: no se mueven.
+  // Los recipientes de la mesa comparten UNA sombra suave, con la MISMA luz, oscuridad y penumbra que la del chizito
+  // (antes cada una tenía las suyas y no parecían de la misma escena). Es estática: no se mueven.
   for (const bowl of backdrop.bowls.values()) markBowl(bowl);
   const bowlShadow = new ContactShadow(stage.scene, new THREE.Vector3(0, 0.02, -0.15), {
     layer: BOWL_LAYER,
     halfExtent: 0.27,
     size: 512,
-    opacity: 0.5,
-    softness: 0.008,
     decal: { x: 0, z: -0.2, size: 0.7 },
     isStatic: true,
   });

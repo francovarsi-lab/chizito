@@ -101,8 +101,8 @@ export const ESCARBADIENTES: PieceDefinition = {
   procedural: (seed, detail, params) => createEscarbadientes(seed, detail, params as EscarbadientesParams),
   variants: [
     { id: 'liso', label: 'escarbadientes' },
-    // La guarda en cruz es el tope: entra (y atraviesa) sólo la hoja.
-    { id: 'espadita', label: 'espadita de cotillón', maxDepth: ESPADITA_BLADE - ESPADITA_GUARD_R - 0.0001 },
+    // Se clava por el mango: la guarda en cruz es el tope, entra sólo el mango y la hoja queda afuera.
+    { id: 'espadita', label: 'espadita de cotillón', maxDepth: ESCARBADIENTES_LENGTH - ESPADITA_BLADE - ESPADITA_GUARD_R - 0.0001 },
   ],
   canPierce: true,
   canBePierced: false,

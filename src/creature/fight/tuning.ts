@@ -180,6 +180,8 @@ export const FIGHT = {
   support: { rest: 0.25, kick: 0.9, max: 0.45 },
   /** Ángulo de la marcha (rad) y de las piernas al agacharse. */
   gait: 0.42,
+  /** rad: cuánto se levanta (hacia afuera) la pierna que da el paso; la otra queda pisando. */
+  gaitLift: 0.65,
   crouch: 0.62,
   /** Las piernas abren el paso cada `stride` metros recorridos (por metro de pierna). */
   strideK: 2.2,

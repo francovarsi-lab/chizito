@@ -764,6 +764,17 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       }
       // Postura (todas las piernas apoyan) y, encima, el paso.
       target = qMul(qAxis(gaitAxis(f), ang), f.stance[k]);
+      // Paso de verdad: la pierna que va hacia adelante se LEVANTA (gira hacia afuera, un contoneo) y el cuerpo queda sobre la
+      // otra, que sí pisa. Sin esto los dos pies se deslizaban apoyados como tijeras y parecía un títere colgado.
+      if (gaitAmp > 0 && f.air <= 5 && f.legs.length >= 2) {
+        const ph = f.gait + (n % 2) * Math.PI;
+        const lift = FIGHT.gaitLift * Math.max(0, Math.cos(ph)) * (gaitAmp / FIGHT.gait);
+        const fa = fwdAxis(f);
+        const ga = gaitAxis(f);
+        const side = Math.sign(dotv(l.pivot, ga)) || (n % 2 ? 1 : -1);
+        const out = Math.sign(dotv(rot(qAxis(fa, 1), [0, -1, 0]), ga)) || 1;
+        target = qMul(qAxis(fa, side * out * lift), target);
+      }
     } else if (l.role === 'arm' && f.guard > 0.02 && s.phase === 'rest' && !f.shieldPose) {
       // Guardia: los brazos se cruzan DELANTE del cuerpo en diagonal (uno arriba, tapando la cabeza, y otro abajo), así son
       // ellos los que reciben el golpe. Lo que pase por fuera de los brazos, pega.

@@ -58,7 +58,7 @@ const css = `
 #cfh .pop small{display:block;font-size:12px;letter-spacing:.1em;-webkit-text-stroke:0;color:var(--gold)}
 #cfh .pop.heavy{font-size:40px;color:var(--gold)}
 #cfh .pop.shout,#cfh .pop.whiff{z-index:3;font-size:58px;color:#ffe14d;-webkit-text-stroke:3px #b3121f;paint-order:stroke fill;text-shadow:0 5px 0 #5a0710,0 0 26px rgba(255,90,40,.7);animation:cfh-shout .45s cubic-bezier(.2,1.7,.4,1) both}#cfh .pop.pimba{color:#8fe9ff;-webkit-text-stroke-color:#0f3f7a;text-shadow:0 5px 0 #08224a,0 0 26px rgba(60,170,255,.7)}#cfh .pop.soplamoco{font-size:50px;color:#c5ff6e;-webkit-text-stroke-color:#24601a;text-shadow:0 5px 0 #123a0c,0 0 26px rgba(150,255,80,.6)}#cfh .pop.whiff{font-size:40px;color:#f2f2f2;-webkit-text-stroke:3px #3d3d55;text-shadow:0 4px 0 #1d1d2e;animation-name:cfh-whiff}@keyframes cfh-whiff{0%{transform:translate(-50%,-50%) scale(.3) rotate(10deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(4deg)}}
-@keyframes cfh-shout{0%{transform:translate(-50%,-50%) scale(.2) rotate(-14deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(-6deg)}}#cfh .pop.cut{color:#ff9fb0}#cfh .pop.block{color:#aee8ff;font-size:20px}
+@keyframes cfh-shout{0%{transform:translate(-50%,-50%) scale(.2) rotate(-14deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(-6deg)}}#cfh .pop.hint{z-index:3;font:800 16px/1.2 "Nunito",sans-serif;-webkit-text-stroke:0;color:#fff;background:rgba(13,16,36,.75);padding:6px 12px;border-radius:999px;text-shadow:none;letter-spacing:.06em}#cfh .pop.cut{color:#ff9fb0}#cfh .pop.block{color:#aee8ff;font-size:20px}
 #cfh .warn{position:absolute;top:120px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;transition:opacity .6s}
 #cfh .warn b{font:800 15px/1.2 "Baloo 2",sans-serif;padding:7px 16px;border-radius:999px;background:var(--panel);box-shadow:0 0 0 2px var(--gold)}
 #cfh .keys{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;max-width:94vw;
@@ -66,7 +66,7 @@ const css = `
 #cfh .keys.off{opacity:0;transform:translate(-50%,14px)}
 #cfh .intro{position:absolute;left:6vw;bottom:13vh;max-width:70vw;opacity:0;transform:translateX(-60px);transition:opacity .3s,transform .5s cubic-bezier(.2,1.4,.4,1);pointer-events:none}
 #cfh .intro.r{left:auto;right:6vw;text-align:right;transform:translateX(60px)}
-#cfh .intro.on{opacity:1;transform:none}
+#cfh .intro.on{opacity:1;transform:none}#cfh .intro.on h1{animation:cfh-slam .42s cubic-bezier(.2,1.6,.35,1) both}@keyframes cfh-slam{0%{transform:scale(2.6) rotate(-4deg);opacity:0}60%{opacity:1}100%{transform:none}}#cfh .intro.vs{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%) scale(.6);text-align:center}#cfh .intro.vs.on{transform:translate(-50%,-50%)}#cfh .intro.vs h1{font-size:clamp(70px,13vw,170px);color:#fff;text-shadow:0 8px 0 var(--ink),0 0 50px rgba(255,80,40,.8)}#cfh .bars{position:absolute;inset:0;pointer-events:none;z-index:2}#cfh .intro,#cfh .skip{z-index:3}#cfh .bars:before,#cfh .bars:after{content:'';position:absolute;left:0;right:0;height:9vh;background:#05060c;transition:transform .5s cubic-bezier(.3,.7,.2,1);z-index:2}#cfh .bars:before{top:0;transform:translateY(-100%)}#cfh .bars:after{bottom:0;transform:translateY(100%)}#cfh.presenting .bars:before,#cfh.presenting .bars:after{transform:none}
 #cfh .intro h1{margin:0;font:400 clamp(40px,7.4vw,96px)/.92 "Bungee",Impact,sans-serif;color:#ffe14d;-webkit-text-stroke:3px var(--ink);text-shadow:0 7px 0 var(--ink),0 0 34px rgba(255,159,28,.55)}
 #cfh .intro.r h1{color:#9df06a;text-shadow:0 7px 0 var(--ink),0 0 34px rgba(80,200,60,.5)}
 #cfh .intro p{margin:12px 0 0;font:800 clamp(14px,1.6vw,20px)/1.25 "Nunito",sans-serif;color:#fff;letter-spacing:.06em;text-shadow:0 2px 0 var(--ink),0 0 10px rgba(13,16,36,.6)}
@@ -138,7 +138,7 @@ export class FightHud {
 <div class="pad"><div class="cap"><div class="ln" style="top:19%"></div><div class="ln" style="top:75%"></div><div class="vl"></div><div class="hd">cabeza</div>
 <div class="q" data-q="LA" style="left:0;top:19%;width:50%;height:56%"></div><div class="q" data-q="RA" style="left:50%;top:19%;width:50%;height:56%"></div>
 <div class="q" data-q="LL" style="left:0;top:75%;width:50%;height:25%"></div><div class="q" data-q="RL" style="left:50%;top:75%;width:50%;height:25%"></div></div></div>
-<div class="intro"><h1></h1><p></p></div><div class="skip">cualquier tecla para saltear la presentación</div>
+<div class="bars"></div><div class="intro"><h1></h1><p></p></div><div class="skip">cualquier tecla para saltear la presentación</div>
 <div class="menu"><div class="card"></div></div>`;
     host.appendChild(r);
     this.root = r;
@@ -218,17 +218,20 @@ export class FightHud {
   }
 
   /** Presentación de un luchador (nombre grande y una línea); `side` null la saca. */
-  present(side: 0 | 1 | null, title = '', sub = ''): void {
+  present(side: 0 | 1 | 2 | null, title = '', sub = ''): void {
     const el = this.root.querySelector<HTMLElement>('.intro')!;
     this.root.classList.toggle('presenting', side !== null);
-    if (side === null) {
+    if (side === null || !title) {
+      // Sin título: la presentación sigue (barras de cine) pero sin cartel.
       el.classList.remove('on');
+      el.dataset.side = '';
       return;
     }
     if (el.dataset.side === String(side) && el.classList.contains('on')) return;
     el.dataset.side = String(side);
-    el.classList.remove('on', 'r');
+    el.classList.remove('on', 'r', 'vs');
     if (side === 1) el.classList.add('r');
+    if (side === 2) el.classList.add('vs');
     el.querySelector('h1')!.textContent = title;
     el.querySelector('p')!.textContent = sub;
     void el.offsetWidth;
@@ -257,7 +260,7 @@ export class FightHud {
     el.innerHTML = `${text}${label ? `<small>${label}</small>` : ''}`;
     this.root.insertBefore(el, this.menu);
     // Las palabras de historieta quedan quietas y se leen (1,4 s); los números de daño suben rápido y se van.
-    const word = /shout|whiff/.test(cls);
+    const word = /shout|whiff|hint/.test(cls);
     this.pops.push({ el, life: 0, x, y, dur: word ? 1.4 : 0.95, rise: word ? 10 : 70 });
     while (this.pops.length > 5) this.pops.shift()!.el.remove();
   }

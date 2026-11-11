@@ -9,7 +9,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const page = await browser.newPage({ viewport: { width: W, height: H } });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 page.on('console', (m) => { if (m.type() === 'error') console.log('[page]', m.text()); });
-await page.goto('http://localhost:5173/?capture');
+await page.goto(`${process.env.URL ?? 'http://localhost:5173/'}?capture`);
 await page.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
 
 const frames = (n) => page.evaluate((n) => window.__chizito.renderFrames(n), n);
