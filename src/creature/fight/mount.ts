@@ -669,7 +669,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       } else {
         // ¡SE TE TIRA ENCIMA! Zoom de golpe a la cara y queda ahí, torcido.
         const k = smooth((u - 2.6) / 0.12);
-        pos = face.clone().addScaledVector(n, 0.095 - 0.045 * k);
+        pos = face.clone().addScaledVector(n, 0.095 - 0.025 * k);
         look = face;
         rate = 40;
         focal = 50 + 8 * k;
