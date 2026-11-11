@@ -950,7 +950,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         render(dt);
       };
       restart(level, wantsPresent());
-      tween = { t: 0, from: { pos: saved.pos.clone(), quat: saved.quat.clone() } };
+      // Sin presentación, la cámara viaja del constructor a la pelea; con presentación, la primera toma entra al corte.
+      tween = present ? null : { t: 0, from: { pos: saved.pos.clone(), quat: saved.quat.clone() } };
+      g.audio.musicOn(true);
     },
     close() {
       if (!open) return;
@@ -959,6 +961,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       keys.clear();
       hud.hide();
       const g = game();
+      g.audio.musicOn(false);
       delete (g.stage as { render?: unknown }).render;
       views?.forEach((v) => v.dispose());
       views = null;

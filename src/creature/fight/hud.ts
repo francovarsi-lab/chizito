@@ -63,7 +63,7 @@ const css = `
 #cfh .warn b{font:800 15px/1.2 "Baloo 2",sans-serif;padding:7px 16px;border-radius:999px;background:var(--panel);box-shadow:0 0 0 2px var(--gold)}
 #cfh .keys{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;max-width:94vw;
   padding:10px 18px;border-radius:14px;background:var(--panel);box-shadow:0 0 0 2px rgba(255,255,255,.75);font:700 14px/1.2 "Baloo 2",sans-serif;transition:opacity .8s,transform .8s}
-#cfh .keys.off{opacity:0;transform:translate(-50%,14px)}
+#cfh .keys.off{opacity:0;transform:translate(-50%,14px)}#cfh .keys.mini:not(.off){opacity:.55;transform:translateX(-50%) scale(.78);transform-origin:50% 100%}
 #cfh .intro{position:absolute;left:6vw;bottom:13vh;max-width:70vw;opacity:0;transform:translateX(-60px);transition:opacity .3s,transform .5s cubic-bezier(.2,1.4,.4,1);pointer-events:none}
 #cfh .intro.r{left:auto;right:6vw;text-align:right;transform:translateX(60px)}
 #cfh .intro.on{opacity:1;transform:none}#cfh .intro.on h1{animation:cfh-slam .42s cubic-bezier(.2,1.6,.35,1) both}@keyframes cfh-slam{0%{transform:scale(2.6) rotate(-4deg);opacity:0}60%{opacity:1}100%{transform:none}}#cfh .intro.vs{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%) scale(.6);text-align:center}#cfh .intro.vs.on{transform:translate(-50%,-50%)}#cfh .intro.vs h1{font-size:clamp(70px,13vw,170px);color:#fff;text-shadow:0 8px 0 var(--ink),0 0 50px rgba(255,80,40,.8)}#cfh .bars{position:absolute;inset:0;pointer-events:none;z-index:2}#cfh .intro,#cfh .skip{z-index:3}#cfh .bars:before,#cfh .bars:after{content:'';position:absolute;left:0;right:0;height:9vh;background:#05060c;transition:transform .5s cubic-bezier(.3,.7,.2,1);z-index:2}#cfh .bars:before{top:0;transform:translateY(-100%)}#cfh .bars:after{bottom:0;transform:translateY(100%)}#cfh.presenting .bars:before,#cfh.presenting .bars:after{transform:none}
@@ -173,7 +173,7 @@ export class FightHud {
     this.warn.innerHTML = warnings.map((w) => `<b>${w}</b>`).join('');
     this.warn.style.opacity = '1';
     window.setTimeout(() => (this.warn.style.opacity = '0'), 5200);
-    this.keys.classList.remove('off');
+    this.keys.classList.remove('off', 'mini');
     this.hideMenu();
     this.ann.innerHTML = '';
     this.combos.forEach((c) => c.classList.remove('show'));
@@ -238,8 +238,9 @@ export class FightHud {
     el.classList.add('on');
   }
 
+  /** Pasados unos segundos, la guía de teclas queda chica y transparente (no desaparece: siempre se puede mirar). */
   hideKeys(): void {
-    this.keys.classList.add('off');
+    this.keys.classList.add('mini');
   }
 
   /** Contador de golpes seguidos y, si los encadenó como combinación, su nombre (UNO-DOS, RÁFAGA…) en grande. */
@@ -284,6 +285,7 @@ export class FightHud {
 
   hideMenu(): void {
     this.menu.classList.remove('on');
+    this.keys.classList.remove('off');
   }
 
   /** Flechas ↑/↓ y Enter en los menús. */

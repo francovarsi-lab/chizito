@@ -146,8 +146,9 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
   mismo flujo que el chizito extra: clic en el palito → se presenta → clic en la aceituna = por dónde entra →
   ángulo → mantener). Se puede atravesar. Escarbadientes: como el palito (80 % del
   largo); escarbadientes y espadita salen de vasitos distintos (`escarbadientes` / `escarbadientes:espadita`).
-  La guarda en cruz de la espadita es el TOPE: sólo entra (y atraviesa) la hoja (`variants[].maxDepth`, ver
-  `maxDepthOf`; vale también para Ctrl + rueda y al cargar archivos).
+  La espadita se clava AL REVÉS (pedido del usuario): entra por el pomo, el MANGO queda adentro y la HOJA afuera (corta). La
+  guarda en cruz es el TOPE: sólo entra el mango (`variants[].maxDepth`, ver `maxDepthOf`; vale también para Ctrl + rueda y al
+  cargar archivos; los archivos viejos con espadita se reconstruyen dados vuelta).
 - Palito de la selva (`palito-selva`, platito a la izquierda del chizito), según las fotos del usuario: caramelo
   CILÍNDRICO, MITAD ROSA / MITAD BLANCO con la división RECTA a lo largo (sin hélice; acostado: rosa abajo, blanco
   arriba), puntas cortadas con borde redondeado. En el platito vienen envueltos y ordenados (`params.wrapped` sólo
@@ -379,8 +380,13 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - SONIDOS: ids listos para que el usuario grabe los suyos (`public/assets/sounds/<id>.ogg|mp3|wav`; si no hay archivo, suena
   un sintetizado): `golpe`, `golpe-pesado`, `bloqueo`, `zumbido` (golpe pesado que arranca), `pifio`, `escudo` (se rompe),
   `ko`, `round`, `pelea`, `combo` (sale una combinación), `japish` (el grito ¡JAPISH!, en golpes fuertes y combinaciones),
-  `risa` (presentación del brócoli), más los del constructor (`pick`, `drop`, `crack`, `crunch`, `out`). Los yerros alternan
-  ¡PIFIÓ! y ¡PIF!.
+  `risa` (presentación del brócoli), `pimba` (¡PIMBA!, patada que entra), `soplamoco` (¡SOPLAMOCO!, piña a la cara: el 38 % de
+  arriba del cuerpo del que recibe), más los del constructor (`pick`, `drop`, `crack`, `crunch`, `out`). Los yerros alternan
+  ¡PIFIÓ! y ¡PIF!. PALABRAS DE HISTORIETA: quietas 1,4 s, dentro de la pantalla y debajo de las barras (no se van volando), como
+  mucho una cada 75 cuadros. MÚSICA: `musica-pelea` en loop si está el archivo; si no, una base sintetizada (`AudioManager.musicOn`).
+- CLARIDAD: cada golpe deja una ESTELA (la punta de la extremidad, dorada el chizito, verde el brócoli; tenue mientras carga). Si
+  una tecla no puede hacer nada, un cartelito dice por qué (no hay brazo/pierna de ese lado, se está estabilizando, atontado). La
+  guía de teclas no desaparece: a los 7 s queda chica y transparente. Al terminar un round se cortan los golpes en curso.
 - Formato: al mejor de 3 rounds, 90 s, vida 100, empate exacto = ronda extra. CONTROLES = un botón por CUADRANTE del chizito
   (mano izquierda, como se ve al armarlo): Q brazos izquierdos, W brazos derechos, A piernas izquierdas, S piernas derechas;
   cada toque usa la SIGUIENTE extremidad de ese cuadrante (de a una, cada cuadrante lleva su cuenta: mil escarbadientes de un
@@ -388,9 +394,14 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   ← → moverse, ↑ saltar (un brazo en el aire = en picada), ↓ agacharse. Esc pausa. Atajos: Z/X/C (o J/K/L) = cualquier brazo,
   cualquier pierna, guardia. El HUD muestra el chizito dividido con la tecla y cuántas extremidades hay en cada cuadrante.
   Mira siempre al rival.
-- PRESENTACIÓN (antes del round 1, con los modelos reales del juego, se saltea con cualquier tecla): la cámara rodea a TU
-  CHIZITO, que se estira y le tira piñas a la cámara con sus brazos; después primer plano de EL BROCOLOCO, que levanta las
-  zanahorias y se ríe (sonido `risa`). En `?capture` no sale salvo con `&presentacion`.
+- PRESENTACIÓN (8 s antes del round 1, con los modelos reales del juego, se saltea con cualquier tecla), "de cine": barras
+  negras, cortes secos entre partes y movimiento suave adentro de cada una. 0–3,4 s TU CHIZITO de frente (la cara dibujada):
+  se despierta en contrapicado, tiembla de bronca, le pega tres piñas a la lente (cada una sacude la toma) y queda en pose de
+  héroe con la cámara que se aleja. 3,4–7 s EL BROCOLOCO: grúa desde las zanahorias hasta la cara, se ríe (boca que se abre y
+  cejas arriba: `FighterView.face`) y SE TE TIRA ENCIMA (zoom de golpe, sacudida, destello, nombre). 7–8 s: VS. En `?capture`
+  no sale salvo con `&presentacion`; capturas: `node scripts/present-shots.mjs <dir>`.
+- PASO: al caminar, la pierna que avanza se levanta (gira hacia afuera, `FIGHT.gaitLift`) y el cuerpo queda sobre la otra.
+- CHUPETÍN: lento pero demoledor (daño × `swing.dmgMul`), carga corta (`maxCharge` 9) y pifiar cuesta ~0,9 s.
 - CUERPO ENTERO: el torso gira con el golpe (`FIGHT.twist`: el hombro va atrás al cargar y adelante al soltar; física y dibujo
   con el mismo giro, `f.yaw`) y las piernas apoyadas ponen el pie bajo el centro de masa (`FIGHT.support`; mucho más mientras
   otra patea: se para sobre ésa).
@@ -411,10 +422,13 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   ningún shader nuevo (antes 28). Al abrir la web, cargador animado con CSS (sigue andando aunque el JS esté ocupado); la
   utilería repetida de los bowls se genera una vez por forma (`AssetRegistry`, caché de 'prop').
 - Brócoli (`brocoli.ts`): modelos 3D hechos en Higgsfield (imagen Nano Banana → SAM 3D): `public/assets/models/brocoli-cuerpo.glb`
-  (cara hacia −Z, se gira) y `zanahoria.glb` (una zanahoria real por extremidad); arte en `docs/arte/`. Al pasar a 3D la cara se
-  perdió: se le pone la del boceto (`addFace`: ojos de remolacha grandes con brillo, cejas gruesas de morrón, boca oscura con
-  dientes de sésamo BLANCO para que se lea de lejos) apoyada con rayos sobre la superficie real del tallo (los rayos se tiran
-  una vez y quedan guardados). EL BROCOLOCO tiene su propio giro hacia la cámara (`FIGHT.broccoli.yaw` ≈ 60°, más de frente que
+  (cara hacia −Z, se gira) y `zanahoria.glb` (una zanahoria real por extremidad); arte en `docs/arte/`. Del GLB se usa SOLO LA
+  COPA (un plano recorta todo lo que está debajo de `CROWN_CUT`; `syncCrownClip` lo lleva al mundo cada cuadro): su tallo es
+  angosto y trae restos de cara deformes que, mezclados con la cara pegada, daban "muchos ojos". El tallo es propio
+  (`stalk`, radio del boceto, se abre arriba hacia las ramas) y la cara del boceto va sobre él (`addFace`, superficie exacta
+  con `onStalk`): dos rodajas de remolacha SEPARADAS con pupila y brillo, una tira de morrón por ceja en V sobre su ojo y una
+  sonrisa malvada en media luna con dientes blancos arriba y abajo. Zanahorias CLAVADAS: la punta queda adentro del tallo y
+  asoma la parte gruesa. Laboratorio rápido (sólo el brócoli, sin posprocesado): `lab/brocoli.html` con `npm run dev`. EL BROCOLOCO tiene su propio giro hacia la cámara (`FIGHT.broccoli.yaw` ≈ 60°, más de frente que
   la criatura): PRIORIDAD del usuario, su cara se tiene que entender fácil. Si faltan los GLB, queda el procedural entero.
 - Render: la parte de la vara que queda adentro del chizito se recorta con un plano por extremidad (`clippingPlanes`), así al girar
   no asoma. El squash de la criatura se integra en subpasos (a < 24 fps divergía: era el bug del zoom que crecía y parpadeaba).

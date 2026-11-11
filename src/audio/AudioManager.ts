@@ -12,10 +12,11 @@ import { probeFile } from '../assets/probe';
  *
  * Pelea (para reemplazar por grabaciones propias con el mismo nombre de archivo):
  *  golpe, golpe-pesado, bloqueo, zumbido (algo pesado que corta el aire), pifio, escudo (se rompe),
- *  ko, round (cartel ROUND), pelea (¡A PELEAR!), combo (sale una combinación: UNO-DOS, RÁFAGA…), japish (el grito ¡JAPISH!), pimba (¡PIMBA!, patada que entra), soplamoco (¡SOPLAMOCO!, piña a la cara), risa (EL BROCOLOCO se ríe en su presentación)
+ *  ko, round (cartel ROUND), pelea (¡A PELEAR!), combo (sale una combinación: UNO-DOS, RÁFAGA…), japish (el grito ¡JAPISH!), pimba (¡PIMBA!, patada que entra), soplamoco (¡SOPLAMOCO!, piña a la cara), risa (EL BROCOLOCO se ríe en su presentación),
+ *  musica-pelea (música de la pelea, en loop; si no está, suena una base sintetizada)
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa';
-const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa'];
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -29,6 +30,7 @@ export class AudioManager {
   private files = new Map<SoundId, AudioBuffer>();
   private noise: AudioBuffer | null = null;
   private lastCrunch = 0;
+  private music: { stop: () => void } | null = null;
   volume = 0.8;
 
   constructor() {
@@ -168,10 +170,92 @@ export class AudioManager {
     }
   }
 
+  /**
+   * Música de la pelea: `assets/sounds/musica-pelea.(ogg|mp3|wav)` en loop si está; si no, una base sintetizada (bombo, caja,
+   * platillo y un bajo en menor a 132 BPM) hasta que esté la de verdad. Entra y sale con fundido.
+   */
+  musicOn(on: boolean): void {
+    const ctx = this.ctx;
+    if (!on || !ctx || ctx.state !== 'running') {
+      this.music?.stop();
+      this.music = null;
+      return;
+    }
+    if (this.music) return;
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0, ctx.currentTime);
+    out.gain.linearRampToValueAtTime(0.32, ctx.currentTime + 1.5);
+    out.connect(this.master!);
+    const fadeOut = (): number => {
+      out.gain.cancelScheduledValues(ctx.currentTime);
+      out.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
+      return ctx.currentTime + 1.2;
+    };
+    const file = this.files.get('musica-pelea');
+    if (file) {
+      const src = ctx.createBufferSource();
+      src.buffer = file;
+      src.loop = true;
+      src.connect(out);
+      src.start();
+      this.music = { stop: () => src.stop(fadeOut()) };
+      return;
+    }
+    const eighth = 60 / 132 / 2;
+    const BASS = [0, 0, 12, 0, 3, 0, 10, 7, 0, 0, 12, 0, 5, 3, 0, -2]; // semitonos sobre La 1
+    let next = ctx.currentTime + 0.1;
+    let i = 0;
+    const note = (t: number, semis: number): void => {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = 55 * Math.pow(2, semis / 12);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(900, t);
+      lp.frequency.exponentialRampToValueAtTime(220, t + eighth);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.22, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + eighth * 0.95);
+      o.connect(lp).connect(g).connect(out);
+      o.start(t);
+      o.stop(t + eighth);
+    };
+    const kick = (t: number): void => {
+      const o = ctx.createOscillator();
+      o.frequency.setValueAtTime(130, t);
+      o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.9, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      o.connect(g).connect(out);
+      o.start(t);
+      o.stop(t + 0.22);
+    };
+    const timer = window.setInterval(() => {
+      while (next < ctx.currentTime + 0.25) {
+        const b = i % 16;
+        if (b % 4 === 0) kick(next);
+        if (b % 8 === 4) this.burst({ freq: 1800, q: 0.7, dur: 0.14, gain: 0.35, lowFreq: 190, at: next, out });
+        if (b % 2 === 1) this.burst({ freq: 8000, q: 1.5, dur: 0.035, gain: 0.12, at: next, out });
+        note(next, BASS[b]);
+        next += eighth;
+        i++;
+      }
+    }, 60);
+    this.music = {
+      stop: () => {
+        window.clearInterval(timer);
+        fadeOut();
+      },
+    };
+  }
+
   /** Ráfaga de ruido filtrado con envolvente percusiva (+ un "golpe" grave opcional). */
-  private burst(o: { freq: number; q: number; dur: number; gain: number; delay?: number; lowFreq?: number }): void {
+  private burst(o: { freq: number; q: number; dur: number; gain: number; delay?: number; lowFreq?: number; at?: number; out?: AudioNode }): void {
     const ctx = this.ctx!;
-    const t = ctx.currentTime + (o.delay ?? 0);
+    const t = o.at ?? ctx.currentTime + (o.delay ?? 0);
+    const dest = o.out ?? this.master!;
     const src = ctx.createBufferSource();
     src.buffer = this.noise;
     const bp = ctx.createBiquadFilter();
@@ -182,7 +266,7 @@ export class AudioManager {
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(o.gain, t + 0.002);
     g.gain.exponentialRampToValueAtTime(0.0001, t + o.dur);
-    src.connect(bp).connect(g).connect(this.master!);
+    src.connect(bp).connect(g).connect(dest);
     src.start(t, Math.random() * 0.8, o.dur + 0.02);
     if (o.lowFreq) {
       const osc = ctx.createOscillator();
@@ -193,7 +277,7 @@ export class AudioManager {
       og.gain.setValueAtTime(0, t);
       og.gain.linearRampToValueAtTime(o.gain * 0.5, t + 0.003);
       og.gain.exponentialRampToValueAtTime(0.0001, t + o.dur * 1.2);
-      osc.connect(og).connect(this.master!);
+      osc.connect(og).connect(dest);
       osc.start(t);
       osc.stop(t + o.dur * 1.3);
     }
