@@ -154,9 +154,9 @@ export const FIGHT = {
   charge: { k: 26, free: 0.3, tremble: 0.05 },
   /**
    * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
-   * (`stiff`); pega mientras gira más rápido que `activeW`. Pifiar cuesta `whiffMul` veces más y lo tira (`whiffKick`).
+   * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento pero demoledor: su daño se multiplica por `dmgMul`. Pifiar cuesta `whiffMul` veces más y lo tira (`whiffKick`).
    */
-  swing: { back: 0.5, fwd: 0.75, stiff: 5, backStiff: 2.5, activeW: 1.6, windFrames: 8, maxCharge: 16, strikeFrames: 22, chargeMul: 1.3, massShare: 0.6, whiffMul: 1.8, whiffKick: 2.6, lunge: 0.22 },
+  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 7, maxCharge: 9, strikeFrames: 20, chargeMul: 1.3, massShare: 0.85, dmgMul: 2.6, whiffMul: 1.1, whiffKick: 1.7, lunge: 0.22 },
   /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
   shieldFront: 0.35,
   shieldBack: 2.2,

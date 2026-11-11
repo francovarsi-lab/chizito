@@ -159,7 +159,7 @@ try {
       for (const e of sw.events) if (e.type === 'whiff') whiff = e;
     }
     ok(tiltSpan[1] - tiltSpan[0] > 0.6, `con el chupetín se balancea el cuerpo entero (${tiltSpan.map((v) => v.toFixed(2))})`);
-    ok(whiff && whiff.lock > 60, `pifiar con el chupetín deja expuesto mucho tiempo (${whiff?.lock} cuadros)`);
+    ok(whiff && whiff.lock > 40, `pifiar con el chupetín deja expuesto mucho tiempo (${whiff?.lock} cuadros)`);
     // El chupetín pesa: el cuerpo se inclina hacia donde está.
     const lean = fight(P);
     for (let i = 0; i < 180; i++) stepMatch(lean, [{ x: 0 }, { x: 0 }]);

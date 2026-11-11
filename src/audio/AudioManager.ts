@@ -12,10 +12,10 @@ import { probeFile } from '../assets/probe';
  *
  * Pelea (para reemplazar por grabaciones propias con el mismo nombre de archivo):
  *  golpe, golpe-pesado, bloqueo, zumbido (algo pesado que corta el aire), pifio, escudo (se rompe),
- *  ko, round (cartel ROUND), pelea (¡A PELEAR!), combo (sale una combinación: UNO-DOS, RÁFAGA…), japish (el grito ¡JAPISH!), risa (EL BROCOLOCO se ríe en su presentación)
+ *  ko, round (cartel ROUND), pelea (¡A PELEAR!), combo (sale una combinación: UNO-DOS, RÁFAGA…), japish (el grito ¡JAPISH!), pimba (¡PIMBA!, patada que entra), soplamoco (¡SOPLAMOCO!, piña a la cara), risa (EL BROCOLOCO se ríe en su presentación)
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'risa';
-const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'risa'];
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -145,6 +145,16 @@ export class AudioManager {
         // Placeholder del grito: un "ja" grave y un "pish" de aire, hasta que esté la grabación.
         this.burst({ freq: 700, q: 4, dur: 0.11, gain: 0.3 * intensity, lowFreq: 180 });
         this.burst({ freq: 5200, q: 1.2, dur: 0.18, gain: 0.22 * intensity, delay: 0.1 });
+        break;
+      case 'pimba':
+        // Placeholder: "pim" agudo y "ba" grave.
+        this.burst({ freq: 1800, q: 6, dur: 0.07, gain: 0.25 * intensity, lowFreq: 420 });
+        this.burst({ freq: 500, q: 3, dur: 0.16, gain: 0.32 * intensity, lowFreq: 140, delay: 0.09 });
+        break;
+      case 'soplamoco':
+        // Placeholder: soplido de aire y un chasquido.
+        this.burst({ freq: 3200, q: 0.7, dur: 0.24, gain: 0.18 * intensity });
+        this.burst({ freq: 2200, q: 1.8, dur: 0.04, gain: 0.35 * intensity, lowFreq: 240, delay: 0.2 });
         break;
       case 'combo':
         // Dos golpecitos que suben: "¡ta-tán!".

@@ -139,7 +139,7 @@ export interface FighterState {
 }
 
 export type FightEvent =
-  | { type: 'hit'; by: 0 | 1; at: [number, number]; damage: number; kind: HitKind; blocked: boolean; shield: boolean; piece: string; speed: number; combo: number; heavy: boolean; chain: string | null }
+  | { type: 'hit'; by: 0 | 1; at: [number, number]; damage: number; kind: HitKind; blocked: boolean; shield: boolean; shieldPiece: string | null; piece: string; speed: number; combo: number; heavy: boolean; chain: string | null }
   | { type: 'shieldBreak'; who: 0 | 1; piece: string; at: [number, number]; vel: [number, number] }
   | { type: 'swing'; who: 0 | 1; limb: number; heavy: boolean }
   | { type: 'whiff'; who: 0 | 1; heavy: boolean; lock: number }
@@ -992,6 +992,7 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   const kind: HitKind = p.kind === 'shield' ? l.kind : p.kind;
   // La velocidad manda más que la masa: algo pesado que apenas se mueve pega poco.
   let dmg = clamp(FIGHT.dmgK * Math.pow(mEff * 1000, FIGHT.dmgMassExp) * Math.pow(speed, FIGHT.dmgSpeedExp), FIGHT.dmgClamp[0], FIGHT.dmgClamp[1]) * FIGHT.kindMul[kind];
+  if (l.rigid && l.kind === 'heavy') dmg *= FIGHT.swing.dmgMul;
   const chain = s.combo;
   if (chain) dmg *= FIGHT.chain.mul[chain] ?? 1;
   const fromFront = Math.sign(a.x - b.x || 1) === b.facing;
@@ -1062,7 +1063,7 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   a.combo = m.frame - a.lastHit < FIGHT.comboWindow && !blocked ? a.combo + 1 : 1;
   a.lastHit = m.frame;
   m.hitstop = Math.min(FIGHT.hitstop.max, Math.round(FIGHT.hitstop.base + FIGHT.hitstop.k * dmg));
-  m.events.push({ type: 'hit', by: i, at: [px, py], damage: dmg, kind, blocked, shield: !!shield, piece: p.piece, speed, combo: a.combo, heavy: kind === 'heavy', chain: blocked ? null : chain });
+  m.events.push({ type: 'hit', by: i, at: [px, py], damage: dmg, kind, blocked, shield: !!shield, shieldPiece: shield, piece: p.piece, speed, combo: a.combo, heavy: kind === 'heavy', chain: blocked ? null : chain });
 }
 
 /** Los cuerpos no se atraviesan (las extremidades sí pasan por delante y por detrás). */
@@ -1134,6 +1135,15 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
       m.phaseT = FIGHT.koFrames; // sin cámara lenta
       const [h0, h1] = [m.f[0].hp, m.f[1].hp];
       m.roundWinner = Math.abs(h0 - h1) < 1e-9 ? 'draw' : h0 > h1 ? 0 : 1;
+    }
+    // Terminó el round: nadie sigue pegando (el golpe que venía se corta y los brazos vuelven).
+    if (m.phase === 'ko') for (const f of m.f) {
+      f.buffer = null;
+      f.chain = null;
+      for (const q of f.limbs) if (q.phase === 'windup' || q.phase === 'strike') {
+        q.phase = 'recover';
+        q.t = 0;
+      }
     }
   }
   if (m.phase === 'ko' && m.phaseT >= FIGHT.koFrames) {

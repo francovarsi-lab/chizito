@@ -57,7 +57,7 @@ const css = `
 #cfh .pop{position:absolute;transform:translate(-50%,-50%);font:400 28px/1 "Bungee",Impact,sans-serif;color:#fff;-webkit-text-stroke:2px var(--ink);text-shadow:0 4px 0 var(--ink);white-space:nowrap;text-align:center}
 #cfh .pop small{display:block;font-size:12px;letter-spacing:.1em;-webkit-text-stroke:0;color:var(--gold)}
 #cfh .pop.heavy{font-size:40px;color:var(--gold)}
-#cfh .pop.shout{font-size:58px;color:#ffe14d;-webkit-text-stroke:3px #b3121f;text-shadow:0 5px 0 #5a0710,0 0 26px rgba(255,90,40,.7);animation:cfh-shout .5s cubic-bezier(.2,1.7,.4,1)}
+#cfh .pop.shout,#cfh .pop.whiff{z-index:3;font-size:58px;color:#ffe14d;-webkit-text-stroke:3px #b3121f;paint-order:stroke fill;text-shadow:0 5px 0 #5a0710,0 0 26px rgba(255,90,40,.7);animation:cfh-shout .45s cubic-bezier(.2,1.7,.4,1) both}#cfh .pop.pimba{color:#8fe9ff;-webkit-text-stroke-color:#0f3f7a;text-shadow:0 5px 0 #08224a,0 0 26px rgba(60,170,255,.7)}#cfh .pop.soplamoco{font-size:50px;color:#c5ff6e;-webkit-text-stroke-color:#24601a;text-shadow:0 5px 0 #123a0c,0 0 26px rgba(150,255,80,.6)}#cfh .pop.whiff{font-size:40px;color:#f2f2f2;-webkit-text-stroke:3px #3d3d55;text-shadow:0 4px 0 #1d1d2e;animation-name:cfh-whiff}@keyframes cfh-whiff{0%{transform:translate(-50%,-50%) scale(.3) rotate(10deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(4deg)}}
 @keyframes cfh-shout{0%{transform:translate(-50%,-50%) scale(.2) rotate(-14deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(-6deg)}}#cfh .pop.cut{color:#ff9fb0}#cfh .pop.block{color:#aee8ff;font-size:20px}
 #cfh .warn{position:absolute;top:120px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;transition:opacity .6s}
 #cfh .warn b{font:800 15px/1.2 "Baloo 2",sans-serif;padding:7px 16px;border-radius:999px;background:var(--panel);box-shadow:0 0 0 2px var(--gold)}
@@ -120,7 +120,7 @@ export class FightHud {
   private comboT = [0, 0];
   private annT = 0;
   private menuSel = 0;
-  private pops: { el: HTMLElement; life: number; x: number; y: number }[] = [];
+  private pops: { el: HTMLElement; life: number; x: number; y: number; dur: number; rise: number }[] = [];
   onMenu: (a: MenuAction) => void = () => {};
 
   constructor(host: HTMLElement = document.body) {
@@ -256,7 +256,9 @@ export class FightHud {
     el.className = `pop ${cls}`;
     el.innerHTML = `${text}${label ? `<small>${label}</small>` : ''}`;
     this.root.insertBefore(el, this.menu);
-    this.pops.push({ el, life: 0, x, y });
+    // Las palabras de historieta quedan quietas y se leen (1,4 s); los números de daño suben rápido y se van.
+    const word = /shout|whiff/.test(cls);
+    this.pops.push({ el, life: 0, x, y, dur: word ? 1.4 : 0.95, rise: word ? 10 : 70 });
     while (this.pops.length > 5) this.pops.shift()!.el.remove();
   }
 
@@ -322,12 +324,13 @@ export class FightHud {
       p.life += dt;
       const sp = project(p.x, p.y);
       if (sp) {
-        p.el.style.left = `${sp[0]}px`;
-        p.el.style.top = `${sp[1] - p.life * 70}px`;
+        // Siempre dentro de la pantalla y por debajo de las barras de vida.
+        const w = p.el.offsetWidth / 2 + 12;
+        p.el.style.left = `${Math.min(innerWidth - w, Math.max(w, sp[0]))}px`;
+        p.el.style.top = `${Math.max(140, sp[1] - p.life * p.rise)}px`;
       }
-      p.el.style.opacity = String(Math.max(0, 1 - Math.max(0, p.life - 0.45) / 0.5));
-      p.el.style.scale = String(p.life < 0.08 ? 1.5 - p.life * 6 : 1);
-      if (p.life > 0.95) {
+      p.el.style.opacity = String(Math.max(0, 1 - Math.max(0, p.life - (p.dur - 0.5)) / 0.5));
+      if (p.life > p.dur) {
         p.el.remove();
         this.pops.splice(i, 1);
       }

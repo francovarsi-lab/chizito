@@ -242,11 +242,11 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const big = e.damage >= 12 || e.heavy;
         burst(at, e.blocked ? 6 : big ? 22 : 12, big ? 1.5 : 1);
         ring(at, big ? 0.016 : 0.01, e.blocked ? 0x9fe0ff : e.kind === 'cut' ? 0xff5a7a : 0xffe066);
-        if (e.shield && !e.blocked) {
+        if (e.shieldPiece && !e.blocked) {
           // Cada golpe en el escudo lo astilla: se achica y suelta migas de papita/nacho.
           const f = m.f[victim];
-          const total = f.model.shields[e.piece] || 1;
-          const c = views[victim].chip(e.piece, Math.max(0, f.shields[e.piece] ?? 0) / total);
+          const total = f.model.shields[e.shieldPiece] || 1;
+          const c = views[victim].chip(e.shieldPiece, Math.max(0, f.shields[e.shieldPiece] ?? 0) / total);
           if (c) chips?.emit(c, new THREE.Vector3(m.f[e.by].facing, 0.7, 0.3).normalize(), 7);
         } else if (!e.blocked) crumbs?.[victim].emit(at, new THREE.Vector3(m.f[e.by].facing, 0.6, 0.3).normalize(), big ? 6 : 3);
         views[victim].bump(Math.min(1, e.damage / 18) * (e.blocked ? 0.4 : 1));
@@ -256,12 +256,21 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const label = e.blocked ? 'BLOQUEO' : e.shield ? 'ESCUDO' : e.kind === 'heavy' ? '¡PESADO!' : e.kind === 'cut' ? 'CORTE' : '';
         hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, label, e.blocked ? 'block' : e.kind === 'heavy' ? 'heavy' : e.kind === 'cut' ? 'cut' : '');
         if (!e.blocked) hud.combo(e.by, e.combo, e.chain);
-        // ¡JAPISH!: el grito de los golpes que valen la pena (pesados, fuertes o el cierre de una combinación), no de todos.
-        if (!e.blocked && (big || e.chain) && m.frame - lastShout > 120) {
-          lastShout = m.frame;
-          const f = m.f[e.by];
-          hud.popup(f.x, f.y + 0.06, '¡JAPISH!', '', 'shout');
-          g.audio.play('japish', 1);
+        // Palabras de historieta, no en todos los golpes (si no, no se lee ninguna): ¡JAPISH! en los que valen la pena
+        // (pesados, fuertes o el cierre de una combinación), ¡PIMBA! en las patadas que entran y ¡SOPLAMOCO! en las piñas a la cara.
+        if (!e.blocked && m.frame - lastShout > 75) {
+          const vic = m.f[victim];
+          const ys = vic.model.body.flatMap((b) => [b.a[1] - b.r, b.b[1] + b.r]);
+          const lo = Math.min(...ys);
+          const hi = Math.max(...ys);
+          const face = e.at[1] - vic.y > lo + (hi - lo) * 0.62;
+          const kick = m.f[e.by].model.limbs.find((l) => l.pieceIds.includes(e.piece))?.role === 'leg';
+          const word = big || e.chain ? 'japish' : kick ? 'pimba' : face ? 'soplamoco' : null;
+          if (word) {
+            lastShout = m.frame;
+            hud.popup(e.at[0], e.at[1] + 0.03, word === 'japish' ? '¡JAPISH!' : word === 'pimba' ? '¡PIMBA!' : '¡SOPLAMOCO!', '', `shout ${word}`);
+            g.audio.play(word, 1);
+          }
         }
         if (e.chain) g.audio.play('combo', 1);
         if (big && !e.blocked) hud.flash(0.28);
@@ -273,14 +282,14 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         // El escudo no cae entero: se deshace en migas.
         const c = views[e.who].shatter(e.piece);
         if (c) chips?.emit(c, new THREE.Vector3(e.vel[0], 0.8, 0.3).normalize(), 22);
-        hud.popup(e.at[0], e.at[1] + 0.018, '¡ESCUDO ROTO!', '', 'heavy');
+        hud.popup(e.at[0], e.at[1] + 0.018, '¡ESCUDO ROTO!', '', 'shout');
         g.audio.play('escudo', 1);
         break;
       }
       case 'whiff': {
         // Cada golpe que no toca nada: ¡PIFIÓ! y ¡PIF!, intercalados (sin más texto: el cuerpo que se desarma ya lo explica).
         const f = m.f[e.who];
-        hud.popup(f.x, f.y + 0.045, whiffN++ % 2 ? '¡PIF!' : '¡PIFIÓ!', '', e.heavy ? 'heavy' : 'block');
+        hud.popup(f.x, f.y + 0.045, whiffN++ % 2 ? '¡PIF!' : '¡PIFIÓ!', '', 'whiff');
         g.audio.play('pifio', e.heavy ? 1 : 0.5);
         break;
       }
@@ -295,7 +304,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         break;
       case 'dizzy': {
         const f = m.f[e.who];
-        hud.popup(f.x, f.y + 0.05, '¡MAREADO!', '', 'heavy');
+        hud.popup(f.x, f.y + 0.05, '¡MAREADO!', '', 'whiff');
         break;
       }
       case 'ko':

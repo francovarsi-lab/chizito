@@ -87,42 +87,51 @@ class Squash {
 
 /** Destello blanco (emisivo) y vibración del que recibe un golpe. Guarda y devuelve el emisivo original de cada material. */
 class Hurt {
+  // Cada malla recibe su PROPIA copia del material: el original es compartido (bowl de chizitos, otros palitos) y el
+  // destello no tiene que encenderlos. Mismos parámetros → mismo programa de shader, no compila nada nuevo.
+  private meshes: { mesh: THREE.Mesh; original: THREE.Material | THREE.Material[] }[] = [];
   private mats: { m: THREE.MeshStandardMaterial; color: THREE.Color; i: number }[] = [];
   flash = 0;
   shake = 0;
   readonly offset = new THREE.Vector3();
   constructor(root: THREE.Object3D) {
-    const seen = new Set<THREE.Material>();
+    const copies = new Map<THREE.Material, THREE.Material>();
+    const own = (m: THREE.Material): THREE.Material => {
+      if (!(m as THREE.MeshStandardMaterial).isMeshStandardMaterial) return m;
+      let c = copies.get(m);
+      if (!c) {
+        // Las varas con plano de recorte ya tienen copia propia (y clonarla copiaría el plano, que dejaría de moverse).
+        c = m.clippingPlanes?.length ? m : m.clone();
+        copies.set(m, c);
+        const sm = c as THREE.MeshStandardMaterial;
+        this.mats.push({ m: sm, color: sm.emissive.clone(), i: sm.emissiveIntensity });
+      }
+      return c;
+    };
     root.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
-      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-        const sm = m as THREE.MeshStandardMaterial;
-        if (!sm.isMeshStandardMaterial || seen.has(m)) continue;
-        seen.add(m);
-        this.mats.push({ m: sm, color: sm.emissive.clone(), i: sm.emissiveIntensity });
-      }
+      this.meshes.push({ mesh, original: mesh.material });
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
     });
   }
   step(dt: number): void {
     this.flash *= Math.exp(-dt * 16);
     this.shake *= Math.exp(-dt * 22);
-    for (const e of this.mats) {
+    for (const { m, color, i } of this.mats) {
       if (this.flash > 0.01) {
-        e.m.emissive.setRGB(1, 1, 1);
-        e.m.emissiveIntensity = this.flash * 0.9;
+        m.emissive.setRGB(1, 1, 1);
+        m.emissiveIntensity = this.flash * 0.9;
       } else {
-        e.m.emissive.copy(e.color);
-        e.m.emissiveIntensity = e.i;
+        m.emissive.copy(color);
+        m.emissiveIntensity = i;
       }
     }
     this.offset.set((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake, 0);
   }
   restore(): void {
-    for (const e of this.mats) {
-      e.m.emissive.copy(e.color);
-      e.m.emissiveIntensity = e.i;
-    }
+    for (const { mesh, original } of this.meshes) mesh.material = original;
+    for (const { m } of this.mats) if (!m.clippingPlanes?.length) m.dispose();
   }
 }
 
