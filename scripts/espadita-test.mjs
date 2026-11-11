@@ -1,4 +1,4 @@
-// Prueba: la guarda en cruz de la espadita es el tope de inserción (sólo entra la hoja).
+// Prueba: la espadita se clava por el mango y la guarda en cruz es el tope (entra sólo el mango, la hoja queda afuera).
 // Uso: node scripts/espadita-test.mjs [outDir]   (con `npm run dev` corriendo)
 import { chromium } from 'playwright';
 import fs from 'node:fs';
@@ -59,7 +59,7 @@ const r = await page.evaluate(() => {
   const n = [...window.__chizito.construction.nodes.values()].find((x) => x.data.params?.variant === 'espadita');
   return { depthMm: +(n.data.depth * 1000).toFixed(2) };
 });
-console.log('espadita: profundidad', r.depthMm, 'mm (guarda a 21 mm de la punta; tope 20,2 mm)');
+console.log('espadita: profundidad', r.depthMm, 'mm (guarda a 9 mm del pomo; tope 8,2 mm)');
 // Con Ctrl + rueda tampoco pasa la guarda.
 await click(...(await screenOfLocal([0.004, 0.003, 0.0102]))); await frames(2);
 await page.keyboard.down('Control');
