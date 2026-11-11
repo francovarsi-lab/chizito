@@ -13,6 +13,9 @@ const d = new THREE.DirectionalLight('#fff4e0', 2.5); d.position.set(2, 4, 5); s
 const parts = q.has('proc') ? null : await loadBroccoliParts();
 const b = createBrocoli({ level: 1, parts });
 scene.add(b);
+// ?open=0..1 abre la boca como en la presentación (misma cuenta que FighterView.face).
+const open = Number(q.get('open') ?? 0);
+for (const o of b.children) if (o.name === 'boca' || o.name === 'dientes') { const sy = 1 + 1.1 * open; o.scale.y = sy; o.position.y = 2.05 * (1 - sy); }
 const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
 const [cx, cy, cz, lx, ly] = (q.get('cam') ?? '0,2.4,9,0,2.1').split(',').map(Number);
 cam.position.set(cx, cy, cz); cam.lookAt(lx, ly, 0);

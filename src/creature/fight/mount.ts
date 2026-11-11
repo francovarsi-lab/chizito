@@ -549,7 +549,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     // Gesto de la cara del brócoli: tranquilo y torvo → se ríe (boca que se abre y cierra, cejas arriba) → furia (boca abierta,
     // cejas abajo).
     const u = t - P_CHIZ;
-    if (u < 1.2) views[1].face?.(0.05, -0.3);
+    if (u < 1.2) views[1].face?.(0, -0.3);
     else if (u < 2.6) views[1].face?.(0.25 + 0.55 * Math.abs(Math.sin((u - 1.2) * 11)), 0.6);
     else if (u < 3.6) views[1].face?.(1, -1);
     else views[1].face?.(0.15, -0.6);

@@ -211,7 +211,8 @@ const STALK_TOP = 2.98;
 /** Altura (boceto) desde la que se ve la copa del GLB: más abajo manda el tallo propio. */
 const CROWN_CUT = 2.66;
 function stalkRadius(y: number): number {
-  return 0.37 - 0.03 * THREE.MathUtils.smoothstep(y, 1.42, 2.3) + 0.2 * Math.pow(THREE.MathUtils.smoothstep(y, 2.5, STALK_TOP), 1.6);
+  // Recto en toda la zona de la cara (y 1,6–2,5): la boca que se abre no se hunde en el tallo.
+  return 0.37 - 0.03 * THREE.MathUtils.smoothstep(y, 1.42, 1.6) + 0.2 * Math.pow(THREE.MathUtils.smoothstep(y, 2.5, STALK_TOP), 1.6);
 }
 
 /** Punto de la superficie del tallo (frente, +Z) para la coordenada x del boceto, a la altura y, separado `dz` hacia afuera. */
@@ -239,8 +240,8 @@ function stalk(): THREE.Mesh {
       continue;
     }
     const f = Math.pow(0.5 + 0.5 * Math.sin(a * 9 + noise.noise(a, v.y * 1.5, 3) * 1.6), 4);
-    // Las fibras se marcan más arriba, donde el tallo se abre en ramas. Sin bultos en la cara (y 1,8–2,7, de frente).
-    const front = THREE.MathUtils.smoothstep(Math.cos(a - Math.PI / 2), 0.3, 0.8) * (v.y > 1.8 && v.y < 2.7 ? 1 : 0);
+    // Las fibras se marcan más arriba, donde el tallo se abre en ramas. Sin bultos en la cara (y 1,5–2,7, de frente: la boca abierta llega hasta abajo).
+    const front = THREE.MathUtils.smoothstep(Math.cos(a - Math.PI / 2), 0.3, 0.8) * (v.y > 1.5 && v.y < 2.7 ? 1 : 0);
     const bulge = noise.fbm(Math.cos(a), v.y * 1.2, Math.sin(a), 3) * 0.03 * (1 - front);
     const flare = THREE.MathUtils.smoothstep(v.y, 2.5, y1);
     fiber[i] = f;

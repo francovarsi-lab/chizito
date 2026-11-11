@@ -371,7 +371,7 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
       return new THREE.Vector3(0, BROCCOLI_TOP, 0).applyMatrix4(outer.matrixWorld);
     },
     face(open, brow) {
-      const sy = 1 + 1.6 * Math.max(0, open);
+      const sy = 1 + 1.1 * Math.max(0, open);
       for (const o of mouthParts) {
         o.scale.y = sy;
         o.position.y = MOUTH_TOP * (1 - sy);
