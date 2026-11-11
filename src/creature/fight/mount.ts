@@ -653,11 +653,11 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const u = t - P_CHIZ;
       const n = front(1);
       const face = at(1, 0.55);
-      const feet = new THREE.Vector3(m.f[1].x, GROUND + 0.006, z0);
+      const feet = new THREE.Vector3(m.f[1].x, GROUND + 0.012, z0);
       if (u < 1.2) {
         // Grúa: arranca en las zanahorias y sube hasta la cara.
         const k = smooth(u / 1.2);
-        pos = feet.clone().lerp(face, k).addScaledVector(n, 0.13 - 0.03 * k).add(new THREE.Vector3(0, -0.01 + 0.005 * k, 0));
+        pos = feet.clone().lerp(face, k).addScaledVector(n, 0.13 - 0.03 * k).add(new THREE.Vector3(0, 0.008 - 0.004 * k, 0));
         look = feet.clone().lerp(face, k);
         rate = 8;
         focal = 45;
