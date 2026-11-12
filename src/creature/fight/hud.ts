@@ -66,7 +66,7 @@ const css = `
 #cfh .keys.off{opacity:0;transform:translate(-50%,14px)}#cfh .keys.mini:not(.off){opacity:.55;transform:translateX(-50%) scale(.78);transform-origin:50% 100%}
 #cfh .intro{position:absolute;left:6vw;bottom:13vh;max-width:70vw;opacity:0;transform:translateX(-60px);transition:opacity .3s,transform .5s cubic-bezier(.2,1.4,.4,1);pointer-events:none}
 #cfh .intro.r{left:auto;right:6vw;text-align:right;transform:translateX(60px)}
-#cfh .intro.on{opacity:1;transform:none}#cfh .intro.on h1{animation:cfh-slam .42s cubic-bezier(.2,1.6,.35,1) both}@keyframes cfh-slam{0%{transform:scale(2.6) rotate(-4deg);opacity:0}60%{opacity:1}100%{transform:none}}#cfh .intro.vs{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%) scale(.6);text-align:center}#cfh .intro.vs.on{transform:translate(-50%,-50%)}#cfh .intro.vs h1{font-size:clamp(70px,13vw,170px);color:#fff;text-shadow:0 8px 0 var(--ink),0 0 50px rgba(255,80,40,.8)}#cfh .bars{position:absolute;inset:0;pointer-events:none;z-index:2}#cfh .intro,#cfh .skip{z-index:3}#cfh .bars:before,#cfh .bars:after{content:'';position:absolute;left:0;right:0;height:9vh;background:#05060c;transition:transform .5s cubic-bezier(.3,.7,.2,1);z-index:2}#cfh .bars:before{top:0;transform:translateY(-100%)}#cfh .bars:after{bottom:0;transform:translateY(100%)}#cfh.presenting .bars:before,#cfh.presenting .bars:after{transform:none}
+#cfh .intro.on{opacity:1;transform:none}#cfh .intro.on h1{animation:cfh-slam .42s cubic-bezier(.2,1.6,.35,1) both}@keyframes cfh-slam{0%{transform:scale(2.6) rotate(-4deg);opacity:0}60%{opacity:1}100%{transform:none}}#cfh .intro.vs{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%) scale(.6);text-align:center}#cfh .intro.vs.on{transform:translate(-50%,-50%)}#cfh .intro.vs h1{font-size:clamp(70px,13vw,170px);color:#fff;text-shadow:0 8px 0 var(--ink),0 0 50px rgba(255,80,40,.8)}#cfh .bars{position:absolute;inset:0;pointer-events:none;z-index:2}#cfh .subs{position:absolute;left:50%;bottom:12.5vh;z-index:3;transform:translate(-50%,8px);max-width:min(760px,86vw);text-align:center;opacity:0;transition:opacity .45s,transform .6s cubic-bezier(.2,.8,.2,1);pointer-events:none}#cfh .subs.on{opacity:1;transform:translate(-50%,0)}#cfh .subs b{display:block;margin-bottom:6px;font:800 12px/1 "Nunito",sans-serif;letter-spacing:.22em;color:#9df06a;text-shadow:0 1px 0 #000}#cfh .subs span{font:800 clamp(18px,2.2vw,28px)/1.3 "Nunito",sans-serif;color:#fff;text-shadow:0 2px 0 #000,0 0 18px rgba(0,0,0,.9);letter-spacing:.02em}#cfh .intro,#cfh .skip{z-index:3}#cfh .bars:before,#cfh .bars:after{content:'';position:absolute;left:0;right:0;height:9vh;background:#05060c;transition:transform .5s cubic-bezier(.3,.7,.2,1);z-index:2}#cfh .bars:before{top:0;transform:translateY(-100%)}#cfh .bars:after{bottom:0;transform:translateY(100%)}#cfh.presenting .bars:before,#cfh.presenting .bars:after{transform:none}
 #cfh .intro h1{margin:0;font:400 clamp(40px,7.4vw,96px)/.92 "Bungee",Impact,sans-serif;color:#ffe14d;-webkit-text-stroke:3px var(--ink);text-shadow:0 7px 0 var(--ink),0 0 34px rgba(255,159,28,.55)}
 #cfh .intro.r h1{color:#9df06a;text-shadow:0 7px 0 var(--ink),0 0 34px rgba(80,200,60,.5)}
 #cfh .intro p{margin:12px 0 0;font:800 clamp(14px,1.6vw,20px)/1.25 "Nunito",sans-serif;color:#fff;letter-spacing:.06em;text-shadow:0 2px 0 var(--ink),0 0 10px rgba(13,16,36,.6)}
@@ -138,7 +138,7 @@ export class FightHud {
 <div class="pad"><div class="cap"><div class="ln" style="top:19%"></div><div class="ln" style="top:75%"></div><div class="vl"></div><div class="hd">cabeza</div>
 <div class="q" data-q="LA" style="left:0;top:19%;width:50%;height:56%"></div><div class="q" data-q="RA" style="left:50%;top:19%;width:50%;height:56%"></div>
 <div class="q" data-q="LL" style="left:0;top:75%;width:50%;height:25%"></div><div class="q" data-q="RL" style="left:50%;top:75%;width:50%;height:25%"></div></div></div>
-<div class="bars"></div><div class="intro"><h1></h1><p></p></div><div class="skip">cualquier tecla para saltear la presentación</div>
+<div class="bars"></div><div class="subs"><b></b><span></span></div><div class="intro"><h1></h1><p></p></div><div class="skip">cualquier tecla para saltear la presentación</div>
 <div class="menu"><div class="card"></div></div>`;
     host.appendChild(r);
     this.root = r;
@@ -239,6 +239,18 @@ export class FightHud {
   }
 
   /** Pasados unos segundos, la guía de teclas queda chica y transparente (no desaparece: siempre se puede mirar). */
+  /** Subtítulo de lo que dice un personaje (null lo saca). */
+  sub(who: string | null, text = ''): void {
+    const el = this.root.querySelector<HTMLElement>('.subs')!;
+    if (!who) {
+      el.classList.remove('on');
+      return;
+    }
+    el.querySelector('b')!.textContent = who;
+    el.querySelector('span')!.textContent = text;
+    el.classList.add('on');
+  }
+
   hideKeys(): void {
     this.keys.classList.add('mini');
   }

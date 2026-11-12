@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { AudioManager } from '../../audio/AudioManager';
+import type { AudioManager, SoundId } from '../../audio/AudioManager';
 import { Crumbs } from '../../fx/Crumbs';
 import type { Construction } from '../../model/Construction';
 import type { PieceRegistry } from '../../pieces/PieceRegistry';
@@ -59,7 +59,7 @@ const btnCss = `
 #cf-btn:hover{transform:translateY(-3px) scale(1.03);filter:brightness(1.08)}
 #cf-btn:active{transform:translateY(2px)}
 #cf-btn svg{width:26px;height:26px}
-#cf-btn[hidden]{display:none}#cf-nag{position:fixed;right:22px;bottom:92px;z-index:41;max-width:300px;padding:12px 16px;border-radius:16px;background:#fff8ee;color:#b3121f;font:800 17px/1.25 "Baloo 2",Nunito,sans-serif;box-shadow:0 10px 28px rgba(120,40,40,.28),inset 0 0 0 2px #e8352b;pointer-events:none;opacity:0;transform:translateY(10px) scale(.9);transform-origin:90% 100%;transition:opacity .25s,transform .35s cubic-bezier(.2,1.6,.4,1)}#cf-nag:after{content:'';position:absolute;right:46px;bottom:-9px;border:9px solid transparent;border-bottom:0;border-top-color:#fff8ee}#cf-nag.on{opacity:1;transform:none}
+#cf-btn[hidden]{display:none}#cf-black{position:fixed;inset:0;z-index:30;background:#000;opacity:0;pointer-events:none}#cf-nag{position:fixed;right:22px;bottom:92px;z-index:41;max-width:300px;padding:12px 16px;border-radius:16px;background:#fff8ee;color:#b3121f;font:800 17px/1.25 "Baloo 2",Nunito,sans-serif;box-shadow:0 10px 28px rgba(120,40,40,.28),inset 0 0 0 2px #e8352b;pointer-events:none;opacity:0;transform:translateY(10px) scale(.9);transform-origin:90% 100%;transition:opacity .25s,transform .35s cubic-bezier(.2,1.6,.4,1)}#cf-nag:after{content:'';position:absolute;right:46px;bottom:-9px;border:9px solid transparent;border-bottom:0;border-top-color:#fff8ee}#cf-nag.on{opacity:1;transform:none}
 @keyframes cfb{0%,100%{box-shadow:0 0 0 3px #fff,0 0 0 6px #0d1024,0 6px 0 6px #0d1024,0 18px 36px rgba(13,16,36,.35)}50%{box-shadow:0 0 0 3px #fff,0 0 0 6px #0d1024,0 6px 0 6px #0d1024,0 18px 44px rgba(255,159,28,.6)}}
 `;
 const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/></svg>`;
@@ -479,15 +479,24 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   };
 
   // ── Presentación, como la de una pelea de verdad (con los MISMOS modelos del juego; cualquier tecla la saltea) ──
-  // 0–3,4 s TU CHIZITO: se despierta en un primer plano desde abajo, de frente (la cara que se le dibujó), le tira piñas a la
-  //   cámara (cada una sacude la toma) y termina en pose de héroe con la cámara que se aleja.
-  // 3,4–7 s EL BROCOLOCO: la toma sube desde las zanahorias hasta la cara; se ríe (boca, cejas, zanahorias arriba) y de golpe
-  //   SE TE TIRA ENCIMA: zoom brusco, sacudida, destello y su nombre.
-  // 7–8 s: los dos frente a frente, VS. Después, ROUND 1.
-  const P_CHIZ = 3.4;
-  const P_BRO = 7.0;
-  const P_END = 8.0;
+  // Antes: el APAGÓN del constructor (las luces titilan y se cortan; ver `blackout`). Después, en la oscuridad:
+  // 0–7,2 s EL BROCOLOCO, de terror: se prende una vela y lo primero que se ve es su BOCA sonriendo, muy cerca, con paneos
+  //   lentos; habla (subtítulos); la cámara sube despacio hasta los ojos; y de golpe se encienden los focos, ruge y aparece su
+  //   nombre.
+  // 7,2–10,6 s TU CHIZITO responde: se despierta en contrapicado, le pega a la lente y queda en pose de héroe.
+  // 10,6–11,6 s: los dos frente a frente, VS. Después, ROUND 1.
+  const B_LIGHTS = 5.6;
+  const P_CHIZ0 = 7.2;
+  const P_VS = 10.6;
+  const P_END = 11.6;
+  /** Lo que dice EL BROCOLOCO (con su sonido de voz, para grabar). */
+  const LINES: { at: number; until: number; text: string; sound: SoundId }[] = [
+    { at: 1.1, until: 3.2, text: 'Mmm… huelo a chizito.', sound: 'brocoloco-frase1' },
+    { at: 3.5, until: 5.5, text: 'Te voy a dejar hecho polvito… de queso.', sound: 'brocoloco-frase2' },
+    { at: 5.75, until: 7.0, text: '¡A LA MESA, BOCADITO!', sound: 'brocoloco-frase3' },
+  ];
   let presShake = 0;
+  let candleProp: THREE.Group | null = null;
   const once = (key: string, at: number, fn: () => void): void => {
     if (!present || present.t < at || present.fired.has(key)) return;
     present.fired.add(key);
@@ -498,6 +507,27 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     return k * k * (3 - 2 * k);
   };
   const PUNCHES = [1.35, 1.75, 2.15];
+  /** Vela de cumpleaños sobre la tabla, delante del brócoli: la única luz al principio. */
+  const makeCandle = (): THREE.Group => {
+    const g = new THREE.Group();
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.024, 12), new THREE.MeshStandardMaterial({ color: '#f7b6c8', roughness: 0.5 }));
+    stick.position.y = 0.012;
+    const flame = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.3, 0.45), toneMapped: false }));
+    flame.name = 'llama';
+    flame.position.y = 0.0275;
+    flame.scale.set(0.0013, 0.0032, 0.0013);
+    g.add(stick, flame);
+    return g;
+  };
+  /** Punto del cuerpo principal (el chizito, o el tallo del brócoli: ahí está la cara), de abajo (0) a arriba (1). */
+  const along = (i: 0 | 1, k: number): THREE.Vector3 => {
+    const f = m!.f[i];
+    const b = f.model.body[0];
+    const lo = Math.min(b.a[1], b.b[1]) - b.r;
+    const hi = Math.max(b.a[1], b.b[1]) + b.r;
+    return new THREE.Vector3(f.x, f.y + GROUND + lo + (hi - lo) * k, z0);
+  };
+  const front = (i: 0 | 1): THREE.Vector3 => new THREE.Vector3(m!.f[i].facing * Math.cos(m!.f[i].yaw), 0, Math.sin(m!.f[i].yaw));
   const presentStep = (dt: number): void => {
     if (!present || !m || !views) return;
     present.t += dt;
@@ -505,54 +535,71 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const g = game();
     const f0 = m.f[0];
     presShake *= Math.exp(-dt * 9);
-    if (t < P_CHIZ) {
-      if (t <= 0.35) hud.present(0);
+    // ── Luz: del negro total a la vela; a los 5,6 s se encienden los focos de golpe. ──
+    black.style.opacity = String(1 - smooth((t - 0.35) / 0.7));
+    if (!candleProp) {
+      candleProp = makeCandle();
+      const n = front(1);
+      candleProp.position.set(m.f[1].x, GROUND, z0).addScaledVector(n, 0.034);
+      g.stage.scene.add(candleProp);
+    }
+    const lit = t >= B_LIGHTS;
+    const flick = 0.85 + 0.15 * Math.sin(t * 23) * Math.sin(t * 7.3 + 1);
+    const candleK = t < 0.4 ? 0 : t < B_LIGHTS ? 0.05 * smooth((t - 0.4) / 0.5) * flick : 0.05 * Math.max(0, 1 - (t - B_LIGHTS) * 2) * flick;
+    const flame = candleProp.getObjectByName('llama')!;
+    flame.visible = t > 0.4 && t < B_LIGHTS + 0.6;
+    flame.scale.set(0.0013, 0.0032 * flick, 0.0013);
+    set?.candle(flame.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.004, 0)), candleK);
+    set?.lights(lit ? Math.min(1, (t - B_LIGHTS) * 6) : 0);
+    // ── Carteles y subtítulos ──
+    if (t < P_CHIZ0) {
+      if (t > B_LIGHTS + 0.1) hud.present(1, 'EL BROCOLOCO', `NIVEL ${level} · el vegetal más malo de la mesa`);
+      else hud.present(1);
+    } else if (t < P_VS) {
+      if (t <= P_CHIZ0 + 0.35) hud.present(0);
       else {
         const parts = [`${f0.arms.length} brazo${f0.arms.length === 1 ? '' : 's'}`, `${f0.legs.length} pierna${f0.legs.length === 1 ? '' : 's'}`, `${(f0.model.mass * 1000).toFixed(1).replace('.', ',')} g`];
         hud.present(0, 'TU CHIZITO', parts.join(' · '));
       }
-    } else if (t < P_BRO) {
-      if (t > P_CHIZ + 2.6) hud.present(1, 'EL BROCOLOCO', `NIVEL ${level} · el vegetal más malo de la mesa`);
-      else hud.present(1);
     } else hud.present(2, 'VS', 'TU CHIZITO · EL BROCOLOCO');
-    // Chizito: se despierta (se estira de golpe), tiembla de bronca, piñas a la cámara y pose final.
-    once('despierta', 0.3, () => {
+    const line = LINES.find((l) => t >= l.at && t < l.until);
+    hud.sub(line ? 'EL BROCOLOCO' : null, line?.text ?? '');
+    LINES.forEach((l, i) => once(`frase${i}`, l.at, () => g.audio.play(l.sound, 1)));
+    // ── Sonidos y golpes de la parte del brócoli ──
+    once('vela', 0.4, () => g.audio.play('vela', 0.8));
+    once('focos', B_LIGHTS, () => {
+      presShake = 0.004;
+      views![1].bump(1);
+      hud.flash(0.55);
+      g.audio.play('golpe-pesado', 1);
+      g.audio.play('rugido', 1);
+      g.audio.musicOn(true);
+    });
+    // ── Tu chizito: se despierta, piñas a la cámara, pose de héroe ──
+    once('despierta', P_CHIZ0 + 0.3, () => {
       views![0].bump(-1);
       g.audio.play('zumbido', 0.6);
     });
-    once('bronca', 0.95, () => views![0].hurt(0, 0.0012));
+    once('bronca', P_CHIZ0 + 0.95, () => views![0].hurt(0, 0.0012));
     PUNCHES.forEach((at, i) =>
-      once(`pina${i}`, at + 0.1, () => {
+      once(`pina${i}`, P_CHIZ0 + at + 0.1, () => {
         presShake = Math.max(presShake, 0.0016);
         g.audio.play(i === 2 ? 'golpe-pesado' : 'golpe', 0.8);
       }),
     );
-    once('heroe', 2.55, () => {
+    once('heroe', P_CHIZ0 + 2.55, () => {
       views![0].bump(-0.8);
       g.audio.play('combo', 0.8);
     });
-    // Brócoli: aparece, se ríe y se te tira encima.
-    once('bro-sube', P_CHIZ + 0.05, () => g.audio.play('zumbido', 0.5));
-    once('risa', P_CHIZ + 1.25, () => g.audio.play('risa', 1));
-    for (const at of [1.3, 1.6, 1.9, 2.2]) once(`rebote${at}`, P_CHIZ + at, () => views![1].bump(0.6));
-    once('susto', P_CHIZ + 2.6, () => {
-      presShake = 0.004;
-      views![1].bump(1);
-      hud.flash(0.5);
-      g.audio.play('golpe-pesado', 1);
-      g.audio.play('ko', 0.7);
-    });
-    once('vs', P_BRO, () => {
+    once('vs', P_VS, () => {
       g.audio.play('round', 1);
       hud.flash(0.25);
     });
-    // Gesto de la cara del brócoli: tranquilo y torvo → se ríe (boca que se abre y cierra, cejas arriba) → furia (boca abierta,
-    // cejas abajo).
-    const u = t - P_CHIZ;
-    if (u < 1.2) views[1].face?.(0, -0.3);
-    else if (u < 2.6) views[1].face?.(0.25 + 0.55 * Math.abs(Math.sin((u - 1.2) * 11)), 0.6);
-    else if (u < 3.6) views[1].face?.(1, -1);
-    else views[1].face?.(0.15, -0.6);
+    // Gesto de la cara del brócoli: sonrisa torva y quieta (apenas se abre al hablar), cejas que bajan, y el rugido.
+    const talk = line && t < B_LIGHTS ? 0.12 + 0.12 * Math.abs(Math.sin(t * 13)) : 0;
+    if (t < B_LIGHTS) views[1].face?.(0.02 + talk, -0.2 - 0.6 * smooth((t - 3.4) / 1.5));
+    else if (t < B_LIGHTS + 1.2) views[1].face?.(1, -1);
+    else views[1].face?.(0.15, -0.7);
     if (t >= P_END) endPresent();
   };
   /** Pose de la presentación: la del motor (quieto) con los brazos animados. */
@@ -582,112 +629,110 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     };
     const arms = f.arms.filter((k) => !L[k].rigid);
     if (i === 0) {
-      if (t > P_CHIZ) return base;
+      const tc = t - P_CHIZ0;
+      if (tc < 0 || t > P_VS) return base;
       // Piñas a la cámara: cada brazo (articulado) apunta a la lente y vuelve, uno por vez.
       PUNCHES.forEach((at, n) => {
         if (!arms.length) return;
         const k = arms[n % arms.length];
-        const u = t - at;
+        const u = tc - at;
         if (u < 0 || u > 0.45) return;
         const a = u < 0.1 ? 1 - (1 - u / 0.1) ** 3 : u < 0.2 ? 1 : 1 - (u - 0.2) / 0.25;
         const pivotW = new THREE.Vector3(f.x, f.y + GROUND, z0);
         blend(k, qFromTo(L[k].dir, toLocal(cam.clone().sub(pivotW))), a);
       });
       // Pose de héroe: todos los brazos arriba.
-      if (t > 2.5) arms.forEach((k) => raise(k, smooth((t - 2.5) * 4), 0.4));
-      // Se despierta: un temblor de bronca antes de las piñas.
-      const shiver = t > 0.9 && t < 1.3 ? 0.05 * Math.sin(t * 60) : 0;
-      return { ...base, qs, tilt: base.tilt + shiver + 0.05 * Math.sin(t * 5) * (t < 2.5 ? 1 : 0) };
+      if (tc > 2.5) arms.forEach((k) => raise(k, smooth((tc - 2.5) * 4), 0.4));
+      const shiver = tc > 0.9 && tc < 1.3 ? 0.05 * Math.sin(tc * 60) : 0;
+      return { ...base, qs, tilt: base.tilt + shiver + 0.05 * Math.sin(tc * 5) * (tc < 2.5 ? 1 : 0) };
     }
-    // El brócoli: respira, después zanahorias arriba sacudiéndose (furioso y riéndose).
-    const u = t - P_CHIZ;
-    if (u > 1.1) arms.forEach((k) => raise(k, smooth((u - 1.1) * 4), 1));
-    return { ...base, qs, tilt: base.tilt + (u > 0 && u < 1.2 ? 0.02 * Math.sin(u * 4) : 0) };
+    // El brócoli en la oscuridad: respira hondo, se inclina apenas hacia la cámara (acecha). Con los focos, zanahorias arriba.
+    if (t > B_LIGHTS - 0.1) arms.forEach((k) => raise(k, smooth((t - B_LIGHTS + 0.1) * 5), 1));
+    const breathe = t < B_LIGHTS ? 0.025 * Math.sin(t * 1.6) + 0.05 * smooth((t - 2) / 3) : 0;
+    return { ...base, qs, tilt: base.tilt + breathe };
   };
-  /** Cámara de la presentación (planos de cine: contrapicado, primer plano, grúa, zoom de golpe, plano de los dos). */
+  /** Cámara de la presentación (planos de cine: la boca a la luz de la vela, la subida a los ojos, la revelación, el héroe, VS). */
   const presentCamera = (dt: number): void => {
     if (!present || !m) return;
     const cam = game().stage.camera;
     const t = present.t;
-    const front = (i: 0 | 1): THREE.Vector3 => new THREE.Vector3(m!.f[i].facing * Math.cos(m!.f[i].yaw), 0, Math.sin(m!.f[i].yaw));
-    // Altura a lo largo del cuerpo principal (el chizito, o el tallo del brócoli: ahí está la cara), de abajo (0) a arriba (1).
-    const at = (i: 0 | 1, k: number): THREE.Vector3 => {
-      const f = m!.f[i];
-      const b = f.model.body[0];
-      const lo = Math.min(b.a[1], b.b[1]) - b.r;
-      const hi = Math.max(b.a[1], b.b[1]) + b.r;
-      return new THREE.Vector3(f.x, f.y + GROUND + lo + (hi - lo) * k, z0);
-    };
     let pos: THREE.Vector3;
     let look: THREE.Vector3;
     let rate = 7;
     let focal = 50;
     let roll = 0;
-    if (t < P_CHIZ) {
+    let shot: string;
+    if (t < P_CHIZ0) {
+      const n = front(1);
+      const side = new THREE.Vector3(-n.z, 0, n.x);
+      const mouth = along(1, 0.44);
+      const eyes = along(1, 0.63);
+      if (t < 3.4) {
+        // La BOCA, muy cerca, a la luz de la vela: un paneo lento de costado y apenas acercándose. Suspenso.
+        shot = 'boca';
+        const k = smooth(t / 3.4);
+        pos = mouth.clone().addScaledVector(n, 0.062 - 0.008 * k).addScaledVector(side, 0.012 - 0.02 * k).add(new THREE.Vector3(0, -0.004, 0));
+        look = mouth.clone().addScaledVector(side, 0.003 - 0.004 * k);
+        rate = 4;
+        focal = 58;
+        roll = 0.05 - 0.07 * k;
+      } else if (t < B_LIGHTS) {
+        // Sube despacio de la boca a los ojos.
+        shot = 'boca';
+        const k = smooth((t - 3.4) / (B_LIGHTS - 3.4));
+        pos = mouth.clone().lerp(eyes, k).addScaledVector(n, 0.056 + 0.01 * k).addScaledVector(side, -0.008);
+        look = mouth.clone().lerp(eyes, k);
+        rate = 3;
+        focal = 58;
+        roll = -0.02;
+      } else {
+        // ¡Se encienden los focos! La cámara salta atrás: plano entero en contrapicado, torcido.
+        shot = 'revela';
+        const k = smooth((t - B_LIGHTS) / 0.35);
+        pos = along(1, 0.5).addScaledVector(n, 0.14).addScaledVector(side, 0.03).add(new THREE.Vector3(0, -0.015, 0));
+        look = along(1, 0.55);
+        rate = 12;
+        focal = 40;
+        roll = 0.08 * k;
+      }
+    } else if (t < P_VS) {
+      const tc = t - P_CHIZ0;
       const n = front(0);
       const side = new THREE.Vector3(-n.z, 0, n.x);
-      const face = at(0, 0.62);
-      if (t < 1.3) {
-        // Contrapicado muy cerca, entrando de a poco: se despierta.
-        const k = smooth(t / 1.3);
+      const face = along(0, 0.62);
+      shot = 'chizito';
+      if (tc < 1.3) {
+        const k = smooth(tc / 1.3);
         pos = face.clone().addScaledVector(n, 0.1 - 0.025 * k).addScaledVector(side, 0.025 * (1 - k)).add(new THREE.Vector3(0, -0.028 + 0.01 * k, 0));
         look = face.clone().add(new THREE.Vector3(0, 0.004, 0));
         rate = 5;
         focal = 42;
-      } else if (t < 2.5) {
-        // De frente: le pega a la lente.
+      } else if (tc < 2.5) {
         pos = face.clone().addScaledVector(n, 0.085).add(new THREE.Vector3(0, -0.01, 0));
         look = face;
         rate = 9;
         focal = 40;
       } else {
-        // Pose de héroe: la cámara se aleja rápido y queda en contrapicado, apenas inclinada.
-        const k = smooth((t - 2.5) / 0.6);
+        const k = smooth((tc - 2.5) / 0.6);
         pos = face.clone().addScaledVector(n, 0.085 + 0.08 * k).addScaledVector(side, -0.03 * k).add(new THREE.Vector3(0, -0.01 - 0.012 * k, 0));
-        look = at(0, 0.55);
+        look = along(0, 0.55);
         rate = 12;
         focal = 40;
         roll = -0.08 * k;
       }
-    } else if (t < P_BRO) {
-      const u = t - P_CHIZ;
-      const n = front(1);
-      const face = at(1, 0.55);
-      const feet = new THREE.Vector3(m.f[1].x, GROUND + 0.012, z0);
-      if (u < 1.2) {
-        // Grúa: arranca en las zanahorias y sube hasta la cara.
-        const k = smooth(u / 1.2);
-        pos = feet.clone().lerp(face, k).addScaledVector(n, 0.13 - 0.03 * k).add(new THREE.Vector3(0, 0.008 - 0.004 * k, 0));
-        look = feet.clone().lerp(face, k);
-        rate = 8;
-        focal = 45;
-      } else if (u < 2.6) {
-        // Primer plano de la cara: se ríe.
-        pos = face.clone().addScaledVector(n, 0.095).add(new THREE.Vector3(0, 0.004, 0));
-        look = face;
-        focal = 50;
-      } else {
-        // ¡SE TE TIRA ENCIMA! Zoom de golpe a la cara y queda ahí, torcido.
-        const k = smooth((u - 2.6) / 0.12);
-        pos = face.clone().addScaledVector(n, 0.095 - 0.025 * k);
-        look = face;
-        rate = 40;
-        focal = 50 + 8 * k;
-        roll = 0.1 * k;
-      }
     } else {
       // Los dos frente a frente: plano general bajo, de frente.
-      const mid = at(0, 0.4).lerp(at(1, 0.4), 0.5);
+      shot = 'vs';
+      const mid = along(0, 0.4).lerp(along(1, 0.4), 0.5);
       const gap = Math.abs(m.f[1].x - m.f[0].x);
       pos = mid.clone().add(new THREE.Vector3(0, 0.005, 0.12 + gap * 0.9));
       look = mid;
       rate = 6;
       focal = 40;
     }
-    // Corte seco al empezar cada parte (como en el cine); adentro de cada una, la cámara se mueve suave.
-    const shot = t < P_CHIZ ? 'toma-chizito' : t < P_BRO ? 'toma-brocoli' : 'toma-vs';
-    const cut = !present.fired.has(shot);
-    present.fired.add(shot);
+    // Corte seco al empezar cada plano (como en el cine); adentro de cada uno, la cámara se mueve suave.
+    const cut = !present.fired.has(`toma-${shot}`);
+    present.fired.add(`toma-${shot}`);
     const kk = cut ? 1 : 1 - Math.exp(-dt * rate);
     camPos.lerp(pos, kk);
     camLook.lerp(look, kk);
@@ -705,6 +750,13 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const pending = present.pending;
     present = null;
     hud.present(null);
+    hud.sub(null);
+    game().audio.musicOn(true);
+    black.style.opacity = '0';
+    set?.lights(1);
+    set?.candle(null, 0);
+    candleProp?.removeFromParent();
+    candleProp = null;
     views?.[1].face?.(0, 0);
     for (const e of pending) onEvent(e);
     // De la última toma a la de pelea, en movimiento (no de golpe).
@@ -914,6 +966,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       // El frente de la pelea es la CARA que marca la F en el constructor (+Z del chizito), con arriba = su eje largo (+X):
       // de enfrentarse, se ven de perfil y la cara mira al rival.
       const snap = resolveSnapshot({ construction: g.construction, pieces: deps.pieces, orientation: { front: [...BUILDER_FACE], up: [...DEFAULT_COMBAT_UP] } });
+      // Con presentación, primero se apagan las luces de la fiesta (todo lo que sigue se arma a oscuras).
+      if (wantsPresent()) await blackout();
       // Si el ensayo no terminó (se apretó PELEAR enseguida), termina ya, sin esperar ratos libres.
       hurryUp();
       await prewarm();
@@ -952,7 +1006,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       restart(level, wantsPresent());
       // Sin presentación, la cámara viaja del constructor a la pelea; con presentación, la primera toma entra al corte.
       tween = present ? null : { t: 0, from: { pos: saved.pos.clone(), quat: saved.quat.clone() } };
-      g.audio.musicOn(true);
+      // Con presentación, la música entra recién cuando se encienden los focos (en la oscuridad, silencio y la vela).
+      if (!present) g.audio.musicOn(true);
     },
     close() {
       if (!open) return;
@@ -960,6 +1015,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       paused = false;
       keys.clear();
       hud.hide();
+      black.style.opacity = '0';
+      candleProp?.removeFromParent();
+      candleProp = null;
       const g = game();
       g.audio.musicOn(false);
       delete (g.stage as { render?: unknown }).render;
@@ -1023,6 +1081,19 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       st.remove();
     },
   };
+  // Apagón: capa negra sobre todo (menos el HUD). Las luces titilan y se cortan antes de la pelea; la presentación la levanta.
+  const black = document.createElement('div');
+  black.id = 'cf-black';
+  host.append(black);
+  const blackout = (): Promise<void> =>
+    new Promise((done) => {
+      // Titila como una instalación que falla, y se corta: clac.
+      const steps: [number, number][] = [[0, 0.55], [90, 0.05], [170, 0.7], [240, 0.3], [330, 0.85], [420, 0.6], [560, 1]];
+      black.style.transition = 'none';
+      for (const [at, o] of steps) window.setTimeout(() => (black.style.opacity = String(o)), at);
+      window.setTimeout(() => game().audio.play('apagon', 1), 540);
+      window.setTimeout(done, 900);
+    });
   // Sin cara no se pelea (la primera vez): se pide dibujarle un rostro con el ketchup. Si insiste, entra igual.
   const nag = document.createElement('div');
   nag.id = 'cf-nag';

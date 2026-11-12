@@ -22,6 +22,10 @@ export interface FightSet {
   update(dt: number): void;
   /** Foco de cara de cada luchador: se para delante de su cara (del lado del rival y de la cámara) y la ilumina. */
   track(i: 0 | 1, head: THREE.Vector3, facing: 1 | -1): void;
+  /** Luces del show, 0..1 (también las lucecitas y el entorno): para la entrada de la presentación. */
+  lights(k: number): void;
+  /** Vela de la presentación: posición y brillo (0 = apagada). */
+  candle(at: THREE.Vector3 | null, k: number): void;
 }
 
 interface Hide {
@@ -51,6 +55,10 @@ interface Arena {
   update(t: number): void;
   track(i: 0 | 1, head: THREE.Vector3, facing: 1 | -1): void;
   resetTrack(): void;
+  /** Nivel de las luces del show (0 apagadas … 1 a pleno): para el apagón y la entrada de la presentación. */
+  level(k: number): void;
+  /** La vela de la presentación: dónde está y cuánto alumbra (0 = apagada). */
+  candle(at: THREE.Vector3 | null, k: number): void;
 }
 
 let arenaCache: { z0: number; arena: Arena } | null = null;
@@ -97,7 +105,11 @@ function getArena(z0: number): Arena {
   glowA.position.set(-0.4, 0.32, -0.9);
   const glowB = glowA.clone();
   glowB.position.set(0.45, 0.3, -0.95);
-  add(key, key.target, rim, rim.target, fill, fill.target, glowA, glowB, ...faces, ...faces.map((l) => l.target));
+  // Vela de la presentación (apagada fuera de ella). Va siempre en la escena: así no cambia la cantidad de luces (no recompila).
+  const candle = new THREE.PointLight(0xff9a3c, 0, 0.12, 2);
+  add(key, key.target, rim, rim.target, fill, fill.target, glowA, glowB, candle, ...faces, ...faces.map((l) => l.target));
+  const showLights = [key, rim, fill, glowA, glowB, ...faces];
+  const baseI = showLights.map((l) => l.intensity);
 
   // ── Haz de luz del foco: un cono aditivo, brillante en el centro y suave en los bordes, con polvo flotando adentro. ──
   const beamH = keyPos.distanceTo(keyAim);
@@ -213,6 +225,15 @@ function getArena(z0: number): Arena {
     },
     resetTrack() {
       faceInit[0] = faceInit[1] = false;
+    },
+    level(k) {
+      showLights.forEach((l, i) => (l.intensity = baseI[i] * k));
+      beamMat.uniforms.uOpacity.value = 0.1 * k;
+      dustMat.opacity = 0.75 * k;
+    },
+    candle(at, k) {
+      if (at) candle.position.copy(at);
+      candle.intensity = k;
     },
   };
   arenaCache = { z0, arena };
@@ -359,13 +380,23 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     track(i, head, facing) {
       arena.track(i, head, facing);
     },
+    lights(k) {
+      arena.level(k);
+      if (bulbs) bulbs.level = 0.08 + 0.92 * k;
+      scene.environmentIntensity = env.e * 0.06 * (0.15 + 0.85 * k);
+    },
+    candle(at, k) {
+      arena.candle(at, k);
+    },
     degrade(lv) {
       if (lv >= 1 && ao) ao.enabled = false;
       if (lv >= 2) s.dof.enabled = false;
       if (lv >= 3) setPR(Math.min(0.8, prWas));
     },
     restore() {
-      // La arena queda armada para la próxima pelea: sólo se saca de la escena.
+      // La arena queda armada para la próxima pelea: sólo se saca de la escena (con las luces a pleno y la vela apagada).
+      arena.level(1);
+      arena.candle(null, 0);
       for (const o of added) o.removeFromParent();
       if (bulbs) bulbs.level = bulbsWas;
       for (const h of hidden) h.obj.visible = h.was;
