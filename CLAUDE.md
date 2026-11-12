@@ -46,7 +46,7 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
 - Palito: según el modelo 3D de referencia (3 palitos interpretados como uno): cilindro de grosor parejo con curva
   leve distinta en cada uno, puntas CORTADAS planas con borde redondeado, superficie lisa con hoyitos y rayitas.
   Dorado de horneado / marrón claro (#d4a15e), claramente distinto del chizito; puntas y hoyitos más tostados;
-  granos de sal gruesa (malla aparte, hija del palito). 3,5 cm × Ø 3,4 mm (el usuario pidió la mitad de 7 cm).
+  granos de sal gruesa MATES (malla aparte, hija del palito; con brillo titilaban y distraían). 3,5 cm × Ø 3,4 mm (el usuario pidió la mitad de 7 cm).
 - Tone mapping Neutral (Khronos PBR Neutral) por defecto + `LookEffect` (saturación/brillo/contraste acotados).
   `?tm=aces` / `?tm=agx` para comparar. No usar HueSaturationEffect de postprocessing: genera negativos → negros.
 - Colores por vértice: `new THREE.Color('#hex')` YA está en lineal; no volver a convertir (antes se linealizaba
@@ -394,14 +394,23 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   ← → moverse, ↑ saltar (un brazo en el aire = en picada), ↓ agacharse. Esc pausa. Atajos: Z/X/C (o J/K/L) = cualquier brazo,
   cualquier pierna, guardia. El HUD muestra el chizito dividido con la tecla y cuántas extremidades hay en cada cuadrante.
   Mira siempre al rival.
-- PRESENTACIÓN (8 s antes del round 1, con los modelos reales del juego, se saltea con cualquier tecla), "de cine": barras
-  negras, cortes secos entre partes y movimiento suave adentro de cada una. 0–3,4 s TU CHIZITO de frente (la cara dibujada):
-  se despierta en contrapicado, tiembla de bronca, le pega tres piñas a la lente (cada una sacude la toma) y queda en pose de
-  héroe con la cámara que se aleja. 3,4–7 s EL BROCOLOCO: grúa desde las zanahorias hasta la cara, se ríe (boca que se abre y
-  cejas arriba: `FighterView.face`) y SE TE TIRA ENCIMA (zoom de golpe, sacudida, destello, nombre). 7–8 s: VS. En `?capture`
-  no sale salvo con `&presentacion`; capturas: `node scripts/present-shots.mjs <dir>`.
+- APAGÓN + PRESENTACIÓN (se saltea con cualquier tecla; en `?capture` sólo con `&presentacion`; capturas:
+  `node scripts/present-shots.mjs <dir>`). Al apretar PELEAR las luces de la fiesta titilan y se cortan (capa `#cf-black`,
+  sonido `apagon`) y la arena se arma a oscuras. Después (11,6 s, barras de cine, cortes secos, movimiento suave adentro):
+  0–5,6 s EL BROCOLOCO a la luz de una VELA (`FightSet.candle`, una PointLight que va siempre en la arena para no recompilar;
+  las luces del show en 0 con `FightSet.lights`): primero su BOCA sonriendo muy cerca, paneo lento; habla con SUBTÍTULOS
+  (`hud.sub`; frases en `LINES` de mount.ts con sonidos `brocoloco-frase1/2/3`); sube despacio a los ojos. 5,6 s: se encienden
+  los focos de golpe, ruge (`rugido`, `¡A LA MESA, BOCADITO!`) y después su nombre. 7,2–10,6 s TU CHIZITO responde (se
+  despierta en contrapicado, piñas a la lente, pose de héroe). 10,6–11,6 s VS. La música entra con los focos.
+- PELEAR pide una CARA: sin ningún trazo de ketchup, el primer clic avisa "¡Usá el ketchup para dibujarle un rostro!" y no
+  entra; el segundo entra igual.
+- KO: el que cae se desploma (medio segundo) y rueda hasta su reposo físico (`restTilt`: el primer pozo de altura del centro
+  de masa), con las extremidades aflojadas pegadas al cuerpo. Nada queda apuntalado en el aire.
+- EL BROCOLOCO se para como un peleador (`FighterModel.stance`: guardia de boxeador, respira, se mece con el paso). La IA se
+  acomoda con pasos decididos (no toques de un cuadro, que la hacían temblar como una marioneta).
 - PASO: al caminar, la pierna que avanza se levanta (gira hacia afuera, `FIGHT.gaitLift`) y el cuerpo queda sobre la otra.
-- CHUPETÍN: lento pero demoledor (daño × `swing.dmgMul`), carga corta (`maxCharge` 9) y pifiar cuesta ~0,9 s.
+- CHUPETÍN: pesa más que el chizito (5 g contra 3,3) y lo inclina hacia su lado; pega girando el torso entero (`twist.swing`),
+  fuerte pero con tope (`swing.maxDmg` 18 por golpe); si pifia, el giro sigue de largo por inercia (`swing.whiffSpin`).
 - CUERPO ENTERO: el torso gira con el golpe (`FIGHT.twist`: el hombro va atrás al cargar y adelante al soltar; física y dibujo
   con el mismo giro, `f.yaw`) y las piernas apoyadas ponen el pie bajo el centro de masa (`FIGHT.support`; mucho más mientras
   otra patea: se para sobre ésa).
