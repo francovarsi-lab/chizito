@@ -493,7 +493,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const LINES: { at: number; until: number; text: string; sound: SoundId }[] = [
     { at: 1.1, until: 3.2, text: 'Mmm… huelo a chizito.', sound: 'brocoloco-frase1' },
     { at: 3.5, until: 5.5, text: 'Te voy a dejar hecho polvito… de queso.', sound: 'brocoloco-frase2' },
-    { at: 5.75, until: 7.0, text: '¡A LA MESA, BOCADITO!', sound: 'brocoloco-frase3' },
+    { at: 5.75, until: 6.55, text: '¡A LA MESA, BOCADITO!', sound: 'brocoloco-frase3' },
   ];
   let presShake = 0;
   let candleProp: THREE.Group | null = null;
@@ -553,7 +553,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     set?.lights(lit ? Math.min(1, (t - B_LIGHTS) * 6) : 0);
     // ── Carteles y subtítulos ──
     if (t < P_CHIZ0) {
-      if (t > B_LIGHTS + 0.1) hud.present(1, 'EL BROCOLOCO', `NIVEL ${level} · el vegetal más malo de la mesa`);
+      if (t > B_LIGHTS + 0.95) hud.present(1, 'EL BROCOLOCO', `NIVEL ${level} · el vegetal más malo de la mesa`);
       else hud.present(1);
     } else if (t < P_VS) {
       if (t <= P_CHIZ0 + 0.35) hud.present(0);
