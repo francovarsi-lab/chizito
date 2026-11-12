@@ -85,7 +85,7 @@ export class ZoneGuides {
     this.labels = [];
     const xArm = (xLeg + xHead) / 2;
     const xLegMid = (xLeg - half) / 2 + 0.002;
-    tag('cabeza<small>no es brazo</small>', (xHead + half) / 2, 0, 'head');
+    tag('cabeza', (xHead + half) / 2, 0, 'head');
     tag(`<b>${QUAD_KEYS.LA}</b>brazos izq`, xArm, 1);
     tag(`<b>${QUAD_KEYS.RA}</b>brazos der`, xArm, -1);
     tag(`<b>${QUAD_KEYS.LL}</b>piernas izq`, xLegMid, 1);

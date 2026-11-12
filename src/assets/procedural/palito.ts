@@ -215,12 +215,9 @@ function saltGrains(geo: THREE.BufferGeometry, seed: number): THREE.Mesh | null 
   parts.forEach((g) => g.dispose());
   saltMaterial ??= new THREE.MeshPhysicalMaterial({
     name: 'sal',
-    color: '#f7f5ef',
-    roughness: 0.25,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.2,
-    sheen: 0.4,
-    sheenColor: new THREE.Color('#ffffff'),
+    // Mate: con brillo, los granos titilaban como estrellitas y distraían (pedido del usuario).
+    color: '#ece6d8',
+    roughness: 0.85,
   });
   const mesh = new THREE.Mesh(merged, saltMaterial);
   mesh.name = 'sal';

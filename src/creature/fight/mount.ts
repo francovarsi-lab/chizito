@@ -59,7 +59,7 @@ const btnCss = `
 #cf-btn:hover{transform:translateY(-3px) scale(1.03);filter:brightness(1.08)}
 #cf-btn:active{transform:translateY(2px)}
 #cf-btn svg{width:26px;height:26px}
-#cf-btn[hidden]{display:none}
+#cf-btn[hidden]{display:none}#cf-nag{position:fixed;right:22px;bottom:92px;z-index:41;max-width:300px;padding:12px 16px;border-radius:16px;background:#fff8ee;color:#b3121f;font:800 17px/1.25 "Baloo 2",Nunito,sans-serif;box-shadow:0 10px 28px rgba(120,40,40,.28),inset 0 0 0 2px #e8352b;pointer-events:none;opacity:0;transform:translateY(10px) scale(.9);transform-origin:90% 100%;transition:opacity .25s,transform .35s cubic-bezier(.2,1.6,.4,1)}#cf-nag:after{content:'';position:absolute;right:46px;bottom:-9px;border:9px solid transparent;border-bottom:0;border-top-color:#fff8ee}#cf-nag.on{opacity:1;transform:none}
 @keyframes cfb{0%,100%{box-shadow:0 0 0 3px #fff,0 0 0 6px #0d1024,0 6px 0 6px #0d1024,0 18px 36px rgba(13,16,36,.35)}50%{box-shadow:0 0 0 3px #fff,0 0 0 6px #0d1024,0 6px 0 6px #0d1024,0 18px 44px rgba(255,159,28,.6)}}
 `;
 const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/></svg>`;
@@ -1023,6 +1023,24 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       st.remove();
     },
   };
-  btn.addEventListener('click', () => void controller.open());
+  // Sin cara no se pelea (la primera vez): se pide dibujarle un rostro con el ketchup. Si insiste, entra igual.
+  const nag = document.createElement('div');
+  nag.id = 'cf-nag';
+  nag.textContent = '¡Usá el ketchup para dibujarle un rostro!';
+  host.append(nag);
+  let nagged = false;
+  let nagT = 0;
+  btn.addEventListener('click', () => {
+    const hasFace = [...game().construction.nodes.values()].some((n) => n.data.type === 'ketchup');
+    if (!hasFace && !nagged) {
+      nagged = true;
+      nag.classList.add('on');
+      window.clearTimeout(nagT);
+      nagT = window.setTimeout(() => nag.classList.remove('on'), 3800);
+      return;
+    }
+    nag.classList.remove('on');
+    void controller.open();
+  });
   return controller;
 }

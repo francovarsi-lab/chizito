@@ -180,21 +180,17 @@ function getArena(z0: number): Arena {
   //    Lo que cae dentro de la tabla se apoya en ella; lo de afuera, en el mantel. ──
   type Item = Parameters<typeof litter>[0][number];
   const items: Item[] = [
-    { kind: 'napkin', x: -0.17, z: z0 - 0.14, rot: 0.6 },
     { kind: 'pit', x: -0.115, z: z0 - 0.105, rot: 0.4 },
     { kind: 'pit', x: -0.1, z: z0 - 0.125, rot: 2.1 },
     { kind: 'candy', x: 0.15, z: z0 - 0.125, rot: 0.35, flavor: 2 },
     { kind: 'candy', x: 0.178, z: z0 - 0.16, rot: -0.5, flavor: 0 },
     { kind: 'candy', x: 0.125, z: z0 - 0.175, rot: 1.1, flavor: 4 },
-    { kind: 'napkin', x: 0.3, z: z0 - 0.24, rot: 2.4, size: 0.05 },
     { kind: 'candy', x: -0.3, z: z0 - 0.2, rot: 0.9, flavor: 3 },
     // Delante, contra la cámara: sobre el borde de la tabla tapan apenas los pies al pasar.
     { kind: 'pit', x: -0.045, z: z0 + 0.06, rot: 0.8 },
     { kind: 'candy', x: 0.2, z: z0 + 0.06, rot: 0.3, flavor: 0 },
-    { kind: 'napkin', x: -0.2, z: z0 + 0.058, rot: 1.7, size: 0.03 },
     { kind: 'candy', x: -0.11, z: z0 + 0.13, rot: 0.25, flavor: 1 },
     { kind: 'pit', x: 0.06, z: z0 + 0.125, rot: 1.3 },
-    { kind: 'napkin', x: -0.3, z: z0 + 0.12, rot: 0.2, size: 0.035 },
   ];
   const onWood = (it: Item): boolean => Math.abs(it.x) < BOARD.w / 2 - 0.012 && Math.abs(it.z - (z0 + BOARD.dz)) < BOARD.d / 2 - 0.012;
   const onBoard = litter(items.filter(onWood), 23);

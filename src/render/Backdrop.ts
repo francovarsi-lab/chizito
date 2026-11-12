@@ -132,7 +132,6 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   farProps.add(
     litter(
       [
-        { kind: 'napkin', x: -0.22, z: -0.38, rot: 0.7 },
         { kind: 'pit', x: -0.165, z: -0.34, rot: 0.3 },
         { kind: 'pit', x: -0.15, z: -0.365, rot: 2.4 },
         { kind: 'candy', x: 0.235, z: -0.36, rot: 0.4, flavor: 2 },

@@ -42,7 +42,7 @@ export class InfoCard {
 <div>La línea punteada divide al chizito para pelear: arriba los <b>brazos</b> (<kbd>${K.LA}</kbd> izquierda, <kbd>${K.RA}</kbd> derecha), abajo las <b>piernas</b>, un pedacito (<kbd>${K.LL}</kbd> <kbd>${K.RL}</kbd>). <kbd>${GUARD_KEY}</kbd> se cubre.</div></div>
 <ul>
 <li>Tocá un recipiente y clavá lo que quieras: palitos, escarbadientes, palitos de la selva…</li>
-<li>La <b>cabeza</b> no es brazo: ahí va un escudo, o un chupetín porque sí.</li>
+<li>En la <b>cabeza</b> va un escudo, o un chupetín porque sí.</li>
 <li><b>Papitas y nachos</b> son escudos; una <b>aceituna</b> en la punta de un palito pega pesado.</li>
 <li>El <b>ketchup</b> es para dibujarle la cara (de frente, donde marca la <kbd>F</kbd>).</li>
 </ul>
