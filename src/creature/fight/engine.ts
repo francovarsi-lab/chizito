@@ -826,6 +826,16 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
         const out = Math.sign(dotv(rot(qAxis(fa, 1), [0, -1, 0]), ga)) || 1;
         target = qMul(qAxis(fa, side * out * lift), target);
       }
+    } else if (M.stance && l.role === 'arm' && s.phase === 'rest' && f.guard <= 0.02 && !f.shieldPose) {
+      // Guardia de boxeador cuando no pega (EL BROCOLOCO: se mueve como una persona): el brazo de adelante al frente y abajo de la
+      // cara, el de atrás más alto, cerca; respira (sube y baja apenas) y se mece con el paso.
+      const n = f.arms.indexOf(k);
+      const lead = n % 2 === 0;
+      const dep = dotv(l.dir, gaitAxis(f));
+      const breath = 0.06 * Math.sin(m.frame * 0.07 + n) + 0.05 * Math.sin(f.gait);
+      const want = normv(addv(addv(scl(fwdAxis(f), lead ? 0.8 : 0.45), [0, (lead ? 0.45 : 0.8) + breath, 0]), scl(gaitAxis(f), dep * 0.5)));
+      target = qFromTo(l.dir, want);
+      g = FIGHT.joint.guard;
     } else if (l.role === 'arm' && f.guard > 0.02 && s.phase === 'rest' && !f.shieldPose) {
       // Guardia: los brazos se cruzan DELANTE del cuerpo en diagonal (uno arriba, tapando la cabeza, y otro abajo), así son
       // ellos los que reciben el golpe. Lo que pase por fuera de los brazos, pega.

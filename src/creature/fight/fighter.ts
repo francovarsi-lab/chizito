@@ -87,6 +87,8 @@ export interface FighterModel {
   mass: number;
   /** Escudos: golpes que aguanta cada pieza escudo. */
   shields: Record<string, number>;
+  /** Guardia de boxeador con los brazos cuando no pega (EL BROCOLOCO). */
+  stance?: boolean;
   /** rad: cuánto se gira hacia la cámara (si no, `FIGHT.stanceYaw`). El brócoli va más de frente: su cara se tiene que leer. */
   yaw?: number;
 }
@@ -308,6 +310,7 @@ export function broccoliFighter(level = 1): FighterModel {
     limbs,
     mass: bodyMass + limbs.reduce((s, l) => s + l.mass, 0),
     shields: {},
+    stance: true,
     yaw: FIGHT.broccoli.yaw,
   };
 }

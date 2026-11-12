@@ -221,6 +221,8 @@ export class FightHud {
   present(side: 0 | 1 | 2 | null, title = '', sub = ''): void {
     const el = this.root.querySelector<HTMLElement>('.intro')!;
     this.root.classList.toggle('presenting', side !== null);
+    // La guía de teclas no aparece durante la presentación (vuelve al terminar).
+    this.keys.classList.toggle('off', side !== null);
     if (side === null || !title) {
       // Sin título: la presentación sigue (barras de cine) pero sin cartel.
       el.classList.remove('on');

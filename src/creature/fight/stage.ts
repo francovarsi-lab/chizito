@@ -382,7 +382,7 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     },
     lights(k) {
       arena.level(k);
-      if (bulbs) bulbs.level = 0.08 + 0.92 * k;
+      if (bulbs) bulbs.level = k;
       scene.environmentIntensity = env.e * 0.06 * (0.15 + 0.85 * k);
     },
     candle(at, k) {

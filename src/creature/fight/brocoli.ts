@@ -274,7 +274,8 @@ function beetEye(): THREE.Mesh {
     const rings = Math.pow(0.5 + 0.5 * Math.sin(r * 30), 2);
     return ring.clone().lerp(light, rings * 0.8 * (r < 0.93 ? 1 : 0.2));
   });
-  return new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08 }));
+  // Brillo rojo propio (apenas): en la oscuridad de la vela los ojos se ven encendidos. Da miedo.
+  return new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08, emissive: '#8a0828', emissiveIntensity: 0.35 }));
 }
 
 /** Tira de morrón (ceja): tubo achatado y curvo, rojo brillante. */
@@ -310,7 +311,7 @@ function addFace(root: THREE.Group, level: number): void {
     // Pupila mirando al centro y abajo (mirada torva) y su brillo.
     const pupil = shared(new THREE.Mesh(M.ball, M.mouth));
     pupil.position.copy(onStalk(x - sx * 0.035, EY - 0.03, 0.03));
-    pupil.scale.set(0.042, 0.042, 0.016);
+    pupil.scale.set(0.02, 0.05, 0.016); // en rendija, como un depredador
     pupil.name = 'pupila';
     root.add(pupil);
     const glint = shared(new THREE.Mesh(M.ball, M.glint));
@@ -319,7 +320,7 @@ function addFace(root: THREE.Group, level: number): void {
     glint.name = 'brillo';
     root.add(glint);
     // Ceja: de afuera-arriba a adentro-abajo, apoyada sobre el borde de arriba del ojo (no se cruzan).
-    const brow = pepperBrow(onStalk(sx * 0.3, EY + 0.19, 0.03), onStalk(sx * 0.03, EY + 0.07, 0.035), 0.036 + (level - 1) * 0.005);
+    const brow = pepperBrow(onStalk(sx * 0.3, EY + 0.19, 0.03), onStalk(sx * 0.03, EY + 0.07, 0.035), 0.044 + (level - 1) * 0.005);
     (brow.material as THREE.Material).dispose();
     brow.material = M.brow;
     brow.name = 'ceja';
@@ -352,13 +353,13 @@ function addFace(root: THREE.Group, level: number): void {
   for (let i = 0; i < top; i++) {
     const xc = -W * 0.78 + (1.56 * W * i) / (top - 1);
     const w = 0.026;
-    const h = 0.045 * (1 - 0.35 * Math.abs(xc / W)) * (i % 2 ? 0.85 : 1);
+    const h = 0.058 * (1 - 0.35 * Math.abs(xc / W)) * (i % 2 ? 0.8 : 1);
     teeth.push([xc - w, topY(xc - w)], [xc, topY(xc) - h], [xc + w, topY(xc + w)]);
   }
   for (let i = 0; i < top - 2; i++) {
     const xc = -W * 0.55 + (1.1 * W * i) / (top - 3);
     const w = 0.022;
-    const h = 0.032 * (i % 2 ? 0.8 : 1);
+    const h = 0.042 * (i % 2 ? 0.75 : 1);
     teeth.push([xc - w, botY(xc - w)], [xc + w, botY(xc + w)], [xc, botY(xc) + h]);
   }
   M.teethGeo ??= surface(teeth, 0.01);

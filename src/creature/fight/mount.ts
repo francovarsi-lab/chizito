@@ -545,7 +545,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     }
     const lit = t >= B_LIGHTS;
     const flick = 0.85 + 0.15 * Math.sin(t * 23) * Math.sin(t * 7.3 + 1);
-    const candleK = t < 0.4 ? 0 : t < B_LIGHTS ? 0.05 * smooth((t - 0.4) / 0.5) * flick : 0.05 * Math.max(0, 1 - (t - B_LIGHTS) * 2) * flick;
+    const candleK = t < 0.4 ? 0 : t < B_LIGHTS ? 0.02 * smooth((t - 0.4) / 0.5) * flick : 0.02 * Math.max(0, 1 - (t - B_LIGHTS) * 2) * flick;
     const flame = candleProp.getObjectByName('llama')!;
     flame.visible = t > 0.4 && t < B_LIGHTS + 0.6;
     flame.scale.set(0.0013, 0.0032 * flick, 0.0013);
