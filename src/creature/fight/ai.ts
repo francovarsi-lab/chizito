@@ -8,13 +8,15 @@ export interface AiMem {
   /** Cuadros hasta poder reaccionar a lo que hace el otro. */
   react: number;
   /** Acción en curso y cuadros que le quedan. */
-  doing: 'none' | 'guard' | 'retreat' | 'crouch';
+  doing: 'none' | 'guard' | 'retreat' | 'crouch' | 'step';
+  /** Hacia dónde va el paso de acomodarse (+1 adelante, −1 atrás). */
+  stepDir: 1 | -1;
   left: number;
   seenStrike: boolean;
   wasAttack: boolean;
 }
 
-export const newAi = (seed = 1, level = 1): AiMem => ({ seed, level: Math.max(1, Math.min(AI_LEVELS.length, level)), react: 0, doing: 'none', left: 0, seenStrike: false, wasAttack: false });
+export const newAi = (seed = 1, level = 1): AiMem => ({ seed, level: Math.max(1, Math.min(AI_LEVELS.length, level)), react: 0, doing: 'none', stepDir: 1, left: 0, seenStrike: false, wasAttack: false });
 
 /** Azar chico y determinista (mulberry32). */
 function rnd(m: AiMem): number {
@@ -56,6 +58,7 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
     if (mem.doing === 'guard') return { x: 0, guard: true };
     if (mem.doing === 'retreat') return { x: (-dir) as -1 | 1 };
     if (mem.doing === 'crouch') return { x: 0, down: true };
+    if (mem.doing === 'step') return { x: (mem.stepDir * dir) as -1 | 1 };
   }
   mem.doing = 'none';
   const attackPrev = mem.wasAttack;
@@ -79,7 +82,13 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
     }
     return { x: 0, punch: !kick, kick };
   }
-  // A veces se acomoda: un pasito adelante o atrás.
+  // A veces se acomoda: un PASO decidido adelante o atrás (varios cuadros). Antes eran toques de un cuadro al azar que lo hacían
+  // temblar en el lugar, como una marioneta.
   const r = rnd(mem);
-  return { x: r < 0.04 ? dir : r < 0.07 ? ((-dir) as -1 | 1) : 0 };
+  if (r < 0.025) {
+    mem.doing = 'step';
+    mem.stepDir = rnd(mem) < 0.6 ? 1 : -1;
+    mem.left = 12 + Math.floor(rnd(mem) * 10);
+  }
+  return { x: 0 };
 }

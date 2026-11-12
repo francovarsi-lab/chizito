@@ -132,6 +132,8 @@ export interface FighterState {
   yaw: number;
   /** rad: giro del torso al pegar (se suma al del modelo). */
   twist: number;
+  /** Giro extra del torso que sigue de largo después de pifiar con algo pesado (rad, decae). */
+  spin: number;
   /** Centro de masa hacia el rival (marco local, del paso anterior): las piernas apoyadas ponen el pie debajo. */
   comX: number;
   yc: number;
@@ -198,6 +200,8 @@ const fwd = (f: FighterState, p: V3): number => p[0] * f.yc - f.facing * p[2] * 
 const fwdAxis = (f: FighterState): V3 => [f.yc, 0, -f.facing * f.ys];
 /** Eje de la marcha (perpendicular al avance y a la vertical), en el marco local. */
 const gaitAxis = (f: FighterState): V3 => [f.facing * f.ys, 0, f.yc];
+/** Hacia dónde girar el torso para llevar el hombro de `pivot` hacia el rival (signo de la derivada de fwd respecto del giro). */
+const shoulderSign = (f: FighterState, pivot: V3): 1 | -1 => (-pivot[0] * f.ys - f.facing * pivot[2] * f.yc >= 0 ? 1 : -1);
 
 function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterState {
   // Solo lo articulado camina o pega; lo rígido (chupetín, varas que atraviesan) es peso y apoyo.
@@ -290,6 +294,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     counter: 0,
     yaw: model.yaw ?? FIGHT.stanceYaw,
     twist: 0,
+    spin: 0,
     comX: 0,
     yc: Math.cos(model.yaw ?? FIGHT.stanceYaw),
     ys: Math.sin(model.yaw ?? FIGHT.stanceYaw),
@@ -567,8 +572,9 @@ function endStrike(m: Match, i: 0 | 1, k: number): void {
   const lock = Math.min(W.max * mul, Math.round((W.base + W.k * (l.mass / f.model.bodyMass)) * mul));
   f.lock = Math.max(f.lock, lock);
   if (l.rigid && f.swing) {
-    // El cuerpo entero sigue de largo con el peso: fuerza centrípeta sin nada que la frene.
+    // El cuerpo entero sigue de largo con el peso: fuerza centrípeta sin nada que la frene. Se inclina y el giro se pasa de vuelta.
     f.wt += f.swing.sign * FIGHT.swing.whiffKick;
+    f.spin += shoulderSign(f, l.pivot) * FIGHT.swing.whiffSpin;
   } else {
     const wAx = dotv(s.w, s.axis);
     const I = inertia(f, k, s.axis);
@@ -617,6 +623,44 @@ function shieldPose(f: FighterState, id: string): { tilt: number; turned: boolea
   // vuelta, el rival queda atrás, a ±π): t = a ∓ π.
   const t = turned ? a - Math.PI * Math.sign(a) : a;
   return { tilt: Math.abs(t) < FIGHT.shieldFront ? 0 : clamp(t, -Math.PI * 0.9, Math.PI * 0.9), turned };
+}
+
+/**
+ * Inclinación de reposo de un cuerpo caído: desde la actual, hacia donde baja el centro de masa, hasta el primer mínimo (rueda
+ * cuesta abajo y se queda en el primer pozo, como un objeto de verdad). Mide la altura del centro de masa sobre el punto más bajo.
+ */
+function restTilt(f: FighterState): number {
+  const M = f.model;
+  const pts: { p: V3; r: number; m: number }[] = [];
+  for (const b of M.body) for (const p of [b.a, b.b]) pts.push({ p, r: b.r, m: M.bodyMass / (2 * M.body.length) });
+  M.limbs.forEach((l, k) => {
+    for (const p of l.points) if (!p.inside && !f.broken.includes(p.piece)) pts.push({ p: posed(f.limbs[k].q, l.pivot, p.p), r: p.r, m: p.m });
+  });
+  const height = (t: number): number => {
+    const c = Math.cos(t);
+    const sn = Math.sin(t);
+    let lo = Infinity;
+    let com = 0;
+    let mass = 0;
+    for (const q of pts) {
+      const y = -fwd(f, q.p) * sn + q.p[1] * c;
+      lo = Math.min(lo, y - q.r);
+      com += q.m * y;
+      mass += q.m;
+    }
+    return com / mass - lo;
+  };
+  const STEP = 0.03;
+  let t = f.tilt;
+  let h = height(t);
+  const dir = height(t + STEP) < height(t - STEP) ? 1 : -1;
+  for (let n = 0; n < 100 && Math.abs(t) < 2.9; n++) {
+    const h2 = height(t + dir * STEP);
+    if (h2 >= h) break;
+    t += dir * STEP;
+    h = h2;
+  }
+  return t;
 }
 
 // ───────────────────────── Paso de un luchador ─────────────────────────
@@ -747,7 +791,14 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if (s.phase === 'recover' && s.t > FIGHT.recoverMax) s.phase = 'rest';
     let target: Q = QI();
     let g: { wn: number; zeta: number } = s.phase === 'recover' ? FIGHT.joint.recover : FIGHT.joint.rest;
-    if (f.ko) target = qAxis(gaitAxis(f), l.role === 'leg' ? 0.5 : 1.2);
+    if (f.ko) {
+      // Noqueado: las extremidades se aflojan y caen pegadas al cuerpo (a lo largo de su eje), así queda acostado sobre la
+      // mesa y no apuntalado en el aire por varas rígidas. Las de arriba hacia arriba, las de abajo hacia abajo, apenas abiertas.
+      const along = l.dir[1] >= 0 ? 1 : -1;
+      const out = normv([l.dir[0] * 0.25, along, l.dir[2] * 0.25]);
+      target = qFromTo(l.dir, out);
+      g = FIGHT.joint.recover;
+    }
     else if (l.role === 'leg' && f.legs.length) {
       const n = f.legs.indexOf(k);
       const front = fwd(f, l.dir) >= 0 ? 1 : -1;
@@ -796,16 +847,19 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     const T = FIGHT.twist;
     let want = 0;
     let rate: number = T.rate.rest;
-    const sk = f.limbs.findIndex((q, j) => !M.limbs[j].rigid && (q.phase === 'windup' || q.phase === 'strike'));
+    // Con una pieza fija (chupetín) gira el cuerpo entero, mucho más: es lo que se ve del golpe.
+    const sk = f.limbs.findIndex((q) => q.phase === 'windup' || q.phase === 'strike');
     if (sk >= 0 && !f.ko) {
       const l = M.limbs[sk];
       // Hacia dónde girar para llevar ESE hombro hacia el rival: derivada de fwd(pivote) respecto del giro.
-      const d = -l.pivot[0] * f.ys - f.facing * l.pivot[2] * f.yc;
-      const sg = Math.sign(d) || 1;
-      const amt = l.role === 'leg' ? T.kick : T.arm;
+      const sg = shoulderSign(f, l.pivot);
+      const amt = l.rigid ? T.swing : l.role === 'leg' ? T.kick : T.arm;
       want = f.limbs[sk].phase === 'windup' ? -sg * amt * T.wind : sg * amt;
       rate = f.limbs[sk].phase === 'windup' ? T.rate.windup : T.rate.strike;
     }
+    // Si pifió con algo pesado, el giro sigue de largo (inercia) y vuelve de a poco.
+    f.spin *= Math.exp(-dt * 2.5);
+    want += f.spin;
     f.twist += (want - f.twist) * Math.min(1, rate * dt);
     f.yaw = clamp(base + f.twist, T.min, T.max);
     f.yc = Math.cos(f.yaw);
@@ -838,7 +892,13 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   const W = M.mass * G;
   let tau = 0;
   if (f.ko) {
-    tau = -W * FIGHT.balanceH * Math.sign(f.tilt || -1) * -1.2;
+    // Noqueado: cae y RUEDA hasta quedar quieto donde su centro de masa queda más bajo (lo que haría la gravedad), apoyado en lo
+    // que de verdad toca la mesa: el cuerpo, una aceituna, un palito. Antes quedaba frenado a 86° y apuntalado en el aire.
+    // El primer medio segundo se desploma (las piernas ya no lo sostienen); después rueda hasta su reposo.
+    const collapsing = m.phase === 'ko' && m.phaseT < 30;
+    const target = collapsing ? Math.sign(f.tilt || -1) * 1.7 : restTilt(f);
+    const K = W * FIGHT.balanceH * 3;
+    tau = -K * (f.tilt - target) - 2 * 0.7 * Math.sqrt(K * f.It) * f.wt;
   } else {
     if (f.support && f.grounded) {
       const [lo, hi] = f.support;
@@ -877,7 +937,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   tau += FIGHT.reactGain * react;
   f.wt += (tau / f.It) * dt;
   f.tilt += f.wt * dt;
-  const lim = f.ko ? 1.5 : f.shieldPose ? Math.PI * 0.95 : FIGHT.maxTilt;
+  const lim = f.ko ? 3 : f.shieldPose ? Math.PI * 0.95 : FIGHT.maxTilt;
   if (Math.abs(f.tilt) > lim) {
     f.tilt = Math.sign(f.tilt) * lim;
     if (f.wt * f.tilt > 0) f.wt = 0;
@@ -1003,7 +1063,8 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   const kind: HitKind = p.kind === 'shield' ? l.kind : p.kind;
   // La velocidad manda más que la masa: algo pesado que apenas se mueve pega poco.
   let dmg = clamp(FIGHT.dmgK * Math.pow(mEff * 1000, FIGHT.dmgMassExp) * Math.pow(speed, FIGHT.dmgSpeedExp), FIGHT.dmgClamp[0], FIGHT.dmgClamp[1]) * FIGHT.kindMul[kind];
-  if (l.rigid && l.kind === 'heavy') dmg *= FIGHT.swing.dmgMul;
+  // Lo fijo y pesado (chupetín) pega fuerte, pero con tope: un solo golpe no puede definir la pelea.
+  if (l.rigid && l.kind === 'heavy') dmg = Math.min(dmg * FIGHT.swing.dmgMul, FIGHT.swing.maxDmg);
   const chain = s.combo;
   if (chain) dmg *= FIGHT.chain.mul[chain] ?? 1;
   const fromFront = Math.sign(a.x - b.x || 1) === b.facing;

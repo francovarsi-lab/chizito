@@ -154,9 +154,9 @@ export const FIGHT = {
   charge: { k: 26, free: 0.3, tremble: 0.05 },
   /**
    * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
-   * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento pero demoledor: su daño se multiplica por `dmgMul`. Pifiar cuesta `whiffMul` veces más y lo tira (`whiffKick`).
+   * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento pero fuerte: daño × `dmgMul`, con tope `maxDmg` por golpe. Al pifiar el torso sigue girando (`whiffSpin`). Pifiar cuesta `whiffMul` veces más y lo tira (`whiffKick`).
    */
-  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 7, maxCharge: 9, strikeFrames: 20, chargeMul: 1.3, massShare: 0.85, dmgMul: 2.6, whiffMul: 1.1, whiffKick: 1.7, lunge: 0.22 },
+  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 7, maxCharge: 9, strikeFrames: 20, chargeMul: 1.3, massShare: 0.85, dmgMul: 1.8, maxDmg: 18, whiffSpin: 1.6, whiffMul: 1.1, whiffKick: 1.7, lunge: 0.22 },
   /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
   shieldFront: 0.35,
   shieldBack: 2.2,
@@ -175,7 +175,7 @@ export const FIGHT = {
    * Giro del torso (rad) al pegar con el cuerpo entero: el hombro que pega va atrás al cargar y adelante al soltar (piña); la
    * cadera gira menos en una patada. `rate` = qué tan rápido sigue al objetivo (1/s).
    */
-  twist: { arm: 0.3, kick: 0.15, wind: 0.6, rate: { strike: 16, windup: 9, rest: 6 }, min: 0.1, max: 1.4 },
+  twist: { arm: 0.3, kick: 0.15, swing: 0.95, wind: 0.6, rate: { strike: 16, windup: 9, rest: 6 }, min: -0.5, max: 2.2 },
   /** Pies bajo el centro de masa: cuánto corrigen las piernas apoyadas (normal / mientras otra patea) y hasta cuánto (rad). */
   support: { rest: 0.25, kick: 0.9, max: 0.45 },
   /** Ángulo de la marcha (rad) y de las piernas al agacharse. */
