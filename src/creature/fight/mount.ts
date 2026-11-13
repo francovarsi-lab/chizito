@@ -568,7 +568,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       candleProp = makeCandle();
       const n = front(1);
       // Delante de la cara, a 2,7 cm de su superficie (el radio del cuerpo cambia de rival a rival).
-      candleProp.position.set(m.f[1].x, GROUND, z0).addScaledVector(n, 0.027 + m.f[1].model.body[0].r);
+      // Un poco al costado: centrada, la llama tapaba la boca en el primer plano.
+      candleProp.position.set(m.f[1].x, GROUND, z0).addScaledVector(n, 0.027 + m.f[1].model.body[0].r).addScaledVector(new THREE.Vector3(-n.z, 0, n.x), 0.014);
       g.stage.scene.add(candleProp);
     }
     const lit = t >= B_LIGHTS;
