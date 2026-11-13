@@ -695,14 +695,17 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const side = new THREE.Vector3(-n.z, 0, n.x);
       const fa = m.f[1].model.faceAt ?? { mouth: 0.44, eyes: 0.63 };
       // Distancias desde la SUPERFICIE de la cara (no desde el eje): el huevo y la quinoa son mucho más gordos que el tallo.
+      // Además la cara es más grande cuanto más gordo es el cuerpo: la cámara se aleja en proporción (`far`), y apunta y enfoca la
+      // SUPERFICIE (con el foco en el eje, la cara del huevo quedaba 2 cm fuera de foco).
       const skin = m.f[1].model.body[0].r;
-      const mouth = along(1, fa.mouth);
-      const eyes = along(1, fa.eyes);
+      const far = 0.035 + 2.2 * skin;
+      const mouth = along(1, fa.mouth).addScaledVector(n, skin);
+      const eyes = along(1, fa.eyes).addScaledVector(n, skin);
       if (t < 3.4) {
         // La BOCA, muy cerca, a la luz de la vela: un paneo lento de costado y apenas acercándose. Suspenso.
         shot = 'boca';
         const k = smooth(t / 3.4);
-        pos = mouth.clone().addScaledVector(n, 0.055 + skin - 0.008 * k).addScaledVector(side, 0.012 - 0.02 * k).add(new THREE.Vector3(0, -0.004, 0));
+        pos = mouth.clone().addScaledVector(n, far - 0.008 * k).addScaledVector(side, 0.012 - 0.02 * k).add(new THREE.Vector3(0, -0.004, 0));
         look = mouth.clone().addScaledVector(side, 0.003 - 0.004 * k);
         rate = 4;
         focal = 58;
@@ -711,7 +714,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         // Sube despacio de la boca a los ojos.
         shot = 'boca';
         const k = smooth((t - 3.4) / (B_LIGHTS - 3.4));
-        pos = mouth.clone().lerp(eyes, k).addScaledVector(n, 0.049 + skin + 0.01 * k).addScaledVector(side, -0.008);
+        pos = mouth.clone().lerp(eyes, k).addScaledVector(n, far * 0.9 + 0.01 * k).addScaledVector(side, -0.008);
         look = mouth.clone().lerp(eyes, k);
         rate = 3;
         focal = 58;
