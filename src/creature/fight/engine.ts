@@ -105,6 +105,8 @@ export interface FighterState {
   ko: boolean;
   combo: number;
   lastHit: number;
+  /** Cuadro del último golpe RECIBIDO (para el poder de rearmarse). */
+  lastHurt: number;
   /** Apoyo actual en x local (para el contrapeso). */
   support: [number, number] | null;
   /** Posiciones de mundo de los puntos de cada extremidad (x, y intercalados): este paso y el anterior. */
@@ -278,6 +280,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     ko: false,
     combo: 0,
     lastHit: -999,
+    lastHurt: -999,
     support: null,
     cur: model.limbs.map((l) => new Float64Array(l.points.length * 2)),
     prev: model.limbs.map((l) => new Float64Array(l.points.length * 2)),
@@ -1123,7 +1126,9 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
     }
     if (kind === 'cut' && b.bleed.length < FIGHT.bleed.max) b.bleed.push(FIGHT.bleed.frames);
   }
+  dmg *= b.model.armorMul ?? 1;
   b.hp = Math.max(0, b.hp - dmg);
+  b.lastHurt = m.frame;
   // Empujón (con lo que pesa el rival) y giro del cuerpo según la altura del golpe.
   const kb = clamp((FIGHT.knockback * mEff * speed) / b.model.mass, FIGHT.kbClamp[0], FIGHT.kbClamp[1]) * (blocked ? 0.45 : 1) * (chain === 'RÁFAGA' ? 1.4 : 1);
   b.vx = a.facing * kb;
@@ -1194,6 +1199,9 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
   if (play) {
     resolveHits(m);
     for (const f of m.f) {
+      // Rearmarse (quinoa): si hace rato que no le pegan, los granos vuelven a su lugar y recupera vida.
+      const rg = f.model.regen;
+      if (rg && !f.ko && m.frame - f.lastHurt > rg.delay) f.hp = Math.min(FIGHT.hp, f.hp + rg.hps * dt);
       for (let k = f.bleed.length - 1; k >= 0; k--) {
         f.hp = Math.max(0, f.hp - FIGHT.bleed.dps * dt);
         if (--f.bleed[k] <= 0) f.bleed.splice(k, 1);

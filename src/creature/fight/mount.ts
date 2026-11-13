@@ -10,9 +10,10 @@ import { resolveSnapshot } from '../resolve';
 import { createBrocoli, loadBroccoliParts } from './brocoli';
 import { aiInput, newAi, type AiMem } from './ai';
 import { createMatch, stepMatch, type FightEvent, type FightInput, type Match } from './engine';
-import { broccoliFighter, fighterFromSnapshot, type FighterModel } from './fighter';
+import { fighterFromSnapshot, rivalFighter, type FighterModel } from './fighter';
 import { FightHud, type MenuAction } from './hud';
-import { blendPose, broccoliView, creatureView, type FighterView, type RenderPose } from './render';
+import { blendPose, creatureView, rivalView, type FighterView, type RenderPose } from './render';
+import { createEgg, createQuinoa } from './rivals3d';
 import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT } from './tuning';
 import { qFromTo, type Q } from './quat';
@@ -80,7 +81,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const btn = document.createElement('button');
   btn.id = 'cf-btn';
   btn.innerHTML = `${SWORDS}PELEAR`;
-  btn.title = 'Pelear con tu chizito contra EL BROCOLOCO';
+  btn.title = 'Pelear con tu chizito';
   host.append(btn);
   const hud = new FightHud(host);
 
@@ -401,7 +402,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         g.audio.play('ko', 1);
         break;
       case 'roundEnd': {
-        const who = e.winner === 'draw' ? '' : e.winner === 0 ? 'GANA TU CHIZITO' : 'GANA EL BROCOLOCO';
+        const who = e.winner === 'draw' ? '' : e.winner === 0 ? 'GANA TU CHIZITO' : `GANA ${rival().name}`;
         if (e.reason === 'time') hud.announce('¡TIEMPO!', e.winner === 'draw' ? 'EMPATE: RONDA EXTRA' : who, false, 2);
         else hud.announce(e.winner === 'draw' ? '¡DOBLE K.O.!' : e.winner === 0 ? '¡BIEN!' : 'AY…', who, e.winner === 1, 2);
         break;
@@ -413,7 +414,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         if (win && level < AI_LEVELS.length) buttons.push({ a: 'next', label: `Nivel ${level + 1} ▶` });
         buttons.push({ a: 'again', label: 'Revancha', alt: win && level < AI_LEVELS.length }, { a: 'exit', label: 'Volver a armar', alt: true });
         window.setTimeout(() => {
-          if (open && m?.phase === 'over') hud.showMenu(win ? '¡GANASTE!' : 'PERDISTE', win ? `Le ganaste a EL BROCOLOCO nivel ${level}.` : 'Probá cambiar brazos, piernas o el peso de tu chizito.', buttons);
+          if (open && m?.phase === 'over') hud.showMenu(win ? '¡GANASTE!' : 'PERDISTE', win ? `Le ganaste a ${rival().name} (nivel ${level}).` : 'Probá cambiar brazos, piernas o el peso de tu chizito.', buttons);
         }, 1400);
         break;
       }
@@ -489,12 +490,37 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const P_CHIZ0 = 7.2;
   const P_VS = 10.6;
   const P_END = 11.6;
-  /** Lo que dice EL BROCOLOCO (con su sonido de voz, para grabar). */
-  const LINES: { at: number; until: number; text: string; sound: SoundId }[] = [
-    { at: 1.1, until: 3.2, text: 'Mmm… huelo a chizito.', sound: 'brocoloco-frase1' },
-    { at: 3.5, until: 5.5, text: 'Te voy a dejar hecho polvito… de queso.', sound: 'brocoloco-frase2' },
-    { at: 5.75, until: 6.55, text: '¡A LA MESA, BOCADITO!', sound: 'brocoloco-frase3' },
-  ];
+  /** Cada rival: nombre, cartel y lo que dice en la presentación (con su sonido de voz, para grabar). */
+  const RIVALS: Record<number, { name: string; tag: string; lines: { at: number; until: number; text: string; sound: SoundId }[] }> = {
+    1: {
+      name: 'EL BROCOLOCO',
+      tag: 'el vegetal más malo de la mesa',
+      lines: [
+        { at: 1.1, until: 3.2, text: 'Mmm… huelo a chizito.', sound: 'brocoloco-frase1' },
+        { at: 3.5, until: 5.5, text: 'Te voy a dejar hecho polvito… de queso.', sound: 'brocoloco-frase2' },
+        { at: 5.75, until: 6.55, text: '¡A LA MESA, BOCADITO!', sound: 'brocoloco-frase3' },
+      ],
+    },
+    2: {
+      name: 'HUEVO DURO',
+      tag: 'pelado, hervido y de brazos largos',
+      lines: [
+        { at: 1.1, until: 3.2, text: 'Je… un chizito. Qué crocante. Qué… frágil.', sound: 'huevo-frase1' },
+        { at: 3.5, until: 5.5, text: 'Yo ya pasé por el agua hirviendo. Vos no.', sound: 'huevo-frase2' },
+        { at: 5.75, until: 6.55, text: '¡A LA SARTÉN, BOCADITO!', sound: 'huevo-frase3' },
+      ],
+    },
+    3: {
+      name: 'MONSTRUO DE QUINOA',
+      tag: 'miles de granos, una sola furia',
+      lines: [
+        { at: 1.1, until: 3.2, text: 'Somos miles… y vos, uno solo.', sound: 'quinoa-frase1' },
+        { at: 3.5, until: 5.5, text: 'Cada grano que me saques… vuelve.', sound: 'quinoa-frase2' },
+        { at: 5.75, until: 6.55, text: '¡TE VOY A ENTERRAR EN GRANOS!', sound: 'quinoa-frase3' },
+      ],
+    },
+  };
+  const rival = (): (typeof RIVALS)[number] => RIVALS[Math.min(3, Math.max(1, level))];
   let presShake = 0;
   let candleProp: THREE.Group | null = null;
   const once = (key: string, at: number, fn: () => void): void => {
@@ -553,7 +579,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     set?.lights(lit ? Math.min(1, (t - B_LIGHTS) * 6) : 0);
     // ── Carteles y subtítulos ──
     if (t < P_CHIZ0) {
-      if (t > B_LIGHTS + 0.95) hud.present(1, 'EL BROCOLOCO', `NIVEL ${level} · el vegetal más malo de la mesa`);
+      if (t > B_LIGHTS + 0.95) hud.present(1, rival().name, `NIVEL ${level} · ${rival().tag}`);
       else hud.present(1);
     } else if (t < P_VS) {
       if (t <= P_CHIZ0 + 0.35) hud.present(0);
@@ -561,10 +587,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const parts = [`${f0.arms.length} brazo${f0.arms.length === 1 ? '' : 's'}`, `${f0.legs.length} pierna${f0.legs.length === 1 ? '' : 's'}`, `${(f0.model.mass * 1000).toFixed(1).replace('.', ',')} g`];
         hud.present(0, 'TU CHIZITO', parts.join(' · '));
       }
-    } else hud.present(2, 'VS', 'TU CHIZITO · EL BROCOLOCO');
-    const line = LINES.find((l) => t >= l.at && t < l.until);
-    hud.sub(line ? 'EL BROCOLOCO' : null, line?.text ?? '');
-    LINES.forEach((l, i) => once(`frase${i}`, l.at, () => g.audio.play(l.sound, 1)));
+    } else hud.present(2, 'VS', `TU CHIZITO · ${rival().name}`);
+    const line = rival().lines.find((l) => t >= l.at && t < l.until);
+    hud.sub(line ? rival().name : null, line?.text ?? '');
+    rival().lines.forEach((l, i) => once(`frase${i}`, l.at, () => g.audio.play(l.sound, 1)));
     // ── Sonidos y golpes de la parte del brócoli ──
     once('vela', 0.4, () => g.audio.play('vela', 0.8));
     once('focos', B_LIGHTS, () => {
@@ -665,8 +691,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (t < P_CHIZ0) {
       const n = front(1);
       const side = new THREE.Vector3(-n.z, 0, n.x);
-      const mouth = along(1, 0.44);
-      const eyes = along(1, 0.63);
+      const fa = m.f[1].model.faceAt ?? { mouth: 0.44, eyes: 0.63 };
+      const mouth = along(1, fa.mouth);
+      const eyes = along(1, fa.eyes);
       if (t < 3.4) {
         // La BOCA, muy cerca, a la luz de la vela: un paneo lento de costado y apenas acercándose. Suspenso.
         shot = 'boca';
@@ -830,7 +857,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const restart = (lv = level, withPresent = false): void => {
     if (!model || !views) return;
     level = Math.max(1, Math.min(AI_LEVELS.length, lv));
-    const bro = broccoliFighter(level);
+    const bro = rivalFighter(level);
     m = createMatch([model, bro]);
     ai = newAi(seed++, level);
     hud.show([model.name, bro.name], warnings(m.f[0]));
@@ -940,9 +967,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       await idle();
       // La primera cara del brócoli tira sus rayos (quedan guardados) y sus materiales entran al ensayo.
       const bro = createBrocoli({ level: 1, parts });
+      // Los rivales de los niveles 2 y 3 también entran al ensayo (sus materiales se compilan antes).
+      const egg = createEgg();
+      const quinoa = createQuinoa();
       await idle();
       const g = game();
-      await prewarmFight(g.stage, g.pivot.position.z, [bro], [g.pivot]);
+      await prewarmFight(g.stage, g.pivot.position.z, [bro, egg, quinoa], [g.pivot]);
     })().catch((err) => console.warn('[pelea] no se pudo dejar lista de antemano', err)));
   const hurryUp = (): void => {
     hurry = true;
@@ -977,7 +1007,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
       g.interaction.enabled = false;
       g.interaction.hideFront();
-      views = [creatureView(g.construction, g.pivot, model, g.stage.renderer), broccoliView(g.stage.scene, broccoliFighter(level), level, parts)];
+      views = [creatureView(g.construction, g.pivot, model, g.stage.renderer), rivalView(g.stage.scene, rivalFighter(level), level, parts)];
       crumbs = [new Crumbs(g.stage.scene, '#f2c95a'), new Crumbs(g.stage.scene, '#5c9a35')];
       chips = new Crumbs(g.stage.scene, '#e0a640');
       for (const c of [...crumbs, chips]) c.floorY = GROUND;

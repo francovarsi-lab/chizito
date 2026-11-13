@@ -2,6 +2,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { createBrocoli, loadBroccoliParts } from '/src/creature/fight/brocoli.ts';
+import { createEgg, createQuinoa } from '/src/creature/fight/rivals3d.ts';
 const q = new URLSearchParams(location.search);
 const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true });
 r.localClippingEnabled = true;
@@ -10,8 +11,10 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color('#2a2a30');
 scene.add(new THREE.HemisphereLight('#ffffff', '#554433', 1.4));
 const d = new THREE.DirectionalLight('#fff4e0', 2.5); d.position.set(2, 4, 5); scene.add(d);
-const parts = q.has('proc') ? null : await loadBroccoliParts();
-const b = createBrocoli({ level: 1, parts });
+const rival = q.get('rival');
+// ?rival=huevo | quinoa (en metros: se agranda ×48 para usar la misma cámara que el brócoli, que va en unidades del boceto).
+const b = rival === 'huevo' ? createEgg() : rival === 'quinoa' ? createQuinoa() : createBrocoli({ level: 1, parts: q.has('proc') ? null : await loadBroccoliParts() });
+if (rival) b.scale.setScalar(48);
 scene.add(b);
 // ?open=0..1 abre la boca como en la presentación (misma cuenta que FighterView.face).
 const open = Number(q.get('open') ?? 0);

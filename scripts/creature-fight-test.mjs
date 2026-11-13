@@ -6,7 +6,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : (fail++, console.log('  FALLA:', m)); };
 try {
-  const { fighterFromSnapshot, broccoliFighter } = await server.ssrLoadModule('/src/creature/fight/fighter.ts');
+  const { fighterFromSnapshot, broccoliFighter, rivalFighter } = await server.ssrLoadModule('/src/creature/fight/fighter.ts');
   const { createMatch, stepMatch } = await server.ssrLoadModule('/src/creature/fight/engine.ts');
   const { aiInput, newAi } = await server.ssrLoadModule('/src/creature/fight/ai.ts');
   const { FIGHT } = await server.ssrLoadModule('/src/creature/fight/tuning.ts');
@@ -546,6 +546,33 @@ try {
       for (const j of kf.legs) if (j !== kicker && kicker >= 0) moved = Math.max(moved, 2 * Math.acos(Math.min(1, Math.abs(kf.limbs[j].q.reduce((a, v, c) => a + v * rest[j][c], 0)))));
     }
     ok(kicker >= 0 && moved > 0.03, `al patear, la otra pierna se acomoda para sostenerlo (${(moved * 57.3).toFixed(1)}°)`);
+  }
+
+  // ── Rivales por nivel: 1 brócoli, 2 huevo duro (brazos largos, menos defensa), 3 quinoa (defensa y se rearma) ──
+  {
+    const mine = fighterFromSnapshot(snap('criatura-20261011-1623'));
+    const names = [1, 2, 3].map((l) => rivalFighter(l).name);
+    ok(/BROCOLOCO/.test(names[0]) && /HUEVO/.test(names[1]) && /QUINOA/.test(names[2]), `un rival por nivel (${names.join(' / ')})`);
+    const armReach = (R) => Math.max(...R.limbs.filter((l) => l.role === 'arm').map((l) => l.reach));
+    ok(armReach(rivalFighter(2)) > armReach(rivalFighter(1)) * 1.5, 'el huevo tiene los brazos más largos (más alcance)');
+    ok(rivalFighter(2).armorMul > 1 && rivalFighter(3).armorMul < 1, 'el huevo recibe más daño y la quinoa menos');
+    for (const lvl of [2, 3]) {
+      const m = createMatch([mine, rivalFighter(lvl)]);
+      for (let i = 0; i < FIGHT.introFrames + 30; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      const f = m.f[1];
+      ok(f.grounded && Math.abs(f.tilt) < 0.05 && f.legs.length === 2, `nivel ${lvl}: parado sobre sus dos patas (inclinación ${f.tilt.toFixed(3)})`);
+      const x0 = f.x;
+      for (let i = 0; i < 60; i++) stepMatch(m, [{ x: 0 }, { x: -1 }]);
+      ok(x0 - f.x > 0.03, `nivel ${lvl}: camina (${((x0 - f.x) * 1000).toFixed(0)} mm en 1 s)`);
+    }
+    const q = createMatch([mine, rivalFighter(3)]);
+    for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
+    q.f[1].hp = 50;
+    q.f[1].lastHurt = q.frame;
+    for (let i = 0; i < 60; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
+    const early = q.f[1].hp;
+    for (let i = 0; i < 240; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
+    ok(early === 50 && q.f[1].hp > 55, `la quinoa se rearma si no le pegan (50 → ${early.toFixed(1)} al segundo → ${q.f[1].hp.toFixed(1)} a los 5 s)`);
   }
 
   // ── Rendimiento: 40 extremidades, dos luchadores ──

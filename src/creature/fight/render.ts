@@ -4,7 +4,8 @@ import { markHero } from '../../render/ContactShadow';
 import { ownMeshes } from '../resolve/measure';
 import type { V3 } from '../types';
 import { BROCCOLI_TOP, createBrocoli, syncCrownClip, type BroccoliParts } from './brocoli';
-import { BROCCOLI_CY, BROCCOLI_K, type FighterModel } from './fighter';
+import { createEgg, createQuinoa } from './rivals3d';
+import { BROCCOLI_CY, BROCCOLI_K, EGG, QUINOA, type FighterModel } from './fighter';
 import type { Q } from './quat';
 
 /** Lo que el render necesita de un luchador en un instante (se mezcla entre dos pasos para que el movimiento sea fluido). */
@@ -301,24 +302,46 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
  * Brazos y piernas de zanahoria articulados en su punto de entrada al tallo.
  */
 export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1, parts: BroccoliParts | null = null): FighterView {
+  const K = BROCCOLI_K;
+  const inner = createBrocoli({ level, parts });
+  inner.userData.mouthTop = 2.05;
+  inner.userData.top = BROCCOLI_TOP;
+  return modelView(scene, model, inner, new THREE.Matrix4().makeScale(K, K, K).multiply(new THREE.Matrix4().makeTranslation(0, -BROCCOLI_CY, 0)));
+}
+
+/** El rival de cada nivel: 1 EL BROCOLOCO, 2 HUEVO DURO, 3 MONSTRUO DE QUINOA (estos dos en metros, con el origen en su centro). */
+export function rivalView(scene: THREE.Scene, model: FighterModel, level: number, parts: BroccoliParts | null = null): FighterView {
+  if (level === 2) return modelView(scene, model, createEgg(), new THREE.Matrix4().makeTranslation(0, -EGG.cy, 0));
+  if (level >= 3) return modelView(scene, model, createQuinoa(), new THREE.Matrix4().makeTranslation(0, -QUINOA.cy, 0));
+  return broccoliView(scene, model, level, parts);
+}
+
+/**
+ * Un rival armado por partes (`inner`): las 4 primeras hijas son las extremidades (articuladas en su punto de clavado), la cara
+ * tiene 'boca', 'dientes' y 'ceja' para los gestos, y `userData` dice dónde está el borde de arriba de la boca (`mouthTop`), la
+ * coronilla (`top`), si es gelatinoso (`jelly`, multiplica el aplastón) y si tiene 'aura' que gira (el poder de la quinoa).
+ * `base` lleva del marco del modelo a uno con el origen local del luchador.
+ */
+function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, base: THREE.Matrix4): FighterView {
   const outer = new THREE.Group();
   outer.matrixAutoUpdate = false;
-  const inner = createBrocoli({ level, parts });
   outer.add(inner);
   markHero(outer);
   scene.add(outer);
-  const K = BROCCOLI_K;
   const b = model.basis;
   const B = new THREE.Matrix4().makeBasis(V(b.f), V(b.u), V(b.s)).transpose();
   const Bq = new THREE.Quaternion().setFromRotationMatrix(B);
   const BqInv = Bq.clone().invert();
-  const base = new THREE.Matrix4().makeScale(K, K, K).multiply(new THREE.Matrix4().makeTranslation(0, -BROCCOLI_CY, 0));
+  const jelly = (inner.userData.jelly as number | undefined) ?? 1;
+  const auras: THREE.Object3D[] = [];
+  inner.traverse((o) => o.name === 'aura' && auras.push(o));
   const carrots = model.limbs.map((_, i) => ({ obj: inner.children[i], base: inner.children[i].quaternion.clone() }));
   // Partes de la cara (ver `addFace`): la boca y los dientes se estiran hacia abajo desde su borde de arriba; las cejas suben o bajan.
   const faceParts = (name: string): THREE.Object3D[] => inner.children.filter((o) => o.name === name);
   const mouthParts = [...faceParts('boca'), ...faceParts('dientes')];
   const brows = faceParts('ceja');
-  const MOUTH_TOP = 2.05;
+  const MOUTH_TOP = inner.userData.mouthTop as number;
+  const TOP = inner.userData.top as number;
   let psi = 0;
   let init = false;
   const squash = new Squash();
@@ -349,6 +372,7 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
       outer.matrixWorldNeedsUpdate = true;
       outer.updateMatrixWorld(true);
       syncCrownClip(inner);
+      for (const a of auras) a.rotation.y += dt * 2.4;
       carrots.forEach((c, k) => {
         const q = p.qs[k];
         // Giro en el marco del luchador llevado al del modelo: Bᵀ · q · B.
@@ -357,7 +381,7 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
       });
     },
     bump(st) {
-      squash.kick(st);
+      squash.kick(st * jelly);
     },
     hurt(f, sh) {
       hurt.flash = Math.max(hurt.flash, f);
@@ -368,7 +392,7 @@ export function broccoliView(scene: THREE.Scene, model: FighterModel, level = 1,
     reattach() {},
     head() {
       outer.updateMatrixWorld(true);
-      return new THREE.Vector3(0, BROCCOLI_TOP, 0).applyMatrix4(outer.matrixWorld);
+      return new THREE.Vector3(0, TOP, 0).applyMatrix4(outer.matrixWorld);
     },
     face(open, brow) {
       const sy = 1 + 1.1 * Math.max(0, open);

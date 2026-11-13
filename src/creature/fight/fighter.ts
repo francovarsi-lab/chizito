@@ -87,8 +87,14 @@ export interface FighterModel {
   mass: number;
   /** Escudos: golpes que aguanta cada pieza escudo. */
   shields: Record<string, number>;
-  /** Guardia de boxeador con los brazos cuando no pega (EL BROCOLOCO). */
+  /** Guardia de boxeador con los brazos cuando no pega (los rivales). */
   stance?: boolean;
+  /** Daño que recibe (× el normal): el huevo, blandito, más; la quinoa, compacta, menos. */
+  armorMul?: number;
+  /** Poder de rearmarse (quinoa): si pasa `delay` cuadros sin recibir, recupera `hps` de vida por segundo. */
+  regen?: { delay: number; hps: number };
+  /** Dónde está la cara a lo largo del cuerpo principal (0 abajo … 1 arriba): para las tomas de la presentación. */
+  faceAt?: { mouth: number; eyes: number };
   /** rad: cuánto se gira hacia la cámara (si no, `FIGHT.stanceYaw`). El brócoli va más de frente: su cara se tiene que leer. */
   yaw?: number;
 }
@@ -311,6 +317,158 @@ export function broccoliFighter(level = 1): FighterModel {
     mass: bodyMass + limbs.reduce((s, l) => s + l.mass, 0),
     shields: {},
     stance: true,
+    faceAt: { mouth: 0.44, eyes: 0.63 },
     yaw: FIGHT.broccoli.yaw,
   };
+}
+
+// ───────────────────────── Rivales de los niveles 2 y 3 ─────────────────────────
+
+/** Extremidad de un rival, en metros, en el marco de su modelo (x a los costados, y arriba desde el piso, z hacia la cara). */
+export interface RivalLimbSpec {
+  id: string;
+  arm: boolean;
+  from: readonly [number, number, number];
+  to: readonly [number, number, number];
+  /** Radio en la articulación y en la punta libre. */
+  r0: number;
+  r1: number;
+}
+
+export interface RivalSpec {
+  key: 'huevo' | 'quinoa';
+  name: string;
+  /** Altura del origen local (el centro del cuerpo). */
+  cy: number;
+  /** Cuerpo para el motor (cápsulas en el marco del modelo, y desde el piso). */
+  body: { a: readonly [number, number]; b: readonly [number, number]; r: number }[];
+  /** Cuerpo para el dibujo y la cara: elipsoide (centro en y = cy). */
+  shell: { rx: number; ry: number; rz: number };
+  limbs: RivalLimbSpec[];
+  bodyGrams: number;
+  armGrams: number;
+  legGrams: number;
+  carryGrams: number;
+  legKind: { power: number; quick: number };
+  armKind: HitKind;
+  armorMul: number;
+  regen?: { delay: number; hps: number };
+  faceAt: { mouth: number; eyes: number };
+  yaw: number;
+  label: { arm: string; leg: string };
+}
+
+/** HUEVO DURO (nivel 2): pelado y gelatinoso, brazos LARGOS de espárrago (más alcance) y menos defensa. */
+export const EGG: RivalSpec = {
+  key: 'huevo',
+  name: 'HUEVO DURO',
+  cy: 0.044,
+  body: [{ a: [0, 0.035], b: [0, 0.053], r: 0.0185 }],
+  shell: { rx: 0.0195, ry: 0.026, rz: 0.0195 },
+  limbs: [
+    { id: 'armL', arm: true, from: [-0.012, 0.05, 0], to: [-0.07, 0.034, 0], r0: 0.0027, r1: 0.0034 },
+    { id: 'armR', arm: true, from: [0.012, 0.05, 0], to: [0.07, 0.034, 0], r0: 0.0027, r1: 0.0034 },
+    { id: 'legL', arm: false, from: [-0.008, 0.027, 0], to: [-0.01, 0, 0], r0: 0.0045, r1: 0.0045 },
+    { id: 'legR', arm: false, from: [0.008, 0.027, 0], to: [0.01, 0, 0], r0: 0.0045, r1: 0.0045 },
+  ],
+  bodyGrams: 7,
+  armGrams: 0.6,
+  legGrams: 1,
+  carryGrams: 9,
+  legKind: { power: 1.1, quick: 1.1 },
+  armKind: 'light',
+  armorMul: 1.25,
+  faceAt: { mouth: 0.39, eyes: 0.6 },
+  yaw: 1.0,
+  label: { arm: 'espárrago', leg: 'espárrago' },
+};
+
+/** MONSTRUO DE QUINOA (nivel 3): enorme y compacto (recibe poco), brazos pesados y el poder de REARMARSE si no le pegan. */
+export const QUINOA: RivalSpec = {
+  key: 'quinoa',
+  name: 'MONSTRUO DE QUINOA',
+  cy: 0.04,
+  body: [{ a: [0, 0.031], b: [0, 0.049], r: 0.027 }],
+  shell: { rx: 0.03, ry: 0.027, rz: 0.025 },
+  limbs: [
+    { id: 'armL', arm: true, from: [-0.02, 0.048, 0], to: [-0.054, 0.027, 0], r0: 0.0075, r1: 0.0095 },
+    { id: 'armR', arm: true, from: [0.02, 0.048, 0], to: [0.054, 0.027, 0], r0: 0.0075, r1: 0.0095 },
+    { id: 'legL', arm: false, from: [-0.012, 0.021, 0], to: [-0.014, 0, 0], r0: 0.009, r1: 0.0095 },
+    { id: 'legR', arm: false, from: [0.012, 0.021, 0], to: [0.014, 0, 0], r0: 0.009, r1: 0.0095 },
+  ],
+  bodyGrams: 16,
+  armGrams: 2.4,
+  legGrams: 1.6,
+  carryGrams: 14,
+  legKind: { power: 1.5, quick: 0.75 },
+  armKind: 'heavy',
+  armorMul: 0.6,
+  regen: { delay: 90, hps: 2.5 },
+  faceAt: { mouth: 0.44, eyes: 0.67 },
+  yaw: 1.0,
+  label: { arm: 'puño de quinoa', leg: 'pata de quinoa' },
+};
+
+/** Un rival de nivel 2 o 3 como luchador (mismo marco que el brócoli: el frente es la cara, +Z del modelo). */
+export function rivalFromSpec(spec: RivalSpec, level: number): FighterModel {
+  const P = (x: number, y: number, z = 0): V3 => [z, y - spec.cy, -x];
+  const inBody = (p: V3): boolean => {
+    const { rx, ry, rz } = spec.shell;
+    // p en el marco local: [z, y − cy, −x].
+    return (p[2] / rx) ** 2 + (p[1] / ry) ** 2 + (p[0] / rz) ** 2 < 0.92;
+  };
+  const limbs: LimbModel[] = spec.limbs.map((sk) => {
+    const a = P(sk.from[0], sk.from[1], sk.from[2]);
+    const b = P(sk.to[0], sk.to[1], sk.to[2]);
+    const n = Math.max(3, Math.ceil(dist(a, b) / STEP) + 1);
+    const g = (sk.arm ? spec.armGrams : spec.legGrams) / 1000;
+    const points: MassPoint[] = [];
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const p: V3 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+      points.push({ p, m: g / n, r: sk.r0 + (sk.r1 - sk.r0) * t + 0.0006, piece: sk.id, kind: sk.arm ? spec.armKind : 'light', inside: inBody(p) });
+    }
+    return {
+      id: sk.id,
+      pieceIds: [sk.id],
+      role: sk.arm ? 'arm' : 'leg',
+      side: sk.from[0] < 0 ? 'L' : 'R',
+      rigid: false,
+      carry: spec.carryGrams / 1000,
+      ...spec.legKind,
+      pivot: a,
+      dir: norm(sub(b, a)),
+      reach: len(sub(b, a)),
+      mass: g,
+      points,
+      through: false,
+      kind: sk.arm ? spec.armKind : 'light',
+      clip: null,
+      label: sk.arm ? spec.label.arm : spec.label.leg,
+    } satisfies LimbModel;
+  });
+  const bodyMass = spec.bodyGrams / 1000;
+  return {
+    name: `${spec.name} · NIVEL ${level}`,
+    basis: { f: [0, 0, 1], u: [0, 1, 0], s: [-1, 0, 0] },
+    origin: [0, 0, 0],
+    body: spec.body.map((c) => ({ a: P(c.a[0], c.a[1]), b: P(c.b[0], c.b[1]), r: c.r })),
+    bodyMass,
+    armor: [],
+    limbs,
+    mass: bodyMass + limbs.reduce((sum, l) => sum + l.mass, 0),
+    shields: {},
+    stance: true,
+    armorMul: spec.armorMul,
+    regen: spec.regen,
+    faceAt: spec.faceAt,
+    yaw: spec.yaw,
+  };
+}
+
+/** El rival de cada nivel: 1 EL BROCOLOCO, 2 HUEVO DURO, 3 MONSTRUO DE QUINOA. */
+export function rivalFighter(level: number): FighterModel {
+  if (level >= 3) return rivalFromSpec(QUINOA, level);
+  if (level === 2) return rivalFromSpec(EGG, level);
+  return broccoliFighter(1);
 }

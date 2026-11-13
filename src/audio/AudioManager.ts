@@ -14,10 +14,11 @@ import { probeFile } from '../assets/probe';
  *  golpe, golpe-pesado, bloqueo, zumbido (algo pesado que corta el aire), pifio, escudo (se rompe),
  *  ko, round (cartel ROUND), pelea (¡A PELEAR!), combo (sale una combinación: UNO-DOS, RÁFAGA…), japish (el grito ¡JAPISH!), pimba (¡PIMBA!, patada que entra), soplamoco (¡SOPLAMOCO!, piña a la cara), risa (EL BROCOLOCO se ríe en su presentación),
  *  musica-pelea (música de la pelea, en loop; si no está, suena una base sintetizada), apagon (se cortan las luces), vela
- *  (se enciende la vela), rugido (EL BROCOLOCO ruge), brocoloco-frase1/2/3 (su voz en la presentación: ver subtítulos en mount.ts)
+ *  (se enciende la vela), rugido (EL BROCOLOCO ruge), brocoloco-frase1/2/3, huevo-frase1/2/3,
+ *  quinoa-frase1/2/3 (la voz de cada rival en su presentación: ver los subtítulos en `RIVALS` de mount.ts)
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3';
-const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3'];
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3' | 'huevo-frase1' | 'huevo-frase2' | 'huevo-frase3' | 'quinoa-frase1' | 'quinoa-frase2' | 'quinoa-frase3';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3', 'huevo-frase1', 'huevo-frase2', 'huevo-frase3', 'quinoa-frase1', 'quinoa-frase2', 'quinoa-frase3'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -175,9 +176,17 @@ export class AudioManager {
       case 'brocoloco-frase1':
       case 'brocoloco-frase2':
       case 'brocoloco-frase3':
-        // Placeholder de la voz (grave, murmurada) hasta que esté la grabación.
-        for (let k = 0; k < 6; k++) this.burst({ freq: 380 + ((k * 137) % 260), q: 4, dur: 0.16, gain: 0.16, lowFreq: 95 + ((k * 31) % 40), delay: k * 0.17 });
+      case 'huevo-frase1':
+      case 'huevo-frase2':
+      case 'huevo-frase3':
+      case 'quinoa-frase1':
+      case 'quinoa-frase2':
+      case 'quinoa-frase3': {
+        // Placeholder de la voz (murmurada) hasta que esté la grabación: el huevo más agudo, la quinoa más grave.
+        const pitch = id.startsWith('huevo') ? 1.5 : id.startsWith('quinoa') ? 0.7 : 1;
+        for (let k = 0; k < 6; k++) this.burst({ freq: (380 + ((k * 137) % 260)) * pitch, q: 4, dur: 0.16, gain: 0.16, lowFreq: (95 + ((k * 31) % 40)) * pitch, delay: k * 0.17 });
         break;
+      }
       case 'combo':
         // Dos golpecitos que suben: "¡ta-tán!".
         this.burst({ freq: 1300, q: 5, dur: 0.08, gain: 0.22 * intensity, lowFreq: 260 });
