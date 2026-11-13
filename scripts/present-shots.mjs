@@ -10,7 +10,7 @@ fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-await page.goto(`${url}?capture&seed=3&presentacion`);
+await page.goto(`${url}?capture&seed=3&presentacion&nivel=${process.env.NIVEL ?? 1}`);
 await page.waitForFunction(() => document.body.dataset.ready || document.body.dataset.error, null, { timeout: 300000 });
 await page.waitForFunction(() => !!window.__fight, null, { timeout: 120000 });
 const text = await (await fetch(`${url}assets/creatures/${id}.json`)).text();
