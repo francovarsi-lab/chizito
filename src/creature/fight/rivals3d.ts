@@ -187,7 +187,8 @@ export function createEgg(): THREE.Group {
     const r = rx * Math.sqrt(Math.max(0, 1 - t * t)) * (1 - 0.1 * t);
     prof.push(new THREE.Vector2(Math.max(1e-5, r), spec.cy + t * ry));
   }
-  const body = new THREE.LatheGeometry(prof, 64);
+  // La costura del torno queda atrás (phiStart = π): adelante, en la cara, se veía una línea vertical.
+  const body = new THREE.LatheGeometry(prof, 64, Math.PI);
   const pos = body.getAttribute('position');
   const v = new THREE.Vector3();
   const rnd = mulberry32(5);
