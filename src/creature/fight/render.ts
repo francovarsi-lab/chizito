@@ -342,6 +342,7 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   const brows = faceParts('ceja');
   const MOUTH_TOP = inner.userData.mouthTop as number;
   const TOP = inner.userData.top as number;
+  const BROW_STEP = (inner.userData.browStep as number | undefined) ?? 0.05;
   let psi = 0;
   let init = false;
   const squash = new Squash();
@@ -400,7 +401,8 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
         o.scale.y = sy;
         o.position.y = MOUTH_TOP * (1 - sy);
       }
-      for (const o of brows) o.position.y = 0.05 * brow;
+      // Cuánto suben o bajan las cejas, en las unidades del modelo (el brócoli va en unidades del boceto; los otros, en metros).
+      for (const o of brows) o.position.y = BROW_STEP * brow;
     },
     dispose() {
       hurt.restore();
