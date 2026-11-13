@@ -8,11 +8,13 @@ export const CONFIG = {
   camera: {
     position: new THREE.Vector3(0, 0.15, 0.2),
     target: new THREE.Vector3(0, 0.098, 0),
-    focalLength: 50, // mm, equivalente full frame (36 mm)
+    // Rincón de fiesta íntimo: lente más larga desde más lejos. El chizito queda del mismo tamaño, pero se ve un pedazo más chico
+    // de la mesa y el fondo se comprime y se desenfoca (como una foto de producto); las cosas no se movieron de lugar.
+    focalLength: 65, // mm, equivalente full frame (36 mm)
     /** Distancia inicial al chizito y límites del zoom (m). `position` sólo define la dirección de mirada. */
-    distance: 0.3,
-    minDistance: 0.16,
-    maxDistance: 0.5,
+    distance: 0.39,
+    minDistance: 0.21,
+    maxDistance: 0.65,
     near: 0.01,
     far: 6,
   },
@@ -59,11 +61,11 @@ export const CONFIG = {
   },
   dof: {
     /** Banda nítida alrededor del foco, en dioptrías (1/m). ±1 dpt a 20 cm ≈ de 17 a 25 cm. */
-    focusBand: 1.0,
+    focusBand: 0.8,
     /** Dioptrías extra hasta el desenfoque máximo. */
-    blurRamp: 2.4,
+    blurRamp: 1.9,
     /** Desenfoque máximo (radio) como fracción de la altura de la imagen. */
-    maxBlur: 0.03,
+    maxBlur: 0.034,
   },
   ao: {
     radius: 0.01,
