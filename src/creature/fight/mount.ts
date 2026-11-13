@@ -567,7 +567,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (!candleProp) {
       candleProp = makeCandle();
       const n = front(1);
-      candleProp.position.set(m.f[1].x, GROUND, z0).addScaledVector(n, 0.034);
+      // Delante de la cara, a 2,7 cm de su superficie (el radio del cuerpo cambia de rival a rival).
+      candleProp.position.set(m.f[1].x, GROUND, z0).addScaledVector(n, 0.027 + m.f[1].model.body[0].r);
       g.stage.scene.add(candleProp);
     }
     const lit = t >= B_LIGHTS;
@@ -693,13 +694,15 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const n = front(1);
       const side = new THREE.Vector3(-n.z, 0, n.x);
       const fa = m.f[1].model.faceAt ?? { mouth: 0.44, eyes: 0.63 };
+      // Distancias desde la SUPERFICIE de la cara (no desde el eje): el huevo y la quinoa son mucho más gordos que el tallo.
+      const skin = m.f[1].model.body[0].r;
       const mouth = along(1, fa.mouth);
       const eyes = along(1, fa.eyes);
       if (t < 3.4) {
         // La BOCA, muy cerca, a la luz de la vela: un paneo lento de costado y apenas acercándose. Suspenso.
         shot = 'boca';
         const k = smooth(t / 3.4);
-        pos = mouth.clone().addScaledVector(n, 0.062 - 0.008 * k).addScaledVector(side, 0.012 - 0.02 * k).add(new THREE.Vector3(0, -0.004, 0));
+        pos = mouth.clone().addScaledVector(n, 0.055 + skin - 0.008 * k).addScaledVector(side, 0.012 - 0.02 * k).add(new THREE.Vector3(0, -0.004, 0));
         look = mouth.clone().addScaledVector(side, 0.003 - 0.004 * k);
         rate = 4;
         focal = 58;
@@ -708,7 +711,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         // Sube despacio de la boca a los ojos.
         shot = 'boca';
         const k = smooth((t - 3.4) / (B_LIGHTS - 3.4));
-        pos = mouth.clone().lerp(eyes, k).addScaledVector(n, 0.056 + 0.01 * k).addScaledVector(side, -0.008);
+        pos = mouth.clone().lerp(eyes, k).addScaledVector(n, 0.049 + skin + 0.01 * k).addScaledVector(side, -0.008);
         look = mouth.clone().lerp(eyes, k);
         rate = 3;
         focal = 58;
@@ -717,7 +720,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         // ¡Se encienden los focos! La cámara salta atrás: plano entero en contrapicado, torcido.
         shot = 'revela';
         const k = smooth((t - B_LIGHTS) / 0.35);
-        pos = along(1, 0.5).addScaledVector(n, 0.14).addScaledVector(side, 0.03).add(new THREE.Vector3(0, -0.015, 0));
+        pos = along(1, 0.5).addScaledVector(n, 0.126 + skin * 2).addScaledVector(side, 0.03).add(new THREE.Vector3(0, -0.015, 0));
         look = along(1, 0.55);
         rate = 12;
         focal = 40;
