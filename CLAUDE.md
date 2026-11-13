@@ -58,8 +58,10 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
   Aceituna: 2 × 1,5 cm (rellena de morrón). Escarbadientes: 3 cm × Ø 2 mm (variante espadita de cotillón, 3 cm).
   Palito de la selva: 4,5 cm × Ø 7,2 mm. Chupetín: palito 5,5 cm × Ø 3,4 mm + bola Ø 2,1 cm.
 - Mesa en y = 0. Chizito flotando con centro en y = 10 cm (`CONFIG.chizitoCenter`): la mesa queda más lejos y despejada.
-- Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, a 30 cm del chizito, con zoom por
-  dolly (rueda del mouse) entre 16 y 50 cm, suave. 50 mm sobre film de 36 mm. Nunca orbita.
+- Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, a 39 cm del chizito, con zoom por
+  dolly (rueda del mouse) entre 21 y 65 cm, suave. 65 mm sobre film de 36 mm (RINCÓN DE FIESTA ÍNTIMO, pedido del usuario: el
+  chizito del mismo tamaño que con 50 mm a 30 cm, pero se ve menos mesa y el fondo se comprime y se desenfoca más; DoF con
+  banda ±0,8 dpt). La intro (la casa con la fiestita) no cambia. Nunca orbita.
 - Composición despejada: bowl de papitas (izq., x −0,15 para dejar ver el platito de palitos de la selva) y vasito
   de palitos (der.) a los costados, a media distancia; pocos objetos al fondo y lejos.
 
@@ -318,8 +320,15 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 
 ## Pelea (Chizito Fight) — `src/creature/fight/`
 - Botón PELEAR abajo a la derecha (siempre, sin flag). Misma mesa, misma criatura real (sus mallas): la cámara pasa a una
-  vista lateral que sigue el medio de los dos y se aleja/acerca para encuadrarlos. Rival: EL BROCOLOCO (niveles 1–3); la
-  criatura del jugador es TU CHIZITO.
+  vista lateral que sigue el medio de los dos y se aleja/acerca para encuadrarlos. La criatura del jugador es TU CHIZITO.
+  RIVALES, uno por nivel (`rivalFighter` / `rivalView`; `?nivel=2|3` arranca contra ése): 1 EL BROCOLOCO; 2 HUEVO DURO
+  (pelado y gelatinoso: rebota más al recibir, brazos LARGOS de espárrago con yema, patas de tallo, recibe ×1,25); 3 MONSTRUO
+  DE QUINOA (miles de granos en InstancedMesh, brazos pesados, recibe ×0,6 y se REARMA: tras 1,5 s sin recibir recupera 2,5
+  de vida por segundo; granos que giran alrededor de los puños, 'aura'). Los dos nuevos están hechos POR PARTES en
+  `rivals3d.ts` (cuerpo, cara con piezas limpias apoyadas con `onShell`, extremidades clavadas), según los bocetos elegidos
+  (`docs/arte/bocetos/huevo-b.png`, `quinoa-a.png`); NO se pasó una foto a 3D (eso le desarmó la cara al brócoli).
+  Cada rival tiene nombre, cartel y frases propias (`RIVALS` en mount.ts; sonidos `huevo-frase1/2/3`, `quinoa-frase1/2/3`).
+  Laboratorio: `lab/brocoli.html?rival=huevo|quinoa`.
 - PERFIL Y FRENTE: el frente de la pelea es la CARA que marca la F en el constructor (`BUILDER_FACE`, +Z del chizito; arriba =
   eje largo +X). Se enfrentan con la cara hacia el rival, girados `stanceYaw` (0,7 rad ≈ 40°) hacia la cámara: 3/4 claro, como el
   arte clave, para que se vean las caras (con 0,45 se veían casi de perfil). Al cambiar de lado se dan vuelta con un giro 3D
