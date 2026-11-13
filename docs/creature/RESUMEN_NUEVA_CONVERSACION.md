@@ -1,81 +1,68 @@
-# Resumen para un chat nuevo — CUMPLEAÑITO / Chizito Fight
+# Resumen para un chat nuevo — CUMPLEAÑITO / Chizito Fight (al 2026-11-13)
 
-Al 2026-11-10. Repo privado `francovarsi-lab/chizito`, rama de trabajo `claude/compassionate-carson-41ubkc` (último commit de
-código `d49feec`). La fuente de verdad detallada es `CLAUDE.md` (secciones "Forma de trabajo", constructor y "Pelea").
+Repo privado `francovarsi-lab/chizito`. **Rama de trabajo actual: `claude/upbeat-keller-vgk6l1`** (sale de
+`claude/compassionate-carson-41ubkc` y la continúa; último commit de código `a192419`). El detalle completo está en
+`CLAUDE.md` (leerlo primero).
 
-## Reglas permanentes del usuario (Franco)
-- Español rioplatense. Usa Claude de escritorio (Windows); las sesiones corren en la nube. Informes cortos, con hash del commit
-  y qué mirar. Él no siempre puede probar: avanzar igual y dejar todo subido.
-- NO pushear a `main` (no comparte historia con esta rama). No tocar `claude/friendly-faraday-2lyzl2`. Trabajar y pushear sólo
-  en esta rama. Sin PRs salvo que los pida. Commits con autor Franco Varsi (`-c user.name/-c user.email`).
-- "Apuntar al 100 para llegar al 10": nivel de juego top; analizar cada detalle y DECIDIR cuál vale; bello, único, arte +
-  función, fluidez primero. La pelea es un show; tiene que tener la MISMA estética que el constructor (mismo mundo).
-- Higgsfield: Nano Banana 2.1 en 1K (~1,5 créditos) para explorar, 2K (~2) sólo lo final; 3D con SAM 3 (1 crédito, con
-  `prompt`). Gasto bajo y avisar si se dispara. Sonidos: los graba él; dejar ids listos.
+## Reglas permanentes (Franco)
+- Español rioplatense. Usa Claude de escritorio (Windows); las sesiones corren en la nube. Informes cortos, con hash y qué mirar.
+  Si no se puede probar, avanzar igual y dejar todo subido.
+- NO pushear a `main` (historia distinta). No tocar `claude/friendly-faraday-2lyzl2`. Trabajar y pushear sólo en la rama de la
+  sesión. Sin PRs salvo pedido. Commits con autor Franco Varsi.
+- "Apuntar al 100 para llegar al 10": nivel top, bello, único, arte + función, fluidez primero. La pelea es un show con la MISMA
+  estética que el constructor. Nada de errores tipo "rostro desarmado": simple pero bien hecho.
+- Higgsfield: Nano Banana 2.1 en 1K (~1,5 créditos) para explorar, 2K sólo lo final; 3D con SAM 3. Avisar si el gasto se dispara.
+  Gastado: ~15,5 créditos. (Desde la nube no se pueden subir archivos de referencia a Higgsfield: el host está bloqueado.)
+- Sonidos: los graba él; dejar ids listos (`public/assets/sounds/<id>.ogg|mp3|wav`, si no hay archivo suena un sintetizado).
 
 ## Cómo probar
-- En su PC: `git clone https://github.com/francovarsi-lab/chizito.git` → `cd chizito` →
-  `git checkout claude/compassionate-carson-41ubkc` → `npm install` → `npm run dev` → http://localhost:5173 (Chrome).
-- Vercel (se actualiza con cada push): https://chizito-git-claude-compassionate-carson-41ubkc-el-mejor-lugar.vercel.app/ —
-  tiene "Vercel Authentication" activada: sólo con sesión de Vercel del equipo el-mejor-lugar (se desactiva en Settings →
-  Deployment Protection; no lo cambiamos sin que lo pida).
+- Vercel (cada push genera un deploy de la rama; pide login de Vercel): sacar un link compartible con la herramienta de Vercel
+  `get_access_to_vercel_url` sobre la URL del último deploy de la rama (dura ~23 h). Abrir en **Chrome** (el panel de la app de
+  Claude puede no tener WebGL: el cargador ahora avisa si falta WebGL).
+- `?nivel=2` o `?nivel=3` en la URL arranca la pelea contra ese rival. `?sinintro` saltea la intro.
+- Local: `git clone …`, `git checkout claude/upbeat-keller-vgk6l1`, `npm install`, `npm run dev` → http://localhost:5173
 
 ## Qué es
-Dos partes en la misma mesa 3D (Vite + TypeScript + Three.js): el CONSTRUCTOR (clavar palitos, escarbadientes, palitos de la
-selva, chupetín, papitas, nachos, aceitunas y ketchup en un chizito) y la PELEA (botón PELEAR): TU CHIZITO, con sus mallas
-reales, contra EL BROCOLOCO (niveles 1–3). Pelea en `src/creature/fight/`: `fighter.ts` (snapshot → modelo), `engine.ts`
-(motor puro y determinista a 60 Hz), `ai.ts`, `tuning.ts` (TODOS los números), `render.ts`, `brocoli.ts`, `stage.ts`,
-`hud.ts`, `mount.ts`. Secciones compartidas en `src/creature/zones.ts`.
+Constructor 3D (Vite + TS + Three.js): se clavan snacks en un chizito y se le dibuja la cara con ketchup. Botón PELEAR: TU
+CHIZITO (sus mallas reales) contra un rival por nivel. Código de la pelea en `src/creature/fight/` (engine.ts motor puro a 60 Hz,
+tuning.ts todos los números, fighter.ts modelos, render.ts vistas, brocoli.ts, rivals3d.ts, stage.ts, hud.ts, mount.ts).
 
-## Estado de la pelea (hecho)
-- Regla base: cada vara clavada es un brazo o pierna rígida articulada en su punto de clavado. SECCIONES del chizito (las
-  mismas que muestra el constructor): PIERNAS = el pedazo de abajo (25 % del largo), CABEZA = arriba (no es brazo: pesa y
-  protege), BRAZOS = el medio; izquierda/derecha como se arma (izquierda = +Y del chizito).
-- CONTROLES por cuadrante: Q brazos izq, W brazos der, A piernas izq, S piernas der (cada toque usa la siguiente extremidad de
-  ese cuadrante, de a una), D guardia, flechas mover/saltar/agacharse, Esc pausa. Z/X/C quedan como atajos. HUD con el chizito
-  dividido y la cantidad por cuadrante.
-- Física: motores PD con torque según la inercia, contrapeso, piernas que se paran sobre el piso y ponen el pie bajo el centro
-  de masa (más al patear), torso que gira con el golpe, anticipación (peso atrás al cargar, adelante al soltar), envión al
-  soltar. Acertar frena y rebota; pifiar sigue de largo y cuesta tiempo (y estabilizarse). Daño = masa^0,4 · velocidad^1,3.
-- Lo pesado se carga (un golpe recibido la corta). Chupetín: pega con el cuerpo entero (carga corta y visible); abajo es pierna
-  fija que patea con contrapeso. Varas que atraviesan = fijas. Escudos (papita 2 golpes, nacho 6) que se astillan; la guardia
-  los presenta (cabeza, espalda, abajo). Guardia física con los brazos.
-- Piernas con fuerza y rapidez por pieza (selva lento y fuerte, escarbadientes rápido y débil); salto según fuerza/peso con
-  agachada previa; sin piernas no salta.
-- Combinaciones tras acertar: UNO-DOS, RÁFAGA (3+ brazos), PIÑA Y PATADA, CONTRA (tras bloquear). Lo apretado durante el
-  congelamiento del impacto se guarda. El brócoli encadena desde nivel 2.
-- Efectos: congelamiento, destello blanco y vibración, migas variadas, astillas, ¡JAPISH! en golpes fuertes/combos, ¡PIFIÓ! y
-  ¡PIF! alternados, nombres TU CHIZITO / EL BROCOLOCO. Sonidos grabables (`public/assets/sounds/<id>.ogg|mp3|wav`): golpe,
-  golpe-pesado, bloqueo, zumbido, pifio, escudo, ko, round, pelea, combo, japish, risa (+ los del constructor).
-- PRESENTACIÓN antes del round 1 con los modelos reales: la cámara rodea a TU CHIZITO, que se estira y le tira piñas a la
-  cámara; primer plano de EL BROCOLOCO que levanta las zanahorias y se ríe. Se saltea con cualquier tecla.
-- Escenario de noche según el arte clave (`docs/arte/arte-clave-pelea.jpg`): cuarto oscuro con bokeh, foco cenital con haz y
-  polvo, focos de cara que siguen a cada luchador, tabla de picar grande con textura, restos de fiesta en capas (caramelos sin
-  marca, carozos, servilletas), lucecitas. Giro hacia la cámara: criatura 40°, brócoli 60° (su cara se tiene que leer: es
-  prioridad del usuario). Brócoli 3D de Higgsfield (GLB) con la cara del boceto pegada sobre el tallo (ojos de remolacha con
-  brillo, cejas de morrón, dientes de sésamo blanco).
-- Carga: ensayo invisible en ratos libres mientras se arma (modelos, arena, shaders compilados con la luz de la pelea): abrir
-  la pelea pasó de ~1 s a ~0,1 s y no compila shaders nuevos (antes 28). Cargador animado al abrir la web.
+## Hecho en esta etapa
+**Pelea**
+- Rivales: 1 EL BROCOLOCO; 2 HUEVO DURO (pelado y gelatinoso, brazos largos de espárrago = el doble de alcance, recibe ×1,25);
+  3 MONSTRUO DE QUINOA (miles de granos, brazos pesados, recibe ×0,6, se REARMA si pasa 1,5 s sin recibir, granos girando en los
+  puños). Huevo y quinoa hechos POR PARTES en `rivals3d.ts` según los bocetos elegidos (`docs/arte/bocetos/huevo-b.png`,
+  `quinoa-a.png`), nunca foto→3D.
+- Brócoli rehecho: copa del GLB recortada + tallo propio + cara limpia (remolachas con pupila en rendija y brillo rojo, cejas de
+  morrón en V, sonrisa con colmillos); zanahorias CLAVADAS; guardia de boxeador.
+- Apagón al apretar PELEAR + presentación de 11,6 s: vela, primero la BOCA del rival sonriendo, paneos lentos, frases con
+  subtítulos (3 por rival, sonidos `brocoloco/huevo/quinoa-frase1..3`), suben a los ojos, focos de golpe + rugido + nombre;
+  después TU CHIZITO (piñas a la lente, pose de héroe) y VS. Música (`musica-pelea` o base sintetizada) desde los focos.
+- PELEAR pide cara de ketchup la 1ª vez ("¡Usá el ketchup para dibujarle un rostro!"); la 2ª entra igual.
+- Física: KO que se desploma y rueda a su reposo (nada apuntalado), paso de verdad (la pierna que avanza se levanta), IA sin
+  temblor de marioneta, chupetín (5 g > cuerpo 3,3 g, gira el torso, tope 18 de daño, si pifia sigue la inercia).
+- Claridad: estelas de golpe, cartelito si una tecla no hace nada, guía de teclas siempre visible (chica), palabras quietas y
+  legibles: ¡JAPISH!, ¡PIMBA! (patadas), ¡SOPLAMOCO! (piñas a la cara), ¡PIFIÓ!/¡PIF!.
+- Arreglos: el bowl ya no se ilumina con el golpe, los rounds terminan en seco, los escudos se astillan bien.
+**Constructor**
+- Espadita al revés (entra el mango, queda la hoja). Sin servilletas usadas. Sal mate. Sin "no es brazo" en la cabeza.
+- Sombras de recipientes y chizito con los mismos parámetros; luz más alta (~55°).
+- Cámara "rincón íntimo": 65 mm a 39 cm y más desenfoque (casi no se nota: ver pendientes).
 
-## Constructor (cambios recientes)
-- Línea punteada sobre el chizito (cabeza / brazos / piernas, izquierda / derecha) con carteles de las teclas, visible con una
-  pieza en la mano o con el cartel abierto. Cartel "ELEGÍ LOS INGREDIENTES" (incluye que el ketchup es para dibujarle la
-  cara); se cierra al agarrar una pieza; I lo abre y cierra.
-- Mismo mundo que la pelea: lucecitas (suaves de día), restos de fiesta al fondo, un poco más de contraste y color.
+## Pruebas
+- `npx tsc --noEmit` limpio. `node scripts/creature-fight-test.mjs` → 159 OK.
+- Capturas: con el WebGL por software cada captura tarda ~5 min. Hacerlas contra una copia compilada fija
+  (`VERCEL=1 npx vite build --outDir <dir>` + `npx vite preview --outDir <dir> --port 4174`), porque el dev server recarga al
+  editar. Playwright del proyecto pide otra versión de navegador: armar `PLAYWRIGHT_BROWSERS_PATH` con enlaces a
+  `/opt/pw-browsers/chromium_headless_shell-1243` (ver historial). `node scripts/present-shots.mjs <dir> [criatura] [tiempos]`
+  (env `URL`, `NIVEL`). Laboratorio rápido de rivales: `lab/brocoli.html?rival=huevo|quinoa` + `node lab/shot.mjs <url> <png>`.
 
-## Pruebas (última corrida)
-- `npx tsc --noEmit -p .` limpio. `node scripts/creature-fight-test.mjs` → 151 OK. `node scripts/creature-test.mjs` → 1697 OK.
-- Con `npm run dev`: `node scripts/fight-ui-test.mjs <dir>` (navegador, teclado real) → 16 OK en la última corrida completa.
-- Capturas con Playwright y `?capture` (WebGL por software: lento y el primer cuadro exagera la compilación; no representa una
-  GPU real). `?capture&presentacion` muestra la presentación. Chromium en `/opt/pw-browsers/chromium`.
-
-## Pendientes / propuestas (decidir con el usuario)
-1. Que el usuario pruebe en su PC: giro de 40° (`FIGHT.stanceYaw`), botones Q W A S D, combinaciones, chupetín, presentación,
-   tiempos de carga.
-2. Arranque: compilar los shaders del constructor en paralelo antes del primer cuadro (`compileAsync`, como el ensayo de la
-   pelea). Opcional: hornear o cachear las texturas procedurales (madera, mantel, chizito) — se evaluó y se dejó.
-3. Estética del constructor más cerca de la pelea (decisión de arte: luz de atardecer, la tabla bajo el chizito).
-4. Letras de impacto estilo arcade, grabaciones de sonido, texturas del chizito en Higgsfield (2K final), cadenas de varias
-   articulaciones. La madera de la tabla todavía tira a rojo en los bordes.
-5. Integrar con `main` (historias distintas): decidir antes cómo.
-- Higgsfield gastado: ~9,5 créditos en total (5 imágenes 1K + 2 modelos SAM 3); nada en las últimas tandas.
+## Pendientes / próximos pasos
+1. Que Franco juegue los 3 niveles. Dificultad: contra una IA, el huevo gana 7/8 y la quinoa 8/8 → ajustar según cómo se sienta.
+2. **Mesa / rincón íntimo**: el cambio de cámara casi no se nota; hace falta reacomodar o achicar la tira de recipientes del frente
+   (pedir permiso: Franco pidió no mover mucho las cosas). La intro (casa con fiestita) se mantiene.
+3. La quinoa, con los brazos arriba al rugir, parece tener orejas de conejo. Granos facetados en primerísimo plano.
+4. Brócoli más "real" (tallo liso, de plástico) y golpes más humanos; efectos/golpes premium; PODERES (a definir con materiales).
+5. Zanahorias que se ven rojas con la luz cálida de la pelea.
+6. Grabaciones de sonido y música de Franco (todos los ids están listos).
+7. Integración con `main`: decidir cómo antes de hacerla.
