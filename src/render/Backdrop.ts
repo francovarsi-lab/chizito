@@ -26,19 +26,18 @@ export interface Backdrop {
 }
 
 export const BOWL_LAYOUT = {
-  palito: new THREE.Vector3(0.115, 0, -0.17),
-  papita: new THREE.Vector3(-0.15, 0, -0.17), // corrido a la izquierda: deja ver el platito de palitos de la selva
-  // Tira de recipientes chicos al frente: nachos, aceitunas, escarbadientes, espaditas y sobrecitos de
-  // ketchup. La clave es el tipo de pieza o `tipo:variante`.
-  // (Sin superponerse: los bowls de nachos y aceitunas quedan separados por ≥ 3 mm de borde a borde.)
-  nacho: new THREE.Vector3(-0.104, 0, -0.074),
-  aceituna: new THREE.Vector3(-0.047, 0, -0.068),
-  escarbadientes: new THREE.Vector3(-0.009, 0, -0.064),
-  'escarbadientes:espadita': new THREE.Vector3(0.021, 0, -0.064),
-  ketchup: new THREE.Vector3(0.066, 0, -0.07),
-  // Segunda fila, a los lados del chizito: palitos de la selva envueltos y chupetines parados.
-  'palito-selva': new THREE.Vector3(-0.062, 0, -0.235),
-  chupetin: new THREE.Vector3(0.064, 0, -0.245),
+  // Disposición pensada sobre la cámara real (65 mm a 39 cm): ningún recipiente cortado por el borde ni encimado con otro, el
+  // centro libre para el chizito (es el protagonista) y en dos alturas. A la DERECHA las varas y las aceitunas, que se ensartan
+  // en ellas; a la IZQUIERDA los escudos (papitas, nachos), el palito de la selva y el ketchup. Adelante lo chico, atrás lo alto.
+  palito: new THREE.Vector3(0.07, 0, -0.16),
+  aceituna: new THREE.Vector3(0.13, 0, -0.2),
+  escarbadientes: new THREE.Vector3(0.112, 0, -0.33),
+  'escarbadientes:espadita': new THREE.Vector3(0.145, 0, -0.335),
+  chupetin: new THREE.Vector3(0.095, 0, -0.46),
+  'palito-selva': new THREE.Vector3(-0.094, 0, -0.136),
+  ketchup: new THREE.Vector3(-0.083, 0, -0.262),
+  nacho: new THREE.Vector3(-0.136, 0, -0.258),
+  papita: new THREE.Vector3(-0.132, 0, -0.439),
 } as Record<string, THREE.Vector3>;
 
 export function buildBackdrop(assets: AssetRegistry): Backdrop {
@@ -65,34 +64,39 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   root.add(palitoCup);
   bowls.set('palito', palitoCup);
 
-  const papitaBowl = makeBowl(0.055, 0.032, ceramic);
+  // Recipientes más chicos que antes (con menos piezas; las piezas mantienen su tamaño real): con el lente largo no entraban.
+  const papitaBowl = makeBowl(0.044, 0.028, ceramic);
   papitaBowl.position.copy(BOWL_LAYOUT.papita);
-  papitaBowl.add(fillBowl(assets, 'papita', 0.055, 0.032, 22, 11));
+  papitaBowl.add(fillBowl(assets, 'papita', 0.044, 0.028, 14, 11));
   papitaBowl.userData.bowlFor = 'papita';
   root.add(papitaBowl);
   bowls.set('papita', papitaBowl);
 
   // Tira del frente: mismo lenguaje (cerámica blanca y vasito descartable), más chicos.
   // Escarbadientes y espaditas van en vasitos separados (cada uno da su variante).
-  const nachoBowl = makeBowl(0.03, 0.018, ceramic);
+  const nachoBowl = makeBowl(0.026, 0.017, ceramic);
   nachoBowl.position.copy(BOWL_LAYOUT.nacho);
-  nachoBowl.add(fillBowl(assets, 'nacho', 0.03, 0.018, 6, 41));
-  const oliveBowl = makeBowl(0.023, 0.016, ceramic);
+  nachoBowl.add(fillBowl(assets, 'nacho', 0.026, 0.017, 5, 41));
+  const oliveBowl = makeBowl(0.019, 0.014, ceramic);
   oliveBowl.position.copy(BOWL_LAYOUT.aceituna);
-  oliveBowl.add(fillBowl(assets, 'aceituna', 0.023, 0.016, 8, 51));
+  oliveBowl.add(fillBowl(assets, 'aceituna', 0.019, 0.014, 5, 51));
   const pickCup = makeStandCup(assets, { type: 'escarbadientes', count: 18, seed: 61, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'liso' }) });
   pickCup.position.copy(BOWL_LAYOUT.escarbadientes);
   const swordCup = makeStandCup(assets, { type: 'escarbadientes', count: 12, seed: 67, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'espadita' }) });
   swordCup.position.copy(BOWL_LAYOUT['escarbadientes:espadita']);
   // Sobrecitos de ketchup en un platito: clic = modo dibujar.
-  const sachetDish = makeBowl(0.03, 0.012, ceramic);
+  const sachetDish = makeBowl(0.026, 0.011, ceramic);
   sachetDish.position.copy(BOWL_LAYOUT.ketchup);
-  sachetDish.add(fillSachets(5, 81));
+  sachetDish.add(fillSachets(3, 81));
   // Palitos de la selva con su envoltorio (se desenrolla al agarrarlos) y chupetines en un vasito.
   // Platito playo con los paquetes acostados y prolijos (casi paralelos, apenas encimados).
-  const selvaBowl = makeBowl(0.05, 0.009, ceramic);
+  const selvaBowl = makeBowl(0.04, 0.009, ceramic);
   selvaBowl.position.copy(BOWL_LAYOUT['palito-selva']);
-  selvaBowl.add(fillSelvaDish(assets, 6, 91));
+  selvaBowl.add(fillSelvaDish(assets, 4, 91, 0.04));
+
+  // Bandeja dorada de torta (cartón con borde festoneado y repujado) debajo del chizito: lo asienta en la mesa, recibe su sombra
+  // y llena el frente que quedó libre. Más fina que la altura de la sombra de contacto (1,2 mm), así la sombra se ve encima.
+  root.add(cakeBoard(0.085, new THREE.Vector3(0, 0, -0.03)));
   const popCup = makeStandCup(assets, { type: 'chupetin', count: 7, seed: 97, h: 0.028, r0: 0.014, r1: 0.019, params: () => ({ wrapped: true }) });
   popCup.position.copy(BOWL_LAYOUT.chupetin);
   // (El bowl de chizitos para ensartar queda en pausa: el mecanismo sigue en la interacción.)
@@ -157,6 +161,67 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   });
   for (const m of room.tableSurfaces) m.castShadow = false;
   return { root, bowls, surfaces: room.tableSurfaces, farProps, party };
+}
+
+/** Bandeja de cartón dorado de cumpleaños: disco festoneado de 0,8 mm con el repujado (anillos y pétalos) en relieve. */
+function cakeBoard(radius: number, at: THREE.Vector3): THREE.Mesh {
+  const shape = new THREE.Shape();
+  const N = 44;
+  for (let i = 0; i <= N * 8; i++) {
+    const a = (i / (N * 8)) * Math.PI * 2;
+    // Festón: medias lunas a lo largo del borde.
+    const r = radius * (0.955 + 0.045 * Math.abs(Math.sin((a * N) / 2)));
+    if (i === 0) shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    else shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.0008, bevelEnabled: false, curveSegments: 1 });
+  geo.rotateX(-Math.PI / 2);
+  // UV planas (de arriba) para el repujado.
+  const pos = geo.getAttribute('position');
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    uv[2 * i] = 0.5 + pos.getX(i) / (2 * radius);
+    uv[2 * i + 1] = 0.5 - pos.getZ(i) / (2 * radius);
+  }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, size, size);
+  ctx.translate(size / 2, size / 2);
+  ctx.strokeStyle = '#fff';
+  ctx.fillStyle = '#fff';
+  // Repujado: anillos concéntricos, una corona de pétalos y una de puntitos, como las bandejas de cotillón.
+  for (const [r, w] of [[0.9, 3], [0.62, 2], [0.58, 2], [0.3, 2]] as const) {
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.arc(0, 0, (r * size) / 2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.lineWidth = 2;
+  for (let k = 0; k < 24; k++) {
+    ctx.save();
+    ctx.rotate((k / 24) * Math.PI * 2);
+    ctx.beginPath();
+    ctx.ellipse(0, (0.76 * size) / 2, 9, 30, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  for (let k = 0; k < 60; k++) {
+    const a = (k / 60) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * size * 0.47, Math.sin(a) * size * 0.47, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const bump = new THREE.CanvasTexture(c);
+  const mat = new THREE.MeshStandardMaterial({ name: 'cake-board', color: '#e8c46a', metalness: 0.85, roughness: 0.32, bumpMap: bump, bumpScale: 0.6 });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.copy(at);
+  m.receiveShadow = true;
+  m.name = 'bandeja';
+  return m;
 }
 
 function makeBowl(radius: number, height: number, mat: THREE.Material): THREE.Group {
@@ -283,7 +348,7 @@ function restOnBowl(obj: THREE.Object3D, radius: number, height: number): void {
 }
 
 /** Paquetes de palitos de la selva acostados en el platito, ordenados como recién servidos. */
-function fillSelvaDish(assets: AssetRegistry, count: number, seed: number): THREE.Object3D {
+function fillSelvaDish(assets: AssetRegistry, count: number, seed: number, radius: number): THREE.Object3D {
   const rnd = mulberry32(seed);
   const pile = new THREE.Group();
   const tmp = new THREE.Vector3();
@@ -299,7 +364,7 @@ function fillSelvaDish(assets: AssetRegistry, count: number, seed: number): THRE
     const row = i < 4 ? 0 : 1; // dos capas: cuatro abajo, dos encima
     const slot = row === 0 ? i - 1.5 : i - 4.5;
     obj.position.set(slot * 0.0125, 0.008 + row * 0.0085, (rnd() - 0.5) * 0.003 + row * 0.003);
-    restOnBowl(obj, 0.05, 0.009);
+    restOnBowl(obj, radius, 0.009);
     pile.add(obj);
   }
   return bakeStatic(pile, 'palitos-selva');
