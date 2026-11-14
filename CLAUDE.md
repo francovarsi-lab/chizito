@@ -323,8 +323,11 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   vista lateral que sigue el medio de los dos y se aleja/acerca para encuadrarlos. La criatura del jugador es TU CHIZITO.
   RIVALES, uno por nivel (`rivalFighter` / `rivalView`; `?nivel=2|3` arranca contra ése): 1 EL BROCOLOCO; 2 HUEVO DURO
   (pelado y gelatinoso: rebota más al recibir, brazos LARGOS de espárrago con yema, patas de tallo, recibe ×1,25); 3 MONSTRUO
-  DE QUINOA (miles de granos en InstancedMesh, brazos pesados, recibe ×0,6 y se REARMA: tras 1,5 s sin recibir recupera 2,5
-  de vida por segundo; granos que giran alrededor de los puños, 'aura'). Los dos nuevos están hechos POR PARTES en
+  DE QUINOA (miles de granos en InstancedMesh, brazos pesados, recibe ×0,7 y se REARMA: tras 1,5 s sin recibir recupera 1,6
+  de vida por segundo; los granos sueltos de los puños ('aura') NO giran solos: son la munición de su poder, se juntan al
+  cargar, desaparecen al tirarlos y vuelven a armarse). Al pasar de nivel (`restart`) se REARMA el modelo 3D del rival
+  (`viewLevel`; antes seguía dibujado el brócoli) y se lo presenta con su intro. Espárragos (`asparagus`): tallo afinado con
+  fibras y escamitas en espiral, yema = torno esculpido en escamas en ladrillo con borde en V (`shingle`); pata con el corte claro. Los dos nuevos están hechos POR PARTES en
   `rivals3d.ts` (cuerpo, cara con piezas limpias apoyadas con `onShell`, extremidades clavadas), según los bocetos elegidos
   (`docs/arte/bocetos/huevo-b.png`, `quinoa-a.png`); NO se pasó una foto a 3D (eso le desarmó la cara al brócoli).
   Cada rival tiene nombre, cartel y frases propias (`RIVALS` en mount.ts; sonidos `huevo-frase1/2/3`, `quinoa-frase1/2/3`).
@@ -344,7 +347,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   FIJAS (sin articulación): toda vara que ATRAVIESA el chizito (girarla lo rompería) y el CHUPETÍN. El chupetín corre el centro
   de gravedad hacia su lado y pega con el CUERPO ENTERO (`FIGHT.swing`: se echa atrás visiblemente, carga con tope `maxCharge`
   para que llegue a salir —antes tardaba casi 1 s y cualquier golpe se la cortaba—, y se tira adelante con envión; pega mientras
-  gira rápido); errar con él desestabiliza muchísimo (`whiffMul`, `whiffKick`). Una vara fija ABAJO (chupetín apuntando al piso)
+  gira rápido; tope de 10 de daño); si PIFIA, el peso lo arrastra y da una VUELTA ENTERA de 360° (`FIGHT.whirl`, `f.whirl`
+  suma al giro; el render persigue el ángulo por el camino corto con `chase` para no desenrollarla) quedando expuesto. Una vara fija ABAJO (chupetín apuntando al piso)
   es una PIERNA FIJA (`pegs`): apoya y patea con el cuerpo entero, si tiene otra pierna para pararse (contrapeso). Lo que asoma
   < 1 cm no es extremidad: es peso.
   Papitas/nachos en el cuerpo = escudos (papita 2 golpes, nacho 6) que se astillan con cada golpe y al romperse se deshacen en
@@ -366,8 +370,20 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   (`impactBack`). PIFIAR: el brazo sigue de largo más allá del objetivo (`follow`, más si pesa) y el cuerpo se va con él.
 - Un golpe por vez. ERRAR cuesta: cartel "¡PIFIÓ!" en cada yerro; el freno queda flojo (sigue de largo), el giro que traía pasa
   al cuerpo (lo inclina y lo arrastra) y no puede golpear ni cubrirse por `base + k · masaExtremidad/masaChizito` cuadros; además
-  no vuelve a pegar hasta ESTABILIZARSE (`stableW`). Si se inclina de más, se tambalea (sólo el sonido: la palabra
-  "trastabilla" NO aparece nunca en pantalla, pedido del usuario). Acertar cuesta poco (`hitLock`).
+  no vuelve a pegar hasta ESTABILIZARSE (`stableW`). Si se inclina de más, se tambalea (sólo el sonido: las palabras
+  "trastabilla" y "se está estabilizando" NO aparecen nunca en pantalla, pedido del usuario). Acertar cuesta poco (`hitLock`).
+- AIRE (estamina, `FIGHT.stamina`): cada golpe gasta (patada y pesado más, combinación menos); se recupera tras 40 cuadros sin
+  pegar (más lento cubriéndose); cansado (< 35) carga más lento y pega ×0,6–1; en 0 queda boqueando (`gassed`, "¡SIN AIRE!") sin
+  poder pegar. Golpes más lentos (carga mínima 7, `strikeGap` 16, `joint.strike` 54): aporrear los botones ya NO gana.
+- PODERES (`POWERS` en tuning.ts, lógica de cada comida; barra de PODER que se llena pegando, recibiendo y sola; se guarda entre
+  rounds; E para el jugador, la IA los usa cuando conviene): TU CHIZITO NUBE DE QUESO (marea si está cerca; la guardia lo evita),
+  BROCOLOCO VAPORAZO (vapor de la copa: quema y empuja de cerca), HUEVO HUEVAZO RODANTE (se hace bola y rueda: se salta o se
+  bloquea; `f.roll` sólo se dibuja y termina en vuelta entera), QUINOA METRALLA DE GRANOS (proyectiles `m.shots` en abanico con
+  gravedad; queda con menos coraza `armorLoss` hasta rearmarse). Todo se carga visiblemente (`wind`) antes de actuar.
+- CUERPOS BLANDOS: el HUEVO es gelatina (`jelly`): vibra al recibir (`Jiggle` en render.ts) y los golpes seguidos pegan cada vez
+  menos (`JELLY`); la QUINOA se abolla apenas. `soak()` aplica coraza + gelatina a todo daño.
+- GRAVEDAD: enderezarse necesita APOYO (en el aire no hay torque que lo endereza: antes flotaba como colgado de un cable) y el
+  equilibrio está amortiguado (`balanceZeta` 0,8); la guardia "respira" sólo mientras se pelea.
 - GUARDIA FÍSICA: los brazos se cruzan delante del cuerpo (uno en diagonal arriba, otro abajo) y sólo bloquea si el golpe TOCA
   un brazo; lo que pasa por fuera pega. Sin brazos no hay guardia. CON ESCUDOS, la guardia PRESENTA el escudo (`shieldPose`):
   en la cabeza se inclina adelante, en la espalda se da vuelta, abajo se pone cabeza abajo; sin escudos vuelven los brazos.
@@ -387,14 +403,15 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - EFECTOS DE GOLPE: congelamiento (`hitstop`), destello blanco leve y vibración del que recibe (`Hurt` en `render.ts`), estallido,
   anillo, migas (`fx/Crumbs.ts`: 12 formas redondeadas distintas con manchas tostadas, muchas chicas y pocas grandes) y astillas.
 - SONIDOS: ids listos para que el usuario grabe los suyos (`public/assets/sounds/<id>.ogg|mp3|wav`; si no hay archivo, suena
-  un sintetizado): `golpe`, `golpe-pesado`, `bloqueo`, `zumbido` (golpe pesado que arranca), `pifio`, `escudo` (se rompe),
+  un sintetizado de verdad: golpe con cuerpo + crujido, campana, bronces, voces con formantes, vapor; con compresor): `golpe`, `golpe-pesado`, `bloqueo`, `zumbido` (golpe pesado que arranca), `pifio`, `escudo` (se rompe),
   `ko`, `round`, `pelea`, `combo` (sale una combinación), `japish` (el grito ¡JAPISH!, en golpes fuertes y combinaciones),
+  `sin-aire`, `poder-carga`, `poder-queso`, `poder-vapor`, `poder-rodada`, `poder-metralla`,
   `risa` (presentación del brócoli), `pimba` (¡PIMBA!, patada que entra), `soplamoco` (¡SOPLAMOCO!, piña a la cara: el 38 % de
   arriba del cuerpo del que recibe), más los del constructor (`pick`, `drop`, `crack`, `crunch`, `out`). Los yerros alternan
   ¡PIFIÓ! y ¡PIF!. PALABRAS DE HISTORIETA: quietas 1,4 s, dentro de la pantalla y debajo de las barras (no se van volando), como
   mucho una cada 75 cuadros. MÚSICA: `musica-pelea` en loop si está el archivo; si no, una base sintetizada (`AudioManager.musicOn`).
 - CLARIDAD: cada golpe deja una ESTELA (la punta de la extremidad, dorada el chizito, verde el brócoli; tenue mientras carga). Si
-  una tecla no puede hacer nada, un cartelito dice por qué (no hay brazo/pierna de ese lado, se está estabilizando, atontado). La
+  una tecla no puede hacer nada, un cartelito dice por qué (no hay brazo/pierna de ese lado, sin aire, atontado, poder al N %). La
   guía de teclas no desaparece: a los 7 s queda chica y transparente. Al terminar un round se cortan los golpes en curso.
 - Formato: al mejor de 3 rounds, 90 s, vida 100, empate exacto = ronda extra. CONTROLES = un botón por CUADRANTE del chizito
   (mano izquierda, como se ve al armarlo): Q brazos izquierdos, W brazos derechos, A piernas izquierdas, S piernas derechas;
