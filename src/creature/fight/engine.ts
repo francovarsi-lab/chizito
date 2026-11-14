@@ -60,8 +60,6 @@ export interface LimbState {
   follow: number;
   /** Combinación a la que pertenece este golpe (UNO-DOS, RÁFAGA…) o null. */
   combo: string | null;
-  /** Daño × esto: un golpe tirado sin aire pega más flojo. */
-  tired: number;
 }
 
 export interface FighterState {
@@ -138,22 +136,18 @@ export interface FighterState {
   yaw: number;
   /** rad: giro del torso al pegar (se suma al del modelo). */
   twist: number;
-  /** Giro extra del torso que sigue de largo después de pifiar con algo pesado (rad, decae). */
-  spin: number;
   /** Centro de masa hacia el rival (marco local, del paso anterior): las piernas apoyadas ponen el pie debajo. */
   comX: number;
   yc: number;
   ys: number;
-  /** AIRE (estamina, 0..max) y cuadros desde el último golpe (se recupera recién después de un rato sin pegar). */
-  stamina: number;
-  restT: number;
   /** Barra de PODER (0..max) y el poder en curso: fase y cuadros. */
   meter: number;
   pw: { kind: PowerKind; phase: 'wind' | 'go'; t: number; hit: boolean } | null;
   /** rad: vuelta de carnero al rodar (solo se dibuja; vuelve a 0 en una vuelta entera). */
   roll: number;
-  /** rad: vuelta entera sobre sí mismo (0..2π) después de pifiar con el chupetín. */
+  /** rad: vuelta entera sobre sí mismo (0..2π) después de pifiar con el chupetín, hacia `whirlDir` (el lado del golpe). */
   whirl: number;
+  whirlDir: 1 | -1;
   /** Gelatina: golpes recibidos seguidos y cuadros desde el último. */
   jellyN: number;
   /** Coraza que le falta (quinoa, después de tirar granos): 0..1, se rearma sola. */
@@ -185,7 +179,7 @@ export type FightEvent =
   | { type: 'matchEnd'; winner: 0 | 1 }
   | { type: 'power'; who: 0 | 1; kind: PowerKind; phase: 'wind' | 'go' }
   | { type: 'powerHit'; by: 0 | 1; kind: PowerKind; at: [number, number]; damage: number; blocked: boolean }
-  | { type: 'gassed'; who: 0 | 1 };
+
 
 export interface Match {
   frame: number;
@@ -301,7 +295,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     bleed: [],
     guard: 0,
     crouch: 0,
-    limbs: model.limbs.map((_, i) => ({ q: stance[i], w: [0, 0, 0], phase: 'rest', t: 0, axis: [0, 0, 1], windup: 0, target: 0, phi: 0, landed: false, active: false, slack: 0, charge: 0, follow: 0, combo: null, tired: 1 })),
+    limbs: model.limbs.map((_, i) => ({ q: stance[i], w: [0, 0, 0], phase: 'rest', t: 0, axis: [0, 0, 1], windup: 0, target: 0, phi: 0, landed: false, active: false, slack: 0, charge: 0, follow: 0, combo: null })),
     nextArm: 0,
     strikeCool: 0,
     lock: 0,
@@ -334,16 +328,14 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     counter: 0,
     yaw: model.yaw ?? FIGHT.stanceYaw,
     twist: 0,
-    spin: 0,
     comX: 0,
     yc: Math.cos(model.yaw ?? FIGHT.stanceYaw),
     ys: Math.sin(model.yaw ?? FIGHT.stanceYaw),
-    stamina: FIGHT.stamina.max,
-    restT: 999,
     meter: 0,
     pw: null,
     roll: 0,
     whirl: 0,
+    whirlDir: 1,
     jellyN: 0,
     armorLoss: 0,
   };
@@ -374,7 +366,7 @@ export function createMatch(models: [FighterModel, FighterModel]): Match {
 }
 
 function resetRound(m: Match): void {
-  // La barra de poder se guarda de un round al otro (como en los juegos de pelea); el aire vuelve lleno.
+  // La barra de poder se guarda de un round al otro (como en los juegos de pelea).
   const meters = m.f.map((f) => f.meter);
   m.f = [makeFighter(m.f[0].model, -FIGHT.startGap / 2, 1), makeFighter(m.f[1].model, FIGHT.startGap / 2, -1)];
   m.f.forEach((f, i) => (f.meter = meters[i]));
@@ -445,6 +437,27 @@ function settle(f: FighterState, stick = false): boolean {
     f.support = [Math.min(...touch), Math.max(...touch)];
   } else f.support = null;
   return landed;
+}
+
+/** Punto (local, en su pose actual) que está más abajo en el mundo: sobre él pivota el cuerpo apoyado. */
+function contactPoint(f: FighterState): V3 | null {
+  let best: V3 | null = null;
+  let lo = Infinity;
+  const test = (v: V3, r: number): void => {
+    const y = toWorld(f, v)[1] - r;
+    if (y < lo) {
+      lo = y;
+      best = v;
+    }
+  };
+  for (const b of f.model.body) {
+    test(b.a, b.r);
+    test(b.b, b.r);
+  }
+  f.model.limbs.forEach((l, k) => {
+    for (const p of l.points) if (!p.inside && !f.broken.includes(p.piece)) test(posed(f.limbs[k].q, l.pivot, p.p), p.r * 0.5);
+  });
+  return best;
 }
 
 /** Inercia de una extremidad alrededor del eje `a` (local, unitario) que pasa por su pivote, en la pose `q`. */
@@ -539,18 +552,6 @@ function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air'
   s.charge = combo ? 0 : Math.min(l.rigid ? FIGHT.swing.maxCharge : 99, Math.round(FIGHT.charge.k * Math.max(0, ratio - FIGHT.charge.free)));
   if (combo) s.windup *= 0.5;
   if (combo === 'CONTRA') f.counter = 0;
-  // Gasta aire. Cansado, carga más lento y el golpe sale más flojo.
-  const S = FIGHT.stamina;
-  const tired = f.stamina < S.tired;
-  s.tired = tired ? S.tiredDmg + (1 - S.tiredDmg) * (f.stamina / S.tired) : 1;
-  if (tired) s.charge += S.tiredWind;
-  f.stamina = Math.max(0, f.stamina - strikeCost(f, k, kind, combo));
-  f.restT = 0;
-  if (f.stamina <= 0) {
-    // Se quedó sin aire: boquea un rato sin poder pegar (sí se puede mover y cubrir).
-    f.strikeCool = Math.max(f.strikeCool, S.gassedLock);
-    m.events.push({ type: 'gassed', who: i });
-  }
   if (l.rigid) {
     // Pieza fija: no gira sola; se balancea la criatura entera. Si la masa está arriba del centro, hacia adelante.
     let cy = 0;
@@ -559,13 +560,6 @@ function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air'
   }
   f.strikeCool = Math.max(f.strikeCool, FIGHT.strikeGap);
   m.events.push({ type: 'swing', who: i, limb: k, heavy });
-}
-
-/** Aire que cuesta un golpe. */
-function strikeCost(f: FighterState, k: number, kind: 'arm' | 'kick' | 'air', combo: string | null): number {
-  const S = FIGHT.stamina;
-  const l = f.model.limbs[k];
-  return (kind === 'kick' ? S.kick : S.arm) * (l.kind === 'heavy' ? S.heavyMul : 1) * (l.rigid ? S.rigidMul : 1) * (combo ? S.comboMul : 1);
 }
 
 const ready = (s: LimbState): boolean => s.phase === 'rest' || (s.phase === 'recover' && s.t > 7);
@@ -649,6 +643,8 @@ function endStrike(m: Match, i: 0 | 1, k: number): void {
     // desestabilizado (se tambalea y queda expuesto hasta frenar).
     f.wt += f.swing.sign * FIGHT.whirl.wobble;
     f.whirl = 1e-3;
+    // Sigue girando para el mismo lado que giraba al pegar (brazo derecho que gira a la derecha completa a la derecha).
+    f.whirlDir = shoulderSign(f, l.pivot);
     f.stun = Math.max(f.stun, FIGHT.whirl.stun);
   } else {
     const wAx = dotv(s.w, s.axis);
@@ -897,9 +893,6 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   f.dizzy = Math.max(0, f.dizzy - FIGHT.dizzyDecay);
   f.turnT++;
   if (f.buffer && --f.buffer.t <= 0) f.buffer = null;
-  // Aire: vuelve solo si hace rato que no pega (cubrirse también cansa: vuelve más lento).
-  f.restT++;
-  if (fighting && f.restT > FIGHT.stamina.regenDelay) f.stamina = Math.min(FIGHT.stamina.max, f.stamina + FIGHT.stamina.regen * dt * (f.guard > 0.5 ? FIGHT.stamina.guardRegen : 1));
   if (fighting && !f.ko && !f.pw) f.meter = Math.min(FIGHT.power.max, f.meter + FIGHT.power.passive * dt);
   if (f.armorLoss > 0) f.armorLoss = Math.max(0, f.armorLoss - POWERS.metralla.armorLoss / POWERS.metralla.regrow);
   const canAct = fighting && !f.ko && f.stun <= 0 && f.block <= 0;
@@ -938,8 +931,6 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   }
   // Un golpe por vez: no arranca otro mientras uno carga o pega, ni mientras paga el anterior (salvo una combinación, que sigue
   // el impulso del golpe que acertó).
-  // Sin aire no sale ningún golpe (el botón se descarta: hay que esperar a recuperarlo).
-  if (f.buffer && f.stamina < FIGHT.stamina.arm * 0.25) f.buffer = null;
   if (f.buffer && canAct && !busy && !f.wobbly && f.guard < 0.3 && f.squat <= 0) {
     const combo = comboFor(f, f.buffer.kind);
     if ((f.strikeCool <= 0 && f.lock <= 0) || combo) {
@@ -1094,6 +1085,11 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     react += drive(f, k, target, g);
   });
 
+  // Apoyado, el cuerpo PIVOTA sobre lo que toca la mesa (la pierna de apoyo): al girar o inclinarse, ese punto no se desliza
+  // (antes giraba alrededor de su centro y los pies patinaban, como colgado de un cable).
+  const pin = f.grounded ? contactPoint(f) : null;
+  const pinOff = pin ? toWorld(f, pin)[0] - f.x : 0;
+
   // ── Torso: gira con el golpe (el hombro que pega va atrás al cargar y adelante al soltar) ──
   {
     const base = M.yaw ?? FIGHT.stanceYaw;
@@ -1110,9 +1106,6 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       want = f.limbs[sk].phase === 'windup' ? -sg * amt * T.wind : sg * amt;
       rate = f.limbs[sk].phase === 'windup' ? T.rate.windup : T.rate.strike;
     }
-    // Si pifió con algo pesado, el giro sigue de largo (inercia) y vuelve de a poco.
-    f.spin *= Math.exp(-dt * 2.5);
-    want += f.spin;
     f.twist += (want - f.twist) * Math.min(1, rate * dt);
     // Vuelta entera después de pifiar con el chupetín: arranca rápido (lo arrastra el peso) y frena al final.
     if (f.whirl > 0) {
@@ -1120,7 +1113,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       f.whirl += ((Math.PI * 2) / FIGHT.whirl.frames) * (1.6 - 1.2 * u);
       if (f.whirl >= Math.PI * 2) f.whirl = 0;
     }
-    f.yaw = clamp(base + f.twist, T.min, T.max) + f.whirl;
+    f.yaw = clamp(base + f.twist, T.min, T.max) + f.whirlDir * f.whirl;
     f.yc = Math.cos(f.yaw);
     f.ys = Math.sin(f.yaw);
   }
@@ -1203,6 +1196,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     f.tilt = Math.sign(f.tilt) * lim;
     if (f.wt * f.tilt > 0) f.wt = 0;
   }
+  if (pin) f.x -= toWorld(f, pin)[0] - f.x - pinOff;
   // El peso que siguió de largo lo desestabilizó: trastabilla.
   if (f.wobbly && !f.ko && Math.abs(f.tilt) > FIGHT.stumbleTilt) {
     f.wobbly = false;
@@ -1322,13 +1316,14 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   const I = inertia(a, k, s.axis);
   const mEff = l.rigid ? l.mass * FIGHT.swing.massShare : clamp(I / Math.max(r * r, 1e-8), 0.2 * l.mass, l.mass);
   const kind: HitKind = p.kind === 'shield' ? l.kind : p.kind;
-  // La velocidad manda más que la masa: algo pesado que apenas se mueve pega poco.
-  let dmg = clamp(FIGHT.dmgK * Math.pow(mEff * 1000, FIGHT.dmgMassExp) * Math.pow(speed, FIGHT.dmgSpeedExp), FIGHT.dmgClamp[0], FIGHT.dmgClamp[1]) * FIGHT.kindMul[kind];
-  // Lo fijo y pesado (chupetín) pega fuerte, pero con tope: un solo golpe no puede definir la pelea.
-  if (l.rigid && l.kind === 'heavy') dmg = Math.min(dmg * FIGHT.swing.dmgMul, FIGHT.swing.maxDmg);
+  // Pega con su pieza más fuerte (un brazo con aceituna es un brazo de aceituna: más lento, pega más; orden fijo, ver
+  // `pieceDmg`); la velocidad lo corre apenas; las piernas, un poco más.
+  const D = FIGHT.pieceDmg;
+  let base = 0;
+  for (const q of l.points) if (!q.inside) base = Math.max(base, D[q.tier] ?? D.default);
+  let dmg = base * clamp(speed / FIGHT.dmgSpeedRef, FIGHT.speedMul[0], FIGHT.speedMul[1]) * (l.role === 'leg' ? FIGHT.legMul : 1);
   const chain = s.combo;
   if (chain) dmg *= FIGHT.chain.mul[chain] ?? 1;
-  dmg *= s.tired;
   const fromFront = Math.sign(a.x - b.x || 1) === b.facing;
   const blocked = blockedBy !== null;
   if (blocked) {

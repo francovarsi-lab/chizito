@@ -156,9 +156,9 @@ export const FIGHT = {
   charge: { k: 26, free: 0.3, tremble: 0.05 },
   /**
    * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
-   * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento pero fuerte: daño × `dmgMul`, con tope `maxDmg` por golpe. Al pifiar el torso sigue girando (`whiffSpin`). Pifiar cuesta `whiffMul` veces más y lo tira (`whiffKick`).
+   * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento y el que más pega (`pieceDmg.chupetin`). Pifiar cuesta `whiffMul` veces más y da la vuelta entera (`whirl`).
    */
-  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 7, maxCharge: 9, strikeFrames: 20, chargeMul: 1.3, massShare: 0.85, dmgMul: 1.15, maxDmg: 10, whiffSpin: 1.6, whiffMul: 1.1, whiffKick: 1.7, lunge: 0.22 },
+  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 7, maxCharge: 9, strikeFrames: 20, chargeMul: 1.3, massShare: 0.85, whiffMul: 1.1, lunge: 0.22 },
   /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
   shieldFront: 0.35,
   shieldBack: 2.2,
@@ -189,17 +189,32 @@ export const FIGHT = {
   strideK: 2.2,
 
   // ── Golpe y daño ──
+  /**
+   * Daño base de cada pieza (pedido del usuario, de más a menos): chupetín > aceituna > palito de la selva > palito > espadita >
+   * escarbadientes. Cada extremidad pega con su pieza más fuerte (un palito con una aceituna en la punta pega como aceituna). Las piernas pegan
+   * `legMul` más (más fuerza). La velocidad sólo corre el daño entre `speedMul` (los escalones están separados más que eso: el
+   * orden se respeta siempre). Rivales: su extremidad.
+   */
+  pieceDmg: {
+    chupetin: 11.6,
+    aceituna: 9.4,
+    'palito-selva': 7.6,
+    palito: 6.2,
+    'escarbadientes:espadita': 5,
+    escarbadientes: 4,
+    papita: 4,
+    nacho: 4.4,
+    zanahoria: 6.2,
+    huevo: 5.6,
+    quinoa: 7.6,
+    default: 5,
+  } as Record<string, number>,
+  legMul: 1.15,
+  /** Velocidad de referencia del punto que pega (m/s) y cuánto puede correr el daño. */
+  dmgSpeedRef: 0.6,
+  speedMul: [0.9, 1.1] as const,
   /** m/s: por debajo de esto el contacto no lastima (apoyar no es pegar). */
   minHitSpeed: 0.14,
-  /**
-   * Daño = dmgK · (masa efectiva [g])^dmgMassExp · (velocidad [m/s])^dmgSpeedExp. La velocidad pesa más que la masa: lo que no se
-   * puede mover rápido (o una criatura que casi no se mueve) pega poco aunque pese mucho.
-   */
-  dmgK: 12,
-  dmgMassExp: 0.4,
-  dmgSpeedExp: 1.3,
-  dmgClamp: [1, 30] as const,
-  kindMul: { light: 1, cut: 0.75, heavy: 1.1, shield: 0.6 },
   hitPad: 0.0015,
   /** m entre los cuerpos (los muñones cortos no alcanzan a tocar). */
   bodyGap: 0.004,
@@ -238,12 +253,6 @@ export const FIGHT = {
    * cuadros girando y `stun` cuadros sin poder hacer nada (queda expuesta).
    */
   whirl: { frames: 40, stun: 50, wobble: 1.2 },
-  /**
-   * AIRE (estamina): cada golpe lo gasta (más lo pesado, menos una combinación). Se recupera sin pegar (más lento cubriéndose).
-   * Cansado (por debajo de `tired`) carga más lento y pega más flojo; sin aire no puede pegar y queda boqueando `gassedLock`
-   * cuadros. Así apretar sin parar no gana: hay que elegir cuándo pegar.
-   */
-  stamina: { max: 100, arm: 21, kick: 27, heavyMul: 1.35, rigidMul: 1.6, comboMul: 0.6, regen: 34, regenDelay: 40, guardRegen: 0.45, tired: 35, tiredDmg: 0.6, tiredWind: 7, gassedLock: 45 },
   /**
    * PODER: barra que se llena pegando (daño × `onHit`), recibiendo (× `onHurt`) y de a poco sola. Llena, se suelta el poder del
    * luchador (ver `POWERS`).

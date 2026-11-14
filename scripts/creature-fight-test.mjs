@@ -172,6 +172,17 @@ try {
         spun = Math.max(spun, w.f[0].whirl);
       }
       ok(spun > Math.PI * 1.8 && w.f[0].whirl === 0 && Math.abs(w.f[0].yaw - base) < 0.3, `pifiar con el chupetín da una vuelta entera (${(spun * 57.3).toFixed(0)}°) y vuelve a mirar al rival`);
+      // Para el mismo lado que giraba al pegar.
+      const w2 = fight(P);
+      w2.f[1].x = 0.15;
+      w2.f[0].nextArm = w2.f[0].arms.indexOf(k);
+      let twistSign = 0, dirSeen = 0;
+      for (let i = 0; i < 120; i++) {
+        stepMatch(w2, [{ x: 0, punch: i === 0 }, { x: 0 }]);
+        if (w2.f[0].limbs[k].phase === 'strike') twistSign = Math.sign(w2.f[0].twist);
+        if (w2.f[0].whirl > 1) dirSeen = w2.f[0].whirlDir;
+      }
+      ok(twistSign !== 0 && dirSeen === twistSign, `la vuelta sigue el giro del golpe (giraba ${twistSign}, vuelta ${dirSeen})`);
     }
     // El chupetín pesa: el cuerpo se inclina hacia donde está.
     const lean = fight(P);
@@ -588,24 +599,40 @@ try {
     ok(early === 50 && q.f[1].hp > 55, `la quinoa se rearma si no le pegan (50 → ${early.toFixed(1)} al segundo → ${q.f[1].hp.toFixed(1)} a los 5 s)`);
   }
 
-  // ── Aire: apretar sin parar no gana (se cansa, pega flojo y se queda sin aire) ──
+  // ── Daño por pieza: chupetín > aceituna > palito de la selva > palito > espadita > escarbadientes, siempre ──
+  {
+    const D = FIGHT.pieceDmg;
+    const order = ['chupetin', 'aceituna', 'palito-selva', 'palito', 'escarbadientes:espadita', 'escarbadientes'];
+    ok(order.every((t, i) => i === 0 || D[order[i - 1]] * FIGHT.speedMul[0] > D[t] * FIGHT.speedMul[1]), `el orden de daño se respeta a cualquier velocidad (${order.map((t) => D[t]).join(' > ')})`);
+    ok(FIGHT.legMul > 1, 'las piernas pegan un poco más');
+  }
+
+  // ── Apoyado pivota sobre lo que toca la mesa: el pie no patina ──
+  {
+    const m = fight(mine);
+    const low = (f) => {
+      let lo = Infinity, x = 0;
+      f.cur.forEach((a, k) => f.model.limbs[k].points.forEach((p, j) => { if (!p.inside && a[2 * j + 1] < lo) { lo = a[2 * j + 1]; x = a[2 * j]; } }));
+      return x;
+    };
+    const x0 = low(m.f[0]), b0 = m.f[0].x;
+    m.f[0].wt = 8;
+    let maxTilt = 0;
+    for (let i = 0; i < 12; i++) { stepMatch(m, [{ x: 0 }, { x: 0 }]); maxTilt = Math.max(maxTilt, Math.abs(m.f[0].tilt)); }
+    const slide = Math.abs(low(m.f[0]) - x0);
+    ok(maxTilt > 0.05 && slide < 0.002, `se inclina pivotando sobre el pie (inclinación ${maxTilt.toFixed(2)} rad, el pie se corre ${(slide * 1000).toFixed(1)} mm, el cuerpo ${(Math.abs(m.f[0].x - b0) * 1000).toFixed(1)} mm)`);
+  }
+
+  // ── Apretar sin parar no gana: los golpes son lentos y de a uno ──
   {
     const m = fight(mine);
     m.f[1].x = m.f[0].x + 0.05;
-    let starts = 0, gassed = 0;
+    let starts = 0;
     for (let i = 0; i < 240; i++) {
       stepMatch(m, [{ x: 0, quad: ['LA', 'RA'][i % 2] }, { x: 0 }]);
-      for (const e of m.events) {
-        if (e.type === 'swing' && e.who === 0) starts++;
-        if (e.type === 'gassed' && e.who === 0) gassed++;
-      }
+      for (const e of m.events) if (e.type === 'swing' && e.who === 0) starts++;
     }
-    ok(starts <= 8, `aporreando 4 s salen pocos golpes (${starts})`);
-    ok(gassed >= 1, `aporreando se queda sin aire (${gassed} veces)`);
-    const r = fight(mine);
-    r.f[0].stamina = 10;
-    for (let i = 0; i < 120; i++) stepMatch(r, [{ x: 0 }, { x: 0 }]);
-    ok(r.f[0].stamina > 50, `sin pegar recupera el aire (10 → ${r.f[0].stamina.toFixed(0)} en 2 s)`);
+    ok(starts <= 9, `aporreando 4 s salen pocos golpes (${starts})`);
   }
 
   // ── Poderes: cada uno con su lógica (queso marea, vapor empuja, el huevo rueda, la quinoa tira granos) ──

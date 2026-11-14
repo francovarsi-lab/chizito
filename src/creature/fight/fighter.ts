@@ -27,6 +27,8 @@ export interface MassPoint {
   kind: HitKind;
   /** Queda dentro del chizito (pesa, pero no toca nada). */
   inside: boolean;
+  /** Qué pieza es, para el daño de su golpe (`FIGHT.pieceDmg`): 'chupetin', 'aceituna', 'escarbadientes:espadita'… */
+  tier: string;
 }
 
 export interface LimbModel {
@@ -146,7 +148,9 @@ function sample(p: SnapPiece, L: (v: V3) => V3, coreInside: (v: V3) => boolean):
       raw.push({ v: [sh.center[0] + e1[0] * c + e2[0] * s, sh.center[1] + e1[1] * c + e2[1] * s, sh.center[2] + e1[2] * c + e2[2] * s], r: sh.radius * 0.3 });
     }
   } else return [];
-  return raw.map((q) => ({ p: L(q.v), m: m / raw.length, r: q.r, piece: p.id, kind, inside: coreInside(q.v) }));
+  // La bola y el palito del chupetín pegan igual: es el chupetín entero.
+  const tier = p.type === 'chupetin-caramelo' ? 'chupetin' : p.variant ? `${p.type}:${p.variant}` : p.type;
+  return raw.map((q) => ({ p: L(q.v), m: m / raw.length, r: q.r, piece: p.id, kind, inside: coreInside(q.v), tier }));
 }
 
 /** Distancia de un punto al segmento ab. */
@@ -284,7 +288,7 @@ export function broccoliFighter(level = 1): FighterModel {
       const t = i / (n - 1);
       const p: V3 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
       const inTrunk = Math.hypot(p[0], p[2]) < 0.33 * K && p[1] > P(0, 1.45)[1];
-      points.push({ p, m: (carrotG * (0.3 + t)) / wsum, r: (0.03 + 0.08 * t) * K + 0.0006, piece: sk.id, kind: 'light', inside: inTrunk });
+      points.push({ p, m: (carrotG * (0.3 + t)) / wsum, r: (0.03 + 0.08 * t) * K + 0.0006, piece: sk.id, kind: 'light', inside: inTrunk, tier: 'zanahoria' });
     }
     return {
       id: sk.id,
@@ -436,7 +440,7 @@ export function rivalFromSpec(spec: RivalSpec, level: number): FighterModel {
     for (let i = 0; i < n; i++) {
       const t = i / (n - 1);
       const p: V3 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-      points.push({ p, m: g / n, r: sk.r0 + (sk.r1 - sk.r0) * t + 0.0006, piece: sk.id, kind: sk.arm ? spec.armKind : 'light', inside: inBody(p) });
+      points.push({ p, m: g / n, r: sk.r0 + (sk.r1 - sk.r0) * t + 0.0006, piece: sk.id, kind: sk.arm ? spec.armKind : 'light', inside: inBody(p), tier: spec.key });
     }
     return {
       id: sk.id,

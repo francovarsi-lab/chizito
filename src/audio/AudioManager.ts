@@ -16,10 +16,10 @@ import { probeFile } from '../assets/probe';
  *  musica-pelea (música de la pelea, en loop; si no está, suena una base sintetizada), apagon (se cortan las luces), vela
  *  (se enciende la vela), rugido (EL BROCOLOCO ruge), brocoloco-frase1/2/3, huevo-frase1/2/3,
  *  quinoa-frase1/2/3 (la voz de cada rival en su presentación: ver los subtítulos en `RIVALS` de mount.ts),
- *  sin-aire (se quedó sin aire), poder-carga (carga un poder), poder-queso, poder-vapor, poder-rodada, poder-metralla
+ *  poder-carga (carga un poder), poder-queso, poder-vapor, poder-rodada, poder-metralla
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3' | 'huevo-frase1' | 'huevo-frase2' | 'huevo-frase3' | 'quinoa-frase1' | 'quinoa-frase2' | 'quinoa-frase3' | 'sin-aire' | 'poder-carga' | 'poder-queso' | 'poder-vapor' | 'poder-rodada' | 'poder-metralla';
-const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3', 'huevo-frase1', 'huevo-frase2', 'huevo-frase3', 'quinoa-frase1', 'quinoa-frase2', 'quinoa-frase3', 'sin-aire', 'poder-carga', 'poder-queso', 'poder-vapor', 'poder-rodada', 'poder-metralla'];
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3' | 'huevo-frase1' | 'huevo-frase2' | 'huevo-frase3' | 'quinoa-frase1' | 'quinoa-frase2' | 'quinoa-frase3' | 'poder-carga' | 'poder-queso' | 'poder-vapor' | 'poder-rodada' | 'poder-metralla';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3', 'huevo-frase1', 'huevo-frase2', 'huevo-frase3', 'quinoa-frase1', 'quinoa-frase2', 'quinoa-frase3', 'poder-carga', 'poder-queso', 'poder-vapor', 'poder-rodada', 'poder-metralla'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -213,11 +213,6 @@ export class AudioManager {
         // ¡Ta-dáaa! de bronces.
         for (const f of [261.6, 329.6, 392]) this.tone({ f0: f, f1: f, dur: 0.12, gain: 0.18, type: 'sawtooth', lp: 1800 });
         for (const f of [349.2, 440, 523.3]) this.tone({ f0: f, f1: f, dur: 0.6, gain: 0.2, type: 'sawtooth', lp: 2200, delay: 0.14, vibrato: 5 });
-        break;
-      case 'sin-aire':
-        // Boquea: dos resoplidos.
-        this.burst({ freq: 1200, q: 0.6, dur: 0.35, gain: 0.45, attack: 0.15, type: 'lowpass' });
-        this.burst({ freq: 900, q: 0.6, dur: 0.4, gain: 0.4, attack: 0.18, type: 'lowpass', delay: 0.45 });
         break;
       case 'poder-carga':
         this.tone({ f0: 180, f1: 1100, dur: 0.4, gain: 0.3, type: 'sawtooth', lp: 2500, vibrato: 22 });

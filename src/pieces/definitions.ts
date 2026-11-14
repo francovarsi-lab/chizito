@@ -46,6 +46,7 @@ export const PALITO: PieceDefinition = {
   tailMount: true,
   // Siempre queda afuera ~20 % del largo (≈ 7 mm con 3,5 cm).
   maxDepth: PALITO_LENGTH * 0.8,
+  holdHint: 'tocá el chizito donde lo quieras clavar · en la punta le podés ensartar una aceituna: pega más fuerte, pero más lento',
   sounds: CRUNCHY,
 };
 
@@ -108,6 +109,7 @@ export const ESCARBADIENTES: PieceDefinition = {
   canBePierced: false,
   tailMount: true,
   maxDepth: ESCARBADIENTES_LENGTH * 0.8,
+  holdHint: 'tocá el chizito donde lo quieras clavar · corta (hace sangrar) · con una aceituna en la punta pega más fuerte, pero más lento',
   sounds: CRUNCHY,
 };
 

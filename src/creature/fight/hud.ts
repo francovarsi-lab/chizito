@@ -27,11 +27,9 @@ const css = `
 #cfh .gauges{display:flex;gap:8px;width:100%;margin:6px 0 2px;transform:skewX(-16deg)}
 #cfh .side.r .gauges{flex-direction:row-reverse}
 #cfh .gauge{position:relative;height:11px;border:2px solid var(--ink);border-radius:3px;background:rgba(13,16,36,.55);overflow:hidden}
-#cfh .gauge.air{flex:1.3}#cfh .gauge.pow{flex:1}
+#cfh .gauge.pow{flex:1}
 #cfh .gauge i{position:absolute;inset:0;transform-origin:left;transition:transform .1s linear}
 #cfh .side.r .gauge i{transform-origin:right}
-#cfh .gauge.air i{background:linear-gradient(#d8fbff,#4fd2ff 55%,#1a8fd6)}
-#cfh .gauge.air.tired i{background:linear-gradient(#ffd9c8,#ff7a4a 55%,#d63a1a);animation:cfh-low .35s ease-in-out infinite alternate}
 #cfh .gauge.pow i{background:linear-gradient(#fff3b0,#ffb81f 55%,#e8650e)}
 #cfh .gauge.pow.full i{animation:cfh-pow .5s ease-in-out infinite alternate}
 @keyframes cfh-pow{from{filter:brightness(1)}to{filter:brightness(1.6) saturate(1.3)}}
@@ -130,7 +128,6 @@ export class FightHud {
   private readonly warn: HTMLElement;
   private readonly menu: HTMLElement;
   private readonly flashEl: HTMLElement;
-  private readonly airs: HTMLElement[];
   private readonly pows: HTMLElement[];
   private comboT = [0, 0];
   private annT = 0;
@@ -145,7 +142,7 @@ export class FightHud {
     const r = document.createElement('div');
     r.id = 'cfh';
     r.hidden = true;
-    const side = (s: 'l' | 'r') => `<div class="side ${s}"><div class="bar"><b></b><i></i><div class="shine"></div></div><div class="gauges"><div class="gauge air"><i></i><span>AIRE</span></div><div class="gauge pow"><i></i><span>PODER</span></div></div><div class="meta"><div class="name"></div><div class="pips"></div></div></div>`;
+    const side = (s: 'l' | 'r') => `<div class="side ${s}"><div class="bar"><b></b><i></i><div class="shine"></div></div><div class="gauges"><div class="gauge pow"><i></i><span>PODER</span></div></div><div class="meta"><div class="name"></div><div class="pips"></div></div></div>`;
     r.innerHTML = `<div class="top">${side('l')}<div><div class="clock">90</div><div class="round">ROUND 1</div></div>${side('r')}</div>
 <div class="status l"></div><div class="status r"></div><div class="combo l"></div><div class="combo r"></div><div class="warn"></div>
 <div class="ann"></div><div class="flash"></div>
@@ -163,7 +160,6 @@ export class FightHud {
     this.fill = qa('.bar i');
     this.ghost = qa('.bar b');
     this.pips = qa('.pips');
-    this.airs = qa('.gauge.air');
     this.pows = qa('.gauge.pow');
     this.names = qa('.name');
     this.status = [q('.status.l'), q('.status.r')];
@@ -304,7 +300,7 @@ export class FightHud {
   showMenu(title: string, sub: string, buttons: { a: MenuAction; label: string; alt?: boolean }[], withKeys = false): void {
     const card = this.menu.querySelector('.card') as HTMLElement;
     const grid = withKeys
-      ? `<div class="grid"><span><kbd>Q</kbd> <kbd>W</kbd></span><span>brazos izquierdos / derechos (como armaste el chizito, de frente): cada toque usa el siguiente de ese lado</span><span><kbd>A</kbd> <kbd>S</kbd></span><span>piernas izquierdas / derechas (la parte de abajo del chizito)</span><span><kbd>D</kbd></span><span>guardia (mantener): los brazos tapan</span><span><kbd>E</kbd></span><span>PODER con la barra llena: NUBE DE QUESO (marea al rival si está cerca). La barra se llena pegando y recibiendo</span><span>AIRE</span><span>cada golpe gasta aire; sin aire no pegás y cansado pegás flojo. Parar de pegar lo recupera</span><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar (brazo en el aire = en picada)</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Q</kbd> <kbd>W</kbd></span><span>UNO-DOS: si la piña acierta, otra enseguida (con 3 brazos, RÁFAGA)</span><span><kbd>Q</kbd> <kbd>A</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>D</kbd> → <kbd>Q</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span><span>cabeza</span><span>lo que tenga arriba pesa y protege</span></div>`
+      ? `<div class="grid"><span><kbd>Q</kbd> <kbd>W</kbd></span><span>brazos izquierdos / derechos (como armaste el chizito, de frente): cada toque usa el siguiente de ese lado</span><span><kbd>A</kbd> <kbd>S</kbd></span><span>piernas izquierdas / derechas (la parte de abajo del chizito)</span><span><kbd>D</kbd></span><span>guardia (mantener): los brazos tapan</span><span><kbd>E</kbd></span><span>PODER con la barra llena: NUBE DE QUESO (marea al rival si está cerca). La barra se llena pegando y recibiendo</span><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar (brazo en el aire = en picada)</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Q</kbd> <kbd>W</kbd></span><span>UNO-DOS: si la piña acierta, otra enseguida (con 3 brazos, RÁFAGA)</span><span><kbd>Q</kbd> <kbd>A</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>D</kbd> → <kbd>Q</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span><span>cabeza</span><span>lo que tenga arriba pesa y protege</span></div>`
       : '';
     card.innerHTML = `<h2>${title}</h2><p>${sub}</p>${buttons.map((b, i) => `<button data-a="${b.a}" class="${b.alt ? 'alt' : ''}${i === 0 ? ' sel' : ''}">${b.label}</button>`).join('')}${grid}`;
     this.menuSel = 0;
@@ -337,9 +333,7 @@ export class FightHud {
       this.ghost[i].style.transform = `scaleX(${k})`;
       this.bars[i].classList.toggle('low', k < 0.25);
       [...this.pips[i].children].forEach((p, n) => p.classList.toggle('on', n < m.wins[i]));
-      // AIRE: se gasta con cada golpe; en rojo, cansado (pega flojo). PODER: llena, titila (E lo suelta).
-      (this.airs[i].firstElementChild as HTMLElement).style.transform = `scaleX(${f.stamina / FIGHT.stamina.max})`;
-      this.airs[i].classList.toggle('tired', f.stamina < FIGHT.stamina.tired);
+      // PODER: llena, titila (E lo suelta).
       (this.pows[i].firstElementChild as HTMLElement).style.transform = `scaleX(${f.meter / FIGHT.power.max})`;
       const full = f.meter >= FIGHT.power.max;
       if (this.pows[i].classList.contains('full') !== full) {

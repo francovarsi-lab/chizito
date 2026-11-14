@@ -151,9 +151,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const has = f.model.limbs.some((l) => l.role === role && (!quad || l.side === quad[0]));
       const why = !has
         ? `NO HAY ${role === 'arm' ? 'BRAZO' : 'PIERNA'}${!quad ? '' : role === 'arm' ? (quad[0] === 'L' ? ' IZQUIERDO' : ' DERECHO') : quad[0] === 'L' ? ' IZQUIERDA' : ' DERECHA'}`
-        : f.stamina < FIGHT.stamina.arm * 0.25 || f.strikeCool > FIGHT.strikeGap
-          ? '¡SIN AIRE! RESPIRÁ UN TOQUE'
-          : f.stun > 0
+        : f.stun > 0
             ? 'ATONTADO…'
             : null;
       if (why) {
@@ -463,12 +461,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       case 'land':
         g.audio.play('drop', 0.35);
         break;
-      case 'gassed': {
-        const f = m.f[e.who];
-        hud.popup(f.x, f.y + 0.06, '¡SIN AIRE!', '', 'whiff');
-        g.audio.play('sin-aire', 1);
-        break;
-      }
       case 'power': {
         const f = m.f[e.who];
         const P = POWERS[e.kind];
@@ -614,20 +606,20 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     },
     2: {
       name: 'HUEVO DURO',
-      tag: 'pelado, hervido y de brazos largos',
+      tag: 'diez minutos de hervor, cero piedad',
       lines: [
-        { at: 1.1, until: 3.2, text: 'Je… un chizito. Qué crocante. Qué… frágil.', sound: 'huevo-frase1' },
-        { at: 3.5, until: 5.5, text: 'Yo ya pasé por el agua hirviendo. Vos no.', sound: 'huevo-frase2' },
-        { at: 5.75, until: 6.55, text: '¡A LA SARTÉN, BOCADITO!', sound: 'huevo-frase3' },
+        { at: 1.1, until: 3.2, text: 'Diez minutos en agua hirviendo… y salí más duro que nunca.', sound: 'huevo-frase1' },
+        { at: 3.5, until: 5.5, text: 'Pegame si querés, chizito. Soy pura gelatina: reboto.', sound: 'huevo-frase2' },
+        { at: 5.75, until: 6.55, text: '¡CUIDADO, QUE ESTE HUEVO RUEDA!', sound: 'huevo-frase3' },
       ],
     },
     3: {
       name: 'MONSTRUO DE QUINOA',
-      tag: 'miles de granos, una sola furia',
+      tag: 'diez mil granos con una sola idea',
       lines: [
-        { at: 1.1, until: 3.2, text: 'Somos miles… y vos, uno solo.', sound: 'quinoa-frase1' },
-        { at: 3.5, until: 5.5, text: 'Cada grano que me saques… vuelve.', sound: 'quinoa-frase2' },
-        { at: 5.75, until: 6.55, text: '¡TE VOY A ENTERRAR EN GRANOS!', sound: 'quinoa-frase3' },
+        { at: 1.1, until: 3.2, text: 'Shhh… ¿escuchás? Somos miles. Y tenemos hambre.', sound: 'quinoa-frase1' },
+        { at: 3.5, until: 5.5, text: 'Arrancame un grano… y vuelven dos.', sound: 'quinoa-frase2' },
+        { at: 5.75, until: 6.55, text: '¡LLUEVE QUINOA, BOCADITO!', sound: 'quinoa-frase3' },
       ],
     },
   };
