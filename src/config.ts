@@ -6,15 +6,17 @@ export const CONFIG = {
   /** Centro del chizito: flota ~7 cm sobre la mesa (la mesa está en y = 0). */
   chizitoCenter: new THREE.Vector3(0, 0.1, 0),
   camera: {
-    position: new THREE.Vector3(0, 0.15, 0.2),
-    target: new THREE.Vector3(0, 0.098, 0),
+    // Más alta (24°) y con lente de 45 mm: se ve la mesa alrededor del chizito con todo lo que se le puede agregar CERCA y en
+    // foco (pedido del usuario: las opciones no pueden estar lejos ni desenfocadas; el ángulo bajo de 65 mm se veía feo).
+    position: new THREE.Vector3(0, 0.243, 0.307),
+    target: new THREE.Vector3(0, 0.088, -0.04),
     // Rincón de fiesta íntimo: lente más larga desde más lejos. El chizito queda del mismo tamaño, pero se ve un pedazo más chico
     // de la mesa y el fondo se comprime y se desenfoca (como una foto de producto); las cosas no se movieron de lugar.
-    focalLength: 65, // mm, equivalente full frame (36 mm)
+    focalLength: 45, // mm, equivalente full frame (36 mm)
     /** Distancia inicial al chizito y límites del zoom (m). `position` sólo define la dirección de mirada. */
-    distance: 0.39,
-    minDistance: 0.21,
-    maxDistance: 0.65,
+    distance: 0.38,
+    minDistance: 0.22,
+    maxDistance: 0.6,
     near: 0.01,
     far: 6,
   },
@@ -61,7 +63,8 @@ export const CONFIG = {
   },
   dof: {
     /** Banda nítida alrededor del foco, en dioptrías (1/m). ±1 dpt a 20 cm ≈ de 17 a 25 cm. */
-    focusBand: 0.8,
+    // Amplia: todo lo que está sobre la mesa (los recipientes) queda nítido; sólo el fondo se desenfoca.
+    focusBand: 1.5,
     /** Dioptrías extra hasta el desenfoque máximo. */
     blurRamp: 1.9,
     /** Desenfoque máximo (radio) como fracción de la altura de la imagen. */
@@ -80,7 +83,8 @@ export const CONFIG = {
    */
   // Más contraste que el look pastel original (el chizito se perdía entre los pasteles).
   // Un paso hacia la pelea (mismo juego, misma estética): más contraste y color, sombras sin levantar tanto.
-  look: { saturation: 0.2, brightness: 0.0, contrast: 0.1, lift: [0.005, 0.003, 0.004] as [number, number, number] },
+  // Color de verdad (no pasteles): más saturación y contraste, negros firmes.
+  look: { saturation: 0.32, brightness: 0.0, contrast: 0.16, lift: [0.002, 0.001, 0.002] as [number, number, number] },
   /** Brillo suave alrededor de las zonas claras (sueño, no neón). */
   bloom: { intensity: 0.1, threshold: 0.9, smoothing: 0.25, radius: 0.7 },
   pixelRatioMax: 1.5,

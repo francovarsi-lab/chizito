@@ -1,10 +1,28 @@
 import { GUARD_KEY, QUAD_KEYS } from '../creature/zones';
+import { FIGHT } from '../creature/fight/tuning';
 
 /**
  * Cartel informativo del constructor: qué se puede hacer con cada ingrediente y cómo se reparte el chizito para pelear (la
  * misma línea punteada que se ve sobre él: cabeza, brazos, piernas, izquierda/derecha, con sus teclas). Sale al llegar a la
  * mesa, se cierra con el botón, con la primera pieza que se agarra, o con I (que también lo vuelve a abrir).
  */
+/** Puntos de vida que saca cada pieza al pegar (los del juego, `FIGHT.pieceDmg`), de más a menos. */
+const POINTS = (
+  [
+    ['Chupetín', 'chupetin'],
+    ['Aceituna', 'aceituna'],
+    ['Palito de la selva', 'palito-selva'],
+    ['Palito', 'palito'],
+    ['Espadita', 'escarbadientes:espadita'],
+    ['Escarbadientes', 'escarbadientes'],
+  ] as const
+)
+  .map(([name, key]) => {
+    const v = FIGHT.pieceDmg[key];
+    return `<div><span>${name}</span><s style="width:${Math.round((v / FIGHT.pieceDmg.chupetin) * 100)}%"></s><b>${Math.round(v)}</b></div>`;
+  })
+  .join('');
+
 export class InfoCard {
   private readonly el: HTMLElement;
   open = false;
@@ -30,6 +48,12 @@ export class InfoCard {
 #info .chz span{position:absolute;display:grid;place-items:center;font:400 12px/1 "Bungee",Impact,sans-serif;color:#5a3a40}
 #info .go{margin-top:10px;width:100%;border:0;border-radius:14px;padding:10px 0 9px;cursor:pointer;font:400 15px/1 "Bungee",Impact,sans-serif;color:#0d1024;background:linear-gradient(#fff7a8,#ffd23f 50%,#ff9f1c);box-shadow:0 0 0 2px #0d1024,0 4px 0 2px #0d1024}
 #info .go:active{transform:translateY(2px)}
+#info .pts{margin:10px 0 2px;padding:9px 10px 6px;border-radius:14px;background:rgba(90,58,64,.07)}
+#info .pts h3{margin:0 0 6px;font:400 12px/1 "Bungee",Impact,sans-serif;letter-spacing:.06em;color:#5a3a40}
+#info .pts div{display:grid;grid-template-columns:104px 1fr 22px;gap:6px;align-items:center;margin-bottom:4px;font-size:12px}
+#info .pts s{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,#ff9f1c,#e8352b);text-decoration:none}
+#info .pts b{text-align:right;font:400 12px/1 "Bungee",Impact,sans-serif;color:#e8352b}
+#info .pts p{margin:4px 0 0;font-size:11px;opacity:.8}
 #info .tip{margin-top:8px;text-align:center;font-size:11px;opacity:.7}`;
     document.head.appendChild(css);
     const K = QUAD_KEYS;
@@ -42,10 +66,11 @@ export class InfoCard {
 <div>La línea punteada divide al chizito para pelear: arriba los <b>brazos</b> (<kbd>${K.LA}</kbd> izquierda, <kbd>${K.RA}</kbd> derecha), abajo las <b>piernas</b>, un pedacito (<kbd>${K.LL}</kbd> <kbd>${K.RL}</kbd>). <kbd>${GUARD_KEY}</kbd> se cubre.</div></div>
 <ul>
 <li>Tocá un recipiente y clavá lo que quieras: palitos, escarbadientes, palitos de la selva…</li>
-<li>En la <b>cabeza</b> va un escudo, o un chupetín porque sí.</li>
-<li><b>Papitas y nachos</b> son escudos; una <b>aceituna</b> en la punta de un palito pega pesado.</li>
+<li>En la <b>cabeza</b> no hay brazo: lo que pongas ahí pesa y protege.</li>
+<li><b>Papitas y nachos</b> son escudos; una <b>aceituna</b> en la punta de un palito pega más fuerte, pero más lento.</li>
 <li>El <b>ketchup</b> es para dibujarle la cara (de frente, donde marca la <kbd>F</kbd>).</li>
 </ul>
+<div class="pts"><h3>CUÁNTO SACA CADA GOLPE</h3>${POINTS}<p>Las piernas pegan un poco más. Lo pesado carga más lento, y si pesa más que el chizito lo vuelve lento y torpe.</p></div>
 <button class="go" type="button">¡A ARMAR!</button>
 <div class="tip"><kbd>I</kbd> abre y cierra este cartel · cuando esté listo, PELEAR</div>`;
     document.body.appendChild(this.el);

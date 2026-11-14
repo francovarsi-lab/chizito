@@ -58,10 +58,10 @@ export function tableclothMaterial(): THREE.MeshPhysicalMaterial {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#86c9e3'; // celeste
+  ctx.fillStyle = '#2f9fd4'; // azul piscina intenso (el chizito amarillo resalta)
   ctx.fillRect(0, 0, size, size);
   const rnd = mulberry32(2024);
-  const colors = ['#ffffff', '#ffffff', '#ffffff', '#ff9fb9', '#ffd76a', '#9fe3c4', '#c9b8f5'];
+  const colors = ['#ffffff', '#ffffff', '#ff5d8f', '#ffe14d', '#7bf1a8', '#b18cff', '#ff9f1c'];
   const drawWrapped = (fn: (ox: number, oy: number) => void) => {
     for (const ox of [-size, 0, size]) for (const oy of [-size, 0, size]) fn(ox, oy);
   };

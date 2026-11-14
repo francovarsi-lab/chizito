@@ -108,7 +108,8 @@ export class Stage {
             ? ToneMappingMode.ACES_FILMIC
             : ToneMappingMode.NEUTRAL,
     });
-    const vignette = new VignetteEffect({ offset: 0.42, darkness: 0.16 });
+    // Viñeta marcada: encierra la mesa como un escenario (en la pelea se oscurece más).
+    const vignette = new VignetteEffect({ offset: 0.3, darkness: 0.42 });
     this.vignette = vignette;
     // Look alegre y apetitoso: un poco más de color y de brillo.
     const look = new LookEffect(CONFIG.look);

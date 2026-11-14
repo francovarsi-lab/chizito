@@ -74,12 +74,12 @@ async function main() {
   // Los recipientes de la mesa comparten UNA sombra suave, con la MISMA luz, oscuridad y penumbra que la del chizito
   // (antes cada una tenía las suyas y no parecían de la misma escena). Es estática: no se mueven.
   for (const bowl of backdrop.bowls.values()) markBowl(bowl);
-  // Abarca la disposición nueva de los recipientes (de z −0,11 a −0,49, x ±0,18).
-  const bowlShadow = new ContactShadow(stage.scene, new THREE.Vector3(0, 0.02, -0.29), {
+  // Abarca la disposición de los recipientes (de z −0,03 a −0,31, x ±0,22).
+  const bowlShadow = new ContactShadow(stage.scene, new THREE.Vector3(0, 0.02, -0.16), {
     layer: BOWL_LAYER,
-    halfExtent: 0.3,
+    halfExtent: 0.27,
     size: 512,
-    decal: { x: 0, z: -0.29, size: 0.72 },
+    decal: { x: 0, z: -0.16, size: 0.62 },
     isStatic: true,
   });
   stage.scene.add(bowlShadow.decal);

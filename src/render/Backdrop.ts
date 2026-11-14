@@ -26,18 +26,18 @@ export interface Backdrop {
 }
 
 export const BOWL_LAYOUT = {
-  // Disposición pensada sobre la cámara real (65 mm a 39 cm): ningún recipiente cortado por el borde ni encimado con otro, el
-  // centro libre para el chizito (es el protagonista) y en dos alturas. A la DERECHA las varas y las aceitunas, que se ensartan
-  // en ellas; a la IZQUIERDA los escudos (papitas, nachos), el palito de la selva y el ketchup. Adelante lo chico, atrás lo alto.
-  palito: new THREE.Vector3(0.085, 0, -0.16),
-  aceituna: new THREE.Vector3(0.13, 0, -0.2),
-  escarbadientes: new THREE.Vector3(0.112, 0, -0.33),
-  'escarbadientes:espadita': new THREE.Vector3(0.145, 0, -0.335),
-  chupetin: new THREE.Vector3(0.095, 0, -0.46),
-  'palito-selva': new THREE.Vector3(-0.094, 0, -0.136),
-  ketchup: new THREE.Vector3(-0.083, 0, -0.262),
-  nacho: new THREE.Vector3(-0.136, 0, -0.258),
-  papita: new THREE.Vector3(-0.132, 0, -0.439),
+  // Disposición pensada sobre la cámara real (45 mm, 24°, a 38 cm): todo CERCA del chizito y en foco, ningún recipiente cortado
+  // ni encimado, el centro y el lugar donde cae su sombra libres. A la DERECHA las varas y las aceitunas (que se ensartan en
+  // ellas); a la IZQUIERDA los escudos (papitas, nachos), el palito de la selva y el ketchup. Adelante lo bajo, atrás lo alto.
+  ketchup: new THREE.Vector3(-0.061, 0, -0.062),
+  nacho: new THREE.Vector3(-0.128, 0, -0.101),
+  'palito-selva': new THREE.Vector3(-0.081, 0, -0.239),
+  papita: new THREE.Vector3(-0.171, 0, -0.26),
+  aceituna: new THREE.Vector3(0.104, 0, -0.069),
+  'escarbadientes:espadita': new THREE.Vector3(0.135, 0, -0.057),
+  escarbadientes: new THREE.Vector3(0.111, 0, -0.14),
+  chupetin: new THREE.Vector3(0.067, 0, -0.132),
+  palito: new THREE.Vector3(0.164, 0, -0.184),
 } as Record<string, THREE.Vector3>;
 
 export function buildBackdrop(assets: AssetRegistry): Backdrop {
@@ -49,23 +49,19 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   const room = buildRoom();
   root.add(room.table);
 
-  // Bowls de primer plano (cerámica blanca).
-  const ceramic = new THREE.MeshPhysicalMaterial({
-    name: 'ceramic',
-    color: '#f1ece4',
-    roughness: 0.16,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.12,
-  });
+  // Cerámica ESMALTADA de colores vivos (no blanca ni pastel): cada recipiente se reconoce de lejos y la mesa tiene color.
+  const glaze = (color: string): THREE.MeshPhysicalMaterial =>
+    new THREE.MeshPhysicalMaterial({ name: 'ceramic', color, roughness: 0.14, clearcoat: 0.8, clearcoatRoughness: 0.08 });
+  const ceramic = glaze('#f6f1e8');
   // Palitos parados en un vaso descartable blanco, como en los cumpleaños.
-  const palitoCup = makeStandCup(assets, { type: 'palito', count: 28, seed: 3, h: 0.026, r0: 0.017, r1: 0.024 });
+  const palitoCup = makeStandCup(assets, { type: 'palito', count: 28, seed: 3, h: 0.026, r0: 0.017, r1: 0.024, stripe: '#e8323c' });
   palitoCup.position.copy(BOWL_LAYOUT.palito);
   palitoCup.userData.bowlFor = 'palito';
   root.add(palitoCup);
   bowls.set('palito', palitoCup);
 
   // Recipientes más chicos que antes (con menos piezas; las piezas mantienen su tamaño real): con el lente largo no entraban.
-  const papitaBowl = makeBowl(0.044, 0.028, ceramic);
+  const papitaBowl = makeBowl(0.044, 0.028, glaze('#ff6b57'));
   papitaBowl.position.copy(BOWL_LAYOUT.papita);
   papitaBowl.add(fillBowl(assets, 'papita', 0.044, 0.028, 14, 11));
   papitaBowl.userData.bowlFor = 'papita';
@@ -74,15 +70,15 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
 
   // Tira del frente: mismo lenguaje (cerámica blanca y vasito descartable), más chicos.
   // Escarbadientes y espaditas van en vasitos separados (cada uno da su variante).
-  const nachoBowl = makeBowl(0.026, 0.017, ceramic);
+  const nachoBowl = makeBowl(0.026, 0.017, glaze('#17b8a6'));
   nachoBowl.position.copy(BOWL_LAYOUT.nacho);
   nachoBowl.add(fillBowl(assets, 'nacho', 0.026, 0.017, 5, 41));
-  const oliveBowl = makeBowl(0.019, 0.014, ceramic);
+  const oliveBowl = makeBowl(0.019, 0.014, glaze('#7d5cff'));
   oliveBowl.position.copy(BOWL_LAYOUT.aceituna);
   oliveBowl.add(fillBowl(assets, 'aceituna', 0.019, 0.014, 5, 51));
-  const pickCup = makeStandCup(assets, { type: 'escarbadientes', count: 18, seed: 61, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'liso' }) });
+  const pickCup = makeStandCup(assets, { type: 'escarbadientes', count: 18, seed: 61, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'liso' }), stripe: '#21a35a' });
   pickCup.position.copy(BOWL_LAYOUT.escarbadientes);
-  const swordCup = makeStandCup(assets, { type: 'escarbadientes', count: 12, seed: 67, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'espadita' }) });
+  const swordCup = makeStandCup(assets, { type: 'escarbadientes', count: 12, seed: 67, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'espadita' }), stripe: '#8a4dff' });
   swordCup.position.copy(BOWL_LAYOUT['escarbadientes:espadita']);
   // Sobrecitos de ketchup en un platito: clic = modo dibujar.
   const sachetDish = makeBowl(0.026, 0.011, ceramic);
@@ -90,14 +86,11 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   sachetDish.add(fillSachets(3, 81));
   // Palitos de la selva con su envoltorio (se desenrolla al agarrarlos) y chupetines en un vasito.
   // Platito playo con los paquetes acostados y prolijos (casi paralelos, apenas encimados).
-  const selvaBowl = makeBowl(0.04, 0.009, ceramic);
+  const selvaBowl = makeBowl(0.04, 0.009, glaze('#17b8a6'));
   selvaBowl.position.copy(BOWL_LAYOUT['palito-selva']);
   selvaBowl.add(fillSelvaDish(assets, 4, 91, 0.04));
 
-  // Bandeja dorada de torta (cartón con borde festoneado y repujado), entera y justo debajo del chizito en la imagen: un pedestal
-  // que lo asienta en la mesa. Más fina que la altura de las sombras de contacto (1,2 mm), así se ven encima.
-  root.add(cakeBoard(0.05, new THREE.Vector3(0, 0, -0.175)));
-  const popCup = makeStandCup(assets, { type: 'chupetin', count: 7, seed: 97, h: 0.028, r0: 0.014, r1: 0.019, params: () => ({ wrapped: true }) });
+  const popCup = makeStandCup(assets, { type: 'chupetin', count: 7, seed: 97, h: 0.028, r0: 0.014, r1: 0.019, params: () => ({ wrapped: true }), stripe: '#1f6fe0' });
   popCup.position.copy(BOWL_LAYOUT.chupetin);
   // (El bowl de chizitos para ensartar queda en pausa: el mecanismo sigue en la interacción.)
   const strip: [string, THREE.Object3D][] = [
@@ -120,11 +113,16 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   root.add(farProps);
   farProps.add(room.shell);
   // Fondo: bowl de chizitos de plástico, otro de palitos, vasos, gaseosa, servilletas, gorrito.
-  const plasticOrange = new THREE.MeshPhysicalMaterial({ color: '#bfe6d6', roughness: 0.35, clearcoat: 0.3 }); // menta pastel
+  // SÓLO EN LA PELEA (de fondo): el bowl de chizitos y los restos de fiesta. En el constructor confundían (parecían para elegir).
+  const fightOnly = new THREE.Group();
+  fightOnly.name = 'solo-pelea';
+  fightOnly.visible = false;
+  farProps.add(fightOnly);
+  const plasticOrange = new THREE.MeshPhysicalMaterial({ color: '#ff8a3d', roughness: 0.35, clearcoat: 0.3 });
   const bgBowl = makeBowl(0.085, 0.05, plasticOrange);
   bgBowl.position.set(-0.3, 0, -0.62);
   bgBowl.add(fillBowl(assets, 'chizito', 0.085, 0.05, 26, 21));
-  farProps.add(bgBowl);
+  fightOnly.add(bgBowl);
 
   const plasticYellow = new THREE.MeshPhysicalMaterial({ color: '#d9cdf3', roughness: 0.35, clearcoat: 0.3 }); // lavanda
   const bgBowl2 = makeBowl(0.08, 0.048, plasticYellow);
@@ -132,8 +130,8 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   bgBowl2.add(fillBowl(assets, 'papita', 0.08, 0.048, 40, 31));
   farProps.add(bgBowl2);
 
-  // Restos de fiesta (los mismos que en la pelea: mismo mundo): servilleta usada, carozos y caramelos, al fondo y a los costados.
-  farProps.add(
+  // Restos de fiesta (los mismos que en la pelea: mismo mundo): servilleta usada, carozos y caramelos.
+  fightOnly.add(
     litter(
       [
         { kind: 'pit', x: -0.165, z: -0.34, rot: 0.3 },
@@ -161,67 +159,6 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   });
   for (const m of room.tableSurfaces) m.castShadow = false;
   return { root, bowls, surfaces: room.tableSurfaces, farProps, party };
-}
-
-/** Bandeja de cartón dorado de cumpleaños: disco festoneado de 0,8 mm con el repujado (anillos y pétalos) en relieve. */
-function cakeBoard(radius: number, at: THREE.Vector3): THREE.Mesh {
-  const shape = new THREE.Shape();
-  const N = 44;
-  for (let i = 0; i <= N * 8; i++) {
-    const a = (i / (N * 8)) * Math.PI * 2;
-    // Festón: medias lunas a lo largo del borde.
-    const r = radius * (0.955 + 0.045 * Math.abs(Math.sin((a * N) / 2)));
-    if (i === 0) shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    else shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-  }
-  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.0008, bevelEnabled: false, curveSegments: 1 });
-  geo.rotateX(-Math.PI / 2);
-  // UV planas (de arriba) para el repujado.
-  const pos = geo.getAttribute('position');
-  const uv = new Float32Array(pos.count * 2);
-  for (let i = 0; i < pos.count; i++) {
-    uv[2 * i] = 0.5 + pos.getX(i) / (2 * radius);
-    uv[2 * i + 1] = 0.5 - pos.getZ(i) / (2 * radius);
-  }
-  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  const size = 512;
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const ctx = c.getContext('2d')!;
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, size, size);
-  ctx.translate(size / 2, size / 2);
-  ctx.strokeStyle = '#fff';
-  ctx.fillStyle = '#fff';
-  // Repujado: anillos concéntricos, una corona de pétalos y una de puntitos, como las bandejas de cotillón.
-  for (const [r, w] of [[0.9, 3], [0.62, 2], [0.58, 2], [0.3, 2]] as const) {
-    ctx.lineWidth = w;
-    ctx.beginPath();
-    ctx.arc(0, 0, (r * size) / 2, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.lineWidth = 2;
-  for (let k = 0; k < 24; k++) {
-    ctx.save();
-    ctx.rotate((k / 24) * Math.PI * 2);
-    ctx.beginPath();
-    ctx.ellipse(0, (0.76 * size) / 2, 9, 30, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-  for (let k = 0; k < 60; k++) {
-    const a = (k / 60) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.arc(Math.cos(a) * size * 0.47, Math.sin(a) * size * 0.47, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  const bump = new THREE.CanvasTexture(c);
-  const mat = new THREE.MeshStandardMaterial({ name: 'cake-board', color: '#f3d684', metalness: 0.9, roughness: 0.24, bumpMap: bump, bumpScale: 0.6 });
-  const m = new THREE.Mesh(geo, mat);
-  m.position.copy(at);
-  m.receiveShadow = true;
-  m.name = 'bandeja';
-  return m;
 }
 
 function makeBowl(radius: number, height: number, mat: THREE.Material): THREE.Group {
@@ -376,14 +313,14 @@ function fillSachets(count: number, seed: number): THREE.Object3D {
   const pile = new THREE.Group();
   for (let i = 0; i < count; i++) {
     const s = createSachet(seed + i, 'prop');
-    const yaw = (i / count - 0.5) * 1.3 + (rnd() - 0.5) * 0.2;
     const g = new THREE.Group();
-    // Acostado, levantado hacia atrás (se ve la cara impresa desde la cámara).
-    s.rotation.x = -Math.PI / 2 + 0.55 + rnd() * 0.2;
+    // Acostados como cartas en abanico corrido: todos con la MISMA inclinación y giro, cada uno apenas más arriba y corrido
+    // (planos paralelos: no se atraviesan; antes cada uno tenía su giro y se cortaban entre sí).
+    s.rotation.x = -Math.PI / 2 + 0.6;
     s.position.y = SACHET_H * 0.22;
     g.add(s);
-    g.rotation.y = yaw;
-    g.position.set((rnd() - 0.5) * 0.006, 0.006 + i * 0.0022, (rnd() - 0.5) * 0.004);
+    g.rotation.y = 0.12 + (rnd() - 0.5) * 0.02;
+    g.position.set((i - (count - 1) / 2) * 0.009, 0.006 + i * 0.0032, -(i - (count - 1) / 2) * 0.004);
     pile.add(g);
   }
   return bakeStatic(pile, 'sobres-ketchup');
@@ -473,6 +410,8 @@ interface StandCupSpec {
   r0: number;
   r1: number;
   params?: (i: number) => Record<string, unknown>;
+  /** Color de las rayas del vasito de cumpleaños (blanco con rayas verticales). */
+  stripe?: string;
 }
 
 /**
@@ -500,7 +439,8 @@ function makeStandCup(assets: AssetRegistry, spec: StandCupSpec): THREE.Group {
     new THREE.LatheGeometry(pts, 64),
     new THREE.MeshPhysicalMaterial({
       name: 'vaso',
-      color: '#f7f6f2',
+      color: '#ffffff',
+      map: spec.stripe ? stripesTexture(spec.stripe, '#fbfaf6', 9) : null,
       roughness: 0.35,
       clearcoat: 0.5,
       clearcoatRoughness: 0.25,

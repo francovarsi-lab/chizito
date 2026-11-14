@@ -312,6 +312,12 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
   const backdrop = scene.getObjectByName('backdrop');
   backdrop?.children.filter((c) => c.name !== 'mesa' && c.name !== 'far-props').forEach(hide);
   extraHidden.forEach(hide);
+  // Lo que sólo va de fondo en la pelea (bowl de chizitos, restos de fiesta): se muestra y al salir vuelve a esconderse.
+  const fightOnly = scene.getObjectByName('solo-pelea');
+  if (fightOnly && !fightOnly.visible) {
+    fightOnly.visible = true;
+    hidden.push({ obj: fightOnly, was: false });
+  }
 
   // ── De noche (como el arte clave): el cuarto casi negro, sólo lucecitas y velas; la luz es la del show sobre la arena. ──
   const env = { e: scene.environmentIntensity, b: scene.backgroundIntensity };
