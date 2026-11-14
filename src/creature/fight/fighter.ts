@@ -272,7 +272,7 @@ export const SKETCH = [
 ] as const;
 
 /** El brócoli malvado como luchador: tronco + copa, brazos y piernas de zanahoria (gruesas afuera). */
-export function broccoliFighter(level = 1): FighterModel {
+export function broccoliFighter(_level = 1): FighterModel {
   const K = BROCCOLI_K;
   // Marco local: el frente es la CARA (+Z del modelo), arriba +Y, profundidad = frente × arriba = −X del modelo.
   const P = (x: number, y: number, z = 0): V3 => [z * K, (y - BROCCOLI_CY) * K, -x * K];
@@ -311,7 +311,7 @@ export function broccoliFighter(level = 1): FighterModel {
   });
   const bodyMass = FIGHT.broccoli.bodyGrams / 1000;
   return {
-    name: `EL BROCOLOCO · NIVEL ${level}`,
+    name: 'EL BROCOLOCO',
     basis: { f: [0, 0, 1], u: [0, 1, 0], s: [-1, 0, 0] },
     origin: [0, 0, 0],
     body: [
@@ -416,7 +416,7 @@ export const QUINOA: RivalSpec = {
   legKind: { power: 1.5, quick: 0.75 },
   armKind: 'heavy',
   armorMul: 0.7,
-  regen: { delay: 90, hps: 1.6 },
+  regen: { delay: 90, hps: 1.2 },
   faceAt: { mouth: 0.44, eyes: 0.67 },
   yaw: 1.0,
   label: { arm: 'puño de quinoa', leg: 'pata de quinoa' },
@@ -424,7 +424,7 @@ export const QUINOA: RivalSpec = {
 };
 
 /** Un rival de nivel 2 o 3 como luchador (mismo marco que el brócoli: el frente es la cara, +Z del modelo). */
-export function rivalFromSpec(spec: RivalSpec, level: number): FighterModel {
+export function rivalFromSpec(spec: RivalSpec): FighterModel {
   const P = (x: number, y: number, z = 0): V3 => [z, y - spec.cy, -x];
   const inBody = (p: V3): boolean => {
     const { rx, ry, rz } = spec.shell;
@@ -463,7 +463,7 @@ export function rivalFromSpec(spec: RivalSpec, level: number): FighterModel {
   });
   const bodyMass = spec.bodyGrams / 1000;
   return {
-    name: `${spec.name} · NIVEL ${level}`,
+    name: spec.name,
     basis: { f: [0, 0, 1], u: [0, 1, 0], s: [-1, 0, 0] },
     origin: [0, 0, 0],
     body: spec.body.map((c) => ({ a: P(c.a[0], c.a[1]), b: P(c.b[0], c.b[1]), r: c.r })),
@@ -484,7 +484,7 @@ export function rivalFromSpec(spec: RivalSpec, level: number): FighterModel {
 
 /** El rival de cada nivel: 1 EL BROCOLOCO, 2 HUEVO DURO, 3 MONSTRUO DE QUINOA. */
 export function rivalFighter(level: number): FighterModel {
-  if (level >= 3) return rivalFromSpec(QUINOA, level);
-  if (level === 2) return rivalFromSpec(EGG, level);
+  if (level >= 3) return rivalFromSpec(QUINOA);
+  if (level === 2) return rivalFromSpec(EGG);
   return broccoliFighter(1);
 }

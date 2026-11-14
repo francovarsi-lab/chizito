@@ -169,7 +169,7 @@ try {
       let spun = 0;
       for (let i = 0; i < 200; i++) {
         stepMatch(w, [{ x: 0, punch: i === 0 }, { x: 0 }]);
-        spun = Math.max(spun, w.f[0].whirl);
+        spun = Math.max(spun, w.f[0].whirl + Math.abs(w.f[0].twist));
       }
       ok(spun > Math.PI * 1.8 && w.f[0].whirl === 0 && Math.abs(w.f[0].yaw - base) < 0.3, `pifiar con el chupetín da una vuelta entera (${(spun * 57.3).toFixed(0)}°) y vuelve a mirar al rival`);
       // Para el mismo lado que giraba al pegar.
@@ -222,8 +222,9 @@ try {
     const m = fight(mine);
     m.f[1].x = m.f[0].x + 0.034;
     const hits = [];
+    // Separados más que la ventana de "repetido" (si no, el segundo golpe se ve venir y pega menos).
     for (let i = 0; i < 260; i++) {
-      stepMatch(m, [{ x: 0, punch: i % 80 === 0 }, { x: 0 }]);
+      stepMatch(m, [{ x: 0, punch: i % 110 === 0 }, { x: 0 }]);
       for (const e of m.events) if (e.type === 'hit' && e.by === 0) hits.push(e);
     }
     // El brazo de la aceituna puede tocar primero con su palito: se lo reconoce por sus piezas, no por el punto que tocó.
@@ -596,7 +597,7 @@ try {
     for (let i = 0; i < 60; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
     const early = q.f[1].hp;
     for (let i = 0; i < 240; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
-    ok(early === 50 && q.f[1].hp > 55, `la quinoa se rearma si no le pegan (50 → ${early.toFixed(1)} al segundo → ${q.f[1].hp.toFixed(1)} a los 5 s)`);
+    ok(early === 50 && q.f[1].hp > 53, `la quinoa se rearma si no le pegan (50 → ${early.toFixed(1)} al segundo → ${q.f[1].hp.toFixed(1)} a los 5 s)`);
   }
 
   // ── Daño por pieza: chupetín > aceituna > palito de la selva > palito > espadita > escarbadientes, siempre ──
@@ -621,6 +622,55 @@ try {
     for (let i = 0; i < 12; i++) { stepMatch(m, [{ x: 0 }, { x: 0 }]); maxTilt = Math.max(maxTilt, Math.abs(m.f[0].tilt)); }
     const slide = Math.abs(low(m.f[0]) - x0);
     ok(maxTilt > 0.05 && slide < 0.002, `se inclina pivotando sobre el pie (inclinación ${maxTilt.toFixed(2)} rad, el pie se corre ${(slide * 1000).toFixed(1)} mm, el cuerpo ${(Math.abs(m.f[0].x - b0) * 1000).toFixed(1)} mm)`);
+  }
+
+  // ── Aporrear no gana: pegar sin pausa marca un ritmo que el rival lee (pega menos, lo ataja y castiga) ──
+  {
+    let wins = 0;
+    let worn = 1;
+    for (let sd = 0; sd < 6; sd++) {
+      const m = createMatch([mine, rivalFighter(2)]);
+      const ai = newAi(sd * 7 + 2, 2);
+      for (let fr = 0; fr < 60 * 400 && m.phase !== 'over'; fr++) {
+        const near = Math.abs(m.f[1].x - m.f[0].x) < 0.05;
+        stepMatch(m, [{ x: near ? 0 : m.f[1].x > m.f[0].x ? 1 : -1, quad: fr % 2 ? 'LA' : 'RA' }, aiInput(m, ai, 1)]);
+        for (const k of m.f[0].arms) worn = Math.min(worn, m.f[0].limbs[k].worn);
+      }
+      if (m.winner === 0) wins++;
+    }
+    ok(wins <= 2, `aporreando Q y W sin parar contra el nivel 2 gana poco (${wins}/6)`);
+    ok(worn < 0.7, `golpe tras golpe sin pausa pega menos (× ${worn.toFixed(2)})`);
+  }
+
+  // ── Desproporción: un chupetín que pesa más que el cuerpo lo hace más lento y le cuesta más pifiar ──
+  {
+    const s = snap('criatura-20261011-1623');
+    const stick = s.pieces.find((p) => p.id === 'palito-mv47lm1n-2');
+    stick.type = 'chupetin';
+    const tip = stick.shape.b;
+    s.pieces.push({ id: `${stick.id}~caramelo`, type: 'chupetin-caramelo', kind: 'blob', seed: 1, cosmetic: false, stability: 'stable', shape: { kind: 'capsule', a: tip, b: tip, radius: 0.0105 } });
+    s.links.push({ ...s.links.find((l) => l.childId === stick.id), id: 'lk-bola', parentId: stick.id, childId: `${stick.id}~caramelo`, mode: 'tail', exit: null, crossings: [] });
+    const H = fight(fighterFromSnapshot(s));
+    const N = fight(mine);
+    ok(H.f[0].heavyLoad > 0.5 && H.f[0].speed < N.f[0].speed * 0.8, `con el chupetín más pesado que el cuerpo camina más lento (${(H.f[0].speed * 100).toFixed(1)} vs ${(N.f[0].speed * 100).toFixed(1)} cm/s, carga ${H.f[0].heavyLoad.toFixed(2)})`);
+    // La vuelta tras pifiar es el mismo movimiento: la velocidad del giro no se corta entre el golpe y la vuelta.
+    const k = H.f[0].model.limbs.findIndex((l) => l.id === stick.id);
+    H.f[1].x = 0.15;
+    H.f[0].nextArm = H.f[0].arms.indexOf(k);
+    let prev = H.f[0].yaw, maxGap = 0, started = false, inWhirl = false;
+    const speeds = [];
+    for (let i = 0; i < 160; i++) {
+      stepMatch(H, [{ x: 0, punch: i === 0 }, { x: 0 }]);
+      const v = (H.f[0].yaw - prev) * 60;
+      prev = H.f[0].yaw;
+      if (H.f[0].limbs[k].phase === 'strike') started = true;
+      if (started && (H.f[0].limbs[k].phase === 'strike' || H.f[0].whirl > 0)) speeds.push(Math.abs(v));
+      if (H.f[0].whirl > 0) inWhirl = true;
+    }
+    // Del final del golpe al arranque de la vuelta no hay frenada a cero (antes frenaba y arrancaba otro giro).
+    const tail = speeds.slice(speeds.findIndex((v) => v > 5));
+    for (let i = 1; i < Math.min(tail.length, 25); i++) maxGap = Math.max(maxGap, tail[i - 1] - tail[i]);
+    ok(inWhirl && tail.length > 10 && Math.min(...tail.slice(0, 20)) > 3, `la vuelta sigue el golpe sin frenar (velocidad mínima ${Math.min(...tail.slice(0, 20)).toFixed(1)} rad/s)`);
   }
 
   // ── Apretar sin parar no gana: los golpes son lentos y de a uno ──

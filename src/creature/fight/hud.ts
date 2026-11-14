@@ -342,7 +342,6 @@ export class FightHud {
       }
       const st: string[] = [];
       if (f.bleed.length) st.push(`<em class="bleed">SANGRA ×${f.bleed.length}</em>`);
-      if (f.dizzyT > 0) st.push(`<em class="dizzy">¡MAREADO!</em>`);
       const sh = Object.keys(f.shields).filter((id) => !f.broken.includes(id));
       if (sh.length) st.push(`<em class="shield">ESCUDO ${sh.map((id) => '▮'.repeat(Math.max(0, f.shields[id]))).join(' ')}</em>`);
       const html = st.join('');

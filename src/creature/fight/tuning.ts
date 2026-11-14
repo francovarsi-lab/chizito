@@ -140,6 +140,10 @@ export const FIGHT = {
   recoverMax: 34,
   /** Cuadros entre dos golpes seguidos (y nunca dos a la vez). */
   strikeGap: 16,
+  /** Golpes sin pausa (cada uno arranca antes de `window` cuadros del anterior): daño × (1 − step · seguidos), piso `min`. */
+  repeat: { window: 75, step: 0.2, min: 0.4 },
+  /** Cuadros sin poder seguir después de pegarle a una guardia. */
+  blockedLock: 16,
   /** Cuadros sin poder golpear después de acertar. */
   hitLock: 9,
   /**
@@ -158,7 +162,7 @@ export const FIGHT = {
    * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
    * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento y el que más pega (`pieceDmg.chupetin`). Pifiar cuesta `whiffMul` veces más y da la vuelta entera (`whirl`).
    */
-  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 7, maxCharge: 9, strikeFrames: 20, chargeMul: 1.3, massShare: 0.85, whiffMul: 1.1, lunge: 0.22 },
+  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 14, maxCharge: 30, strikeFrames: 26, chargeMul: 2, turnSpeed: 9, massShare: 0.85, whiffMul: 1.1, lunge: 0.22 },
   /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
   shieldFront: 0.35,
   shieldBack: 2.2,
@@ -252,7 +256,7 @@ export const FIGHT = {
    * Chupetín que pifia: el peso lo arrastra y la criatura da una VUELTA ENTERA (360°) sobre sí misma, desestabilizada: `frames`
    * cuadros girando y `stun` cuadros sin poder hacer nada (queda expuesta).
    */
-  whirl: { frames: 40, stun: 50, wobble: 1.2 },
+  whirl: { stun: 50, wobble: 1.2, minSpeed: 7, endSpeed: 1.2 },
   /**
    * PODER: barra que se llena pegando (daño × `onHit`), recibiendo (× `onHurt`) y de a poco sola. Llena, se suelta el poder del
    * luchador (ver `POWERS`).

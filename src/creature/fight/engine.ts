@@ -60,6 +60,8 @@ export interface LimbState {
   follow: number;
   /** Combinación a la que pertenece este golpe (UNO-DOS, RÁFAGA…) o null. */
   combo: string | null;
+  /** Daño × esto: un golpe repetido con el mismo botón se ve venir y pega menos. */
+  worn: number;
 }
 
 export interface FighterState {
@@ -148,6 +150,18 @@ export interface FighterState {
   /** rad: vuelta entera sobre sí mismo (0..2π) después de pifiar con el chupetín, hacia `whirlDir` (el lado del golpe). */
   whirl: number;
   whirlDir: 1 | -1;
+  /** La vuelta sigue el MISMO movimiento del golpe: arranca con la velocidad que traía el torso (rad/s) y frena parejo hasta
+   *  completar la vuelta (`whirlD` rad, `whirlA` rad/s²). */
+  whirlV: number;
+  whirlD: number;
+  whirlA: number;
+  /** rad/s del giro del torso (para que la vuelta continúe con la misma velocidad). */
+  twistV: number;
+  /** Golpes seguidos sin pausa (marcan un ritmo que se ve venir: pegan menos y el rival los ataja). */
+  repeat: number;
+  lastStrikeF: number;
+  /** Desproporción: la extremidad más pesada / el cuerpo, menos 0,6 (0 si no hay). Pesa en todo: marcha, salto, giro, pifie. */
+  heavyLoad: number;
   /** Gelatina: golpes recibidos seguidos y cuadros desde el último. */
   jellyN: number;
   /** Coraza que le falta (quinoa, después de tirar granos): 0..1, se rearma sola. */
@@ -295,7 +309,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     bleed: [],
     guard: 0,
     crouch: 0,
-    limbs: model.limbs.map((_, i) => ({ q: stance[i], w: [0, 0, 0], phase: 'rest', t: 0, axis: [0, 0, 1], windup: 0, target: 0, phi: 0, landed: false, active: false, slack: 0, charge: 0, follow: 0, combo: null })),
+    limbs: model.limbs.map((_, i) => ({ q: stance[i], w: [0, 0, 0], phase: 'rest', t: 0, axis: [0, 0, 1], windup: 0, target: 0, phi: 0, landed: false, active: false, slack: 0, charge: 0, follow: 0, combo: null, worn: 1 })),
     nextArm: 0,
     strikeCool: 0,
     lock: 0,
@@ -336,9 +350,22 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     roll: 0,
     whirl: 0,
     whirlDir: 1,
+    whirlV: 0,
+    whirlD: 0,
+    whirlA: 0,
+    twistV: 0,
+    repeat: 0,
+    lastStrikeF: -999,
+    heavyLoad: 0,
     jellyN: 0,
     armorLoss: 0,
   };
+  // Desproporción (el chupetín pesa más que el chizito entero): marcha, salto y giros más pesados. Pocos gramos, pero la
+  // proporción manda: una extremidad que pesa más que el cuerpo lo arrastra.
+  const heaviest = Math.max(0, ...model.limbs.map((l) => l.mass));
+  f.heavyLoad = Math.max(0, heaviest / model.bodyMass - 0.6);
+  f.speed /= 1 + 0.7 * f.heavyLoad;
+  f.jump = f.jump / (1 + f.heavyLoad);
   // Apoyarlo en el piso antes del primer cuadro.
   settle(f);
   f.prev = f.cur.map((a) => a.slice());
@@ -636,16 +663,20 @@ function endStrike(m: Match, i: 0 | 1, k: number): void {
   const W = FIGHT.whiff;
   f.chain = null;
   const mul = l.rigid ? FIGHT.swing.whiffMul : 1;
-  const lock = Math.min(W.max * mul, Math.round((W.base + W.k * (l.mass / f.model.bodyMass)) * mul));
+  const lock = Math.min(W.max * mul, Math.round((W.base + W.k * (l.mass / f.model.bodyMass)) * mul * (1 + 0.4 * f.heavyLoad)));
   f.lock = Math.max(f.lock, lock);
   if (l.rigid && f.swing) {
     // El chupetín pesa más que el chizito: al no encontrar nada, el peso lo arrastra y da una VUELTA ENTERA sobre sí mismo,
     // desestabilizado (se tambalea y queda expuesto hasta frenar).
+    // Es el MISMO movimiento que sigue (no uno nuevo): el torso continúa para el lado que giraba, con la velocidad que traía, y
+    // frena parejo hasta completar la vuelta entera.
     f.wt += f.swing.sign * FIGHT.whirl.wobble;
-    f.whirl = 1e-3;
-    // Sigue girando para el mismo lado que giraba al pegar (brazo derecho que gira a la derecha completa a la derecha).
-    f.whirlDir = shoulderSign(f, l.pivot);
-    f.stun = Math.max(f.stun, FIGHT.whirl.stun);
+    f.whirlDir = (Math.sign(f.twist) || shoulderSign(f, l.pivot)) as 1 | -1;
+    f.whirlD = Math.PI * 2 - Math.abs(f.twist);
+    f.whirlV = Math.max(Math.abs(f.twistV), FIGHT.whirl.minSpeed);
+    f.whirlA = (f.whirlV * f.whirlV) / (2 * f.whirlD);
+    if (f.whirl <= 0) f.whirl = 1e-4;
+    f.stun = Math.max(f.stun, Math.round(FIGHT.whirl.stun * (1 + f.heavyLoad * 0.5)));
   } else {
     const wAx = dotv(s.w, s.axis);
     const I = inertia(f, k, s.axis);
@@ -936,7 +967,12 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if ((f.strikeCool <= 0 && f.lock <= 0) || combo) {
       const k = pickLimb(f, f.buffer.kind, !!combo, f.buffer.quad);
       if (k >= 0) {
+        // Pegar sin parar (golpe tras golpe, con el botón que sea) marca un ritmo que el rival lee: cada golpe seguido pega menos
+        // y lo ataja más (ver `FIGHT.repeat`). Parar un momento, moverse o encadenar después de acertar lo evita.
+        f.repeat = !combo && m.frame - f.lastStrikeF < FIGHT.repeat.window ? f.repeat + 1 : 0;
+        f.lastStrikeF = m.frame;
         startStrike(m, i, k, f.buffer.kind, combo);
+        f.limbs[k].worn = Math.max(FIGHT.repeat.min, 1 - FIGHT.repeat.step * f.repeat);
         f.buffer = null;
       }
     }
@@ -1106,14 +1142,30 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       want = f.limbs[sk].phase === 'windup' ? -sg * amt * T.wind : sg * amt;
       rate = f.limbs[sk].phase === 'windup' ? T.rate.windup : T.rate.strike;
     }
-    f.twist += (want - f.twist) * Math.min(1, rate * dt);
-    // Vuelta entera después de pifiar con el chupetín: arranca rápido (lo arrastra el peso) y frena al final.
+    const tw0 = f.twist;
     if (f.whirl > 0) {
-      const u = f.whirl / (Math.PI * 2);
-      f.whirl += ((Math.PI * 2) / FIGHT.whirl.frames) * (1.6 - 1.2 * u);
-      if (f.whirl >= Math.PI * 2) f.whirl = 0;
-    }
-    f.yaw = clamp(base + f.twist, T.min, T.max) + f.whirlDir * f.whirl;
+      // La vuelta del chupetín: el torso queda donde estaba y suma el giro, que frena parejo hasta cerrar la vuelta.
+      f.whirl += f.whirlV * dt;
+      f.whirlV = Math.max(FIGHT.whirl.endSpeed, f.whirlV - f.whirlA * dt);
+      if (f.whirl >= f.whirlD) {
+        f.whirl = 0;
+        f.twist = 0;
+      }
+    } else if (sk >= 0 && M.limbs[sk].rigid && f.limbs[sk].phase === 'strike' && !f.ko) {
+      // El balanceo con el chupetín gira a velocidad pareja (es el peso que arrastra); si llega al final sin tocar, pifió.
+      const d = want - f.twist;
+      const stepA = FIGHT.swing.turnSpeed * dt;
+      f.twist += Math.sign(d) * Math.min(Math.abs(d), stepA);
+      if (Math.abs(d) <= stepA && !f.limbs[sk].landed) {
+        // Llegó al final del giro sin tocar nada: en el MISMO cuadro pasa a la vuelta, con la velocidad que traía y lo que le
+        // sobraba de este paso (sin frenar ni arrancar de nuevo).
+        f.twistV = Math.sign(d) * FIGHT.swing.turnSpeed;
+        endStrike(m, i, sk);
+        f.whirl = Math.max(1e-4, stepA - Math.abs(d));
+      }
+    } else f.twist += (want - f.twist) * Math.min(1, rate * dt);
+    if (!(f.whirl > 0 && tw0 === f.twist)) f.twistV = (f.twist - tw0) / dt;
+    f.yaw = f.whirl > 0 ? base + f.twist + f.whirlDir * f.whirl : clamp(base + f.twist, T.min, T.max);
     f.yc = Math.cos(f.yaw);
     f.ys = Math.sin(f.yaw);
   }
@@ -1324,6 +1376,7 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   let dmg = base * clamp(speed / FIGHT.dmgSpeedRef, FIGHT.speedMul[0], FIGHT.speedMul[1]) * (l.role === 'leg' ? FIGHT.legMul : 1);
   const chain = s.combo;
   if (chain) dmg *= FIGHT.chain.mul[chain] ?? 1;
+  dmg *= s.worn;
   const fromFront = Math.sign(a.x - b.x || 1) === b.facing;
   const blocked = blockedBy !== null;
   if (blocked) {
@@ -1344,6 +1397,8 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
     b.block = FIGHT.blockstun;
     // Bloqueó: si suelta la guardia y pega enseguida, sale una CONTRA.
     b.counter = FIGHT.blockstun + FIGHT.chain.counterWindow;
+    // Pegarle a una guardia rebota: el que pegó queda un instante sin poder seguir (y el otro tiene su CONTRA).
+    a.lock = Math.max(a.lock, FIGHT.blockedLock);
     a.chain = null;
   } else {
     // Acertó: el impulso sigue (combinaciones). Al que recibe se le corta la suya y el salto que estaba por dar.

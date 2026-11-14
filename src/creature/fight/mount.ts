@@ -242,8 +242,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
 
   // ── Estela de cada golpe: la punta de la extremidad deja un trazo mientras pega (y uno tenue mientras carga), así se lee
   // qué extremidad golpea, desde dónde y hacia dónde. Dorado el chizito, verde el brócoli. ──
-  const TRAIL_N = 16;
-  const trailMats = [0xffc94a, 0x8dff6a].map((c) => new THREE.MeshBasicMaterial({ color: c, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+  // Estela sobria (de juego de pelea serio): fina, corta, sólo mientras pega y tenue; no mientras carga.
+  const TRAIL_N = 9;
+  const trailMats = [0xfff2d6, 0xe6ffe0].map((c) => new THREE.MeshBasicMaterial({ color: c, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
   const trails = new Map<string, { pts: THREE.Vector3[]; mesh: THREE.Mesh; heat: number }>();
   const trackTrails = (): void => {
     if (!m) return;
@@ -251,7 +252,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const s = f.limbs[k];
       const key = `${i}:${k}`;
       let t = trails.get(key);
-      const live = s.phase === 'strike' || s.phase === 'windup';
+      const live = s.phase === 'strike';
       if (!t) {
         if (!live) return;
         const geo = new THREE.BufferGeometry();
@@ -297,10 +298,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const dy = p0.y - p1.y;
         const l = Math.hypot(dx, dy) || 1;
         const k = q < n ? 1 - q / (n - 1) : 0;
-        const w = 0.0035 * k * (0.4 + 0.6 * t.heat);
+        const w = 0.0013 * k * (0.4 + 0.6 * t.heat);
         pos.setXYZ(2 * q, a.x - (dy / l) * w, a.y + (dx / l) * w, a.z);
         pos.setXYZ(2 * q + 1, a.x + (dy / l) * w, a.y - (dx / l) * w, a.z);
-        const c = k * k * t.heat;
+        const c = 0.45 * k * k * t.heat;
         col.setXYZ(2 * q, c, c, c);
         col.setXYZ(2 * q + 1, c, c, c);
       }
@@ -412,19 +413,21 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         // Destello blanco y vibración del que lo recibe (el congelamiento lo pone el motor: `hitstop`).
         views[victim].hurt(e.blocked ? 0.35 : big ? 1 : 0.75, e.blocked ? 0.0008 : 0.0016 + e.damage * 0.00012);
         shake = Math.max(shake, e.blocked ? 0.0008 : 0.0012 + e.damage * 0.00022);
-        const label = e.blocked ? 'BLOQUEO' : e.shield ? 'ESCUDO' : e.kind === 'heavy' ? '¡PESADO!' : e.kind === 'cut' ? 'CORTE' : '';
+        // Sólo el número (no todos los golpes llevan palabra): azul si lo tapó, rojizo si cortó.
+        const label = '';
         hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, label, e.blocked ? 'block' : e.kind === 'heavy' ? 'heavy' : e.kind === 'cut' ? 'cut' : '');
         if (!e.blocked) hud.combo(e.by, e.combo, e.chain);
         // Palabras de historieta, no en todos los golpes (si no, no se lee ninguna): ¡JAPISH! en los que valen la pena
         // (pesados, fuertes o el cierre de una combinación), ¡PIMBA! en las patadas que entran y ¡SOPLAMOCO! en las piñas a la cara.
-        if (!e.blocked && m.frame - lastShout > 75) {
+        if (!e.blocked && m.frame - lastShout > 180) {
           const vic = m.f[victim];
           const ys = vic.model.body.flatMap((b) => [b.a[1] - b.r, b.b[1] + b.r]);
           const lo = Math.min(...ys);
           const hi = Math.max(...ys);
           const face = e.at[1] - vic.y > lo + (hi - lo) * 0.62;
           const kick = m.f[e.by].model.limbs.find((l) => l.pieceIds.includes(e.piece))?.role === 'leg';
-          const word = big || e.chain ? 'japish' : kick ? 'pimba' : face ? 'soplamoco' : null;
+          // Palabra sólo en los golpes que la merecen: el cierre de una combinación o uno muy fuerte.
+          const word = e.chain || e.damage >= 10 ? (kick ? 'pimba' : face ? 'soplamoco' : 'japish') : null;
           if (word) {
             lastShout = m.frame;
             hud.popup(e.at[0], e.at[1] + 0.03, word === 'japish' ? '¡JAPISH!' : word === 'pimba' ? '¡PIMBA!' : '¡SOPLAMOCO!', '', `shout ${word}`);
@@ -488,13 +491,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         views[victim].hurt(e.blocked ? 0.3 : small ? 0.4 : 1, e.blocked ? 0.0006 : small ? 0.0008 : 0.0022);
         if (!e.blocked && !small) crumbs?.[victim].emit(at, new THREE.Vector3(m.f[e.by].facing, 0.6, 0.3).normalize(), 5);
         shake = Math.max(shake, small ? 0.0006 : 0.003);
-        hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, e.blocked ? 'BLOQUEO' : '', e.blocked ? 'block' : small ? '' : 'heavy');
+        hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, '', e.blocked ? 'block' : '');
         g.audio.play(e.blocked ? 'bloqueo' : small ? 'golpe' : 'golpe-pesado', small ? 0.5 : 1);
-        break;
-      }
-      case 'dizzy': {
-        const f = m.f[e.who];
-        hud.popup(f.x, f.y + 0.05, '¡MAREADO!', '', 'whiff');
         break;
       }
       case 'ko':
@@ -590,9 +588,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // 7,2–10,6 s TU CHIZITO responde: se despierta en contrapicado, le pega a la lente y queda en pose de héroe.
   // 10,6–11,6 s: los dos frente a frente, VS. Después, ROUND 1.
   const B_LIGHTS = 5.6;
-  const P_CHIZ0 = 7.2;
-  const P_VS = 10.6;
-  const P_END = 11.6;
+  // El cartel del rival queda 2,4 s (antes 0,65 s: no se llegaba a leer).
+  const P_CHIZ0 = 8.6;
+  const P_VS = 12;
+  const P_END = 13;
   /** Cada rival: nombre, cartel y lo que dice en la presentación (con su sonido de voz, para grabar). */
   const RIVALS: Record<number, { name: string; tag: string; lines: { at: number; until: number; text: string; sound: SoundId }[] }> = {
     1: {
@@ -608,18 +607,17 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       name: 'HUEVO DURO',
       tag: 'diez minutos de hervor, cero piedad',
       lines: [
-        { at: 1.1, until: 3.2, text: 'Diez minutos en agua hirviendo… y salí más duro que nunca.', sound: 'huevo-frase1' },
-        { at: 3.5, until: 5.5, text: 'Pegame si querés, chizito. Soy pura gelatina: reboto.', sound: 'huevo-frase2' },
+        { at: 1.1, until: 4.6, text: 'Diez minutos en agua hirviendo… y salí más duro que nunca.', sound: 'huevo-frase1' },
         { at: 5.75, until: 6.55, text: '¡CUIDADO, QUE ESTE HUEVO RUEDA!', sound: 'huevo-frase3' },
       ],
     },
     3: {
       name: 'MONSTRUO DE QUINOA',
-      tag: 'diez mil granos con una sola idea',
+      tag: 'diez mil granos · se rearma solo y te tira metralla',
       lines: [
-        { at: 1.1, until: 3.2, text: 'Shhh… ¿escuchás? Somos miles. Y tenemos hambre.', sound: 'quinoa-frase1' },
-        { at: 3.5, until: 5.5, text: 'Arrancame un grano… y vuelven dos.', sound: 'quinoa-frase2' },
-        { at: 5.75, until: 6.55, text: '¡LLUEVE QUINOA, BOCADITO!', sound: 'quinoa-frase3' },
+        { at: 1.1, until: 3.2, text: '¿Un solo chizito? Nosotros somos diez mil.', sound: 'quinoa-frase1' },
+        { at: 3.5, until: 5.5, text: 'Pegame. Cada grano que se cae vuelve a su lugar.', sound: 'quinoa-frase2' },
+        { at: 5.75, until: 6.55, text: '¡A LLOVER QUINOA!', sound: 'quinoa-frase3' },
       ],
     },
   };
@@ -684,7 +682,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     set?.lights(lit ? Math.min(1, (t - B_LIGHTS) * 6) : 0);
     // ── Carteles y subtítulos ──
     if (t < P_CHIZ0) {
-      if (t > B_LIGHTS + 0.95) hud.present(1, rival().name, `NIVEL ${level} · ${rival().tag}`);
+      if (t > B_LIGHTS + 0.6) hud.present(1, rival().name, rival().tag);
       else hud.present(1);
     } else if (t < P_VS) {
       if (t <= P_CHIZ0 + 0.35) hud.present(0);
@@ -1009,6 +1007,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       if (f.legs.length === 1) w.push('Una sola pierna: avanza a saltitos');
       if (f.arms.length === 0) w.push('Sin brazos: no da piñas ni se puede cubrir');
       if (fixed) w.push(`${fixed === 1 ? 'Una pieza queda fija' : `${fixed} piezas quedan fijas`} (chupetín o atraviesa el chizito): no gira sola; pega con el cuerpo entero`);
+      if (f.heavyLoad > 0.4) w.push('Lo que tiene clavado pesa más que el chizito: camina lento, carga lento y si pifia queda girando');
     }
     return w;
   };

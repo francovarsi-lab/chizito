@@ -41,17 +41,25 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   const reach = Math.max(0.02, ...me.model.limbs.filter((l) => l.role === 'arm').map((l) => l.reach + Math.max(0, l.pivot[0] * 0.5))) + 0.012;
   const foeStriking = foe.limbs.some((q) => q.phase === 'windup' || q.phase === 'strike');
   // Reacción: cuando el otro arranca un golpe, recién `reaction` cuadros después se puede guardar.
+  // Si el otro aprieta siempre el mismo botón, lo ve venir: reacciona antes y se cubre casi siempre (y después contraataca).
+  const readable = foe.repeat >= 1;
   if (foeStriking && !mem.seenStrike) {
     mem.seenStrike = true;
-    mem.react = L.reaction;
+    mem.react = readable ? Math.max(3, Math.round(L.reaction * 0.45)) : L.reaction;
   }
   if (!foeStriking) mem.seenStrike = false;
   if (mem.react > 0) {
     mem.react--;
-    if (mem.react === 0 && foeStriking && near < reach * 1.8 && rnd(mem) < L.guard) {
+    const guardP = readable ? Math.min(0.95, Math.max(L.guard, 0.55 + 0.15 * foe.repeat)) : L.guard;
+    if (mem.react === 0 && foeStriking && near < reach * 1.8 && rnd(mem) < guardP) {
       mem.doing = 'guard';
       mem.left = 18 + Math.floor(rnd(mem) * 14);
     }
+  }
+  // Le leyó el ritmo (pega sin parar): se anticipa y espera el próximo golpe con la guardia arriba, para atajarlo y contraatacar.
+  if (readable && mem.left <= 0 && me.stun <= 0 && near < reach * 1.8 && rnd(mem) < (mem.level === 1 ? 0.14 : 0.18 + 0.05 * mem.level)) {
+    mem.doing = 'guard';
+    mem.left = 22 + Math.floor(rnd(mem) * 16);
   }
   if (mem.left > 0) {
     mem.left--;
@@ -71,6 +79,10 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   const attackPrev = mem.wasAttack;
   mem.wasAttack = false;
   if (me.stun > 0) return { x: 0 };
+  // El otro quedó trabado (pegó contra la guardia o pifió): es el momento de castigarlo.
+  if (foe.lock > 4 && near < reach * 1.15 && rnd(mem) < 0.3 + 0.12 * mem.level) return { x: 0, punch: true };
+  // Acaba de atajar: contraataca enseguida (la CONTRA pega más).
+  if (me.counter > 0 && me.block <= 0 && near < reach * 1.2 && rnd(mem) < 0.35 + 0.15 * mem.level) return { x: 0, punch: true };
   // Desde el nivel 2 encadena: si acaba de acertar, a veces sigue con otra piña (o una patada) mientras dura el impulso.
   if (me.chain && rnd(mem) < L.chain) {
     const kick = me.legs.length >= 2 && rnd(mem) < 0.3;
