@@ -95,7 +95,8 @@ export const FIGHT = {
   // ── Equilibrio y contrapeso (inclinación del cuerpo sobre su apoyo) ──
   /** Rigidez del "querer estar derecho", relativa a peso × altura de referencia. */
   balanceK: 1.4,
-  balanceZeta: 0.32,
+  // Amortiguado: parado sobre sus patas no se mece como colgado de un cable (antes 0,32).
+  balanceZeta: 0.8,
   /** m: altura de referencia del centro de masa. */
   balanceH: 0.025,
   /** Cuánto inclina el contrapeso (centro de masa corrido del apoyo). */
@@ -115,7 +116,8 @@ export const FIGHT = {
   joint: {
     rest: { wn: 26, zeta: 0.42 },
     windup: { wn: 34, zeta: 0.75 },
-    strike: { wn: 70, zeta: 0.3 },
+    // Golpes más lentos que antes (70): se ven venir, se pueden bloquear y no hay ráfagas imposibles.
+    strike: { wn: 54, zeta: 0.3 },
     recover: { wn: 22, zeta: 0.38 },
     guard: { wn: 34, zeta: 0.6 },
   },
@@ -132,14 +134,14 @@ export const FIGHT = {
   windup: 0.55,
   windupHeavy: 0.8,
   /** Cuadros: mínimo y máximo de la carga, máximo del golpe y de la recuperación. */
-  windMin: 3,
+  windMin: 7,
   windMax: 16,
   strikeMax: 22,
   recoverMax: 34,
   /** Cuadros entre dos golpes seguidos (y nunca dos a la vez). */
-  strikeGap: 5,
+  strikeGap: 16,
   /** Cuadros sin poder golpear después de acertar. */
-  hitLock: 6,
+  hitLock: 9,
   /**
    * Errar: lo que se movió sigue de largo. Cuadros sin poder golpear ni cubrirse = base + k · (masa de la extremidad / masa del
    * chizito); el giro que traía pasa al cuerpo (`transfer`) y lo arrastra hacia adelante (`lurch`); si se inclina más que
@@ -156,7 +158,7 @@ export const FIGHT = {
    * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
    * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento pero fuerte: daño × `dmgMul`, con tope `maxDmg` por golpe. Al pifiar el torso sigue girando (`whiffSpin`). Pifiar cuesta `whiffMul` veces más y lo tira (`whiffKick`).
    */
-  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 7, maxCharge: 9, strikeFrames: 20, chargeMul: 1.3, massShare: 0.85, dmgMul: 1.8, maxDmg: 18, whiffSpin: 1.6, whiffMul: 1.1, whiffKick: 1.7, lunge: 0.22 },
+  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 7, maxCharge: 9, strikeFrames: 20, chargeMul: 1.3, massShare: 0.85, dmgMul: 1.15, maxDmg: 10, whiffSpin: 1.6, whiffMul: 1.1, whiffKick: 1.7, lunge: 0.22 },
   /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
   shieldFront: 0.35,
   shieldBack: 2.2,
@@ -231,6 +233,22 @@ export const FIGHT = {
    * castigo): UNO-DOS (piña + piña con otro brazo, 2+ brazos), RÁFAGA (tercera piña, 3+ brazos), PIÑA Y PATADA (piña + patada,
    * 2+ piernas para quedar parado en una), CONTRA (piña justo después de bloquear con la guardia). `mul` = daño.
    */
+  /**
+   * Chupetín que pifia: el peso lo arrastra y la criatura da una VUELTA ENTERA (360°) sobre sí misma, desestabilizada: `frames`
+   * cuadros girando y `stun` cuadros sin poder hacer nada (queda expuesta).
+   */
+  whirl: { frames: 40, stun: 50, wobble: 1.2 },
+  /**
+   * AIRE (estamina): cada golpe lo gasta (más lo pesado, menos una combinación). Se recupera sin pegar (más lento cubriéndose).
+   * Cansado (por debajo de `tired`) carga más lento y pega más flojo; sin aire no puede pegar y queda boqueando `gassedLock`
+   * cuadros. Así apretar sin parar no gana: hay que elegir cuándo pegar.
+   */
+  stamina: { max: 100, arm: 21, kick: 27, heavyMul: 1.35, rigidMul: 1.6, comboMul: 0.6, regen: 34, regenDelay: 40, guardRegen: 0.45, tired: 35, tiredDmg: 0.6, tiredWind: 7, gassedLock: 45 },
+  /**
+   * PODER: barra que se llena pegando (daño × `onHit`), recibiendo (× `onHurt`) y de a poco sola. Llena, se suelta el poder del
+   * luchador (ver `POWERS`).
+   */
+  power: { max: 100, onHit: 1.5, onHurt: 1, blockedMul: 0.4, passive: 1.4 },
   chain: {
     window: 26,
     counterWindow: 22,
@@ -238,9 +256,28 @@ export const FIGHT = {
   },
 } as const;
 
+/**
+ * Poderes (lógica de cada comida). Cuadros de carga (`wind`, se ve venir: se puede esquivar o cubrir) y de acción (`go`).
+ *  queso    TU CHIZITO: NUBE DE QUESO, sopla el polvito naranja de su cáscara: marea al rival si está cerca.
+ *  vapor    EL BROCOLOCO: VAPORAZO, el brócoli recién hervido larga vapor de la copa: quema y empuja lejos a quien esté pegado.
+ *  rodada   HUEVO DURO: HUEVAZO RODANTE, se hace bola y rueda contra el rival (los huevos ruedan): se salta o se bloquea.
+ *  metralla MONSTRUO DE QUINOA: METRALLA DE GRANOS, se arranca un puñado de granos y los tira en abanico; mientras le faltan, su
+ *           coraza de granos protege menos (`armorLoss`) hasta rearmarse.
+ */
+export const POWERS = {
+  queso: { name: 'NUBE DE QUESO', wind: 14, go: 26, reach: 0.075, ahead: 0.03, dmg: 4, dizzy: 80, guardDizzy: 0 },
+  vapor: { name: '¡VAPORAZO!', wind: 24, go: 22, reach: 0.07, dmg: 9, kb: 0.55, stun: 30 },
+  rodada: { name: '¡HUEVAZO RODANTE!', wind: 22, go: 48, speed: 0.4, dmg: 13, kb: 0.5, stun: 34 },
+  metralla: { name: 'METRALLA DE GRANOS', wind: 20, go: 16, n: 7, speed: 0.6, spread: 0.55, dmg: 2.3, r: 0.0026, life: 80, armorLoss: 0.35, regrow: 240 },
+} as const;
+export type PowerKind = keyof typeof POWERS;
+
+/** Jalea del huevo: los golpes seguidos (dentro de `window` cuadros) rebotan en la gelatina y pegan menos. */
+export const JELLY = { window: 36, step: 0.22, min: 0.45 };
+
 /** Rival: cuán bien juega el brócoli en cada nivel. */
 export const AI_LEVELS = [
   { reaction: 26, guard: 0.22, aggression: 0.035, jump: 0.002, retreat: 0.2, chain: 0 },
-  { reaction: 16, guard: 0.42, aggression: 0.06, jump: 0.004, retreat: 0.3, chain: 0.04 },
-  { reaction: 9, guard: 0.62, aggression: 0.09, jump: 0.006, retreat: 0.35, chain: 0.09 },
+  { reaction: 18, guard: 0.36, aggression: 0.05, jump: 0.004, retreat: 0.3, chain: 0.04 },
+  { reaction: 13, guard: 0.5, aggression: 0.065, jump: 0.006, retreat: 0.35, chain: 0.07 },
 ] as const;

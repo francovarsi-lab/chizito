@@ -16,8 +16,14 @@ export interface RenderPose {
   facing: 1 | -1;
   /** rad: giro hacia la cámara de ese luchador (el mismo que usa el motor). */
   yaw: number;
+  /** rad: vuelta de carnero (el huevo rodando), se suma a la inclinación. */
+  roll: number;
   qs: Q[];
   broken: string[];
+  /** Coraza de granos que le falta (quinoa): 0..1 de lo que tiró. */
+  armorLoss: number;
+  /** Poder que está cargando o soltando (o null). */
+  power: string | null;
 }
 
 export function blendPose(a: RenderPose, b: RenderPose, t: number): RenderPose {
@@ -27,7 +33,9 @@ export function blendPose(a: RenderPose, b: RenderPose, t: number): RenderPose {
     x: a.x + (b.x - a.x) * t,
     y: a.y + (b.y - a.y) * t,
     tilt: a.tilt + (b.tilt - a.tilt) * t,
-    yaw: a.yaw + (b.yaw - a.yaw) * t,
+    // Una vuelta entera vuelve a 0: ahí no se mezcla (si no, por un cuadro desharía la vuelta).
+    yaw: Math.abs(b.yaw - a.yaw) > Math.PI ? b.yaw : a.yaw + (b.yaw - a.yaw) * t,
+    roll: Math.abs(b.roll - a.roll) > Math.PI ? b.roll : a.roll + (b.roll - a.roll) * t,
     qs: b.qs.map((q, i) => nlerp(a.qs[i] ?? q, q, t)),
   };
 }
@@ -64,6 +72,30 @@ const V = (a: readonly number[]): THREE.Vector3 => new THREE.Vector3(a[0], a[1],
 /** Giro de la vista según el lado: la cara hacia el rival, girada `yaw` hacia la cámara (mismo criterio que el motor). */
 const yawFor = (facing: 1 | -1, yaw: number): number => (facing > 0 ? -yaw : -Math.PI + yaw);
 const tmpM = new THREE.Matrix4();
+/** Lleva `psi` hacia `target` por el camino corto (una vuelta entera de 2π no se desenrolla). */
+const chase = (psi: number, target: number, k: number): number => {
+  const d = target - psi;
+  return psi + (d - Math.PI * 2 * Math.round(d / (Math.PI * 2))) * k;
+};
+
+/**
+ * Vibración del cuerpo blando (`freq` Hz, se apaga con `decay`): la gelatina del huevo tiembla al recibir; la quinoa apenas se
+ * abolla (los granos absorben el golpe y vuelven a su lugar).
+ */
+class Jiggle {
+  a = 0;
+  ph = 0;
+  constructor(private freq: number, private decay: number) {}
+  kick(s: number): void {
+    this.a = Math.min(0.2, this.a + s);
+    this.ph = 0;
+  }
+  step(dt: number): number {
+    this.a *= Math.exp(-dt * this.decay);
+    this.ph += dt * this.freq * Math.PI * 2;
+    return this.a * Math.sin(this.ph);
+  }
+}
 
 /** Resorte de aplastón compartido por las dos vistas. */
 class Squash {
@@ -213,13 +245,13 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
         psiInit = true;
       }
       // Giro real (no espejo) al cambiar de lado: pasa mostrando la cara a la cámara.
-      psi += (target - psi) * Math.min(1, dt * 14);
+      psi = chase(psi, target, Math.min(1, dt * 14));
       const s = squash.step(dt);
       hurt.step(dt);
       sc.makeScale(1 - s * 0.5, 1 + s, 1 - s * 0.5);
       const W = new THREE.Matrix4()
         .makeTranslation(p.x + hurt.offset.x, p.y + hurt.offset.y, z0)
-        .multiply(rz.makeRotationZ(-p.facing * p.tilt))
+        .multiply(rz.makeRotationZ(-p.facing * (p.tilt + p.roll)))
         .multiply(ry.makeRotationY(psi))
         .multiply(sc)
         .multiply(B)
@@ -333,6 +365,10 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   const Bq = new THREE.Quaternion().setFromRotationMatrix(B);
   const BqInv = Bq.clone().invert();
   const jelly = (inner.userData.jelly as number | undefined) ?? 1;
+  const jig = inner.userData.jiggle as { freq: number; decay: number; amp: number } | undefined;
+  const jiggle = jig ? new Jiggle(jig.freq, jig.decay) : null;
+  // Granos sueltos en los puños (quinoa): son la munición de la METRALLA. No giran solos: se juntan al cargar, desaparecen al
+  // tirarlos y vuelven a armarse de a poco.
   const auras: THREE.Object3D[] = [];
   inner.traverse((o) => o.name === 'aura' && auras.push(o));
   const carrots = model.limbs.map((_, i) => ({ obj: inner.children[i], base: inner.children[i].quaternion.clone() }));
@@ -359,13 +395,15 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
         psi = target;
         init = true;
       }
-      psi += (target - psi) * Math.min(1, dt * 14);
+      psi = chase(psi, target, Math.min(1, dt * 14));
       const s = squash.step(dt);
+      const j = jiggle ? jiggle.step(dt) : 0;
       hurt.step(dt);
-      sc.makeScale(1 - s * 0.5, 1 + s, 1 - s * 0.5);
+      // La vibración alterna: se estira a lo alto y se ensancha (volumen parejo, como una gelatina).
+      sc.makeScale(1 - s * 0.5 - j * 0.5, 1 + s + j, 1 - s * 0.5 - j * 0.5);
       outer.matrix
         .makeTranslation(p.x + hurt.offset.x, p.y + hurt.offset.y, z0)
-        .multiply(rz.makeRotationZ(-p.facing * p.tilt))
+        .multiply(rz.makeRotationZ(-p.facing * (p.tilt + p.roll)))
         .multiply(ry.makeRotationY(psi))
         .multiply(sc)
         .multiply(B)
@@ -373,7 +411,15 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       outer.matrixWorldNeedsUpdate = true;
       outer.updateMatrixWorld(true);
       syncCrownClip(inner);
-      for (const a of auras) a.rotation.y += dt * 2.4;
+      const left = 1 - Math.min(1, p.armorLoss / 0.35);
+      const charging = p.power === 'metralla';
+      for (const a of auras) {
+        if (charging) a.rotation.y += dt * 9;
+        const want = charging ? 0.55 : left;
+        const k = a.scale.x + (want - a.scale.x) * Math.min(1, dt * 10);
+        a.scale.setScalar(Math.max(1e-3, k));
+        a.visible = k > 0.02;
+      }
       carrots.forEach((c, k) => {
         const q = p.qs[k];
         // Giro en el marco del luchador llevado al del modelo: Bᵀ · q · B.
@@ -383,6 +429,7 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
     },
     bump(st) {
       squash.kick(st * jelly);
+      jiggle?.kick(Math.abs(st) * (jig?.amp ?? 0));
     },
     hurt(f, sh) {
       hurt.flash = Math.max(hurt.flash, f);

@@ -89,9 +89,9 @@ try {
     ok(max > 1, `el brazo gira en su punto de clavado (${(max * 57.3).toFixed(0)}°)`);
     ok(m.f[0].arms.every((k) => used.has(k)), 'dos piñas = los dos brazos, en orden');
     ok(!both, 'nunca dos golpes a la vez');
-    // Reposo = la postura (las piernas quedan giradas para apoyar todas; los brazos, derechos).
+    // Reposo = la postura (las piernas quedan giradas para apoyar todas y con el pie bajo el centro de masa; los brazos, derechos).
     const off = (s, q) => 2 * Math.acos(Math.min(1, Math.abs(s.q[0] * q[0] + s.q[1] * q[1] + s.q[2] * q[2] + s.q[3] * q[3])));
-    ok(m.f[0].limbs.every((s, k) => s.phase === 'rest' && off(s, m.f[0].stance[k]) < 0.2), 'todo vuelve al reposo');
+    ok(m.f[0].limbs.every((s, k) => s.phase === 'rest' && off(s, m.f[0].stance[k]) < 0.3), 'todo vuelve al reposo');
     // Patada: solo piernas.
     const k = fight(mine);
     let kicked = -1;
@@ -160,6 +160,19 @@ try {
     }
     ok(tiltSpan[1] - tiltSpan[0] > 0.6, `con el chupetín se balancea el cuerpo entero (${tiltSpan.map((v) => v.toFixed(2))})`);
     ok(whiff && whiff.lock > 40, `pifiar con el chupetín deja expuesto mucho tiempo (${whiff?.lock} cuadros)`);
+    // Pifiar con el chupetín: el peso lo arrastra y da una vuelta entera (360°) sobre sí mismo, y termina mirando al rival.
+    {
+      const w = fight(P);
+      w.f[1].x = 0.15;
+      w.f[0].nextArm = w.f[0].arms.indexOf(k);
+      const base = w.f[0].yaw;
+      let spun = 0;
+      for (let i = 0; i < 200; i++) {
+        stepMatch(w, [{ x: 0, punch: i === 0 }, { x: 0 }]);
+        spun = Math.max(spun, w.f[0].whirl);
+      }
+      ok(spun > Math.PI * 1.8 && w.f[0].whirl === 0 && Math.abs(w.f[0].yaw - base) < 0.3, `pifiar con el chupetín da una vuelta entera (${(spun * 57.3).toFixed(0)}°) y vuelve a mirar al rival`);
+    }
     // El chupetín pesa: el cuerpo se inclina hacia donde está.
     const lean = fight(P);
     for (let i = 0; i < 180; i++) stepMatch(lean, [{ x: 0 }, { x: 0 }]);
@@ -574,6 +587,73 @@ try {
     for (let i = 0; i < 240; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
     ok(early === 50 && q.f[1].hp > 55, `la quinoa se rearma si no le pegan (50 → ${early.toFixed(1)} al segundo → ${q.f[1].hp.toFixed(1)} a los 5 s)`);
   }
+
+  // ── Aire: apretar sin parar no gana (se cansa, pega flojo y se queda sin aire) ──
+  {
+    const m = fight(mine);
+    m.f[1].x = m.f[0].x + 0.05;
+    let starts = 0, gassed = 0;
+    for (let i = 0; i < 240; i++) {
+      stepMatch(m, [{ x: 0, quad: ['LA', 'RA'][i % 2] }, { x: 0 }]);
+      for (const e of m.events) {
+        if (e.type === 'swing' && e.who === 0) starts++;
+        if (e.type === 'gassed' && e.who === 0) gassed++;
+      }
+    }
+    ok(starts <= 8, `aporreando 4 s salen pocos golpes (${starts})`);
+    ok(gassed >= 1, `aporreando se queda sin aire (${gassed} veces)`);
+    const r = fight(mine);
+    r.f[0].stamina = 10;
+    for (let i = 0; i < 120; i++) stepMatch(r, [{ x: 0 }, { x: 0 }]);
+    ok(r.f[0].stamina > 50, `sin pegar recupera el aire (10 → ${r.f[0].stamina.toFixed(0)} en 2 s)`);
+  }
+
+  // ── Poderes: cada uno con su lógica (queso marea, vapor empuja, el huevo rueda, la quinoa tira granos) ──
+  {
+    const run = (A, B, gap, frames = 120) => {
+      const m = createMatch([A, B]);
+      for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      m.f[1].x = m.f[0].x + gap;
+      m.f[1].meter = FIGHT.power.max;
+      const ev = [];
+      let maxShots = 0;
+      const x0 = m.f[1].x;
+      let minX = x0;
+      for (let i = 0; i < frames; i++) {
+        stepMatch(m, [{ x: 0 }, { x: 0, power: i === 0 }]);
+        ev.push(...m.events);
+        maxShots = Math.max(maxShots, m.shots.length);
+        minX = Math.min(minX, m.f[1].x);
+      }
+      return { m, ev, maxShots, moved: x0 - minX };
+    };
+    const brok = run(mine, broccoliFighter(1), 0.05);
+    ok(brok.ev.some((e) => e.type === 'power' && e.phase === 'go' && e.kind === 'vapor') && brok.ev.some((e) => e.type === 'powerHit' && e.kind === 'vapor'), 'EL BROCOLOCO larga el VAPORAZO y quema de cerca');
+    const egg = run(mine, rivalFighter(2), 0.14);
+    ok(egg.moved > 0.05 && egg.ev.some((e) => e.type === 'powerHit' && e.kind === 'rodada'), `el HUEVO rueda contra el rival y lo golpea (${(egg.moved * 100).toFixed(1)} cm)`);
+    ok(egg.m.f[1].roll === 0, 'después de rodar queda parado (vuelta entera)');
+    const q = run(mine, rivalFighter(3), 0.12);
+    ok(q.maxShots >= 5 && q.ev.some((e) => e.type === 'powerHit' && e.kind === 'metralla'), `la QUINOA tira granos y pegan (${q.maxShots} granos)`);
+    ok(q.m.f[1].armorLoss > 0, 'tirar granos le saca coraza (protege menos hasta rearmarse)');
+    const me = { ...mine, power: 'queso' };
+    const ch = createMatch([me, broccoliFighter(1)]);
+    for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(ch, [{ x: 0 }, { x: 0 }]);
+    ch.f[1].x = ch.f[0].x + 0.05;
+    ch.f[0].meter = FIGHT.power.max;
+    let dz = false;
+    for (let i = 0; i < 60; i++) {
+      stepMatch(ch, [{ x: 0, power: i === 0 }, { x: 0 }]);
+      dz ||= ch.events.some((e) => e.type === 'dizzy' && e.who === 1);
+    }
+    ok(dz, 'la NUBE DE QUESO de tu chizito marea al rival');
+    // Sin la barra llena no sale.
+    const no = createMatch([me, broccoliFighter(1)]);
+    for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(no, [{ x: 0 }, { x: 0 }]);
+    stepMatch(no, [{ x: 0, power: true }, { x: 0 }]);
+    ok(!no.f[0].pw, 'sin la barra de PODER llena no hay poder');
+  }
+
+  ok(rivalFighter(2).jelly === true && !rivalFighter(3).jelly, 'el HUEVO es de gelatina (la quinoa no)');
 
   // ── Rendimiento: 40 extremidades, dos luchadores ──
   {

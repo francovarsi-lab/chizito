@@ -105,7 +105,9 @@ function eggMaterials(): Record<string, THREE.Material> {
       attenuationColor: col('#fff4dc'),
       attenuationDistance: 0.06,
     }),
-    aspa: new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.45, clearcoat: 0.35, clearcoatRoughness: 0.4, sheen: 0.3, sheenColor: col('#e6f5c8') }),
+    // Espárrago: piel cerosa, con brillo suave.
+    aspa: new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.35, sheen: 0.35, sheenColor: col('#e6f5c8') }),
+    aspaScale: new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.48, clearcoat: 0.35, clearcoatRoughness: 0.4, side: THREE.DoubleSide }),
     olive: new THREE.MeshPhysicalMaterial({ color: '#1c1719', roughness: 0.28, clearcoat: 0.8, clearcoatRoughness: 0.12 }),
     rice: new THREE.MeshPhysicalMaterial({ color: '#fbf7ee', roughness: 0.4, clearcoat: 0.4 }),
     pepper: new THREE.MeshPhysicalMaterial({ color: '#d11a1a', roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.06 }),
@@ -115,51 +117,127 @@ function eggMaterials(): Record<string, THREE.Material> {
   return eggMats;
 }
 
-/** Espárrago: tallo verde y, si es brazo, la punta (yema) en escamas apretadas. Va de −inner a L en +Y. */
+/** Escama de espárrago: hoja triangular puntiaguda, curvada para abrazar el tallo (en +Y la punta, cóncava hacia −Z). */
+function scaleGeo(w: number, h: number, curl: number): THREE.BufferGeometry {
+  const shape = new THREE.Shape();
+  shape.moveTo(-w / 2, 0);
+  shape.quadraticCurveTo(-w * 0.42, h * 0.55, 0, h);
+  shape.quadraticCurveTo(w * 0.42, h * 0.55, w / 2, 0);
+  shape.lineTo(-w / 2, 0);
+  const g = new THREE.ShapeGeometry(shape, 6);
+  const pos = g.getAttribute('position');
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    // Curvada alrededor del tallo y apenas despegada en la punta.
+    pos.setZ(i, -((x * x) / w) * curl + (y / h) ** 2 * w * 0.12);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * Espárrago de verdad: tallo apenas afinado hacia la punta, con fibras a lo largo y escamitas triangulares pegadas cada tanto;
+ * en el brazo, la yema: una punta cerrada y aguzada de escamas superpuestas en espiral (verde oscuro que vira a violeta). En la
+ * pata, el extremo es el corte: claro y fibroso. Va de −inner a L en +Y (la punta libre en L).
+ */
 function asparagus(L: number, r: number, inner: number, withTip: boolean, seed: number): THREE.Group {
   const M = eggMaterials();
   const g = new THREE.Group();
-  const len = L + inner;
-  const stalk = new THREE.CylinderGeometry(r * 0.96, r, len, 18, 28, false);
+  const rnd = mulberry32(seed);
+  const tipLen = withTip ? r * 3.4 : 0;
+  const len = L + inner - tipLen * 0.85;
+  const stalk = new THREE.CylinderGeometry(r, r, len, 24, 40, true);
   stalk.translate(0, len / 2 - inner, 0);
   const pos = stalk.getAttribute('position');
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
-    const k = 1 + noise.noise(v.x * 600, v.y * 90 + seed, v.z * 600) * 0.04;
+    const t = THREE.MathUtils.clamp(v.y / L, 0, 1);
+    const ang = Math.atan2(v.z, v.x);
+    // Se afina hacia la punta; fibras a lo largo (estrías suaves) y ondulación apenas irregular.
+    const k = (1 - 0.14 * t) * (1 + 0.022 * Math.sin(ang * 11 + noise.noise(v.y * 120, seed, 0) * 2) + noise.noise(v.x * 500, v.y * 60 + seed, v.z * 500) * 0.025);
     pos.setXYZ(i, v.x * k, v.y, v.z * k);
   }
   stalk.computeVertexNormals();
   paint(stalk, (p) => {
     const t = THREE.MathUtils.clamp(p.y / L, 0, 1);
-    // Base pálida y fibrosa (el corte), verde intenso al medio, más oscuro hacia la yema.
-    const c = col('#c9dc93').lerp(col('#6c9a34'), THREE.MathUtils.smoothstep(t, 0, 0.35)).lerp(col('#4d7426'), THREE.MathUtils.smoothstep(t, 0.6, 1));
-    return c.lerp(col('#e2edc0'), (noise.noise(p.x * 900, p.y * 40, p.z * 900) * 0.5 + 0.5) * 0.15);
+    // Base pálida (verde blanquecino), verde vivo al medio, más oscuro y apenas violáceo cerca de la yema.
+    const c = withTip
+      ? col('#b9cf7c').lerp(col('#5f9a2e'), THREE.MathUtils.smoothstep(t, 0, 0.3)).lerp(col('#3f6e22'), THREE.MathUtils.smoothstep(t, 0.7, 1))
+      : col('#5f9a2e').lerp(col('#b9cf7c'), THREE.MathUtils.smoothstep(t, 0.75, 1));
+    const fib = noise.noise(Math.atan2(p.z, p.x) * 6, p.y * 25, seed) * 0.5 + 0.5;
+    return c.lerp(col('#d7e7a6'), fib * 0.14);
   });
   g.add(new THREE.Mesh(stalk, M.aspa));
+  // Escamitas a lo largo del tallo (los "nudos" del espárrago), en espiral.
+  const bract = scaleGeo(r * 1.0, r * 1.6, 0.35);
+  paint(bract, (p) => col('#6d9a37').lerp(col('#8a6a8c'), THREE.MathUtils.smoothstep(p.y / (r * 1.5), 0.4, 1) * 0.6));
+  const nB = Math.max(3, Math.round(L / (r * 4.5)));
+  for (let i = 0; i < nB; i++) {
+    const t = 0.12 + (0.78 * (i + rnd() * 0.4)) / nB;
+    if (withTip && t * L > L - tipLen * 1.2) break;
+    const a = i * 2.39996 + rnd();
+    const rr = r * (1 - 0.14 * t) * 1.03;
+    const s = new THREE.Mesh(bract, M.aspaScale);
+    s.position.set(Math.cos(a) * rr, t * L - (withTip ? 0 : 0), Math.sin(a) * rr);
+    // Mirando hacia afuera (normal radial), con la punta hacia arriba (hacia la yema) y apenas despegada.
+    s.lookAt(s.position.clone().add(new THREE.Vector3(Math.cos(a), 0, Math.sin(a))));
+    s.rotateX(-0.06);
+    // En la pata la punta del espárrago quedaría hacia el cuerpo: las escamitas apuntan para ese lado.
+    if (!withTip) s.rotateZ(Math.PI);
+    s.scale.setScalar(0.8 + rnd() * 0.4);
+    g.add(s);
+  }
   if (withTip) {
-    // La yema: punta en escamas superpuestas, apretadas, verde oscuro con un toque violeta.
-    const budGeo = new THREE.SphereGeometry(1, 14, 10);
-    budGeo.scale(r * 1.15, r * 2.6, r * 1.15);
-    paint(budGeo, (p) => col('#4a6b22').lerp(col('#6b5a6e'), THREE.MathUtils.smoothstep(p.y / (r * 2.6), 0.2, 1) * 0.45));
-    const bud = new THREE.Mesh(budGeo, M.aspa);
-    bud.position.y = L - r * 1.6;
-    g.add(bud);
-    const petal = new THREE.ConeGeometry(r * 0.7, r * 2.4, 5, 1);
-    petal.scale(1, 1, 0.4);
-    paint(petal, () => col('#3f5f1d'));
-    for (let i = 0; i < 12; i++) {
-      const a = i * 2.39996;
-      const h = (i / 12) * r * 2.6;
-      const rr = r * 1.05 * Math.sqrt(1 - (h / (r * 2.7)) ** 2);
-      const s = new THREE.Mesh(petal, M.aspa);
-      s.position.set(Math.cos(a) * rr, L - r * 2.4 + h, Math.sin(a) * rr);
-      s.rotation.set(Math.sin(a) * 0.3, -a, -Math.cos(a) * 0.3);
-      g.add(s);
+    // La yema: perfil cerrado y aguzado (más ancho que el tallo abajo, abraza su extremo), esculpido en escamas superpuestas
+    // como tejas: filas en ladrillo con el borde en V (la punta de cada escama arriba). Verde oscuro en los pliegues y la punta
+    // de cada escama violácea, más hacia arriba.
+    const y0 = L - tipLen;
+    const rBase = r * (1 - 0.14 * Math.max(0, y0 / L)) * 1.01;
+    const rT = (u: number): number => rBase * (1 + 0.14 * Math.sin(Math.PI * Math.min(1, u * 1.7))) * Math.pow(Math.max(0, 1 - u), 0.62);
+    const prof: THREE.Vector2[] = [];
+    const NU = 72;
+    for (let i = 0; i <= NU; i++) {
+      const u = i / NU;
+      prof.push(new THREE.Vector2(Math.max(1e-6, rT(u)), y0 + u * tipLen));
     }
+    const bud = new THREE.LatheGeometry(prof, 96);
+    const bp = bud.getAttribute('position');
+    const ROWS = 6;
+    const PER = 5;
+    const shingle = (y: number, ang: number): number => {
+      const u = THREE.MathUtils.clamp((y - y0) / tipLen, 0, 1);
+      const ru = u * ROWS;
+      const row = Math.floor(ru);
+      const c = (ang / (Math.PI * 2)) * PER + (row % 2) * 0.5;
+      const fc = Math.abs(c - Math.floor(c) - 0.5);
+      const f = ru + fc * 0.9;
+      return f - Math.floor(f);
+    };
+    const tmp = new THREE.Vector3();
+    for (let i = 0; i < bp.count; i++) {
+      tmp.fromBufferAttribute(bp, i);
+      const rr = Math.hypot(tmp.x, tmp.z);
+      if (rr < 1e-6) continue;
+      const u = (tmp.y - y0) / tipLen;
+      const d = shingle(tmp.y, Math.atan2(tmp.z, tmp.x));
+      // Abajo se funde con el tallo (sin escalón); arriba las escamas se aprietan.
+      const k = 1 + 0.15 * (Math.pow(d, 0.7) - 0.3) * THREE.MathUtils.smoothstep(u, 0, 0.12) * (1 - u * 0.55);
+      bp.setXYZ(i, tmp.x * k, tmp.y, tmp.z * k);
+    }
+    bud.computeVertexNormals();
+    paint(bud, (p) => {
+      const u = THREE.MathUtils.clamp((p.y - y0) / tipLen, 0, 1);
+      const d = shingle(p.y, Math.atan2(p.z, p.x));
+      return col('#24400f').lerp(col('#4a7526'), Math.pow(d, 0.45)).lerp(col('#6f4d7a'), THREE.MathUtils.smoothstep(d, 0.7, 1) * (0.35 + 0.6 * u));
+    });
+    g.add(new THREE.Mesh(bud, M.aspa));
   } else {
-    // Pata: el extremo de abajo es un corte plano, más claro.
-    const cap = new THREE.Mesh(new THREE.CircleGeometry(r * 0.98, 18), new THREE.MeshPhysicalMaterial({ color: '#dfe8b8', roughness: 0.6 }));
+    // Pata: el extremo de abajo es el corte, claro y fibroso, con anillos.
+    const capGeo = new THREE.CircleGeometry(r * 0.86, 24);
+    paint(capGeo, (p) => col('#e4e8bf').lerp(col('#c2cf8a'), Math.abs(Math.sin((Math.hypot(p.x, p.y) / r) * 9)) * 0.5));
+    const cap = new THREE.Mesh(capGeo, M.aspa);
     cap.rotation.x = Math.PI / 2;
     cap.position.y = L;
     g.add(cap);
@@ -174,6 +252,8 @@ export function createEgg(): THREE.Group {
   const root = new THREE.Group();
   root.name = 'huevo';
   root.userData.jelly = 1.8;
+  // Clara cocida: tiembla como gelatina al recibir un golpe.
+  root.userData.jiggle = { freq: 14, decay: 5, amp: 0.16 };
   spec.limbs.forEach((sk, i) => {
     const { g, L } = holder(sk.from, sk.to);
     g.add(asparagus(L, sk.r0, sk.arm ? 0.006 : 0.008, sk.arm, 11 + i * 7));
@@ -364,6 +444,8 @@ export function createQuinoa(): THREE.Group {
   const M = quinoaMaterials();
   const root = new THREE.Group();
   root.name = 'quinoa';
+  // Los granos absorben el golpe: se abolla apenas y vuelve.
+  root.userData.jiggle = { freq: 6, decay: 9, amp: 0.06 };
   spec.limbs.forEach((sk, i) => {
     const { g, L } = holder(sk.from, sk.to);
     g.add(quinoaLimb(L, sk.r0, sk.r1, 0.008, sk.arm, 41 + i * 13));

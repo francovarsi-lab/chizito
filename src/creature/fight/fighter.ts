@@ -1,7 +1,7 @@
 import { makeBasis, type Basis } from '../math/basis';
 import { cross, dist, dot, len, mid, norm, sub } from '../math/vec';
 import type { CreatureSnapshot, SnapLink, SnapPiece, V3 } from '../types';
-import { FIGHT } from './tuning';
+import { FIGHT, type PowerKind } from './tuning';
 import { zoneOf, type Side } from '../zones';
 
 /**
@@ -97,6 +97,10 @@ export interface FighterModel {
   faceAt?: { mouth: number; eyes: number };
   /** rad: cuánto se gira hacia la cámara (si no, `FIGHT.stanceYaw`). El brócoli va más de frente: su cara se tiene que leer. */
   yaw?: number;
+  /** Poder especial (ver `POWERS` en tuning.ts). */
+  power?: PowerKind;
+  /** Cuerpo de gelatina (huevo): los golpes seguidos pegan menos y el cuerpo vibra. */
+  jelly?: boolean;
 }
 
 const ROD_TYPES = new Set(['palito', 'escarbadientes', 'palito-selva', 'chupetin']);
@@ -319,6 +323,7 @@ export function broccoliFighter(level = 1): FighterModel {
     stance: true,
     faceAt: { mouth: 0.44, eyes: 0.63 },
     yaw: FIGHT.broccoli.yaw,
+    power: 'vapor',
   };
 }
 
@@ -356,6 +361,8 @@ export interface RivalSpec {
   faceAt: { mouth: number; eyes: number };
   yaw: number;
   label: { arm: string; leg: string };
+  power: PowerKind;
+  jelly?: boolean;
 }
 
 /** HUEVO DURO (nivel 2): pelado y gelatinoso, brazos LARGOS de espárrago (más alcance) y menos defensa. */
@@ -381,6 +388,8 @@ export const EGG: RivalSpec = {
   faceAt: { mouth: 0.39, eyes: 0.6 },
   yaw: 1.0,
   label: { arm: 'espárrago', leg: 'espárrago' },
+  power: 'rodada',
+  jelly: true,
 };
 
 /** MONSTRUO DE QUINOA (nivel 3): enorme y compacto (recibe poco), brazos pesados y el poder de REARMARSE si no le pegan. */
@@ -402,11 +411,12 @@ export const QUINOA: RivalSpec = {
   carryGrams: 14,
   legKind: { power: 1.5, quick: 0.75 },
   armKind: 'heavy',
-  armorMul: 0.6,
-  regen: { delay: 90, hps: 2.5 },
+  armorMul: 0.7,
+  regen: { delay: 90, hps: 1.6 },
   faceAt: { mouth: 0.44, eyes: 0.67 },
   yaw: 1.0,
   label: { arm: 'puño de quinoa', leg: 'pata de quinoa' },
+  power: 'metralla',
 };
 
 /** Un rival de nivel 2 o 3 como luchador (mismo marco que el brócoli: el frente es la cara, +Z del modelo). */
@@ -463,6 +473,8 @@ export function rivalFromSpec(spec: RivalSpec, level: number): FighterModel {
     regen: spec.regen,
     faceAt: spec.faceAt,
     yaw: spec.yaw,
+    power: spec.power,
+    jelly: spec.jelly,
   };
 }
 

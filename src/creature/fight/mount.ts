@@ -15,7 +15,7 @@ import { FightHud, type MenuAction } from './hud';
 import { blendPose, creatureView, rivalView, type FighterView, type RenderPose } from './render';
 import { createEgg, createQuinoa } from './rivals3d';
 import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
-import { AI_LEVELS, FIGHT } from './tuning';
+import { AI_LEVELS, FIGHT, POWERS } from './tuning';
 import { qFromTo, type Q } from './quat';
 import type { Quad } from '../zones';
 
@@ -65,9 +65,9 @@ const btnCss = `
 `;
 const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/></svg>`;
 
-const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyQ', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'Escape', 'Enter', 'Space']);
+const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyQ', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'KeyE', 'Escape', 'Enter', 'Space']);
 
-const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken] });
+const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], armorLoss: f.armorLoss, power: f.pw?.kind ?? null });
 
 /**
  * La pelea en LA MISMA mesa donde se arma la criatura: la cámara pasa a una vista lateral que sigue y encuadra a los dos, y tu
@@ -97,6 +97,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // ?nivel=2 o 3 arranca contra ese rival (para probarlo sin ganar los anteriores).
   let level = Math.min(AI_LEVELS.length, Math.max(1, Number(new URLSearchParams(location.search).get('nivel') ?? 1) || 1));
   let ai: AiMem = newAi(1, 1);
+  /** Nivel del rival que está dibujado (si cambia el nivel, se rearma su modelo 3D). */
+  let viewLevel = 0;
+  let rivalParts: Awaited<ReturnType<typeof loadBroccoliParts>> | null = null;
   let seed = 1;
   let z0 = 0;
   const keys = new Set<string>();
@@ -148,8 +151,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const has = f.model.limbs.some((l) => l.role === role && (!quad || l.side === quad[0]));
       const why = !has
         ? `NO HAY ${role === 'arm' ? 'BRAZO' : 'PIERNA'}${!quad ? '' : role === 'arm' ? (quad[0] === 'L' ? ' IZQUIERDO' : ' DERECHO') : quad[0] === 'L' ? ' IZQUIERDA' : ' DERECHA'}`
-        : f.wobbly || f.lock > 0
-          ? 'SE ESTÁ ESTABILIZANDO…'
+        : f.stamina < FIGHT.stamina.arm * 0.25 || f.strikeCool > FIGHT.strikeGap
+          ? '¡SIN AIRE! RESPIRÁ UN TOQUE'
           : f.stun > 0
             ? 'ATONTADO…'
             : null;
@@ -158,7 +161,13 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         hud.popup(f.x, f.y + 0.07, why, '', 'hint');
       }
     }
-    const inp: FightInput = { x, up: took('ArrowUp', 'Space'), down: held('ArrowDown'), punch: took('KeyZ', 'KeyJ'), kick: took('KeyX', 'KeyK'), guard: held('KeyD', 'KeyC', 'KeyL'), quad };
+    // E: el poder (solo con la barra llena; si no, se avisa cuánto falta).
+    const power = took('KeyE');
+    if (power && f && m!.phase === 'fight' && f.meter < FIGHT.power.max && m!.frame - lastHint > 30) {
+      lastHint = m!.frame;
+      hud.popup(f.x, f.y + 0.07, `PODER AL ${Math.floor(f.meter)} %`, '', 'hint');
+    }
+    const inp: FightInput = { x, up: took('ArrowUp', 'Space'), down: held('ArrowDown'), punch: took('KeyZ', 'KeyJ'), kick: took('KeyX', 'KeyK'), guard: held('KeyD', 'KeyC', 'KeyL'), quad, power };
     edges.clear();
     return inp;
   };
@@ -192,6 +201,47 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     game().stage.scene.add(r);
     rings.push({ m: r, life: 0, max: 0.22, size });
   };
+  // ── Nubes de los poderes (queso, vapor): bolitas blandas que se inflan, suben y se desvanecen ──
+  const puffGeo = new THREE.IcosahedronGeometry(1, 2);
+  const puffs: { m: THREE.Mesh; v: THREE.Vector3; life: number; max: number; size: number; op: number }[] = [];
+  const cloud = (at: THREE.Vector3, n: number, color: number, size: number, spread: number, rise: number, dir = 0): void => {
+    const scene = game().stage.scene;
+    for (let i = 0; i < n; i++) {
+      const op = 0.55 + Math.random() * 0.3;
+      const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false });
+      const p = new THREE.Mesh(puffGeo, mat);
+      p.position.copy(at).add(new THREE.Vector3((Math.random() - 0.5) * spread, (Math.random() - 0.3) * spread * 0.6, (Math.random() - 0.5) * spread * 0.6));
+      const max = 0.7 + Math.random() * 0.6;
+      const v = new THREE.Vector3((Math.random() - 0.5) * 0.06 + dir * (0.05 + Math.random() * 0.08), rise * (0.5 + Math.random()), (Math.random() - 0.5) * 0.03);
+      scene.add(p);
+      puffs.push({ m: p, v, life: max, max, size: size * (0.6 + Math.random() * 0.8), op });
+    }
+  };
+  /** Granos de quinoa en el aire (los de la METRALLA): uno por proyectil del motor. */
+  const grainGeo = new THREE.SphereGeometry(1, 7, 5).scale(1, 0.6, 1);
+  const grainMats = ['#ebdfc3', '#93412e', '#2b2522', '#e3d3b0'].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.5 }));
+  const shotMeshes = new Map<number, THREE.Mesh>();
+  const syncShots = (): void => {
+    const live = new Set<number>();
+    for (const sh of m?.shots ?? []) {
+      live.add(sh.id);
+      let g = shotMeshes.get(sh.id);
+      if (!g) {
+        g = new THREE.Mesh(grainGeo, grainMats[sh.id % grainMats.length]);
+        g.scale.setScalar(sh.r * 0.75);
+        game().stage.scene.add(g);
+        shotMeshes.set(sh.id, g);
+      }
+      g.position.copy(P3(sh.x, sh.y, 0.004));
+      g.rotation.x += 0.4;
+      g.rotation.z += 0.3;
+    }
+    for (const [id, g] of shotMeshes) if (!live.has(id)) {
+      g.removeFromParent();
+      shotMeshes.delete(id);
+    }
+  };
+
   // ── Estela de cada golpe: la punta de la extremidad deja un trazo mientras pega (y uno tenue mientras carga), así se lee
   // qué extremidad golpea, desde dónde y hacia dónde. Dorado el chizito, verde el brócoli. ──
   const TRAIL_N = 16;
@@ -285,6 +335,29 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         rings.splice(i, 1);
       }
     }
+    for (let i = puffs.length - 1; i >= 0; i--) {
+      const p = puffs[i];
+      p.life -= dt;
+      const k = 1 - p.life / p.max;
+      p.v.multiplyScalar(1 - 1.5 * dt);
+      p.m.position.addScaledVector(p.v, dt);
+      p.m.scale.setScalar(p.size * (0.35 + 0.9 * Math.sqrt(k)));
+      (p.m.material as THREE.MeshBasicMaterial).opacity = p.op * (1 - k) * Math.min(1, k * 8);
+      if (p.life <= 0) {
+        p.m.removeFromParent();
+        (p.m.material as THREE.Material).dispose();
+        puffs.splice(i, 1);
+      }
+    }
+    // Mientras se carga un poder se nota: el brócoli larga hilitos de vapor de la copa, el chizito suelta polvito de queso.
+    if (m && views) m.f.forEach((f, i) => {
+      if (f.pw?.phase !== 'wind' || Math.random() > 0.5) return;
+      const h = views![i].head();
+      if (f.pw.kind === 'vapor') cloud(h, 1, 0xffffff, 0.004, 0.02, 0.05);
+      if (f.pw.kind === 'queso') cloud(P3(f.x + f.facing * 0.01, f.y + 0.02), 1, 0xff9a2a, 0.003, 0.02, 0.02);
+      if (f.pw.kind === 'vapor' || f.pw.kind === 'rodada') views![i].hurt(0, 0.0006);
+    });
+    syncShots();
     crumbs?.forEach((c) => c.update(dt));
     chips?.update(dt);
     // Estrellitas del mareo.
@@ -390,6 +463,43 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       case 'land':
         g.audio.play('drop', 0.35);
         break;
+      case 'gassed': {
+        const f = m.f[e.who];
+        hud.popup(f.x, f.y + 0.06, '¡SIN AIRE!', '', 'whiff');
+        g.audio.play('sin-aire', 1);
+        break;
+      }
+      case 'power': {
+        const f = m.f[e.who];
+        const P = POWERS[e.kind];
+        if (e.phase === 'wind') {
+          g.audio.play('poder-carga', 1);
+          hud.flash(0.18);
+          break;
+        }
+        hud.popup(f.x, f.y + 0.075, P.name, '', `shout power ${e.kind}`);
+        g.audio.play(`poder-${e.kind}`, 1);
+        shake = Math.max(shake, 0.002);
+        const front = P3(f.x + f.facing * 0.03, f.y + 0.022);
+        if (e.kind === 'queso') cloud(front, 26, 0xff9424, 0.011, 0.05, 0.03, f.facing);
+        if (e.kind === 'vapor') cloud(views[e.who].head(), 30, 0xffffff, 0.012, 0.06, 0.08);
+        if (e.kind === 'rodada') cloud(P3(f.x, 0.004), 8, 0xe9e2d0, 0.006, 0.03, 0.02);
+        break;
+      }
+      case 'powerHit': {
+        const victim = (1 - e.by) as 0 | 1;
+        const at = P3(e.at[0], e.at[1]);
+        const small = e.kind === 'metralla';
+        if (!small) burst(at, e.blocked ? 6 : 16, 1.2);
+        ring(at, small ? 0.006 : 0.016, e.blocked ? 0x9fe0ff : e.kind === 'queso' ? 0xff9424 : 0xffe066);
+        views[victim].bump(e.blocked ? 0.15 : small ? 0.25 : 0.8);
+        views[victim].hurt(e.blocked ? 0.3 : small ? 0.4 : 1, e.blocked ? 0.0006 : small ? 0.0008 : 0.0022);
+        if (!e.blocked && !small) crumbs?.[victim].emit(at, new THREE.Vector3(m.f[e.by].facing, 0.6, 0.3).normalize(), 5);
+        shake = Math.max(shake, small ? 0.0006 : 0.003);
+        hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, e.blocked ? 'BLOQUEO' : '', e.blocked ? 'block' : small ? '' : 'heavy');
+        g.audio.play(e.blocked ? 'bloqueo' : small ? 'golpe' : 'golpe-pesado', small ? 0.5 : 1);
+        break;
+      }
       case 'dizzy': {
         const f = m.f[e.who];
         hud.popup(f.x, f.y + 0.05, '¡MAREADO!', '', 'whiff');
@@ -866,6 +976,17 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (!model || !views) return;
     level = Math.max(1, Math.min(AI_LEVELS.length, lv));
     const bro = rivalFighter(level);
+    // Otro nivel = otro rival: se cambia también su modelo 3D (antes seguía el brócoli dibujado con el huevo o la quinoa adentro).
+    if (viewLevel !== level) {
+      const g = game();
+      views[1].dispose();
+      views[1] = rivalView(g.stage.scene, bro, level, rivalParts);
+      views[1].root.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) mesh.castShadow = mesh.receiveShadow = true;
+      });
+      viewLevel = level;
+    }
     m = createMatch([model, bro]);
     ai = newAi(seed++, level);
     hud.show([model.name, bro.name], warnings(m.f[0]));
@@ -915,7 +1036,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   hud.onMenu = (a) => {
     if (a === 'resume') pause(false);
     if (a === 'again') restart(level);
-    if (a === 'next') restart(level + 1);
+    if (a === 'next') {
+      // Rival nuevo: con su presentación (apagón, vela, sus frases), como el primero. La música vuelve con los focos.
+      const withPresent = wantsPresent();
+      if (withPresent) game().audio.musicOn(false);
+      restart(level + 1, withPresent);
+    }
     if (a === 'exit') controller.close();
   };
 
@@ -1010,7 +1136,11 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       hurryUp();
       await prewarm();
       const parts = await loadBroccoliParts();
+      rivalParts = parts;
+      viewLevel = level;
       model = fighterFromSnapshot(snap, 'TU CHIZITO');
+      // El poder de tu chizito: la NUBE DE QUESO (el polvito naranja de su cáscara).
+      model.power = 'queso';
       z0 = g.pivot.position.z;
       saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
       g.interaction.enabled = false;
@@ -1071,6 +1201,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       sparks.length = 0;
       for (const r of rings) r.m.removeFromParent();
       rings.length = 0;
+      for (const p of puffs) p.m.removeFromParent();
+      puffs.length = 0;
+      for (const g of shotMeshes.values()) g.removeFromParent();
+      shotMeshes.clear();
       for (const s of stars) s.removeFromParent();
       stars.length = 0;
       for (const t of trails.values()) {

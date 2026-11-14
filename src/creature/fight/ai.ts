@@ -1,5 +1,5 @@
 import type { FightInput, Match } from './engine';
-import { AI_LEVELS } from './tuning';
+import { AI_LEVELS, FIGHT, POWERS } from './tuning';
 
 /** Memoria del rival (determinista: azar con semilla). */
 export interface AiMem {
@@ -61,6 +61,19 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
     if (mem.doing === 'step') return { x: (mem.stepDir * dir) as -1 | 1 };
   }
   mem.doing = 'none';
+  // El poder, cuando conviene (cada uno con su lógica): vapor si lo tiene encima, rodar si está a media distancia y en el piso,
+  // granos de lejos, queso de cerca. Más nivel = lo usa mejor (con menos azar).
+  if (me.meter >= FIGHT.power.max && me.model.power && me.stun <= 0) {
+    const k = me.model.power;
+    const good = k === 'vapor' ? near < POWERS.vapor.reach * 0.8 : k === 'rodada' ? near > 0.05 && near < 0.2 && foe.grounded : k === 'metralla' ? near > 0.06 : near < POWERS.queso.reach;
+    if (good && rnd(mem) < 0.02 + 0.02 * mem.level) return { x: 0, power: true };
+  }
+  // Sin aire no se tira encima: retrocede a recuperarlo.
+  if (me.stamina < FIGHT.stamina.arm * 1.2 && near < reach * 1.3) {
+    mem.doing = 'retreat';
+    mem.left = 20 + Math.floor(rnd(mem) * 20);
+    return { x: (-dir) as -1 | 1 };
+  }
   const attackPrev = mem.wasAttack;
   mem.wasAttack = false;
   if (me.stun > 0) return { x: 0 };
@@ -73,7 +86,9 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
     const jump = rnd(mem) < L.jump && near < reach * 3;
     return { x: dir, up: jump };
   }
-  if (!attackPrev && rnd(mem) < L.aggression) {
+  // Si el otro se quedó sin aire, aprovecha (más agresivo).
+  const foeTired = foe.stamina < FIGHT.stamina.tired;
+  if (!attackPrev && rnd(mem) < L.aggression * (foeTired ? 2.2 : 1)) {
     mem.wasAttack = true;
     const kick = me.legs.length > 0 && (foe.crouch > 0.5 || rnd(mem) < 0.22);
     if (rnd(mem) < L.retreat) {
