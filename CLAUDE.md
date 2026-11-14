@@ -28,10 +28,11 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
   `node scripts/one.mjs "<query>" out.png` saca una sola captura. Query de depuración: `noao`, `tm=agx`, `seed=N`.
 
 ## Dirección visual (actualizada con referencias del usuario)
-- Prioridad: que se vea LINDO, SUAVE y divertido, no hiperrealismo a toda costa, pero CON CONTRASTE: el chizito
-  amarillo se perdía entre pasteles, así que el mantel es CELESTE (#86c9e3) con confeti, las paredes lisas de un
-  durazno claro (#f7dcd2), piso de madera clara; recipientes menta/lavanda/celeste, limonada en vez de cola.
-  `look`: saturación 0,16, contraste +0,07, lift casi nulo, bloom 0,1 (umbral 0,9).
+- Prioridad: que se vea LINDO, con COLOR DE VERDAD y premium (el usuario descartó los PASTELES: "feo y no coincide con la
+  pelea"). Mantel AZUL PISCINA intenso (#2f9fd4) con confeti chico y espaciado de colores vivos; recipientes de CERÁMICA
+  ESMALTADA de colores (coral, turquesa, violeta; el del ketchup blanco) y VASITOS DE CUMPLEAÑOS RAYADOS (rojo palitos, verde
+  escarbadientes, violeta espaditas, azul chupetines). `look`: saturación 0,32, contraste +0,16, lift casi nulo; VIÑETA
+  marcada (offset 0,3, oscuridad 0,42; en la pelea 0,55).
 - Luz envolvente y suave (sol 2,7 + entorno 1,15), sombra de contacto amplia, bloom leve (umbral alto), contraste
   apenas bajo y sombras levantadas con tono cálido (`look.lift`), viñeta y grano mínimos. Ojo: si el lift o el
   bloom suben mucho la imagen queda lechosa/neblinosa.
@@ -58,12 +59,14 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
   Aceituna: 2 × 1,5 cm (rellena de morrón). Escarbadientes: 3 cm × Ø 2 mm (variante espadita de cotillón, 3 cm).
   Palito de la selva: 4,5 cm × Ø 7,2 mm. Chupetín: palito 5,5 cm × Ø 3,4 mm + bola Ø 2,1 cm.
 - Mesa en y = 0. Chizito flotando con centro en y = 10 cm (`CONFIG.chizitoCenter`): la mesa queda más lejos y despejada.
-- Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, a 39 cm del chizito, con zoom por
-  dolly (rueda del mouse) entre 21 y 65 cm, suave. 65 mm sobre film de 36 mm (RINCÓN DE FIESTA ÍNTIMO, pedido del usuario: el
-  chizito del mismo tamaño que con 50 mm a 30 cm, pero se ve menos mesa y el fondo se comprime y se desenfoca más; DoF con
-  banda ±0,8 dpt). La intro (la casa con la fiestita) no cambia. Nunca orbita.
-- Composición despejada: bowl de papitas (izq., x −0,15 para dejar ver el platito de palitos de la selva) y vasito
-  de palitos (der.) a los costados, a media distancia; pocos objetos al fondo y lejos.
+- Cámara casi fija (`render/CameraRig.ts`): dirección de mirada constante, ALTA (24°), 45 mm, a 38 cm del objetivo
+  (0; 8,8 cm; −4 cm), zoom por dolly (rueda) entre 22 y 60 cm. Banda de foco AMPLIA (±1,5 dpt): todo lo que está sobre la mesa
+  queda nítido (pedido del usuario: "las opciones para agregarle no pueden estar lejos ni fuera de foco"; el ángulo bajo de
+  65 mm "se veía feo"). La intro (la casa con la fiestita) no cambia. Nunca orbita.
+- Composición (`BOWL_LAYOUT`, CALCULADA sobre la cámara real: nada cortado por el borde, nada encimado, todo en foco, libres el
+  centro y el lugar donde cae la sombra del chizito, ≈ (3,4; −6,1) cm): a la DERECHA las varas y las aceitunas (se ensartan en
+  ellas), a la IZQUIERDA escudos (papitas, nachos), palito de la selva y ketchup; adelante lo bajo, atrás lo alto. Si se mueve la
+  cámara hay que recalcularla (proyectar cada recipiente con la cámara y chequear cortes, encimados y dioptrías).
 
 ## Estética
 - Base fotográfica (sigue valiendo, pero al servicio de lo divertido). Fuentes del realismo: IBL + luz direccional cálida de ventana con sombras suaves
@@ -98,7 +101,10 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
   `fillBowl(assets, tipo, radioBowl, altoBowl, …)` centra cada pieza por su bbox, la acuesta (eje más fino hacia
   arriba) y la APOYA: `restOnBowl` la sube hasta que ningún vértice atraviese fondo, pared o borde (`bowlFloor`
   usa el mismo perfil interior que `makeBowl`).
-  Al fondo: bowl de chizitos, bowl de papitas, vasos descartables, gaseosa genérica (sin marca), servilletas, gorrito.
+  Al fondo: bowl de papitas, vasos descartables, gaseosa genérica (sin marca), gorrito. SÓLO EN LA PELEA (grupo 'solo-pelea' de
+  `farProps`, oculto en el constructor; `enterFightSet` lo muestra): el bowl de chizitos y los restos de fiesta (sugus, carozos,
+  servilletas): en el constructor parecían cosas para elegir. Sobrecitos de ketchup en abanico PARALELO (no se cortan). Sin plato
+  dorado (el usuario no lo entendió). Recipientes más chicos que antes (menos piezas; las piezas, tamaño real).
 
 ## Assets
 - Todo modelo pasa por `AssetRegistry`: si existe `public/assets/models/<tipo>.glb` se usa (normalizado a la
@@ -186,7 +192,9 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
   derecha) con carteles de la tecla de cada sección (Q W brazos, A S piernas, cabeza sin botón); se ve con una pieza en la mano
   o con el cartel abierto. Va aparte de la construcción (copia el giro del pivote): no se agarra ni entra al archivo.
   CARTEL "ELEGÍ LOS INGREDIENTES" (`ui/InfoCard.ts`): sale al llegar a la mesa; explica las secciones, escudos, aceituna y que el
-  KETCHUP ES PARA DIBUJARLE LA CARA. Se cierra con el botón o al agarrar la primera pieza; I lo abre y cierra.
+  KETCHUP ES PARA DIBUJARLE LA CARA, y la tabla "CUÁNTO SACA CADA GOLPE" (de `FIGHT.pieceDmg`). Se cierra con el botón o al
+  agarrar la primera pieza; I lo abre y cierra. Al agarrar palito/escarbadientes, la ayuda dice que con una aceituna en la punta
+  pega más fuerte pero más lento.
 - Chizito extra (DESCARTADO por el usuario como pieza suelta: no hay bowl ni se va a agregar; el mecanismo `mountsOnTail` queda porque lo usa la aceituna): se ensarta en la cola libre de un palito/escarbadientes
   (`tailMount`). En la mano: clic en el palito → el chizito se presenta sobre la punta (HOLDING con `active.mount`);
   pasar el mouse muestra el anillo; clic en el chizito = punto de entrada → AIMING (mouse = ángulo, invertido porque se
@@ -347,8 +355,9 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   FIJAS (sin articulación): toda vara que ATRAVIESA el chizito (girarla lo rompería) y el CHUPETÍN. El chupetín corre el centro
   de gravedad hacia su lado y pega con el CUERPO ENTERO (`FIGHT.swing`: se echa atrás visiblemente, carga con tope `maxCharge`
   para que llegue a salir —antes tardaba casi 1 s y cualquier golpe se la cortaba—, y se tira adelante con envión; pega mientras
-  gira rápido; es lo que más pega); si PIFIA, el peso lo arrastra y da una VUELTA ENTERA de 360° HACIA EL LADO QUE GIRABA AL
-  PEGAR (`FIGHT.whirl`, `f.whirl` × `f.whirlDir` suma al giro; el render persigue el ángulo por el camino corto con `chase` para no desenrollarla) quedando expuesto. Una vara fija ABAJO (chupetín apuntando al piso)
+  gira rápido; es lo que más pega; CARGA LARGA: hasta 14 + 30 cuadros); el balanceo gira a velocidad pareja (`swing.turnSpeed`)
+  y si llega al final SIN TOCAR, EN EL MISMO CUADRO sigue de largo: VUELTA ENTERA de 360° HACIA EL LADO QUE GIRABA, con la
+  velocidad que traía y frenando parejo (es el mismo movimiento, no otro; `f.whirl` × `f.whirlDir`, `whirlV/whirlA`; el render persigue el ángulo por el camino corto con `chase` para no desenrollarla) quedando expuesto. Una vara fija ABAJO (chupetín apuntando al piso)
   es una PIERNA FIJA (`pegs`): apoya y patea con el cuerpo entero, si tiene otra pierna para pararse (contrapeso). Lo que asoma
   < 1 cm no es extremidad: es peso.
   Papitas/nachos en el cuerpo = escudos (papita 2 golpes, nacho 6) que se astillan con cada golpe y al romperse se deshacen en
@@ -374,8 +383,13 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   al cuerpo (lo inclina y lo arrastra) y no puede golpear ni cubrirse por `base + k · masaExtremidad/masaChizito` cuadros; además
   no vuelve a pegar hasta ESTABILIZARSE (`stableW`). Si se inclina de más, se tambalea (sólo el sonido: las palabras
   "trastabilla" y "se está estabilizando" NO aparecen nunca en pantalla, pedido del usuario). Acertar cuesta poco (`hitLock`).
-- Golpes más lentos (carga mínima 7, `strikeGap` 16, `joint.strike` 54): aporrear los botones ya NO gana. (Hubo una barra de
-  AIRE/estamina: el usuario la descartó, "no se entiende y no sirve"; no volver a ponerla.)
+- Golpes más lentos (carga mínima 7, `strikeGap` 16, `joint.strike` 54). (Hubo una barra de AIRE/estamina: el usuario la
+  descartó, "no se entiende y no sirve"; no volver a ponerla.) APORREAR NO GANA (`FIGHT.repeat`): pegar sin pausa (cada golpe
+  arranca antes de 75 cuadros del anterior, con el botón que sea) marca un RITMO: cada golpe seguido pega menos (×0,8, 0,6, piso
+  0,4; `limb.worn`) y la IA lo lee: se anticipa con la guardia, pegarle a la guardia traba al que pega (`blockedLock`) y la IA
+  castiga esa ventana y contraataca. Medido: aporreando Q/W gana 2/6 en el nivel 1 y 0/6 en el 2 y el 3.
+- DESPROPORCIÓN (`heavyLoad` = extremidad más pesada / cuerpo − 0,6): si lo clavado pesa más que el chizito, camina y salta
+  menos, pifiar lo traba más y la vuelta dura más; aviso al empezar la pelea.
 - PODERES (`POWERS` en tuning.ts, lógica de cada comida; barra de PODER que se llena pegando, recibiendo y sola; se guarda entre
   rounds; E para el jugador, la IA los usa cuando conviene): TU CHIZITO NUBE DE QUESO (marea si está cerca; la guardia lo evita),
   BROCOLOCO VAPORAZO (vapor de la copa: quema y empuja de cerca), HUEVO HUEVAZO RODANTE (se hace bola y rueda: se salta o se
@@ -405,6 +419,9 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   El eje sale de girar la dirección de reposo hacia el rival, en 3D (sirve para varas que apuntan a la cámara).
 - EFECTOS DE GOLPE: congelamiento (`hitstop`), destello blanco leve y vibración del que recibe (`Hurt` en `render.ts`), estallido,
   anillo, migas (`fx/Crumbs.ts`: 12 formas redondeadas distintas con manchas tostadas, muchas chicas y pocas grandes) y astillas.
+- TEXTOS: sin "NIVEL N" junto al nombre del rival, sin "¡MAREADO!", sin etiquetas en los golpes (sólo el número de daño); las
+  palabras de historieta sólo en combinaciones o golpes de 10+, como mucho una cada 3 s. Estelas SOBRIAS (finas, cortas, tenues,
+  sólo mientras pega). Presentación: el cartel del rival queda 2,4 s (tiempos `P_CHIZ0` 8,6, `P_VS` 12, `P_END` 13).
 - SONIDOS: ids listos para que el usuario grabe los suyos (`public/assets/sounds/<id>.ogg|mp3|wav`; si no hay archivo, suena
   un sintetizado de verdad: golpe con cuerpo + crujido, campana, bronces, voces con formantes, vapor; con compresor): `golpe`, `golpe-pesado`, `bloqueo`, `zumbido` (golpe pesado que arranca), `pifio`, `escudo` (se rompe),
   `ko`, `round`, `pelea`, `combo` (sale una combinación), `japish` (el grito ¡JAPISH!, en golpes fuertes y combinaciones),
