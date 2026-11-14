@@ -24,7 +24,7 @@ const css = `
 #cfh .bar.low i{background:linear-gradient(#ffd0a8,#ff6a3c 45%,#e0241d);animation:cfh-low .5s ease-in-out infinite alternate}
 #cfh .bar .shine{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.35) 45%,transparent 60%);background-size:300% 100%;animation:cfh-shine 3.2s linear infinite}
 @keyframes cfh-low{to{filter:brightness(1.35)}}
-#cfh .gauges{display:flex;gap:8px;margin:6px 0 2px;transform:skewX(-16deg)}
+#cfh .gauges{display:flex;gap:8px;width:100%;margin:6px 0 2px;transform:skewX(-16deg)}
 #cfh .side.r .gauges{flex-direction:row-reverse}
 #cfh .gauge{position:relative;height:11px;border:2px solid var(--ink);border-radius:3px;background:rgba(13,16,36,.55);overflow:hidden}
 #cfh .gauge.air{flex:1.3}#cfh .gauge.pow{flex:1}
