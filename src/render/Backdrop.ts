@@ -29,7 +29,7 @@ export const BOWL_LAYOUT = {
   // Disposición pensada sobre la cámara real (65 mm a 39 cm): ningún recipiente cortado por el borde ni encimado con otro, el
   // centro libre para el chizito (es el protagonista) y en dos alturas. A la DERECHA las varas y las aceitunas, que se ensartan
   // en ellas; a la IZQUIERDA los escudos (papitas, nachos), el palito de la selva y el ketchup. Adelante lo chico, atrás lo alto.
-  palito: new THREE.Vector3(0.07, 0, -0.16),
+  palito: new THREE.Vector3(0.085, 0, -0.16),
   aceituna: new THREE.Vector3(0.13, 0, -0.2),
   escarbadientes: new THREE.Vector3(0.112, 0, -0.33),
   'escarbadientes:espadita': new THREE.Vector3(0.145, 0, -0.335),
@@ -94,9 +94,9 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   selvaBowl.position.copy(BOWL_LAYOUT['palito-selva']);
   selvaBowl.add(fillSelvaDish(assets, 4, 91, 0.04));
 
-  // Bandeja dorada de torta (cartón con borde festoneado y repujado) debajo del chizito: lo asienta en la mesa, recibe su sombra
-  // y llena el frente que quedó libre. Más fina que la altura de la sombra de contacto (1,2 mm), así la sombra se ve encima.
-  root.add(cakeBoard(0.085, new THREE.Vector3(0, 0, -0.03)));
+  // Bandeja dorada de torta (cartón con borde festoneado y repujado), entera y justo debajo del chizito en la imagen: un pedestal
+  // que lo asienta en la mesa. Más fina que la altura de las sombras de contacto (1,2 mm), así se ven encima.
+  root.add(cakeBoard(0.05, new THREE.Vector3(0, 0, -0.175)));
   const popCup = makeStandCup(assets, { type: 'chupetin', count: 7, seed: 97, h: 0.028, r0: 0.014, r1: 0.019, params: () => ({ wrapped: true }) });
   popCup.position.copy(BOWL_LAYOUT.chupetin);
   // (El bowl de chizitos para ensartar queda en pausa: el mecanismo sigue en la interacción.)
