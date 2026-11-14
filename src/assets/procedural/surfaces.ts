@@ -65,19 +65,20 @@ export function tableclothMaterial(): THREE.MeshPhysicalMaterial {
   const drawWrapped = (fn: (ox: number, oy: number) => void) => {
     for (const ox of [-size, 0, size]) for (const oy of [-size, 0, size]) fn(ox, oy);
   };
-  for (let i = 0; i < 95; i++) {
+  // Confeti más chico y espaciado: con la cámara alta se ve mucho mantel y el confeti grande competía con los recipientes.
+  for (let i = 0; i < 42; i++) {
     const x = rnd() * size;
     const y = rnd() * size;
     const color = colors[Math.floor(rnd() * colors.length)];
     const kind = rnd();
-    const r = 9 + rnd() * 10;
+    const r = 5 + rnd() * 6;
     const rot = rnd() * Math.PI;
     drawWrapped((ox, oy) => {
       ctx.save();
       ctx.translate(x + ox, y + oy);
       ctx.rotate(rot);
       ctx.fillStyle = color;
-      ctx.globalAlpha = 0.85;
+      ctx.globalAlpha = 0.8;
       if (kind < 0.45) {
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
