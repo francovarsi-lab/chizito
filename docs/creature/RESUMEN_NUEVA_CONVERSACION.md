@@ -3,6 +3,9 @@
 Repo privado `francovarsi-lab/chizito`. **Rama de trabajo actual: `claude/wonderful-noether-lvp9gc`** (continúa
 `claude/upbeat-keller-vgk6l1`). El detalle completo está en `CLAUDE.md`: leerlo primero.
 
+**Plan vigente: `docs/PLAN_PREMIUM.md`** (diagnóstico, combate v2 y tareas para repartir entre sesiones). Rama con ese trabajo:
+`claude/sharp-einstein-iuyqgn`.
+
 ## Reglas permanentes (Franco)
 - Español rioplatense. Usa Claude de escritorio (Windows); las sesiones corren en la nube. Informes cortos, con hash y qué mirar.
   Si no se puede probar, avanzar igual y dejar todo subido. "Avanzá a fondo": hacer todo lo pedido antes de reportar.

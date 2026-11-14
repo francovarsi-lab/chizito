@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { MAX_PIECES } from './creature/limits';
 
+const CAMERA_POSITION = new THREE.Vector3(0, 0.243, 0.307);
+const CAMERA_TARGET = new THREE.Vector3(0, 0.088, -0.04);
+/** rad: cuánto mira la cámara hacia abajo (24°). El chizito se presenta inclinado eso mismo: se lo ve DE FRENTE, no picado. */
+const CAMERA_PITCH = Math.atan2(CAMERA_POSITION.y - CAMERA_TARGET.y, CAMERA_POSITION.z - CAMERA_TARGET.z);
+
 /** Parámetros de puesta en escena (metros). Centralizados para ajustar el look sin tocar la lógica. */
 export const CONFIG = {
   /** Centro del chizito: flota ~7 cm sobre la mesa (la mesa está en y = 0). */
@@ -8,8 +13,8 @@ export const CONFIG = {
   camera: {
     // Más alta (24°) y con lente de 45 mm: se ve la mesa alrededor del chizito con todo lo que se le puede agregar CERCA y en
     // foco (pedido del usuario: las opciones no pueden estar lejos ni desenfocadas; el ángulo bajo de 65 mm se veía feo).
-    position: new THREE.Vector3(0, 0.243, 0.307),
-    target: new THREE.Vector3(0, 0.088, -0.04),
+    position: CAMERA_POSITION,
+    target: CAMERA_TARGET,
     // Rincón de fiesta íntimo: lente más larga desde más lejos. El chizito queda del mismo tamaño, pero se ve un pedazo más chico
     // de la mesa y el fondo se comprime y se desenfoca (como una foto de producto); las cosas no se movieron de lugar.
     focalLength: 45, // mm, equivalente full frame (36 mm)
@@ -93,8 +98,11 @@ export const CONFIG = {
     maxPieces: MAX_PIECES, // el tope compartido con el intérprete (src/creature/limits.ts)
     /**
      * Posición inicial ("de casa") del chizito raíz: PARADO (su eje largo, X local, hacia arriba) y con
-     * el frente (+Z local) mirando a la cámara. F vuelve a esta posición.
+     * el frente (+Z local) mirando A LA CÁMARA: como la cámara mira desde arriba, se echa atrás ese mismo ángulo
+     * (si no, se lo veía en picado). F vuelve a esta posición.
      */
-    homeRotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 2)),
+    homeRotation: new THREE.Quaternion()
+      .setFromAxisAngle(new THREE.Vector3(1, 0, 0), -CAMERA_PITCH)
+      .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 2))),
   },
 };

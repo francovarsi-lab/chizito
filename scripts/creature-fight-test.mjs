@@ -497,11 +497,12 @@ try {
     const k = P.limbs.findIndex((l) => l.rigid);
     m.f[0].nextArm = m.f[0].arms.indexOf(k);
     let at = -1;
-    for (let i = 0; i < 60 && at < 0; i++) {
+    for (let i = 0; i < 90 && at < 0; i++) {
       stepMatch(m, [{ x: 0, punch: i === 0 }, { x: 0 }]);
       if (m.f[0].limbs[k].phase === 'strike') at = i;
     }
-    ok(at > 0 && at <= FIGHT.swing.windFrames + FIGHT.swing.maxCharge + 2, `el chupetín suelta el golpe en ${at} cuadros (no espera un segundo)`);
+    // El tope de la carga sube con el peso total clavado (`heavyLoad`).
+    ok(at > 0 && at <= FIGHT.swing.windFrames + FIGHT.swing.maxCharge * (1 + FIGHT.swing.loadCharge * m.f[0].heavyLoad) + 2, `el chupetín suelta el golpe en ${at} cuadros (no espera un segundo)`);
     const peg = withPop('palito-selva-mv47mu5p-6');
     const g = fight(peg);
     const pk = peg.limbs.findIndex((l) => l.rigid);

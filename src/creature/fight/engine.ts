@@ -160,7 +160,7 @@ export interface FighterState {
   /** Golpes seguidos sin pausa (marcan un ritmo que se ve venir: pegan menos y el rival los ataja). */
   repeat: number;
   lastStrikeF: number;
-  /** Desproporción: la extremidad más pesada / el cuerpo, menos 0,6 (0 si no hay). Pesa en todo: marcha, salto, giro, pifie. */
+  /** Desproporción: todo lo clavado / el cuerpo, menos 0,6 (0 si no hay). Pesa en todo: marcha, salto, carga, pifie. */
   heavyLoad: number;
   /** Gelatina: golpes recibidos seguidos y cuadros desde el último. */
   jellyN: number;
@@ -362,8 +362,10 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
   };
   // Desproporción (el chupetín pesa más que el chizito entero): marcha, salto y giros más pesados. Pocos gramos, pero la
   // proporción manda: una extremidad que pesa más que el cuerpo lo arrastra.
-  const heaviest = Math.max(0, ...model.limbs.map((l) => l.mass));
-  f.heavyLoad = Math.max(0, heaviest / model.bodyMass - 0.6);
+  // Cuenta TODO lo clavado (no sólo la pieza más pesada): dos chupetines pesan el doble que uno y se tiene que notar.
+  // Las piernas articuladas no cuentan: son las que cargan.
+  const legMass = legs.reduce((sum, k) => sum + model.limbs[k].mass, 0);
+  f.heavyLoad = Math.max(0, (model.mass - model.bodyMass - legMass) / model.bodyMass - 0.6);
   f.speed /= 1 + 0.7 * f.heavyLoad;
   f.jump = f.jump / (1 + f.heavyLoad);
   // Apoyarlo en el piso antes del primer cuadro.
@@ -561,7 +563,12 @@ function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air'
     if (lenv(axis) < 1e-6) axis = [0, 0, -1];
     target = Math.PI + FIGHT.overshoot * 0.5;
     windup = -0.3;
-  } else target = Math.atan2(sn, cs) + FIGHT.overshoot;
+  } else {
+    target = Math.atan2(sn, cs) + FIGHT.overshoot;
+    // MISMO RECORRIDO para todos los brazos: con la guardia de 3/4 un hombro queda adelante (le salía un jab corto) y el otro
+    // atrás (un golpe largo). El de adelante se carga más atrás hasta completar el mismo arco: los dos cargan y pegan parecido.
+    if (kind !== 'kick') windup = Math.min(windup, Math.max(target - (heavy ? FIGHT.sweepHeavy : FIGHT.sweep), -FIGHT.windupCap));
+  }
   s.axis = normv(axis);
   s.windup = windup;
   s.target = target;
@@ -576,7 +583,8 @@ function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air'
   // Lo pesado se carga: cuanto más pesa frente al chizito, más tarda (y más tiempo queda expuesto a que le corten la carga).
   // El chupetín carga echándose atrás (se ve): con tope, para que llegue a salir. En una combinación no hay carga.
   const ratio = (l.mass / f.model.bodyMass) * (l.rigid ? FIGHT.swing.chargeMul : 1);
-  s.charge = combo ? 0 : Math.min(l.rigid ? FIGHT.swing.maxCharge : 99, Math.round(FIGHT.charge.k * Math.max(0, ratio - FIGHT.charge.free)));
+  // Cuanto más cargada va la criatura (`heavyLoad`), más le cuesta revolear lo fijo: el tope de la carga sube con el peso total.
+  s.charge = combo ? 0 : Math.min(l.rigid ? Math.round(FIGHT.swing.maxCharge * (1 + FIGHT.swing.loadCharge * f.heavyLoad)) : 99, Math.round(FIGHT.charge.k * Math.max(0, ratio - FIGHT.charge.free)));
   if (combo) s.windup *= 0.5;
   if (combo === 'CONTRA') f.counter = 0;
   if (l.rigid) {
@@ -1035,8 +1043,10 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       return;
     }
     if (s.phase === 'strike') {
+      // Activo según dónde ESTABA al empezar el paso: el paso que cruza el final del arco también cuenta (el contacto es barrido).
+      const phi0 = s.phi;
       guided(s.target, FIGHT.joint.strike, FIGHT.strikeBoost);
-      s.active = !s.landed && s.phi < s.target - 0.12 && s.t < FIGHT.strikeMax;
+      s.active = !s.landed && phi0 < s.target - 0.12 && s.t < FIGHT.strikeMax;
       if (!s.active && (dotv(s.w, s.axis) < 1 || s.t >= FIGHT.strikeMax || s.landed)) endStrike(m, i, k);
       return;
     }
@@ -1290,6 +1300,13 @@ function segD(px: number, py: number, ax: number, ay: number, bx: number, by: nu
   return Math.hypot(px - ax - vx * t, py - ay - vy * t);
 }
 
+/** Distancia entre los segmentos pq y ab (mundo 2D): 0 si se cruzan. */
+function segSegD(px: number, py: number, qx: number, qy: number, ax: number, ay: number, bx: number, by: number): number {
+  const side = (ox: number, oy: number, ux: number, uy: number, vx: number, vy: number): number => (ux - ox) * (vy - oy) - (uy - oy) * (vx - ox);
+  if (side(px, py, qx, qy, ax, ay) * side(px, py, qx, qy, bx, by) < 0 && side(ax, ay, bx, by, px, py) * side(ax, ay, bx, by, qx, qy) < 0) return 0;
+  return Math.min(segD(px, py, ax, ay, bx, by), segD(qx, qy, ax, ay, bx, by), segD(ax, ay, px, py, qx, qy), segD(bx, by, px, py, qx, qy));
+}
+
 /** Puntos escudo del rival todavía en pie (mundo). */
 function shieldPoints(f: FighterState): { x: number; y: number; r: number; piece: string }[] {
   const out: { x: number; y: number; r: number; piece: string }[] = [];
@@ -1340,11 +1357,15 @@ function resolveHits(m: Match): void {
         if (p.inside || a.broken.includes(p.piece)) continue;
         const px = a.cur[k][2 * j];
         const py = a.cur[k][2 * j + 1];
+        // Contacto BARRIDO: se mide el camino del punto en este paso (de dónde estaba a dónde está), no sólo dónde quedó. Un
+        // golpe rápido recorre más de 2 cm por cuadro y atravesaba al rival sin tocarlo.
+        const ox = a.prev[k][2 * j];
+        const oy = a.prev[k][2 * j + 1];
         const reach = p.r + FIGHT.hitPad;
-        const blocker = blockers.find((q) => Math.hypot(px - q.x, py - q.y) < q.r + reach);
+        const blocker = blockers.find((q) => segD(q.x, q.y, ox, oy, px, py) < q.r + reach);
         let shield: string | null = null;
-        if (!blocker) for (const sp of shields) if (Math.hypot(px - sp.x, py - sp.y) < sp.r + reach) shield = sp.piece;
-        const body = !blocker && !shield && bodies.some((q) => segD(px, py, q.ax, q.ay, q.bx, q.by) < q.r + reach);
+        if (!blocker) for (const sp of shields) if (segD(sp.x, sp.y, ox, oy, px, py) < sp.r + reach) shield = sp.piece;
+        const body = !blocker && !shield && bodies.some((q) => segSegD(ox, oy, px, py, q.ax, q.ay, q.bx, q.by) < q.r + reach);
         if (!blocker && !shield && !body) continue;
         const vx = (px - a.prev[k][2 * j]) / dt - b.vx;
         const vy = (py - a.prev[k][2 * j + 1]) / dt - b.vy;

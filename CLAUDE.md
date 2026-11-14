@@ -215,7 +215,8 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
   Shift + mantener = sacar (si sale del todo vuelve a la mano y lo que tenía clavado se va con ella),
   Supr/Backspace = quitar, Esc = soltar.
 - Ctrl+Z / Ctrl+Shift+Z (o Ctrl+Y): deshacer / rehacer. R dos veces (en 2,5 s) reinicia; también se deshace.
-  H oculta ayudas. El chizito ARRANCA PARADO (eje largo X local hacia arriba) y DE FRENTE (`CONFIG.creature.homeRotation`).
+  H oculta ayudas. El chizito ARRANCA PARADO (eje largo X local hacia arriba) y DE FRENTE A LA CÁMARA (`CONFIG.creature.homeRotation`:
+  como la cámara mira 24° hacia abajo, se echa atrás ese mismo ángulo, calculado de la cámara; sin eso se lo veía en picado).
   Lado de cara del CONSTRUCTOR (`BUILDER_FACE`, fijo): el costado +Z del chizito raíz, el que mira a la cámara parado.
   F devuelve el chizito suave (0,7 s, leve rebote, `TrackballRotator.goHome`) a esa posición inicial y marca ese lado
   (aro + punto que late 2,6 s). El constructor y su cámara NO dependen del frente de combate.
@@ -327,6 +328,16 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   `creature-fixtures-test.mjs`, `creature-ui-test.mjs`, `creature-ui-keys-test.mjs`. Fixtures: `node scripts/make-fixtures.mjs`.
 
 ## Pelea (Chizito Fight) — `src/creature/fight/`
+- PLAN DE MEJORA: `docs/PLAN_PREMIUM.md` (diagnóstico medido, sistema de combate v2 y tareas T1–T8, G1–G7, O1). Leerlo antes de
+  tocar la pelea.
+- MISMO RECORRIDO PARA LOS DOS BRAZOS (`FIGHT.sweep` / `sweepHeavy` / `windupCap`): con la guardia de 3/4 el hombro de adelante
+  tiraba un jab corto y el de atrás un golpe largo, con el mismo daño; ahora el de adelante se carga más atrás hasta completar el
+  mismo arco. Medir con `node scripts/fight-probe.mjs A B veg` (usa el frente real del juego; los fixtures viejos tienen el
+  frente −Y y NO muestran el problema).
+- CONTACTO BARRIDO: el golpe se mide sobre el camino de cada punto en el paso (`segSegD`), no sólo donde quedó; el paso que cruza
+  el final del arco también cuenta. Antes un golpe rápido atravesaba al rival.
+- PESO TOTAL: `heavyLoad` = todo lo clavado (menos las piernas que cargan) / cuerpo − 0,6; dos chupetines pesan el doble que uno.
+  El tope de carga del chupetín sube con ese peso (`swing.loadCharge`).
 - Botón PELEAR abajo a la derecha (siempre, sin flag). Misma mesa, misma criatura real (sus mallas): la cámara pasa a una
   vista lateral que sigue el medio de los dos y se aleja/acerca para encuadrarlos. La criatura del jugador es TU CHIZITO.
   RIVALES, uno por nivel (`rivalFighter` / `rivalView`; `?nivel=2|3` arranca contra ése): 1 EL BROCOLOCO; 2 HUEVO DURO
@@ -385,8 +396,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   "trastabilla" y "se está estabilizando" NO aparecen nunca en pantalla, pedido del usuario). Acertar cuesta poco (`hitLock`).
 - Golpes más lentos (carga mínima 7, `strikeGap` 16, `joint.strike` 54). (Hubo una barra de AIRE/estamina: el usuario la
   descartó, "no se entiende y no sirve"; no volver a ponerla.) APORREAR NO GANA (`FIGHT.repeat`): pegar sin pausa (cada golpe
-  arranca antes de 75 cuadros del anterior, con el botón que sea) marca un RITMO: cada golpe seguido pega menos (×0,8, 0,6, piso
-  0,4; `limb.worn`) y la IA lo lee: se anticipa con la guardia, pegarle a la guardia traba al que pega (`blockedLock`) y la IA
+  arranca antes de 75 cuadros del anterior, con el botón que sea) marca un RITMO: cada golpe seguido pega menos (×0,75, 0,5, piso
+  0,35; `limb.worn`) y la IA lo lee: se anticipa con la guardia, pegarle a la guardia traba al que pega (`blockedLock`) y la IA
   castiga esa ventana y contraataca. Medido: aporreando Q/W gana 2/6 en el nivel 1 y 0/6 en el 2 y el 3.
 - DESPROPORCIÓN (`heavyLoad` = extremidad más pesada / cuerpo − 0,6): si lo clavado pesa más que el chizito, camina y salta
   menos, pifiar lo traba más y la vuelta dura más; aviso al empezar la pelea.

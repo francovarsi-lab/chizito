@@ -133,6 +133,10 @@ export const FIGHT = {
   overshoot: 0.38,
   windup: 0.55,
   windupHeavy: 0.8,
+  /** rad: arco total (carga + golpe) de una piña, igual para el brazo de adelante y el de atrás; tope de la carga hacia atrás. */
+  sweep: 2.9,
+  sweepHeavy: 3.1,
+  windupCap: 1.6,
   /** Cuadros: mínimo y máximo de la carga, máximo del golpe y de la recuperación. */
   windMin: 7,
   windMax: 16,
@@ -141,7 +145,7 @@ export const FIGHT = {
   /** Cuadros entre dos golpes seguidos (y nunca dos a la vez). */
   strikeGap: 16,
   /** Golpes sin pausa (cada uno arranca antes de `window` cuadros del anterior): daño × (1 − step · seguidos), piso `min`. */
-  repeat: { window: 75, step: 0.2, min: 0.4 },
+  repeat: { window: 75, step: 0.25, min: 0.35 },
   /** Cuadros sin poder seguir después de pegarle a una guardia. */
   blockedLock: 16,
   /** Cuadros sin poder golpear después de acertar. */
@@ -162,7 +166,7 @@ export const FIGHT = {
    * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
    * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento y el que más pega (`pieceDmg.chupetin`). Pifiar cuesta `whiffMul` veces más y da la vuelta entera (`whirl`).
    */
-  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 14, maxCharge: 30, strikeFrames: 26, chargeMul: 2, turnSpeed: 9, massShare: 0.85, whiffMul: 1.1, lunge: 0.22 },
+  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 14, maxCharge: 30, loadCharge: 0.25, strikeFrames: 26, chargeMul: 2, turnSpeed: 9, massShare: 0.85, whiffMul: 1.1, lunge: 0.22 },
   /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
   shieldFront: 0.35,
   shieldBack: 2.2,
