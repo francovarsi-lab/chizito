@@ -347,8 +347,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   FIJAS (sin articulación): toda vara que ATRAVIESA el chizito (girarla lo rompería) y el CHUPETÍN. El chupetín corre el centro
   de gravedad hacia su lado y pega con el CUERPO ENTERO (`FIGHT.swing`: se echa atrás visiblemente, carga con tope `maxCharge`
   para que llegue a salir —antes tardaba casi 1 s y cualquier golpe se la cortaba—, y se tira adelante con envión; pega mientras
-  gira rápido; tope de 10 de daño); si PIFIA, el peso lo arrastra y da una VUELTA ENTERA de 360° (`FIGHT.whirl`, `f.whirl`
-  suma al giro; el render persigue el ángulo por el camino corto con `chase` para no desenrollarla) quedando expuesto. Una vara fija ABAJO (chupetín apuntando al piso)
+  gira rápido; es lo que más pega); si PIFIA, el peso lo arrastra y da una VUELTA ENTERA de 360° HACIA EL LADO QUE GIRABA AL
+  PEGAR (`FIGHT.whirl`, `f.whirl` × `f.whirlDir` suma al giro; el render persigue el ángulo por el camino corto con `chase` para no desenrollarla) quedando expuesto. Una vara fija ABAJO (chupetín apuntando al piso)
   es una PIERNA FIJA (`pegs`): apoya y patea con el cuerpo entero, si tiene otra pierna para pararse (contrapeso). Lo que asoma
   < 1 cm no es extremidad: es peso.
   Papitas/nachos en el cuerpo = escudos (papita 2 golpes, nacho 6) que se astillan con cada golpe y al romperse se deshacen en
@@ -363,8 +363,10 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   hacia donde está el peso y recibe la reacción de cada giro. Pesos: tabla de la realidad del chat de mecánicas (`FIGHT.massGrams`).
 - CARGA: lo pesado se carga antes de pegar (`FIGHT.charge`: cuadros = k · (masa extremidad / masa chizito − free), con temblor);
   un golpe recibido durante la carga la corta. La aceituna pega más fuerte pero bastante más lenta.
-- Daño = `dmgK · masaEfectiva^0,4 · velocidad^1,3` (masa efectiva = I/r² en el punto que toca): la VELOCIDAD manda; algo pesado
-  que casi no se mueve pega poco (lo que no se puede mover se penaliza, no se premia).
+- DAÑO POR PIEZA (`FIGHT.pieceDmg`, orden del usuario): chupetín > aceituna > palito de la selva > palito > espadita >
+  escarbadientes; cada extremidad pega con su pieza más fuerte (palito + aceituna = aceituna); piernas × `legMul` (1,15); la
+  velocidad sólo corre ±10 % (`speedMul`), menos que la distancia entre escalones: el orden se respeta siempre. La masa
+  efectiva (I/r²) queda para el empujón.
 - GOLPE CON LÓGICA FÍSICA: al cargar el peso va atrás y al soltar adelante (`bodyWind`/`bodyThrow`; una patada al revés), y el
   envión (`lunge`) sale al SOLTAR, no al cargar. ACERTAR: el brazo frena contra el otro y rebota, y el que pega pierde el envión
   (`impactBack`). PIFIAR: el brazo sigue de largo más allá del objetivo (`follow`, más si pesa) y el cuerpo se va con él.
@@ -372,9 +374,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   al cuerpo (lo inclina y lo arrastra) y no puede golpear ni cubrirse por `base + k · masaExtremidad/masaChizito` cuadros; además
   no vuelve a pegar hasta ESTABILIZARSE (`stableW`). Si se inclina de más, se tambalea (sólo el sonido: las palabras
   "trastabilla" y "se está estabilizando" NO aparecen nunca en pantalla, pedido del usuario). Acertar cuesta poco (`hitLock`).
-- AIRE (estamina, `FIGHT.stamina`): cada golpe gasta (patada y pesado más, combinación menos); se recupera tras 40 cuadros sin
-  pegar (más lento cubriéndose); cansado (< 35) carga más lento y pega ×0,6–1; en 0 queda boqueando (`gassed`, "¡SIN AIRE!") sin
-  poder pegar. Golpes más lentos (carga mínima 7, `strikeGap` 16, `joint.strike` 54): aporrear los botones ya NO gana.
+- Golpes más lentos (carga mínima 7, `strikeGap` 16, `joint.strike` 54): aporrear los botones ya NO gana. (Hubo una barra de
+  AIRE/estamina: el usuario la descartó, "no se entiende y no sirve"; no volver a ponerla.)
 - PODERES (`POWERS` en tuning.ts, lógica de cada comida; barra de PODER que se llena pegando, recibiendo y sola; se guarda entre
   rounds; E para el jugador, la IA los usa cuando conviene): TU CHIZITO NUBE DE QUESO (marea si está cerca; la guardia lo evita),
   BROCOLOCO VAPORAZO (vapor de la copa: quema y empuja de cerca), HUEVO HUEVAZO RODANTE (se hace bola y rueda: se salta o se
@@ -383,7 +384,9 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - CUERPOS BLANDOS: el HUEVO es gelatina (`jelly`): vibra al recibir (`Jiggle` en render.ts) y los golpes seguidos pegan cada vez
   menos (`JELLY`); la QUINOA se abolla apenas. `soak()` aplica coraza + gelatina a todo daño.
 - GRAVEDAD: enderezarse necesita APOYO (en el aire no hay torque que lo endereza: antes flotaba como colgado de un cable) y el
-  equilibrio está amortiguado (`balanceZeta` 0,8); la guardia "respira" sólo mientras se pelea.
+  equilibrio está amortiguado (`balanceZeta` 0,8); la guardia "respira" sólo mientras se pelea. APOYADO PIVOTA sobre lo que toca
+  la mesa (`contactPoint`): al inclinarse o girar, ese punto no se desliza (se corrige `f.x`); antes giraba alrededor de su
+  centro y los pies patinaban.
 - GUARDIA FÍSICA: los brazos se cruzan delante del cuerpo (uno en diagonal arriba, otro abajo) y sólo bloquea si el golpe TOCA
   un brazo; lo que pasa por fuera pega. Sin brazos no hay guardia. CON ESCUDOS, la guardia PRESENTA el escudo (`shieldPose`):
   en la cabeza se inclina adelante, en la espalda se da vuelta, abajo se pone cabeza abajo; sin escudos vuelven los brazos.
@@ -405,13 +408,13 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - SONIDOS: ids listos para que el usuario grabe los suyos (`public/assets/sounds/<id>.ogg|mp3|wav`; si no hay archivo, suena
   un sintetizado de verdad: golpe con cuerpo + crujido, campana, bronces, voces con formantes, vapor; con compresor): `golpe`, `golpe-pesado`, `bloqueo`, `zumbido` (golpe pesado que arranca), `pifio`, `escudo` (se rompe),
   `ko`, `round`, `pelea`, `combo` (sale una combinación), `japish` (el grito ¡JAPISH!, en golpes fuertes y combinaciones),
-  `sin-aire`, `poder-carga`, `poder-queso`, `poder-vapor`, `poder-rodada`, `poder-metralla`,
+  `poder-carga`, `poder-queso`, `poder-vapor`, `poder-rodada`, `poder-metralla`,
   `risa` (presentación del brócoli), `pimba` (¡PIMBA!, patada que entra), `soplamoco` (¡SOPLAMOCO!, piña a la cara: el 38 % de
   arriba del cuerpo del que recibe), más los del constructor (`pick`, `drop`, `crack`, `crunch`, `out`). Los yerros alternan
   ¡PIFIÓ! y ¡PIF!. PALABRAS DE HISTORIETA: quietas 1,4 s, dentro de la pantalla y debajo de las barras (no se van volando), como
   mucho una cada 75 cuadros. MÚSICA: `musica-pelea` en loop si está el archivo; si no, una base sintetizada (`AudioManager.musicOn`).
 - CLARIDAD: cada golpe deja una ESTELA (la punta de la extremidad, dorada el chizito, verde el brócoli; tenue mientras carga). Si
-  una tecla no puede hacer nada, un cartelito dice por qué (no hay brazo/pierna de ese lado, sin aire, atontado, poder al N %). La
+  una tecla no puede hacer nada, un cartelito dice por qué (no hay brazo/pierna de ese lado, atontado, poder al N %). La
   guía de teclas no desaparece: a los 7 s queda chica y transparente. Al terminar un round se cortan los golpes en curso.
 - Formato: al mejor de 3 rounds, 90 s, vida 100, empate exacto = ronda extra. CONTROLES = un botón por CUADRANTE del chizito
   (mano izquierda, como se ve al armarlo): Q brazos izquierdos, W brazos derechos, A piernas izquierdas, S piernas derechas;
@@ -436,7 +439,7 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   acomoda con pasos decididos (no toques de un cuadro, que la hacían temblar como una marioneta).
 - PASO: al caminar, la pierna que avanza se levanta (gira hacia afuera, `FIGHT.gaitLift`) y el cuerpo queda sobre la otra.
 - CHUPETÍN: pesa más que el chizito (5 g contra 3,3) y lo inclina hacia su lado; pega girando el torso entero (`twist.swing`),
-  fuerte pero con tope (`swing.maxDmg` 18 por golpe); si pifia, el giro sigue de largo por inercia (`swing.whiffSpin`).
+  el que más pega (`pieceDmg`); si pifia, da la vuelta entera hacia el lado del golpe (`whirl`).
 - CUERPO ENTERO: el torso gira con el golpe (`FIGHT.twist`: el hombro va atrás al cargar y adelante al soltar; física y dibujo
   con el mismo giro, `f.yaw`) y las piernas apoyadas ponen el pie bajo el centro de masa (`FIGHT.support`; mucho más mientras
   otra patea: se para sobre ésa).
