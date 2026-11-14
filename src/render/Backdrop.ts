@@ -216,7 +216,7 @@ function cakeBoard(radius: number, at: THREE.Vector3): THREE.Mesh {
     ctx.fill();
   }
   const bump = new THREE.CanvasTexture(c);
-  const mat = new THREE.MeshStandardMaterial({ name: 'cake-board', color: '#e8c46a', metalness: 0.85, roughness: 0.32, bumpMap: bump, bumpScale: 0.6 });
+  const mat = new THREE.MeshStandardMaterial({ name: 'cake-board', color: '#f3d684', metalness: 0.9, roughness: 0.24, bumpMap: bump, bumpScale: 0.6 });
   const m = new THREE.Mesh(geo, mat);
   m.position.copy(at);
   m.receiveShadow = true;
