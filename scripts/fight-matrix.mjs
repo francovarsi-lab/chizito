@@ -38,7 +38,7 @@ try {
       if (foeWind && near < reach * 1.8 && !mineBusy) return { x: 0, guard: true };
       if (me.meter >= FIGHT.power.max && me.model.power && near < reach * 1.5) return { x: 0, power: true };
       if (near > reach) return { x: toward(m) };
-      if (foe.lock > 4 || me.counter > 0 || mem.t % 20 === 0) {
+      if (foe.lock > 4 || me.counter > 0 || mem.t % 80 === 0) {
         mem.k = (mem.k ?? 0) + 1;
         return { x: 0, quad: mem.k % 2 ? 'LA' : 'RA' };
       }

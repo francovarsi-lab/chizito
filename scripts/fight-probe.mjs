@@ -13,16 +13,17 @@ try {
     const P = fighterFromSnapshot(snap(id));
     console.log(`== ${id} ${(P.mass*1000).toFixed(1)} g`, P.limbs.map(l => `${l.role}${l.side}:${l.label} dir=[${l.dir.map(v=>v.toFixed(2))}]`).join(' | '));
     for (const quad of ['LA', 'RA']) {
-      for (const gap of [0.045, 0.06]) {
+      for (const gap of (process.env.GAPS ? process.env.GAPS.split(',').map(Number) : [0.045, 0.06])) {
         const m = createMatch([P, broccoliFighter(1)]);
         for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
         m.f[1].x = m.f[0].x + gap; m.f[1].stun = 9999;
         for (let i = 0; i < 20; i++) { stepMatch(m, [{ x: 0 }, { x: 0 }]); m.f[1].x = m.f[0].x + gap; m.f[1].stun = 9999; }
-        let res = 'sin extremidad', plan = '', k = -1, t0 = m.frame;
+        let res = 'sin extremidad', plan = '', k = -1, t0 = m.frame, sf = 0;
         stepMatch(m, [{ x: 0, quad }, { x: 0 }]);
         for (let i = 0; i < 160; i++) {
           if (k < 0) { k = m.f[0].limbs.findIndex((s) => s.phase === 'windup'); if (k >= 0) { const s = m.f[0].limbs[k], l = P.limbs[k]; plan = `${l.label}${l.rigid ? '(fijo)' : ''} carga ${s.windup.toFixed(2)} fin ${s.target.toFixed(2)} arco ${(s.target - s.windup).toFixed(2)} rad, espera ${s.charge}c`; } }
-          for (const e of m.events) { if (e.type === 'hit' && e.by === 0) res = `PEGA a los ${m.frame - t0} c, daño ${e.damage.toFixed(1)}, v ${e.speed.toFixed(2)}`; if (e.type === 'whiff' && e.who === 0) res = `PIFIA a los ${m.frame - t0} c (traba ${e.lock})`; }
+          for (const e of m.events) { if (e.type === 'hit' && e.by === 0) res = `PEGA a los ${m.frame - t0} c (golpe ${sf} c), daño ${e.damage.toFixed(1)}, v ${e.speed.toFixed(2)}`; if (e.type === 'whiff' && e.who === 0) res = `PIFIA a los ${m.frame - t0} c (traba ${e.lock})`; }
+          if (k >= 0 && m.f[0].limbs[k].phase === 'strike') sf++;
           if (res !== 'sin extremidad') break;
           m.f[1].stun = 9999;
           stepMatch(m, [{ x: 0 }, { x: 0 }]);

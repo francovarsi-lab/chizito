@@ -384,9 +384,10 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - CARGA: lo pesado se carga antes de pegar (`FIGHT.charge`: cuadros = k · (masa extremidad / masa chizito − free), con temblor);
   un golpe recibido durante la carga la corta. La aceituna pega más fuerte pero bastante más lenta.
 - DAÑO POR PIEZA (`FIGHT.pieceDmg`, orden del usuario): chupetín > aceituna > palito de la selva > palito > espadita >
-  escarbadientes; cada extremidad pega con su pieza más fuerte (palito + aceituna = aceituna); piernas × `legMul` (1,15); la
-  velocidad sólo corre ±10 % (`speedMul`), menos que la distancia entre escalones: el orden se respeta siempre. La masa
-  efectiva (I/r²) queda para el empujón.
+  escarbadientes; cada extremidad pega con su pieza más fuerte (palito + aceituna = aceituna); piernas × `legMul` (1,15).
+  DAÑO POR RECORRIDO (`dmgTravel` 0,4–1): rad recorridos desde la carga / `dmgArc` (1,4); lo fijo, giro del torso desde que
+  soltó / `dmgTwist` (0,6). Apoyar el brazo o pegar pegado al rival saca menos; el chupetín pega entero a ~10 cm, no encima.
+  Con el mismo recorrido el orden de piezas se respeta. La masa efectiva (I/r²) queda para el empujón.
 - GOLPE CON LÓGICA FÍSICA: al cargar el peso va atrás y al soltar adelante (`bodyWind`/`bodyThrow`; una patada al revés), y el
   envión (`lunge`) sale al SOLTAR, no al cargar. ACERTAR: el brazo frena contra el otro y rebota, y el que pega pierde el envión
   (`impactBack`). PIFIAR: el brazo sigue de largo más allá del objetivo (`follow`, más si pesa) y el cuerpo se va con él.
@@ -394,11 +395,15 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   al cuerpo (lo inclina y lo arrastra) y no puede golpear ni cubrirse por `base + k · masaExtremidad/masaChizito` cuadros; además
   no vuelve a pegar hasta ESTABILIZARSE (`stableW`). Si se inclina de más, se tambalea (sólo el sonido: las palabras
   "trastabilla" y "se está estabilizando" NO aparecen nunca en pantalla, pedido del usuario). Acertar cuesta poco (`hitLock`).
-- Golpes más lentos (carga mínima 7, `strikeGap` 16, `joint.strike` 54). (Hubo una barra de AIRE/estamina: el usuario la
+- Golpes que se leen (T2): carga mínima 9, `joint.strike` 30 y `strikeMinFrames` 6 (el golpe no avanza más de arco/6 por
+  cuadro): del botón al impacto 13–16 cuadros con un palito. ALCANCE PAREJO: el hombro de atrás gira el torso `twist.armBack`
+  (1,5) y el de adelante `twist.arm` (−0,2): los dos llegan a 3 mm uno del otro (`twist.min` −0,9). El chupetín gira alrededor
+  de la cara de frente (no de la guardia de 3/4), sin el tope de la guardia. `strikeGap` 16. (Hubo una barra de AIRE/estamina: el usuario la
   descartó, "no se entiende y no sirve"; no volver a ponerla.) APORREAR NO GANA (`FIGHT.repeat`): pegar sin pausa (cada golpe
   arranca antes de 75 cuadros del anterior, con el botón que sea) marca un RITMO: cada golpe seguido pega menos (×0,75, 0,5, piso
   0,35; `limb.worn`) y la IA lo lee: se anticipa con la guardia, pegarle a la guardia traba al que pega (`blockedLock`) y la IA
-  castiga esa ventana y contraataca. Medido: aporreando Q/W gana 2/6 en el nivel 1 y 0/6 en el 2 y el 3.
+  castiga esa ventana y contraataca (suelta la guardia para castigar). Encadenar después de acertar no suma al ritmo pero
+  tampoco lo borra (antes golpe + UNO-DOS + golpe pegaba siempre entero). Medido en `docs/creature/BALANCE.md`.
 - DESPROPORCIÓN (`heavyLoad` = extremidad más pesada / cuerpo − 0,6): si lo clavado pesa más que el chizito, camina y salta
   menos, pifiar lo traba más y la vuelta dura más; aviso al empezar la pelea.
 - PODERES (`POWERS` en tuning.ts, lógica de cada comida; barra de PODER que se llena pegando, recibiendo y sola; se guarda entre

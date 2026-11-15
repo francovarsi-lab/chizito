@@ -203,6 +203,7 @@ Por qué: J10 y J11. Sin esto, todo ajuste es a ojo.
 Hecho cuando: la matriz corre en < 2 min, se pega su salida en `docs/creature/BALANCE.md`, pruebas en verde.
 
 ### T2 — Golpes que se leen y daño por recorrido
+**Hecha** (2026-11-15). Balance fuera de objetivo explicado en `docs/creature/BALANCE.md` (es de la IA de los rivales: T5–T8).
 Por qué: J4, J5. Especificación: 4.1.
 1. `tuning.ts`: `joint.strike.wn` 54 → 30 y probar; agregar `strikeMinFrames: 5` (el objetivo guiado no avanza más de
    `arco / strikeMinFrames` por cuadro en `guided()`, `engine.ts` ~1022). `windMin` 7 → 9.

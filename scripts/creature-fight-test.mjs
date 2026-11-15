@@ -25,7 +25,8 @@ try {
   };
 
   // ── Modelo: cada vara clavada en el chizito es una extremidad con la articulación en su punto de clavado ──
-  const mine = fighterFromSnapshot(snap('criatura-20261011-1623'));
+  // Mi criatura con el frente REAL del juego (cara +Z, arriba +X), como la arma mount.ts.
+  const mine = fighterFromSnapshot({ ...snap('criatura-20261011-1623'), orientation: { front: [0, 0, 1], up: [1, 0, 0] } });
   ok(mine.limbs.length === 4, `mi criatura: 4 extremidades (${mine.limbs.length})`);
   ok(mine.limbs.filter((l) => l.role === 'arm').length === 2 && mine.limbs.filter((l) => l.role === 'leg').length === 2, `mi criatura: 2 brazos y 2 piernas (${mine.limbs.map((l) => l.role)})`);
   const olive = mine.limbs.find((l) => l.label.includes('aceituna'));
@@ -79,8 +80,9 @@ try {
     let max = 0;
     const used = new Set();
     let both = false;
-    for (let i = 0; i < 200; i++) {
-      stepMatch(m, [{ x: 0, punch: i === 0 || i === 90 }, { x: 0 }]);
+    // El segundo toque espera a que el primero termine (si pifió la aceituna, la traba es larga).
+    for (let i = 0; i < 260; i++) {
+      stepMatch(m, [{ x: 0, punch: i === 0 || i === 140 }, { x: 0 }]);
       const striking = m.f[0].limbs.filter((s) => s.phase === 'windup' || s.phase === 'strike').length;
       both ||= striking > 1;
       m.f[0].limbs.forEach((s, k) => { phases.add(s.phase); if (s.phase !== 'rest') used.add(k); max = Math.max(max, rot(s)); });
@@ -114,12 +116,14 @@ try {
     const whiffOf = (heavy) => {
       const m = fight(mine);
       m.f[1].x = 0.15; // lejos: no hay nada que pegar
+      m.f[0].nextArm = m.f[0].arms.indexOf(m.f[0].model.limbs.findIndex((l, j) => m.f[0].arms.includes(j) && (l.kind === 'heavy') === heavy));
       let ev = null, tiltMax = 0;
+      const tilt0 = m.f[0].tilt; // inclinación de reposo (depende de cómo está armada)
       const presses = heavy ? [0, 60] : [0];
       for (let i = 0; i < 200; i++) {
         stepMatch(m, [{ x: 0, punch: presses.includes(i) }, { x: 0 }]);
         for (const e of m.events) if (e.type === 'whiff' && e.heavy === heavy) ev = e;
-        if (ev) tiltMax = Math.max(tiltMax, Math.abs(m.f[0].tilt - (-0.093)));
+        if (ev) tiltMax = Math.max(tiltMax, Math.abs(m.f[0].tilt - tilt0));
       }
       return { ev, tiltMax };
     };
@@ -224,6 +228,8 @@ try {
     const hits = [];
     // Separados más que la ventana de "repetido" (si no, el segundo golpe se ve venir y pega menos).
     for (let i = 0; i < 260; i++) {
+      // Cada piña desde la misma distancia (el golpe anterior lo empuja).
+      if (i % 110 === 0) m.f[1].x = m.f[0].x + 0.034;
       stepMatch(m, [{ x: 0, punch: i % 110 === 0 }, { x: 0 }]);
       for (const e of m.events) if (e.type === 'hit' && e.by === 0) hits.push(e);
     }
@@ -404,7 +410,7 @@ try {
       let maxRot = 0, hit = false, whiff = false;
       for (let i = 0; i < 50; i++) {
         stepMatch(m, [{ x: 0, punch: i === 0 }, { x: 0 }]);
-        maxRot = Math.max(maxRot, rot(f.limbs[k]));
+        maxRot = Math.max(maxRot, f.limbs[k].phi);
         for (const e of m.events) {
           if (e.type === 'hit' && e.by === 0) hit = true;
           if (e.type === 'whiff' && e.who === 0) whiff = true;
@@ -576,7 +582,8 @@ try {
 
   // ── Rivales por nivel: 1 brócoli, 2 huevo duro (brazos largos, menos defensa), 3 quinoa (defensa y se rearma) ──
   {
-    const mine = fighterFromSnapshot(snap('criatura-20261011-1623'));
+    // Mi criatura con el frente REAL del juego (cara +Z, arriba +X), como la arma mount.ts.
+  const mine = fighterFromSnapshot({ ...snap('criatura-20261011-1623'), orientation: { front: [0, 0, 1], up: [1, 0, 0] } });
     const names = [1, 2, 3].map((l) => rivalFighter(l).name);
     ok(/BROCOLOCO/.test(names[0]) && /HUEVO/.test(names[1]) && /QUINOA/.test(names[2]), `un rival por nivel (${names.join(' / ')})`);
     const armReach = (R) => Math.max(...R.limbs.filter((l) => l.role === 'arm').map((l) => l.reach));
@@ -605,7 +612,7 @@ try {
   {
     const D = FIGHT.pieceDmg;
     const order = ['chupetin', 'aceituna', 'palito-selva', 'palito', 'escarbadientes:espadita', 'escarbadientes'];
-    ok(order.every((t, i) => i === 0 || D[order[i - 1]] * FIGHT.speedMul[0] > D[t] * FIGHT.speedMul[1]), `el orden de daño se respeta a cualquier velocidad (${order.map((t) => D[t]).join(' > ')})`);
+    ok(order.every((t, i) => i === 0 || D[order[i - 1]] > D[t]), `con el mismo recorrido, el orden de daño se respeta (${order.map((t) => D[t]).join(' > ')})`);
     ok(FIGHT.legMul > 1, 'las piernas pegan un poco más');
   }
 

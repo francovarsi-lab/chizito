@@ -96,7 +96,7 @@ export interface FighterState {
   /** Erró y quedó desestabilizado: no vuelve a golpear hasta estabilizarse; si se inclina de más, trastabilla (una vez). */
   wobbly: boolean;
   /** Golpe de cuerpo entero con una pieza fija (chupetín): hacia dónde se balancea (+1 adelante, −1 atrás). */
-  swing: { k: number; sign: 1 | -1 } | null;
+  swing: { k: number; sign: 1 | -1; t0?: number } | null;
   /** Se cubre con un escudo: inclinación (rad) para ponerlo de frente; `turned` = se dio vuelta para mostrar la espalda. */
   shieldPose: { tilt: number; turned: boolean } | null;
   buffer: { kind: 'arm' | 'kick' | 'air'; t: number; quad?: Quad } | null;
@@ -976,8 +976,9 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       const k = pickLimb(f, f.buffer.kind, !!combo, f.buffer.quad);
       if (k >= 0) {
         // Pegar sin parar (golpe tras golpe, con el botón que sea) marca un ritmo que el rival lee: cada golpe seguido pega menos
-        // y lo ataja más (ver `FIGHT.repeat`). Parar un momento, moverse o encadenar después de acertar lo evita.
-        f.repeat = !combo && m.frame - f.lastStrikeF < FIGHT.repeat.window ? f.repeat + 1 : 0;
+        // y lo ataja más (ver `FIGHT.repeat`). Parar un momento lo evita. Encadenar después de acertar no suma, pero tampoco lo
+        // borra (antes lo borraba: golpe, UNO-DOS, golpe… pegaba siempre entero aporreando).
+        f.repeat = m.frame - f.lastStrikeF < FIGHT.repeat.window ? f.repeat + (combo ? 0 : 1) : 0;
         f.lastStrikeF = m.frame;
         startStrike(m, i, k, f.buffer.kind, combo);
         f.limbs[k].worn = Math.max(FIGHT.repeat.min, 1 - FIGHT.repeat.step * f.repeat);
@@ -1015,6 +1016,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       if (s.phase === 'windup' && s.t >= FIGHT.swing.windFrames + s.charge) {
         s.phase = 'strike';
         s.t = 0;
+        if (f.swing) f.swing.t0 = f.twist;
         // Se tira con el cuerpo entero hacia el rival.
         f.vx += f.facing * FIGHT.swing.lunge * (f.grounded ? 1 : 0.3);
       } else if (s.phase === 'strike') {
@@ -1027,8 +1029,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if (s.slack > 0) s.slack--;
     // Golpe y vuelta: se sigue el ángulo a lo largo del eje del golpe con un objetivo que avanza delante del ángulo actual,
     // así un mazazo de 200° va por arriba (y vuelve por arriba) en vez de tomar el atajo.
-    const guided = (goal: number, g: { wn: number; zeta: number }, boost = 1): void => {
-      const lead = clamp(goal, s.phi - 1.5, s.phi + 1.5);
+    const guided = (goal: number, g: { wn: number; zeta: number }, boost = 1, ahead = 1.5): void => {
+      const lead = clamp(goal, s.phi - 1.5, s.phi + ahead);
       react += drive(f, k, qAxis(s.axis, lead), g, boost);
     };
     if (s.phase === 'windup') {
@@ -1045,7 +1047,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if (s.phase === 'strike') {
       // Activo según dónde ESTABA al empezar el paso: el paso que cruza el final del arco también cuenta (el contacto es barrido).
       const phi0 = s.phi;
-      guided(s.target, FIGHT.joint.strike, FIGHT.strikeBoost);
+      guided(s.target, FIGHT.joint.strike, FIGHT.strikeBoost, (s.target - s.windup) / FIGHT.strikeMinFrames);
       s.active = !s.landed && phi0 < s.target - 0.12 && s.t < FIGHT.strikeMax;
       if (!s.active && (dotv(s.w, s.axis) < 1 || s.t >= FIGHT.strikeMax || s.landed)) endStrike(m, i, k);
       return;
@@ -1148,7 +1150,9 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       const l = M.limbs[sk];
       // Hacia dónde girar para llevar ESE hombro hacia el rival: derivada de fwd(pivote) respecto del giro.
       const sg = shoulderSign(f, l.pivot);
-      const amt = l.rigid ? T.swing : l.role === 'leg' ? T.kick : T.arm;
+      // El hombro de atrás (con la guardia de 3/4 queda más lejos del rival) gira más, para llegar igual de lejos que el de adelante.
+      const back = l.role === 'arm' && shoulderSign(f, l.pivot) * Math.sign(base) < 0;
+      const amt = l.rigid ? T.swing : l.role === 'leg' ? T.kick : back ? T.armBack : T.arm;
       want = f.limbs[sk].phase === 'windup' ? -sg * amt * T.wind : sg * amt;
       // Lo fijo gira alrededor de la cara de frente (giro 0), no de la guardia de 3/4: si no, el hombro de adelante llega antes.
       if (l.rigid) want -= base;
@@ -1392,11 +1396,12 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   const mEff = l.rigid ? l.mass * FIGHT.swing.massShare : clamp(I / Math.max(r * r, 1e-8), 0.2 * l.mass, l.mass);
   const kind: HitKind = p.kind === 'shield' ? l.kind : p.kind;
   // Pega con su pieza más fuerte (un brazo con aceituna es un brazo de aceituna: más lento, pega más; orden fijo, ver
-  // `pieceDmg`); la velocidad lo corre apenas; las piernas, un poco más.
+  // `pieceDmg`), por lo que ya recorrió el golpe (apoyar no es pegar); las piernas, un poco más.
   const D = FIGHT.pieceDmg;
   let base = 0;
   for (const q of l.points) if (!q.inside) base = Math.max(base, D[q.tier] ?? D.default);
-  let dmg = base * clamp(speed / FIGHT.dmgSpeedRef, FIGHT.speedMul[0], FIGHT.speedMul[1]) * (l.role === 'leg' ? FIGHT.legMul : 1);
+  const travel = l.rigid ? Math.abs(a.twist - (a.swing?.t0 ?? a.twist)) / FIGHT.dmgTwist : (s.phi - s.windup) / FIGHT.dmgArc;
+  let dmg = base * clamp(travel, FIGHT.dmgTravel[0], FIGHT.dmgTravel[1]) * (l.role === 'leg' ? FIGHT.legMul : 1);
   const chain = s.combo;
   if (chain) dmg *= FIGHT.chain.mul[chain] ?? 1;
   dmg *= s.worn;

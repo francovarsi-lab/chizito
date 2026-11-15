@@ -61,6 +61,12 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
     mem.doing = 'guard';
     mem.left = 22 + Math.floor(rnd(mem) * 16);
   }
+  // Le pegó a la guardia y quedó trabado: suelta la guardia y castiga (antes seguía cubierto y dejaba pasar la ventana).
+  if (mem.doing === 'guard' && foe.lock > 4 && me.stun <= 0 && near < reach * 1.15 && rnd(mem) < 0.3 + 0.12 * mem.level) {
+    mem.doing = 'none';
+    mem.left = 0;
+    return { x: 0, punch: true };
+  }
   if (mem.left > 0) {
     mem.left--;
     if (mem.doing === 'guard') return { x: 0, guard: true };

@@ -8,7 +8,20 @@ ve venir, castiga cuando el rival queda trabado, usa el poder lleno, pega cada 2
 Objetivo (plan 4.7): `listo` 45–70 % al nivel 1, 30–55 % al 2, 15–40 % al 3; aporreando ≤ 25 % al 1 y ≤ 10 % al 2 y 3;
 ningún arquetipo 15 puntos arriba del promedio.
 
-## Lectura (2026-11-15, antes de T2)
+## Lectura después de T2 (2026-11-15)
+Cambios: golpe más lento y legible, daño por recorrido, alcance parejo de los dos hombros, la IA suelta la guardia para
+castigar y encadenar ya no borra el ritmo de aporreo.
+1. **Aporrear dejó de ganar en los niveles 2 y 3** (1 % y 3 %; antes 41 % y 16 %). Objetivo cumplido.
+2. **En el nivel 1 aporrear todavía gana el 76 %** (objetivo ≤ 25 %): el brócoli nivel 1 casi no lee el ritmo ni castiga.
+   Es de su IA (moneda por cuadro) → T5.
+3. **La quinoa (nivel 3) no pierde nunca** (0–5 %, salvo chupetin2 aporreando 20 %): coraza ×0,7 + regeneración + ahora el
+   daño por recorrido. Se rediseña entera en T8 (absorber / reventar / granos).
+4. **El bot `listo` es un mal instrumento**: pega poco (cada 80 cuadros para no contar como aporreo) y pierde el nivel 1 con casi
+   todo mientras gana el 2 con boxeador y mazo. Mejorarlo junto con T3 (golpe rápido / cargado, atajada).
+5. **El mazo sigue siendo el más fuerte** (100 % en nivel 1 y 2 con `listo`). Antes de tocar `pieceDmg` conviene tener la IA de
+   T5: hoy el problema es que los rivales no castigan lo lento.
+
+## Lectura antes de T2 (2026-11-15)
 1. **Aporrear gana el nivel 1 siempre (100 %)** y el nivel 2 con `boxeador` y `tanque` (100 %). Objetivo: ≤ 25 % y ≤ 10 %.
 2. **El nivel 1 es demasiado fácil**: `listo` gana el 99 % (objetivo 45–70 %).
 3. **La quinoa (nivel 3) es intocable para las criaturas livianas**: `boxeador`, `pinchudo` y `tanque` no le meten ni un golpe
@@ -20,34 +33,34 @@ ningún arquetipo 15 puntos arriba del promedio.
    (izq 68 c, der 63 c) y el de atrás a 6 cm apenas rozaba (v 0,24, 10,4 de daño). Ahora gira alrededor de la cara de frente:
    63 / 63 c, mismo daño y velocidad.
 
-## Matriz
+## Matriz (después de T2)
 | arquetipo | g | bot | nivel 1 | nivel 2 | nivel 3 |
 |---|---|---|---|---|---|
-| boxeador | 4.9 | aporrea | 100% · 40 s · 3.5 / 7.9 | 100% · 114 s · 3.2 / 7.5 | 0% · 45 s · 0.0 / 6.5 |
-| boxeador | 4.9 | ia | 100% · 55 s · 6.2 / 6.9 | 45% · 110 s · 7.5 / 6.2 | 0% · 126 s · 5.5 / 7.4 |
-| boxeador | 4.9 | listo | 100% · 38 s · 4.5 / 7.7 | 95% · 91 s · 3.7 / 7.5 | 0% · 114 s · 0.0 / 5.3 |
-| chupetin1 | 9.5 | aporrea | 100% · 73 s · 6.0 / 7.1 | 5% · 74 s · 8.3 / 6.8 | 5% · 106 s · 5.7 / 9.1 |
-| chupetin1 | 9.5 | ia | 60% · 84 s · 7.0 / 6.8 | 0% · 66 s · 10.3 / 6.1 | 0% · 95 s · 5.7 / 8.1 |
-| chupetin1 | 9.5 | listo | 100% · 73 s · 8.8 / 6.7 | 55% · 84 s · 11.3 / 6.0 | 65% · 103 s · 7.2 / 7.8 |
-| chupetin2 | 14.1 | aporrea | 100% · 72 s · 12.1 / 6.8 | 15% · 71 s · 15.0 / 6.2 | 50% · 103 s · 8.9 / 7.7 |
-| chupetin2 | 14.1 | ia | 30% · 86 s · 11.3 / 6.4 | 0% · 70 s · 14.0 / 5.7 | 5% · 74 s · 8.0 / 7.0 |
-| chupetin2 | 14.1 | listo | 90% · 79 s · 12.3 / 6.5 | 15% · 73 s · 15.4 / 5.7 | 0% · 74 s · 8.9 / 7.3 |
-| desparejo | 9.3 | aporrea | 100% · 62 s · 5.1 / 7.1 | 15% · 67 s · 9.4 / 6.6 | 20% · 115 s · 5.7 / 8.7 |
-| desparejo | 9.3 | ia | 70% · 82 s · 6.4 / 6.6 | 0% · 66 s · 10.0 / 5.8 | 0% · 76 s · 5.2 / 8.0 |
-| desparejo | 9.3 | listo | 100% · 68 s · 8.1 / 6.9 | 10% · 73 s · 11.6 / 5.9 | 45% · 85 s · 7.1 / 7.7 |
-| mazo | 14.3 | aporrea | 100% · 37 s · 8.1 / 6.6 | 55% · 111 s · 8.3 / 6.1 | 35% · 193 s · 5.3 / 9.6 |
-| mazo | 14.3 | ia | 100% · 52 s · 8.9 / 6.4 | 35% · 91 s · 13.1 / 5.9 | 80% · 88 s · 7.0 / 8.7 |
-| mazo | 14.3 | listo | 100% · 41 s · 8.5 / 6.6 | 70% · 83 s · 12.5 / 5.9 | 65% · 88 s · 7.3 / 8.7 |
-| pinchudo | 4.9 | aporrea | 100% · 31 s · 3.5 / 7.2 | 0% · 39 s · 0.0 / 5.5 | 0% · 45 s · 0.0 / 6.5 |
-| pinchudo | 4.9 | ia | 100% · 53 s · 5.0 / 6.6 | 10% · 116 s · 5.1 / 5.4 | 0% · 103 s · 0.0 / 6.9 |
-| pinchudo | 4.9 | listo | 100% · 37 s · 3.8 / 7.3 | 0% · 122 s · 0.0 / 4.2 | 0% · 115 s · 0.0 / 5.3 |
-| tanque | 11.3 | aporrea | 100% · 35 s · 3.1 / 2.0 | 100% · 93 s · 3.0 / 2.5 | 0% · 61 s · 0.0 / 3.7 |
-| tanque | 11.3 | ia | 100% · 42 s · 6.6 / 2.7 | 35% · 113 s · 7.3 / 3.1 | 0% · 154 s · 5.3 / 3.4 |
-| tanque | 11.3 | listo | 100% · 35 s · 4.6 / 2.1 | 95% · 95 s · 3.6 / 2.7 | 0% · 97 s · 0.0 / 3.2 |
+| boxeador | 4.9 | aporrea | 0% · 66 s · 1.2 / 5.9 | 0% · 63 s · 2.2 / 4.1 | 0% · 52 s · 0.0 / 4.9 |
+| boxeador | 4.9 | ia | 45% · 112 s · 3.0 / 5.9 | 20% · 122 s · 5.7 / 4.6 | 0% · 137 s · 3.2 / 6.7 |
+| boxeador | 4.9 | listo | 10% · 118 s · 3.0 / 5.5 | 70% · 96 s · 6.0 / 4.0 | 0% · 132 s · 0.0 / 4.7 |
+| chupetin1 | 9.5 | aporrea | 90% · 134 s · 3.3 / 5.5 | 0% · 69 s · 7.1 / 4.7 | 0% · 84 s · 4.5 / 6.5 |
+| chupetin1 | 9.5 | ia | 50% · 121 s · 4.8 / 5.2 | 15% · 97 s · 8.7 / 4.4 | 0% · 92 s · 4.4 / 6.3 |
+| chupetin1 | 9.5 | listo | 0% · 90 s · 4.5 / 5.0 | 5% · 94 s · 9.0 / 4.0 | 0% · 79 s · 5.0 / 6.1 |
+| chupetin2 | 14.1 | aporrea | 85% · 135 s · 5.5 / 5.6 | 5% · 88 s · 11.5 / 4.8 | 20% · 138 s · 6.2 / 6.3 |
+| chupetin2 | 14.1 | ia | 20% · 125 s · 6.0 / 5.3 | 10% · 93 s · 11.8 / 4.1 | 0% · 87 s · 6.0 / 5.7 |
+| chupetin2 | 14.1 | listo | 0% · 93 s · 6.0 / 5.3 | 5% · 82 s · 11.8 / 3.8 | 0% · 61 s · 6.3 / 5.7 |
+| desparejo | 9.3 | aporrea | 100% · 88 s · 2.5 / 5.5 | 5% · 73 s · 6.1 / 4.6 | 0% · 80 s · 3.7 / 6.7 |
+| desparejo | 9.3 | ia | 65% · 124 s · 3.9 / 5.1 | 0% · 91 s · 8.8 / 4.2 | 0% · 79 s · 4.0 / 5.8 |
+| desparejo | 9.3 | listo | 0% · 92 s · 3.7 / 4.9 | 0% · 70 s · 7.6 / 3.8 | 0% · 61 s · 4.4 / 5.3 |
+| mazo | 14.3 | aporrea | 100% · 65 s · 2.9 / 5.9 | 0% · 72 s · 7.6 / 4.6 | 0% · 57 s · 3.6 / 7.4 |
+| mazo | 14.3 | ia | 100% · 76 s · 5.5 / 5.7 | 70% · 99 s · 10.6 / 4.6 | 0% · 102 s · 5.4 / 7.3 |
+| mazo | 14.3 | listo | 100% · 83 s · 5.0 / 5.7 | 100% · 79 s · 11.9 / 4.1 | 5% · 108 s · 6.2 / 6.9 |
+| pinchudo | 4.9 | aporrea | 100% · 51 s · 0.8 / 5.4 | 0% · 54 s · 0.0 / 3.2 | 0% · 52 s · 0.0 / 4.8 |
+| pinchudo | 4.9 | ia | 100% · 66 s · 2.5 / 5.9 | 15% · 187 s · 3.4 / 4.6 | 0% · 124 s · 2.9 / 6.4 |
+| pinchudo | 4.9 | listo | 100% · 65 s · 1.9 / 5.3 | 0% · 159 s · 0.0 / 3.7 | 0% · 129 s · 0.0 / 4.7 |
+| tanque | 11.3 | aporrea | 60% · 114 s · 1.2 / 5.3 | 0% · 83 s · 2.5 / 3.1 | 0% · 73 s · 0.0 / 2.8 |
+| tanque | 11.3 | ia | 100% · 95 s · 3.2 / 3.6 | 10% · 125 s · 6.3 / 2.6 | 0% · 142 s · 3.8 / 3.1 |
+| tanque | 11.3 | listo | 0% · 99 s · 3.0 / 3.3 | 0% · 111 s · 6.9 / 2.4 | 0% · 110 s · 0.0 / 2.8 |
 
 Promedio de victorias por bot (nivel 1 / 2 / 3):
-- aporrea: 100% / 41% / 16% · a más de 15 puntos del promedio: boxeador@2 100%, boxeador@3 0%, mazo@3 35%, chupetin1@2 5%, pinchudo@2 0%, pinchudo@3 0%, chupetin2@2 15%, chupetin2@3 50%, tanque@2 100%, tanque@3 0%, desparejo@2 15%
-- ia: 80% / 18% / 12% · a más de 15 puntos del promedio: boxeador@1 100%, boxeador@2 45%, mazo@1 100%, mazo@2 35%, mazo@3 80%, chupetin1@1 60%, chupetin1@2 0%, pinchudo@1 100%, chupetin2@1 30%, chupetin2@2 0%, tanque@1 100%, tanque@2 35%, desparejo@2 0%
-- listo: 99% / 49% / 25% · a más de 15 puntos del promedio: boxeador@2 95%, boxeador@3 0%, mazo@2 70%, mazo@3 65%, chupetin1@3 65%, pinchudo@2 0%, pinchudo@3 0%, chupetin2@2 15%, chupetin2@3 0%, tanque@2 95%, tanque@3 0%, desparejo@2 10%, desparejo@3 45%
+- aporrea: 76% / 1% / 3% · a más de 15 puntos del promedio: boxeador@1 0%, mazo@1 100%, pinchudo@1 100%, chupetin2@3 20%, tanque@1 60%, desparejo@1 100%
+- ia: 69% / 20% / 0% · a más de 15 puntos del promedio: boxeador@1 45%, mazo@1 100%, mazo@2 70%, chupetin1@1 50%, pinchudo@1 100%, chupetin2@1 20%, tanque@1 100%, desparejo@2 0%
+- listo: 30% / 26% / 1% · a más de 15 puntos del promedio: boxeador@1 10%, boxeador@2 70%, mazo@1 100%, mazo@2 100%, chupetin1@1 0%, chupetin1@2 5%, pinchudo@1 100%, pinchudo@2 0%, chupetin2@1 0%, chupetin2@2 5%, tanque@1 0%, tanque@2 0%, desparejo@1 0%, desparejo@2 0%
 
-(112 s)
+(115 s)

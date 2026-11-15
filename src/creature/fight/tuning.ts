@@ -116,8 +116,8 @@ export const FIGHT = {
   joint: {
     rest: { wn: 26, zeta: 0.42 },
     windup: { wn: 34, zeta: 0.75 },
-    // Golpes más lentos que antes (70): se ven venir, se pueden bloquear y no hay ráfagas imposibles.
-    strike: { wn: 54, zeta: 0.3 },
+    // Golpes que se leen (antes 70, después 54: la fase de golpe duraba 3 cuadros, un "flash").
+    strike: { wn: 30, zeta: 0.3 },
     recover: { wn: 22, zeta: 0.38 },
     guard: { wn: 34, zeta: 0.6 },
   },
@@ -138,7 +138,9 @@ export const FIGHT = {
   sweepHeavy: 3.1,
   windupCap: 1.6,
   /** Cuadros: mínimo y máximo de la carga, máximo del golpe y de la recuperación. */
-  windMin: 7,
+  windMin: 9,
+  /** El golpe no avanza más de arco / esto por cuadro: dura al menos estos cuadros (se ve). */
+  strikeMinFrames: 6,
   windMax: 16,
   strikeMax: 22,
   recoverMax: 34,
@@ -185,7 +187,7 @@ export const FIGHT = {
    * Giro del torso (rad) al pegar con el cuerpo entero: el hombro que pega va atrás al cargar y adelante al soltar (piña); la
    * cadera gira menos en una patada. `rate` = qué tan rápido sigue al objetivo (1/s).
    */
-  twist: { arm: 0.3, kick: 0.15, swing: 0.95, wind: 0.6, rate: { strike: 16, windup: 9, rest: 6 }, min: -0.5, max: 2.2 },
+  twist: { arm: -0.2, armBack: 1.5, kick: 0.15, swing: 0.95, wind: 0.6, rate: { strike: 16, windup: 9, rest: 6 }, min: -0.9, max: 2.2 },
   /** Pies bajo el centro de masa: cuánto corrigen las piernas apoyadas (normal / mientras otra patea) y hasta cuánto (rad). */
   support: { rest: 0.25, kick: 0.9, max: 0.45 },
   /** Ángulo de la marcha (rad) y de las piernas al agacharse. */
@@ -200,8 +202,8 @@ export const FIGHT = {
   /**
    * Daño base de cada pieza (pedido del usuario, de más a menos): chupetín > aceituna > palito de la selva > palito > espadita >
    * escarbadientes. Cada extremidad pega con su pieza más fuerte (un palito con una aceituna en la punta pega como aceituna). Las piernas pegan
-   * `legMul` más (más fuerza). La velocidad sólo corre el daño entre `speedMul` (los escalones están separados más que eso: el
-   * orden se respeta siempre). Rivales: su extremidad.
+   * `legMul` más (más fuerza). El daño se escala por el RECORRIDO del golpe al tocar (`dmgTravel`): apoyar el brazo no
+   * es pegar. Rivales: su extremidad.
    */
   pieceDmg: {
     chupetin: 11.6,
@@ -218,9 +220,10 @@ export const FIGHT = {
     default: 5,
   } as Record<string, number>,
   legMul: 1.15,
-  /** Velocidad de referencia del punto que pega (m/s) y cuánto puede correr el daño. */
-  dmgSpeedRef: 0.6,
-  speedMul: [0.9, 1.1] as const,
+  /** Daño × recorrido del golpe al tocar (rad recorridos desde la carga / `dmgArc`; lo fijo: giro del torso / `dmgTwist`), entre estos topes. */
+  dmgTravel: [0.4, 1] as const,
+  dmgArc: 1.4,
+  dmgTwist: 0.6,
   /** m/s: por debajo de esto el contacto no lastima (apoyar no es pegar). */
   minHitSpeed: 0.14,
   hitPad: 0.0015,
