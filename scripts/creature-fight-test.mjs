@@ -733,6 +733,36 @@ try {
 
   ok(rivalFighter(2).jelly === true && !rivalFighter(3).jelly, 'el HUEVO es de gelatina (la quinoa no)');
 
+  // ── Simetría con el frente REAL (cara +Z): en un arquetipo simétrico, Q (izquierdo) y W (derecho) recorren lo mismo ──
+  {
+    const arq = (id) => fighterFromSnapshot(JSON.parse(fs.readFileSync(`src/creature/fixtures/arq/${id}.snapshot.json`, 'utf8')));
+    // Arco planeado (carga → fin) y cuadros hasta pegar, con el brócoli quieto a 4,5 cm (misma lógica que fight-probe.mjs).
+    const swing = (P, quad) => {
+      const m = fight(P);
+      const pin = () => { m.f[1].x = m.f[0].x + 0.045; m.f[1].stun = 9999; };
+      for (let i = 0; i < 20; i++) { pin(); stepMatch(m, [{ x: 0 }, { x: 0 }]); }
+      pin();
+      const t0 = m.frame;
+      stepMatch(m, [{ x: 0, quad }, { x: 0 }]);
+      let arc = 0, at = -1;
+      for (let i = 0; i < 160 && at < 0; i++) {
+        const s = m.f[0].limbs.find((q) => q.phase === 'windup');
+        if (s && !arc) arc = s.target - s.windup;
+        if (m.events.some((e) => e.type === 'hit' && e.by === 0)) at = m.frame - t0;
+        pin();
+        stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      }
+      return { arc, at };
+    };
+    for (const id of ['boxeador', 'mazo', 'chupetin2']) {
+      const P = arq(id);
+      const L = swing(P, 'LA'), R = swing(P, 'RA');
+      ok(L.at > 0 && R.at > 0, `${id}: los dos brazos pegan (izq ${L.at} c, der ${R.at} c)`);
+      ok(Math.abs(L.arc - R.arc) <= 0.15 * Math.max(L.arc, R.arc), `${id}: mismo arco a los dos lados (izq ${L.arc.toFixed(2)}, der ${R.arc.toFixed(2)} rad)`);
+      ok(Math.abs(L.at - R.at) <= 2, `${id}: mismos cuadros hasta pegar (izq ${L.at}, der ${R.at})`);
+    }
+  }
+
   // ── Rendimiento: 40 extremidades, dos luchadores ──
   {
     const m = fight(fighterFromSnapshot(snap('F40')));

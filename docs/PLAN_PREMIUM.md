@@ -186,6 +186,7 @@ Orden: **T1 → T2 → T3 → T4** en serie (tocan `engine.ts`). **T5** después
 **G1…G7** tocan sólo render y pueden ir en paralelo con las T desde el primer día (una sesión por tarea). **O1** después de T4.
 
 ### T1 — Banco de pruebas real y matriz de balance (primero; mecánica)
+**Hecha** (2026-11-15): ver `docs/creature/BALANCE.md`. El chupetín ahora gira alrededor de la cara de frente (simetría).
 Por qué: J10 y J11. Sin esto, todo ajuste es a ojo.
 1. `scripts/make-archetypes.mjs`: genera snapshots en `src/creature/fixtures/arq/` con `orientation = { front: [0,0,1], up: [1,0,0] }`
    (el frente real, ver `mount.ts` línea ~1123). Arquetipos, todos simétricos izquierda/derecha salvo el último:

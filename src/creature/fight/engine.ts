@@ -1150,6 +1150,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       const sg = shoulderSign(f, l.pivot);
       const amt = l.rigid ? T.swing : l.role === 'leg' ? T.kick : T.arm;
       want = f.limbs[sk].phase === 'windup' ? -sg * amt * T.wind : sg * amt;
+      // Lo fijo gira alrededor de la cara de frente (giro 0), no de la guardia de 3/4: si no, el hombro de adelante llega antes.
+      if (l.rigid) want -= base;
       rate = f.limbs[sk].phase === 'windup' ? T.rate.windup : T.rate.strike;
     }
     const tw0 = f.twist;
@@ -1175,7 +1177,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       }
     } else f.twist += (want - f.twist) * Math.min(1, rate * dt);
     if (!(f.whirl > 0 && tw0 === f.twist)) f.twistV = (f.twist - tw0) / dt;
-    f.yaw = f.whirl > 0 ? base + f.twist + f.whirlDir * f.whirl : clamp(base + f.twist, T.min, T.max);
+    f.yaw = f.whirl > 0 || f.swing ? base + f.twist + (f.whirl > 0 ? f.whirlDir * f.whirl : 0) : clamp(base + f.twist, T.min, T.max);
     f.yc = Math.cos(f.yaw);
     f.ys = Math.sin(f.yaw);
   }

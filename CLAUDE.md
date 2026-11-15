@@ -498,6 +498,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   la criatura): PRIORIDAD del usuario, su cara se tiene que entender fácil. Si faltan los GLB, queda el procedural entero.
 - Render: la parte de la vara que queda adentro del chizito se recorta con un plano por extremidad (`clippingPlanes`), así al girar
   no asoma. El squash de la criatura se integra en subpasos (a < 24 fps divergía: era el bug del zoom que crecía y parpadeaba).
+- Balance: `node scripts/make-archetypes.mjs` (arquetipos con el frente real en `src/creature/fixtures/arq/`) y
+  `node scripts/fight-matrix.mjs [semillas]` (≈ 2 min) → pegar la salida en `docs/creature/BALANCE.md`.
 - Pruebas: `node scripts/creature-fight-test.mjs` (puras: modelo, apoyo, contrapeso, caminar, golpes, peso, guardia, escudos,
   carga, chupetín, rounds, tiempo, determinismo, rendimiento) y con `npm run dev`: `node scripts/fight-ui-test.mjs [dir] [criatura]`
   (navegador, teclado real, capturas con HUD). Balance: `node scripts/fight-balance.mjs <criatura>`.
