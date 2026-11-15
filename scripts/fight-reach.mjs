@@ -1,3 +1,5 @@
+// Alcance de cada brazo (sin rival cerca): x máxima de la punta durante la fase de golpe, con el frente real. Los dos lados
+// tienen que quedar a menos de 3 mm. Uso: node scripts/fight-reach.mjs arq/boxeador arq/mazo B S4
 import { createServer } from 'vite';
 import fs from 'node:fs';
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
