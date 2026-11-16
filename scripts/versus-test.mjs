@@ -6,7 +6,7 @@ import fs from 'node:fs';
 const dir = process.argv[2] ?? '.';
 const URL = 'http://localhost:5173/';
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1243/chrome-linux64/chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const ctx = await b.newContext({ viewport: { width: 800, height: 450 } });
+const ctx = await b.newContext({ viewport: { width: 480, height: 270 } });
 const errs = [], warns = [];
 const files = fs.readdirSync('public/assets/creatures').filter((f) => f.endsWith('.json'));
 const open = async (q, file) => {
@@ -18,21 +18,28 @@ const open = async (q, file) => {
   await p.evaluate((t) => window.__chizito.persistence.loadText(t), fs.readFileSync(`public/assets/creatures/${file}`, 'utf8'));
   return p;
 };
+const T0 = Date.now();
+const log = (t) => console.error(`[${Math.round((Date.now() - T0) / 1000)} s] ${t}`);
 const A = await open('&anfitrion', files[0]);
 const B = await open('', files[Math.min(1, files.length - 1)]);
+log('cargadas');
 const card = await A.textContent('#cf-room');
 // PELEAR en los dos (si la criatura no tiene cara, el primer clic sólo avisa).
 for (const p of [A, B]) for (let k = 0; k < 2; k++) if (!(await p.evaluate(() => document.querySelector('#cf-btn').disabled))) await p.click('#cf-btn', { force: true });
+log(`apretado: ${await A.textContent('#cf-room')} | ${await B.textContent('#cf-room')}`);
 await A.waitForFunction(() => window.__fight.isOpen(), null, { timeout: 600000 });
 await B.waitForFunction(() => window.__fight.isOpen(), null, { timeout: 600000 });
+log('pelea abierta en los dos');
 await A.keyboard.down('ArrowRight');
 await B.keyboard.down('ArrowLeft');
 const st = (p) => p.evaluate(() => { const m = window.__fight.match(); return { frame: m.frame, phase: m.phase, hp: m.f.map((f) => Math.round(f.hp * 10) / 10), x: m.f.map((f) => Math.round(f.x * 1000) / 1000) }; });
-for (let i = 0; i < 40; i++) {
+// De a 3 cuadros por pestaña: es lo que una puede adelantarse a la otra (retardo de entrada).
+for (let i = 0; i < 110; i++) {
   for (const p of [A, B]) {
-    if (i > 14 && i % 2 === 0) await p.keyboard.press(i % 4 ? 'KeyQ' : 'KeyW');
-    await p.evaluate(() => window.__chizito.renderFrames(8));
+    if (i > 45 && i % 6 === 0) await p.keyboard.press(i % 12 ? 'KeyQ' : 'KeyW');
+    await p.evaluate(() => window.__chizito.renderFrames(3));
   }
+  if (i % 10 === 0) log(`vuelta ${i}: ${JSON.stringify(await st(A))}`);
 }
 const [a, c] = [await st(A), await st(B)];
 for (const [p, n] of [[A, 'anfitrion'], [B, 'invitado']]) {
