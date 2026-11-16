@@ -32,6 +32,8 @@ const css = `
 #cfh .side.r .gauge i{transform-origin:right}
 #cfh .gauge.pow i{background:linear-gradient(#fff3b0,#ffb81f 55%,#e8650e)}
 #cfh .gauge.pow.full i{animation:cfh-pow .5s ease-in-out infinite alternate}
+#cfh .gauge.pow::after{content:'';position:absolute;left:50%;top:-1px;bottom:-1px;width:2px;margin-left:-1px;background:var(--ink);z-index:1}
+#cfh .gauge.pow.half i{filter:brightness(1.18) saturate(1.2);box-shadow:inset 0 0 6px rgba(255,255,255,.7)}
 @keyframes cfh-pow{from{filter:brightness(1)}to{filter:brightness(1.6) saturate(1.3)}}
 #cfh .gauge span{position:absolute;inset:0;display:grid;place-items:center;font:800 8px/1 "Nunito",sans-serif;letter-spacing:.18em;color:#fff;text-shadow:0 1px 0 #000;transform:skewX(16deg)}
 #cfh .pop.power{font-size:44px;color:#fff3b0;-webkit-text-stroke-color:#a3420a}
@@ -335,11 +337,14 @@ export class FightHud {
       [...this.pips[i].children].forEach((p, n) => p.classList.toggle('on', n < m.wins[i]));
       // PODER: llena, titila (E lo suelta).
       (this.pows[i].firstElementChild as HTMLElement).style.transform = `scaleX(${f.meter / FIGHT.power.max})`;
+      // Partida en dos: con la mitad, REMATE (E justo después de acertar) o ESCAPE (E mientras te pegan); llena, SÚPER.
       const full = f.meter >= FIGHT.power.max;
-      if (this.pows[i].classList.contains('full') !== full) {
-        this.pows[i].classList.toggle('full', full);
-        (this.pows[i].lastElementChild as HTMLElement).textContent = full ? (i === 0 ? '¡PODER! · E' : '¡PODER!') : 'PODER';
-      }
+      const half = !full && f.meter >= FIGHT.powerUse.half;
+      const label = full ? (i === 0 ? '¡SÚPER! · E' : '¡SÚPER!') : half ? (i === 0 ? 'REMATE / ESCAPE · E' : 'MEDIA BARRA') : 'PODER';
+      this.pows[i].classList.toggle('full', full);
+      this.pows[i].classList.toggle('half', half);
+      const sp = this.pows[i].lastElementChild as HTMLElement;
+      if (sp.textContent !== label) sp.textContent = label;
       const st: string[] = [];
       if (f.bleed.length) st.push(`<em class="bleed">SANGRA ×${f.bleed.length}</em>`);
       const sh = Object.keys(f.shields).filter((id) => !f.broken.includes(id));

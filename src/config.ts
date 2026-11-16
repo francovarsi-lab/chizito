@@ -89,7 +89,7 @@ export const CONFIG = {
   // Más contraste que el look pastel original (el chizito se perdía entre los pasteles).
   // Un paso hacia la pelea (mismo juego, misma estética): más contraste y color, sombras sin levantar tanto.
   // Color de verdad (no pasteles): más saturación y contraste, negros firmes.
-  look: { saturation: 0.32, brightness: 0.0, contrast: 0.16, lift: [0.002, 0.001, 0.002] as [number, number, number] },
+  look: { saturation: 0.24, brightness: 0.0, contrast: 0.16, lift: [0.002, 0.001, 0.002] as [number, number, number] },
   /** Brillo suave alrededor de las zonas claras (sueño, no neón). */
   bloom: { intensity: 0.1, threshold: 0.9, smoothing: 0.25, radius: 0.7 },
   pixelRatioMax: 1.5,

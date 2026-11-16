@@ -31,7 +31,7 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
 - Prioridad: que se vea LINDO, con COLOR DE VERDAD y premium (el usuario descartó los PASTELES: "feo y no coincide con la
   pelea"). Mantel AZUL PISCINA intenso (#2f9fd4) con confeti chico y espaciado de colores vivos; recipientes de CERÁMICA
   ESMALTADA de colores (coral, turquesa, violeta; el del ketchup blanco) y VASITOS DE CUMPLEAÑOS RAYADOS (rojo palitos, verde
-  escarbadientes, violeta espaditas, azul chupetines). `look`: saturación 0,32, contraste +0,16, lift casi nulo; VIÑETA
+  escarbadientes, violeta espaditas, azul chupetines). `look`: saturación 0,24 (G7 del plan; antes 0,32), contraste +0,16, lift casi nulo; VIÑETA
   marcada (offset 0,3, oscuridad 0,42; en la pelea 0,55).
 - Luz envolvente y suave (sol 2,7 + entorno 1,15), sombra de contacto amplia, bloom leve (umbral alto), contraste
   apenas bajo y sombras levantadas con tono cálido (`look.lift`), viñeta y grano mínimos. Ojo: si el lift o el
@@ -464,6 +464,10 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   El eje sale de girar la dirección de reposo hacia el rival, en 3D (sirve para varas que apuntan a la cámara).
 - EFECTOS DE GOLPE: congelamiento (`hitstop`), destello blanco leve y vibración del que recibe (`Hurt` en `render.ts`), estallido,
   anillo, migas (`fx/Crumbs.ts`: 12 formas redondeadas distintas con manchas tostadas, muchas chicas y pocas grandes) y astillas.
+- SHOW (G3–G6): efectos en `fight/fx.ts` (humo, destello, chispas, onda, confeti en 2 `Points`, tope 300) y luz de impacto
+  (la vela, 3 cuadros); cámara: acercamiento en golpes de 10+, corte de 0,6 s al súper, giro de 20° en el KO; el público (restos
+  sobre la tabla, `FightSet.cheer`) salta; confeti al ganador; barra de poder partida en dos. Capturas de la pelea:
+  `node scripts/fight-shot.mjs <png> [nivel] [cuadros]` (con `npm run dev`; ~4 min por captura con el WebGL por software).
 - TEXTOS: sin "NIVEL N" junto al nombre del rival, sin "¡MAREADO!", sin etiquetas en los golpes (sólo el número de daño); las
   palabras de historieta sólo en combinaciones o golpes de 10+, como mucho una cada 3 s. Estelas SOBRIAS (finas, cortas, tenues,
   sólo mientras pega). Presentación: el cartel del rival queda 2,4 s (tiempos `P_CHIZ0` 8,6, `P_VS` 12, `P_END` 13).

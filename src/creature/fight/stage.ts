@@ -26,6 +26,8 @@ export interface FightSet {
   lights(k: number): void;
   /** Vela de la presentación: posición y brillo (0 = apagada). */
   candle(at: THREE.Vector3 | null, k: number): void;
+  /** El público (los restos de la fiesta sobre la tabla) salta con un golpe fuerte (0..1). */
+  cheer(k: number): void;
 }
 
 interface Hide {
@@ -59,6 +61,7 @@ interface Arena {
   level(k: number): void;
   /** La vela de la presentación: dónde está y cuánto alumbra (0 = apagada). */
   candle(at: THREE.Vector3 | null, k: number): void;
+  cheer(k: number): void;
 }
 
 let arenaCache: { z0: number; arena: Arena } | null = null;
@@ -213,11 +216,19 @@ function getArena(z0: number): Arena {
   const onBoard = litter(items.filter(onWood), 23);
   onBoard.position.y = GROUND;
   add(onBoard, litter(items.filter((it) => !onWood(it)), 11));
+  // Público: los restos sobre la tabla saltan con los golpes fuertes (G5).
+  const baseY = onBoard.children.map((c) => c.position.y);
+  let hop = 0;
 
   const arena: Arena = {
     objects,
     update(t) {
       placeDust(t);
+      hop *= 0.93;
+      onBoard.children.forEach((c, i) => (c.position.y = baseY[i] + Math.abs(Math.sin(t * 17 + i * 1.7)) * 0.005 * hop));
+    },
+    cheer(k) {
+      hop = Math.max(hop, k);
     },
     track(i, head, facing) {
       // Delante de la cara: hacia el rival, hacia la cámara y un poco arriba; se mueve suave (al darse vuelta cruza).
@@ -399,6 +410,9 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     },
     candle(at, k) {
       arena.candle(at, k);
+    },
+    cheer(k) {
+      arena.cheer(k);
     },
     degrade(lv) {
       if (lv >= 1 && ao) ao.enabled = false;

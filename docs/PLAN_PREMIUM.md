@@ -294,12 +294,14 @@ Hecho cuando: se ve achicarse, los granos quedan en la tabla y vuelven, y la pru
 Hecho cuando: una captura de la pelea al lado del arte clave comparte paleta, profundidad y dirección de luz; 60 fps.
 
 ### G2 — Materiales de cerca
+**Ya estaba casi todo** (2026-11-16): chizito con sheen y polvo de queso en el mapa, palito clearcoat, aceituna 0,8, huevo con transmisión 0,1. Sin cambios.
 `assets/procedural/chizito.ts`, `palito.ts`, piezas. Sólo para la pelea si cuesta (variante 'hero-fight').
 - Chizito: `MeshPhysicalMaterial` con `sheen` (polvo), motas de queso naranja en el albedo, normal map a 2048 con dos escalas,
   roughness con variación. Palito: `clearcoat` 0,25, sal con brillo puntual estable. Aceituna: `clearcoat` 0,8. Huevo:
   `transmission` 0,15 + `thickness` (aspecto de clara cocida). Verificar con capturas a 22 cm.
 
 ### G3 — Efectos de golpe en 3D (reemplaza V2)
+**Hecha** (2026-11-16): `fight/fx.ts` (humo procedural en atlas, destello en estrella, chispas, onda, confeti; 2 `Points`, tope 300) + luz de impacto (la PointLight de la vela, 3 cuadros). Falta: fundido por profundidad y aberración cromática.
 `mount.ts` 129–210 → módulo nuevo `fight/fx.ts`.
 - Textura de humo procedural (ruido en canvas de 128 px, 4 variantes) y partículas blandas (billboards con fundido por
   profundidad) para vapor, polvo de queso y polvo de impacto. Fuera los icosaedros blancos.
@@ -311,11 +313,13 @@ Hecho cuando: una captura de la pelea al lado del arte clave comparte paleta, pr
 Presupuesto: ≤ 300 partículas vivas; todo instanciado.
 
 ### G4 — Cámara de espectáculo
+**Hecha** (2026-11-16): acercamiento en golpes de 10+, corte de 0,6 s inclinado 2° al súper, giro de 20° alrededor del que cae en el KO (ya había cámara lenta).
 `mount.ts` `camera()` (~528). Acercamiento breve en golpes de 10 +, inclinación de 2° en el súper, corte de 0,6 s al lanzar un
 súper (primer plano del que lo tira, fondo oscurecido), cámara lenta real en el KO con giro de 20° alrededor del que cae, y
 vuelta suave. Nunca perder de cuadro a ninguno de los dos.
 
 ### G5 — Show: público y ceremonia
+**Hecha en parte** (2026-11-16): los restos de fiesta sobre la tabla saltan con golpes fuertes y el KO; cañón de confeti al que gana. Falta: velitas que se apagan, focos que barren y capas de música.
 - Público: restos de la fiesta con vida alrededor de la tabla, desenfocados (aceitunas, palitos parados, sugus): saltan con
   cada golpe fuerte, se agachan con el súper. Instanciado, sin sombras.
 - Fin de round: se apagan las velitas de la torta de un soplido en el KO, cañón de confeti para el que gana, cartel con el
@@ -323,11 +327,13 @@ vuelta suave. Nunca perder de cuadro a ninguno de los dos.
 - Música: capas que suben con el combo (ya hay `AudioManager.musicOn`).
 
 ### G6 — HUD premium
+**Hecha en parte** (2026-11-16): barra de poder partida en dos (media = REMATE/ESCAPE, llena = SÚPER) y guía con las entradas nuevas (la vida fantasma y el salto del combo ya estaban). Falta: retratos y reloj animado.
 `hud.ts`. Barra de vida con "fantasma" (lo perdido queda blanco y baja con retardo), retrato de cada luchador (render a textura
 de su cara al abrir la pelea), barra de poder partida en dos mitades (50 % = remate / escape) que brilla al llenarse, contador de
 combo que pega un salto por golpe, reloj con cambio de dígito animado. Guía de teclas: sólo íconos, y los golpes nuevos de T3.
 
 ### G7 — Constructor más real
+**Hecha en parte** (2026-11-16): saturación 0,32 → 0,24 (el mantel ya tenía arrugas y la cerámica clearcoat). Falta: halos del DoF y HDRI real.
 `config.ts`, `render/`. Saturación 0,32 → 0,24; mantel con normal map de arrugas suaves y brillo de plástico (clearcoat bajo);
 cerámica con clearcoat; corregir los halos blancos del DoF en los bordes de los envoltorios (revisar el orden bloom / DoF y el
 premultiplicado de los materiales transparentes en `BokehDofPass.ts`); HDRI real de interior en

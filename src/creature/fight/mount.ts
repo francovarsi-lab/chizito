@@ -14,6 +14,7 @@ import { fighterFromSnapshot, rivalFighter, type FighterModel } from './fighter'
 import { FightHud, type MenuAction } from './hud';
 import { blendPose, creatureView, rivalView, type FighterView, type RenderPose } from './render';
 import { createEgg, createQuinoa, looseGrains } from './rivals3d';
+import { FightFx } from './fx';
 import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT, POWERS } from './tuning';
 import { qFromTo, type Q } from './quat';
@@ -126,12 +127,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   let crumbs: [Crumbs, Crumbs] | null = null;
   /** Migas de los escudos (papita, nacho). */
   let chips: Crumbs | null = null;
-  const sparks: { m: THREE.Mesh; v: THREE.Vector3; life: number; max: number }[] = [];
-  const rings: { m: THREE.Mesh; life: number; max: number; size: number }[] = [];
+  // Efectos de golpe en 3D (G3, fx.ts): se crean al abrir la pelea.
+  let pfx: FightFx | null = null;
   const stars: THREE.Mesh[] = [];
-  const sparkGeo = new THREE.SphereGeometry(0.0009, 6, 5);
-  const sparkMat = [new THREE.MeshBasicMaterial({ color: 0xfff1a0 }), new THREE.MeshBasicMaterial({ color: 0xffffff }), new THREE.MeshBasicMaterial({ color: 0xffa21f })];
-  const ringGeo = new THREE.RingGeometry(0.84, 1, 40);
   const starGeo = new THREE.OctahedronGeometry(0.0022, 0);
   const starMat = new THREE.MeshBasicMaterial({ color: 0xffd23f });
 
@@ -221,43 +219,16 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (v.z > 1) return null;
     return [((v.x + 1) / 2) * window.innerWidth, ((1 - v.y) / 2) * window.innerHeight];
   };
+  const fxOn = (): FightFx => (pfx ??= new FightFx(game().stage.scene, GROUND + 0.0008));
+  // Luz de impacto: la PointLight de la vela (siempre en la arena: no cambia la cantidad de luces) se prende 3 cuadros.
+  let flashN = 0;
+  const flashAt = new THREE.Vector3();
   const burst = (at: THREE.Vector3, n: number, power: number): void => {
-    const scene = game().stage.scene;
-    for (let i = 0; i < n; i++) {
-      const s = new THREE.Mesh(sparkGeo, sparkMat[i % 3]);
-      s.position.copy(at);
-      const a = Math.random() * Math.PI * 2;
-      const sp = (0.15 + Math.random() * 0.35) * power;
-      scene.add(s);
-      const max = 0.18 + Math.random() * 0.22;
-      sparks.push({ m: s, v: new THREE.Vector3(Math.cos(a) * sp, Math.sin(a) * sp + 0.05, (Math.random() - 0.5) * 0.12), life: max, max });
-    }
+    fxOn().impact(at, power * Math.max(0.5, n / 12), n <= 6);
+    if (n > 6) { flashN = 3; flashAt.copy(at).add(new THREE.Vector3(0, 0.01, 0.02)); }
   };
-  const ring = (at: THREE.Vector3, size: number, color: number): void => {
-    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide });
-    const r = new THREE.Mesh(ringGeo, mat);
-    r.position.copy(at);
-    r.quaternion.copy(game().stage.camera.quaternion);
-    r.scale.setScalar(size * 0.3);
-    game().stage.scene.add(r);
-    rings.push({ m: r, life: 0, max: 0.22, size });
-  };
-  // ── Nubes de los poderes (queso, vapor): bolitas blandas que se inflan, suben y se desvanecen ──
-  const puffGeo = new THREE.IcosahedronGeometry(1, 2);
-  const puffs: { m: THREE.Mesh; v: THREE.Vector3; life: number; max: number; size: number; op: number }[] = [];
-  const cloud = (at: THREE.Vector3, n: number, color: number, size: number, spread: number, rise: number, dir = 0): void => {
-    const scene = game().stage.scene;
-    for (let i = 0; i < n; i++) {
-      const op = 0.55 + Math.random() * 0.3;
-      const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false });
-      const p = new THREE.Mesh(puffGeo, mat);
-      p.position.copy(at).add(new THREE.Vector3((Math.random() - 0.5) * spread, (Math.random() - 0.3) * spread * 0.6, (Math.random() - 0.5) * spread * 0.6));
-      const max = 0.7 + Math.random() * 0.6;
-      const v = new THREE.Vector3((Math.random() - 0.5) * 0.06 + dir * (0.05 + Math.random() * 0.08), rise * (0.5 + Math.random()), (Math.random() - 0.5) * 0.03);
-      scene.add(p);
-      puffs.push({ m: p, v, life: max, max, size: size * (0.6 + Math.random() * 0.8), op });
-    }
-  };
+  const ring = (at: THREE.Vector3, size: number, color: number): void => fxOn().ring(at, size, color);
+  const cloud = (at: THREE.Vector3, n: number, color: number, size: number, spread: number, rise: number, dir = 0): void => fxOn().puff(at, n, color, size, spread, rise, dir);
   /** Granos de quinoa en el aire (los de la METRALLA): uno por proyectil del motor. */
   const grainGeo = new THREE.SphereGeometry(1, 7, 5).scale(1, 0.6, 1);
   const grainMats = ['#ebdfc3', '#93412e', '#2b2522', '#e3d3b0'].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.5 }));
@@ -353,43 +324,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     }
   };
   const fx = (dt: number): void => {
-    for (let i = sparks.length - 1; i >= 0; i--) {
-      const s = sparks[i];
-      s.life -= dt;
-      s.v.y -= 0.8 * dt;
-      s.v.multiplyScalar(1 - 3 * dt);
-      s.m.position.addScaledVector(s.v, dt);
-      s.m.scale.setScalar(Math.max(0.05, s.life / s.max));
-      if (s.life <= 0) {
-        s.m.removeFromParent();
-        sparks.splice(i, 1);
-      }
-    }
-    for (let i = rings.length - 1; i >= 0; i--) {
-      const r = rings[i];
-      r.life += dt;
-      const k = r.life / r.max;
-      r.m.scale.setScalar(r.size * (0.3 + 0.9 * Math.sqrt(k)));
-      (r.m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - k);
-      if (k >= 1) {
-        r.m.removeFromParent();
-        (r.m.material as THREE.Material).dispose();
-        rings.splice(i, 1);
-      }
-    }
-    for (let i = puffs.length - 1; i >= 0; i--) {
-      const p = puffs[i];
-      p.life -= dt;
-      const k = 1 - p.life / p.max;
-      p.v.multiplyScalar(1 - 1.5 * dt);
-      p.m.position.addScaledVector(p.v, dt);
-      p.m.scale.setScalar(p.size * (0.35 + 0.9 * Math.sqrt(k)));
-      (p.m.material as THREE.MeshBasicMaterial).opacity = p.op * (1 - k) * Math.min(1, k * 8);
-      if (p.life <= 0) {
-        p.m.removeFromParent();
-        (p.m.material as THREE.Material).dispose();
-        puffs.splice(i, 1);
-      }
+    if (pfx) pfx.update(dt, game().stage.camera, game().stage.renderer);
+    if (!present && (flashN > 0 || flashN === 0)) {
+      set?.candle(flashN > 0 ? flashAt : null, flashN > 0 ? 0.035 * (flashN / 3) : 0);
+      if (flashN >= 0) flashN--;
     }
     // Mientras se carga un poder se nota: el brócoli larga hilitos de vapor de la copa, el chizito suelta polvito de queso.
     if (m && views) m.f.forEach((f, i) => {
@@ -489,6 +427,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           }
         }
         if (e.chain) g.audio.play('combo', 1);
+        if (!e.blocked && e.damage >= 10) {
+          camPunch = 0.25;
+          set?.cheer(1);
+        } else if (!e.blocked && e.damage >= 6) set?.cheer(0.4);
         if (big && !e.blocked) hud.flash(0.28);
         g.audio.play(e.blocked ? 'bloqueo' : big ? 'golpe-pesado' : 'golpe', Math.min(1, 0.55 + e.damage / 20));
         if (!e.blocked) g.audio.play('crunch', 0.8);
@@ -559,6 +501,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const f = m.f[e.who];
         const P = POWERS[e.kind];
         if (e.phase === 'wind') {
+          if (e.use === 'super') camCut = { t: 0.6, who: e.who };
           g.audio.play('poder-carga', 1);
           hud.flash(0.18);
           break;
@@ -595,6 +538,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         break;
       }
       case 'ko':
+        set?.cheer(1);
         hud.announce('K.O.', '', true, 2.2);
         hud.flash(0.7);
         shake = 0.006;
@@ -609,6 +553,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       }
       case 'matchEnd': {
         const win = e.winner === 0;
+        // Cañón de confeti para el que gana (G5).
+        { const w = m.f[e.winner]; fxOn().confetti(P3(w.x, w.y + 0.06)); }
         hud.announce(win ? '¡GANASTE!' : 'PERDISTE', '', !win, 99);
         const buttons: { a: MenuAction; label: string; alt?: boolean }[] = [];
         if (win && level < AI_LEVELS.length) buttons.push({ a: 'next', label: `Nivel ${level + 1} ▶` });
@@ -624,9 +570,14 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   };
 
   // ── Cámara de pelea: lateral, sigue el medio de los dos y se aleja o acerca para que entren con aire ──
+  // Cámara de espectáculo (G4): acercamiento breve en golpes fuertes, corte al que tira el súper (0,6 s, inclinado 2°) y giro
+  // de 20° alrededor del que cae en el KO (en cámara lenta).
+  let camPunch = 0;
+  let camCut: { t: number; who: 0 | 1 } | null = null;
   const camera = (dt: number): void => {
     if (!m) return;
     if (present) return presentCamera(dt);
+    camPunch = Math.max(0, camPunch - dt);
     const cam = game().stage.camera;
     cam.setFocalLength(42);
     const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
@@ -646,22 +597,42 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       D *= 0.82;
       lookY -= 0.006;
     }
-    D = Math.min(D, 0.5);
-    const elev = THREE.MathUtils.degToRad(11);
+    D = Math.min(D, 0.5) * (1 - 0.07 * Math.sin(Math.min(1, camPunch / 0.25) * Math.PI));
+    let roll = 0;
+    if (camCut) {
+      // Primer plano del que tira el súper: corte seco, nunca pierde al otro de cuadro por más de 0,6 s.
+      camCut.t -= dt;
+      const f = m.f[camCut.who];
+      mid = f.x + f.facing * 0.012;
+      D = 0.17;
+      lookY = 0.03 + f.y;
+      roll = THREE.MathUtils.degToRad(2) * f.facing;
+      if (camCut.t <= 0) camCut = null;
+    }
+    const elev = THREE.MathUtils.degToRad(camCut ? 6 : 11);
     const tp = new THREE.Vector3(mid, GROUND + lookY + D * Math.sin(elev), z0 + D * Math.cos(elev));
     const tl = new THREE.Vector3(mid, GROUND + lookY, z0);
+    if (m.phase === 'ko') {
+      const loser = m.f.find((f) => f.ko);
+      if (loser) {
+        const ang = THREE.MathUtils.degToRad(20) * Math.min(1, m.phaseT / 70) * -loser.facing;
+        const piv = new THREE.Vector3(loser.x, tp.y, z0);
+        tp.sub(piv).applyAxisAngle(new THREE.Vector3(0, 1, 0), ang).add(piv);
+      }
+    }
     if (!camInit) {
       camPos.copy(tp);
       camLook.copy(tl);
       camInit = true;
     }
-    const k = 1 - Math.exp(-dt * (m.phase === 'ko' ? 2.2 : 4.5));
+    const k = camCut ? 1 : 1 - Math.exp(-dt * (m.phase === 'ko' ? 2.2 : 4.5));
     camPos.lerp(tp, k);
     camLook.lerp(tl, k);
     shake *= Math.pow(0.002, dt);
     const j = new THREE.Vector3((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, 0);
     cam.position.copy(camPos).add(j);
     cam.lookAt(camLook.clone().add(j.multiplyScalar(0.5)));
+    if (roll) cam.rotateZ(roll);
     cam.updateMatrixWorld();
     game().stage.focusTarget.copy(camLook);
   };
@@ -1290,12 +1261,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       crumbs = null;
       chips?.clear();
       chips = null;
-      for (const s of sparks) s.m.removeFromParent();
-      sparks.length = 0;
-      for (const r of rings) r.m.removeFromParent();
-      rings.length = 0;
-      for (const p of puffs) p.m.removeFromParent();
-      puffs.length = 0;
+      pfx?.dispose();
+      pfx = null;
       for (const g of shotMeshes.values()) g.removeFromParent();
       shotMeshes.clear();
       for (const s of stars) s.removeFromParent();
