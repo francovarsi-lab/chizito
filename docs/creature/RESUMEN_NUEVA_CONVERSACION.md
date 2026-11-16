@@ -1,63 +1,50 @@
-# Resumen para un chat nuevo — CUMPLEAÑITO / Chizito Fight (al 2026-11-15)
+# Resumen para un chat nuevo — CUMPLEAÑITO / Chizito Fight (al 2026-11-16)
 
-Repo privado `francovarsi-lab/chizito`. **Rama de trabajo actual: `claude/wonderful-noether-lvp9gc`** (continúa
-`claude/upbeat-keller-vgk6l1`). El detalle completo está en `CLAUDE.md`: leerlo primero.
-
-**Plan vigente: `docs/PLAN_PREMIUM.md`** (diagnóstico, combate v2 y tareas para repartir entre sesiones). Rama con ese trabajo:
-`claude/sharp-einstein-iuyqgn`.
+Repo privado `francovarsi-lab/chizito`. **Rama vigente: `claude/charming-cray-7n5v8f`** (último commit de esta etapa: ver
+`git log -1`). Contiene todo lo anterior (`claude/sharp-einstein-iuyqgn` ← `claude/wonderful-noether-lvp9gc`).
+Leer primero `CLAUDE.md` (decisiones) y `docs/PLAN_PREMIUM.md` (plan con el estado de cada tarea).
 
 ## Reglas permanentes (Franco)
-- Español rioplatense. Usa Claude de escritorio (Windows); las sesiones corren en la nube. Informes cortos, con hash y qué mirar.
-  Si no se puede probar, avanzar igual y dejar todo subido. "Avanzá a fondo": hacer todo lo pedido antes de reportar.
-- NO pushear a `main`. No tocar `claude/friendly-faraday-2lyzl2`. Pushear sólo a la rama de la sesión. Sin PRs salvo pedido.
-  Commits con autor Franco Varsi.
-- "Apuntar al 100 para llegar al 10": nivel top, premium, bello, con color (NADA de pasteles), fluidez primero.
+- Español rioplatense. Usa Claude de ESCRITORIO; las sesiones corren en la nube. Informes CORTOS: sin explicaciones de más,
+  hash, qué mirar, qué quedó sin probar. "Avanzá con todo": hacer toda la lista antes de reportar.
+- SIEMPRE dejarle un LINK para probar: levantar `npx vite --host 0.0.0.0 --port 5173` en segundo plano y avisar el puerto con
+  `report_preview_port` (5173, nombre "juego"): lo abre como vista previa en la app de escritorio.
+- NO pushear a `main`. Pushear sólo a la rama de la sesión. Sin PRs salvo pedido. Commits con autor Franco Varsi, en español.
+- "Apuntar al 100 para llegar al 10": premium, bello, color de verdad (NADA de pasteles), fluidez primero (60 fps).
 - Higgsfield: Nano Banana 2.1 en 1K para explorar, 2K sólo lo final, 3D con SAM 3. Gastado ~15,5 créditos.
-- Sonidos: los graba él; ids listos en `public/assets/sounds/<id>`; mientras, suenan sintetizados.
-- Cosas que el usuario DESCARTÓ (no volver a poner): barra de AIRE/estamina, plato dorado bajo el chizito, "NIVEL N" junto al
-  nombre del rival, "¡MAREADO!", etiquetas en los golpes (PESADO, CORTE…), "SE ESTÁ ESTABILIZANDO", sugus y bowl de chizitos en
-  el constructor (van sólo en la pelea).
+- Sonidos: los graba él; ids listos en `public/assets/sounds/<id>`; sin archivo suenan sintetizados o con alias.
+- DESCARTADO (no volver a poner): barra de AIRE/estamina, plato dorado, "NIVEL N" junto al rival, "¡MAREADO!", etiquetas en los
+  golpes, "SE ESTÁ ESTABILIZANDO", sugus y bowl de chizitos en el constructor.
 
-## Cómo probar
-- Vercel: link compartible con `get_access_to_vercel_url` sobre el último deploy de la rama (team `el-mejor-lugar`, dura ~23 h).
-  Abrir en Chrome. `?nivel=2|3` arranca contra ese rival; `?sinintro` saltea la intro.
-- Local: `git checkout claude/wonderful-noether-lvp9gc` → `npm install` → `npm run dev` → http://localhost:5173
-- Pruebas: `npx tsc --noEmit`; `node scripts/creature-fight-test.mjs` → 177 OK.
-- Capturas (3D por software, ~10 min cada una): build fijo `VERCEL=1 npx vite build --outDir <dir>` + `npx vite preview --outDir
-  <dir> --port 5173`, y `node scripts/one.mjs "seed=3" out.png 40` (W=1280 H=720). Playwright pide chromium 1194: armar
-  `PLAYWRIGHT_BROWSERS_PATH` con enlaces a `/opt/pw-browsers/chromium-1243` y al `chrome-headless-shell` de
-  `chromium_headless_shell-1243` (en `chromium_headless_shell-1194/chrome-linux/headless_shell`).
-- Laboratorio rápido de rivales (segundos): `lab/brocoli.html?rival=huevo|quinoa&cam=x,y,z,lx,ly` + `node lab/shot.mjs <url> <png>`.
-- Para mover recipientes o la cámara del constructor: proyectar cada recipiente con la cámara real (three en node) y chequear
-  cortes, encimados, la zona del chizito y su sombra, y las dioptrías del foco (así se calculó `BOWL_LAYOUT`).
+## Cómo probar / medir
+- `npm install` → `npx vite --host 0.0.0.0 --port 5173` (+ `report_preview_port`). `?nivel=2|3`, `?sinintro`, `?capture`.
+- Pruebas: `npx tsc --noEmit` y `node scripts/creature-fight-test.mjs` → **230 OK**.
+- Balance: `node scripts/make-archetypes.mjs` y `node scripts/fight-matrix.mjs 20` (~2 min, 4 núcleos) → `docs/creature/BALANCE.md`.
+  `MDEBUG=1 MATRIX_CHILD=1 node scripts/fight-matrix.mjs 2 boxeador` da el detalle de eventos por pelea.
+- Sondas: `node scripts/fight-probe.mjs arq/boxeador` (tiempos y daño por brazo; `GAPS=0.07,0.1`), `node scripts/fight-reach.mjs`.
+- Captura de la pelea: `node scripts/fight-shot.mjs <png> [nivel] [cuadros]` con el server andando (~4 min; 90–200 cuadros;
+  usa `/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`). NO tocar `src/config.ts` mientras corre (Vite recarga y se corta).
+- Laboratorio de rivales (rápido, sin pelea): `lab/brocoli.html?rival=huevo|quinoa`.
 
-## Hecho en esta etapa
-**Pelea**
-- Pasar de nivel arma el rival correcto (huevo, quinoa) y lo presenta con su intro.
-- PODERES (barra que se llena pegando/recibiendo; E): NUBE DE QUESO (tu chizito, marea), VAPORAZO (brócoli, quema y empuja),
-  HUEVAZO RODANTE (huevo, rueda; se salta o se bloquea), METRALLA DE GRANOS (quinoa, proyectiles; queda con menos coraza).
-- Huevo de gelatina (vibra; golpes seguidos pegan menos); quinoa se abolla, sus granos de los puños son munición.
-- Daño por pieza fijo: chupetín 11,6 > aceituna 9,4 > palito de la selva 7,6 > palito 6,2 > espadita 5 > escarbadientes 4;
-  cada extremidad pega con su pieza más fuerte; piernas ×1,15; la velocidad sólo ±10 %.
-- Chupetín: carga larga; si pifia sigue el MISMO movimiento y da la vuelta entera hacia el lado del golpe.
-- Desproporción: lo clavado más pesado que el cuerpo lo vuelve lento y torpe.
-- Aporrear no gana: pegar sin pausa pega cada vez menos y la IA lo lee, lo ataja y castiga (2/6 en nivel 1, 0/6 en 2 y 3).
-- Gravedad: se para pivotando sobre el pie (no patina), sin enderezarse en el aire, equilibrio amortiguado.
-- Textos: frases nuevas del huevo (una + el grito) y la quinoa; cartel del rival 2,4 s; estelas sobrias; sonidos sintetizados
-  de verdad (golpes, campana, voces de dibujito, vapor, granos) con compresor.
-- Espárragos rehechos (tallo con fibras y escamitas, yema en escamas).
+## Hecho en esta etapa (plan premium)
+- T1 arquetipos con el frente real + matriz de balance; el chupetín gira alrededor de la cara de frente (simétrico).
+- T2 golpes que se leen (13–16 cuadros botón→impacto), daño por recorrido, alcance parejo de los dos hombros; aporrear perdía.
+- T3 rápido/cargado (mantener Q/W), gancho ↓+Q, barrida ↓+A, pasito →→, atajada (D justa), guardia rota, cadenas 100/90/80/70.
+- T4 poder: remate / escape con media barra, súper con barra llena según lo armado (nube, trompo, carozazo, acupuntura, muralla).
+- T5 `moves.ts`: ataques de rivales como datos + IA por estados (`rivalDecide`). Brócoli: zanahoriazo, doble, cabezazo, pisotón.
+- T6 huevo: brazos de látigo (shader de 3 tramos), pinchazo largo, látigo bajo (saltar), rebote, fase 2 (grieta y yema).
+- T7 la cara del rival reacciona (aviso / recibe / gana).
+- T8 quinoa de granos: absorbe lo rápido, revienta con lo cargado, montoncitos que vuelven, se achica; cañón, mazazo, derrumbe.
+- G1 pelea: cuarto que se adivina, foco blanco, tabla de madera, zanahorias naranjas. Arreglado: `Hurt` perdía los shaders.
+- G3–G6 efectos 3D (`fx.ts`), luz de impacto, cámara de espectáculo, público que salta, confeti, barra de poder partida.
+- G7 constructor: saturación 0,32 → 0,24 (revertir si a Franco no le gusta).
 
-**Constructor**
-- Cámara nueva (45 mm, 24°, foco amplio): todo cerca y nítido. Disposición calculada (derecha varas y aceitunas; izquierda
-  escudos, palito de la selva y ketchup). Cerámica esmaltada de colores, vasitos rayados, mantel azul intenso, más contraste y
-  saturación, viñeta. Ketchup sin superponerse. Cartel con la tabla de cuánto saca cada golpe.
-
-## Pendientes / próximos pasos
-1. Que Franco juegue los 3 niveles y diga cómo se siente la dificultad (IA en su lugar gana 3/8, 2/8, 0/8: el nivel 3 puede
-   estar duro).
-2. Constructor: seguir subiendo el arte (el usuario quiere "premium de verdad"): luz con más carácter, fondo/pared, materiales.
-   La pelea es de noche con focos: evaluar llevar algo de eso al constructor sin romper la intro de día.
-3. Brócoli más "real", golpes más humanos, efectos premium.
-4. Zanahorias que se ven rojas con la luz de la pelea; la quinoa con los brazos arriba parece tener orejas.
-5. Grabaciones de sonido y música de Franco.
-6. Integración con `main`: decidir cómo antes de hacerla (historias distintas).
+## Pendiente (en orden)
+1. Que Franco JUEGUE y diga: sensación del golpe lento, rápido/cargado, atajada, dificultad de los 3 niveles, saturación.
+2. Balance (`BALANCE.md`): bot "listo" gana 81 / 69 / 9 % (objetivo 45–70 / 30–55 / 15–40); aporreando gana 64 % en nivel 1
+   (objetivo ≤ 25). La quinoa (nivel 3) está dura; el `mazo` (aceitunas + selva) es el armado más fuerte.
+3. O1 pelea contra un amigo (no empezado): pasos en el plan (2 chizitos local → intercambio de modelo → sala WebRTC → lockstep).
+4. Restos visuales: velitas que se apagan en el KO, focos que barren, capas de música por combo, retratos y reloj en el HUD,
+   fundido por profundidad y aberración en efectos, halos del DoF en el constructor, HDRI real, normal map de la tabla.
+5. Nada de esto se vio jugando en pantalla: sólo pruebas puras y 5 capturas estáticas. Revisar primero en el juego.
+6. Integración con `main`: historias distintas; decidir con Franco antes.
