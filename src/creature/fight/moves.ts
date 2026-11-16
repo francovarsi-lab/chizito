@@ -71,7 +71,7 @@ export const MOVES: Record<string, Move> = {
   },
   // Salta y cae pisando: no se bloquea agachado ni parado (rompe la guardia); se esquiva alejándose.
   pisoton: {
-    id: 'pisoton', hits: [{ from: 22, to: 34, with: ['legL', 'legR'] }], total: 52, dmg: 8, kb: 0.3, stun: 16, guard: 'break', reach: 0.08, tell: 'risa', w: [0, 1, 2],
+    id: 'pisoton', hits: [{ from: 22, to: 34, with: ['legL', 'legR'] }], total: 52, dmg: 6.5, kb: 0.3, stun: 16, guard: 'break', reach: 0.08, tell: 'risa', w: [0, 1, 1],
     keys: [
       { t: 0, limbs: REST }, { t: 8, limbs: { legL: [0.3, -1, 0.3], legR: [0.3, -1, 0.3], armL: [0, 1, 0.5], armR: [0, 1, 0.5] } }, { t: 10, vy: 0.5, vx: 0.32 },
       { t: 20, limbs: { legL: [0.5, -0.6, 0.5], legR: [0.5, -0.6, 0.5], armL: [0, 1, 0.6], armR: [0, 1, 0.6] } }, { t: 30, limbs: { legL: [0.4, -1, 0.2], legR: [0.4, -1, 0.2] } }, { t: 52, limbs: REST },
@@ -94,8 +94,8 @@ MOVES.latigo = {
 // ── MONSTRUO DE QUINOA (nivel 3: enseña a elegir el golpe). ──
 // Puño cañón: el brazo se dispara recto como un chorro de granos (se bloquea).
 MOVES.canon = {
-  id: 'canon', hits: [{ from: 18, to: 24, with: ['armF'] }], total: 46, dmg: 6, kb: 0.35, stun: 14, guard: 'block', reach: 0.08, tell: 'zumbido', w: [2, 3, 1],
-  keys: [{ t: 0, limbs: REST }, { t: 15, limbs: { armF: [-0.4, 0.3, 0.8] } }, { t: 19, limbs: { armF: [1, 0.08, 0] }, vx: 0.35 }, { t: 28, limbs: { armF: [1, 0.08, 0] } }, { t: 46, limbs: REST }],
+  id: 'canon', hits: [{ from: 18, to: 24, with: ['armF'] }], total: 54, dmg: 5, kb: 0.35, stun: 14, guard: 'block', reach: 0.08, tell: 'zumbido', w: [2, 3, 1],
+  keys: [{ t: 0, limbs: REST }, { t: 15, limbs: { armF: [-0.4, 0.3, 0.8] } }, { t: 19, limbs: { armF: [1, 0.08, 0] }, vx: 0.35 }, { t: 30, limbs: { armF: [1, 0.08, 0] } }, { t: 54, limbs: REST }],
 };
 // Mazazo doble: los dos puños arriba 34 cuadros (aviso) y bajan dos veces: rompe la guardia.
 MOVES.mazazo = {

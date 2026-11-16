@@ -162,7 +162,7 @@ export const FIGHT = {
   /** Quinoa (T8): golpe con poder < burstPower se hunde (daño × absorb, el brazo trabado `stuck` cuadros); lo cargado revienta y
    *  deja un montoncito (n = daño) que vuelve a la quinoa si lo pisa (pickR) o a los `life` cuadros (+ back de vida por grano).
    *  Un golpe a menos de sweepH del piso y sweepR del montón lo desparrama. */
-  grains: { burstPower: 1.05, absorb: 0.4, stuck: 10, life: 480, pickR: 0.02, back: 0.3, sweepH: 0.022, sweepR: 0.014 },
+  grains: { burstPower: 1.05, absorb: 0.4, stuck: 10, life: 480, pickR: 0.02, spill: 0.034, back: 0.2, sweepH: 0.022, sweepR: 0.014 },
   getUpInv: 10,
   /** Doble toque de flecha (dentro de `taps` cuadros) = PASITO de `dist` en `frames`; hacia atrás, invulnerable `backInv`. */
   dash: { taps: 12, frames: 10, dist: 0.03, backInv: 6 },
@@ -263,7 +263,7 @@ export const FIGHT = {
   dizzyFrames: 90,
   dizzyDecay: 0.06,
   /** Sangrado del corte: vida por segundo, cuadros que dura, y cuántos a la vez. */
-  bleed: { dps: 1.6, frames: 180, max: 3 },
+  bleed: { dps: 1.1, frames: 150, max: 2, minWorn: 0.7 },
   /** Empujón: m/s por (kg·m/s del golpe / kg del rival), acotado. */
   knockback: 2.4,
   kbClamp: [0.1, 0.62] as const,
@@ -331,7 +331,7 @@ export const JELLY = { window: 36, step: 0.22, min: 0.45 };
 
 /** Rival: cuán bien juega el brócoli en cada nivel. */
 export const AI_LEVELS = [
-  { reaction: 26, guard: 0.22, aggression: 0.035, jump: 0.002, retreat: 0.2, chain: 0, think: 26 },
-  { reaction: 18, guard: 0.36, aggression: 0.05, jump: 0.004, retreat: 0.3, chain: 0.04, think: 18 },
-  { reaction: 13, guard: 0.5, aggression: 0.065, jump: 0.006, retreat: 0.35, chain: 0.07, think: 12 },
+  { reaction: 26, guard: 0.22, aggression: 0.035, jump: 0.002, retreat: 0.2, chain: 0, think: 26, cut: 0.05 },
+  { reaction: 18, guard: 0.36, aggression: 0.05, jump: 0.004, retreat: 0.3, chain: 0.04, think: 18, cut: 0.08 },
+  { reaction: 13, guard: 0.5, aggression: 0.065, jump: 0.006, retreat: 0.35, chain: 0.07, think: 16, cut: 0.1 },
 ] as const;

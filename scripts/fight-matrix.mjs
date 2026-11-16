@@ -77,9 +77,12 @@ try {
     const mem = { seed };
     const hits = [0, 0], dmg = [0, 0];
     for (let fr = 0; fr < 60 * 600 && m.phase !== 'over'; fr++) {
-      stepMatch(m, [BOTS[bot](m, mem), aiInput(m, ai, 1)]);
+      const inp = [BOTS[bot](m, mem), aiInput(m, ai, 1)];
+      if (process.env.MTRACE && fr > 120 && fr < 700 && fr % 6 === 0) console.error(fr, 'gap', gapOf(m).toFixed(3), 'P', m.f[0].limbs.map((q) => q.phase[0] + q.t).join(','), 'lock', m.f[0].lock, 'R stun', m.f[1].stun, 'y', m.f[1].y.toFixed(3), 'mv', m.f[1].mv?.id ?? '-', m.f[1].mv?.t ?? '', ai.doing, ai.think, JSON.stringify(inp[1]));
+      stepMatch(m, inp);
       for (const e of m.events) {
         if (e.type === 'hit' && !e.blocked) { hits[e.by]++; dmg[e.by] += e.damage; }
+        if (process.env.MDEBUG && e.type === 'hit' && e.by === 1) { const k = `${e.blocked ? 'blk:' : ''}${e.piece}`; (mem.dbg ??= {})[k] = (mem.dbg[k] ?? 0) + e.damage; }
         if (process.env.MDEBUG) (mem.dbg ??= {})[e.type + (e.by ?? e.who ?? '')] = (mem.dbg[e.type + (e.by ?? e.who ?? '')] ?? 0) + (e.damage ?? 1);
       }
     }

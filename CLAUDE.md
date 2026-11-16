@@ -436,7 +436,7 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   Rebota con golpes cargados (`FIGHT.bounce`). FASE 2 (vida < 40): se ve la grieta y la yema, recibe ×1,3 y ataca 20 % más rápido.
 - MONSTRUO DE QUINOA (T8, `model.absorb`, `FIGHT.grains`): sin regeneración mágica. Lo RÁPIDO (poder < 1,05) se hunde (40 %,
   sin aturdir, el brazo trabado); lo CARGADO o pesado la REVIENTA: daño entero y un MONTONCITO (`m.piles`, n = daño) que vuelve si
-  la quinoa lo pisa o a los 8 s (+0,3 de vida por grano); un golpe al ras lo desparrama. Se achica con la vida (`count` de los
+  la quinoa lo pisa o a los 8 s (+0,2 de vida por grano); un golpe al ras lo desparrama. Se achica con la vida (`count` de los
   granos del cuerpo, mezclados). Granos sueltos en mount (`looseGrains`, hasta 600): saltan, quedan en la tabla y vuelven
   volando. Ataques: PUÑO CAÑÓN, MAZAZO doble (rompe guardia, 34 de aviso), DERRUMBE (invulnerable 30, se rearma 6 cm más allá)
   + METRALLA. En guardia lleva los puños adelante de la cara (arriba parecían orejas).
@@ -539,6 +539,10 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   la zanahoria naranja y el látigo del huevo).
 - Render: la parte de la vara que queda adentro del chizito se recorta con un plano por extremidad (`clippingPlanes`), así al girar
   no asoma. El squash de la criatura se integra en subpasos (a < 24 fps divergía: era el bug del zoom que crecía y parpadeaba).
+- BALANCE (medido, `docs/creature/BALANCE.md`): el sangrado no sale de golpes gastados por aporrear (`bleed.minWorn`); frente a una
+  carga LENTA el rival no se cubre: la corta con su ataque más rápido (`AI_LEVELS.cut`) o da un paso atrás para que pifie y
+  castiga; al salir del aturdimiento decide enseguida. Los granos de la quinoa saltan hacia el que pegó (`grains.spill`): quedan
+  entre los dos. Probado y descartado: chupetín que aguanta toques sin cortarse (invencible en niveles 2 y 3).
 - Balance: `node scripts/make-archetypes.mjs` (arquetipos con el frente real en `src/creature/fixtures/arq/`) y
   `node scripts/fight-matrix.mjs [semillas]` (≈ 2 min) → pegar la salida en `docs/creature/BALANCE.md`.
 - Pruebas: `node scripts/creature-fight-test.mjs` (puras: modelo, apoyo, contrapeso, caminar, golpes, peso, guardia, escudos,

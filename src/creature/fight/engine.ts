@@ -1853,7 +1853,7 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
     m.events.push({ type: 'absorb', who: (1 - i) as 0 | 1, at: [px, py] });
   } else if (b.model.absorb && blockedBy === null) {
     const n = Math.max(1, Math.round(dmg));
-    const pile: Pile = { id: m.nextShot++, x: clamp(b.x + a.facing * (0.018 + 0.006 * (n % 3)), -FIGHT.arenaHalf, FIGHT.arenaHalf), n, t: 0 };
+    const pile: Pile = { id: m.nextShot++, x: clamp(b.x - a.facing * (FIGHT.grains.spill + 0.006 * (n % 3)), -FIGHT.arenaHalf, FIGHT.arenaHalf), n, t: 0 };
     m.piles.push(pile);
     m.events.push({ type: 'grains', who: (1 - i) as 0 | 1, at: [px, py], n, pile: pile.id, x: pile.x });
   }
@@ -1909,7 +1909,8 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
         m.events.push({ type: 'dizzy', who: (1 - i) as 0 | 1 });
       }
     }
-    if (kind === 'cut' && b.bleed.length < FIGHT.bleed.max) b.bleed.push(FIGHT.bleed.frames);
+    // Un golpe gastado por aporrear (`worn`) no llega a cortar: el sangrado premia el golpe limpio, no el ritmo ciego.
+    if (kind === 'cut' && s.worn >= FIGHT.bleed.minWorn && b.bleed.length < FIGHT.bleed.max) b.bleed.push(FIGHT.bleed.frames);
     if (b.juggle >= 0 && !b.grounded) b.juggle++;
     if (s.move === 'sweep' && b.grounded) {
       b.down = FIGHT.sweepDown;

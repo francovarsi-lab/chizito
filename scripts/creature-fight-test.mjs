@@ -625,7 +625,7 @@ try {
     {
       const m = hard.m;
       const hp0 = m.f[1].hp;
-      for (let i = 0; i < FIGHT.grains.life + 5; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      for (let i = 0; i < FIGHT.grains.life + 40; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
       ok(m.piles.length === 0 && m.f[1].hp > hp0, `los granos vuelven y recupera vida (${hp0.toFixed(1)} → ${m.f[1].hp.toFixed(1)})`);
     }
     {
@@ -921,6 +921,19 @@ try {
       for (let i = 0; i < 20; i++) { stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); esc ||= m.events.some((e) => e.type === 'escape'); }
       ok(esc && m.f[0].stun === 0 && m.f[1].x - m.f[0].x > g0 + 0.02, `E aturdido = escape (separa ${((m.f[1].x - m.f[0].x - g0) * 100).toFixed(1)} cm)`);
     }
+  }
+
+  // ── Balance: frente a una carga LENTA en alcance, el rival la corta con su ataque más rápido y no se cubre ──
+  {
+    const mazo = fighterFromSnapshot(JSON.parse(fs.readFileSync('src/creature/fixtures/arq/mazo.snapshot.json', 'utf8')));
+    const m = createMatch([mazo, broccoliFighter(1)]);
+    for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+    m.f[0].x = m.f[1].x - 0.045;
+    Object.assign(m.f[0].limbs[m.f[0].arms[0]], { phase: 'windup', t: 0, charge: 30 });
+    const ai = newAi(5, 1);
+    let cut = false, guarded = false;
+    for (let i = 0; i < 200 && !cut; i++) { const inp = aiInput(m, ai, 1); cut = inp.move === 'zanahoriazo'; guarded ||= !!inp.guard; }
+    ok(cut && !guarded, `el brócoli corta la carga lenta con el zanahoriazo y no se cubre (${cut}, guardia ${guarded})`);
   }
 
   // ── T5: ataques hechos a mano (moves.ts): cada uno pega dentro de su ventana y respeta su tipo de guardia ──

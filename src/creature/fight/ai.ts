@@ -32,6 +32,11 @@ function rnd(m: AiMem): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
+/** Cuadros que le faltan al golpe más lento que está cargando (0 = no carga nada). */
+function windLeft(foe: Match['f'][number]): number {
+  return foe.limbs.reduce((mx, q, k) => (q.phase === 'windup' ? Math.max(mx, (foe.model.limbs[k].rigid ? FIGHT.swing.windFrames : FIGHT.windMin) + q.charge - q.t) : mx), 0);
+}
+
 /**
  * Entrada del luchador `who` manejado por la máquina: se acerca hasta su alcance, pega con cadencia según el nivel, a veces se
  * guarda al ver venir un golpe (con tiempo de reacción), patea si el otro se agacha y se aleja un poco después de pegar.
@@ -49,6 +54,10 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   // Reacción: cuando el otro arranca un golpe, recién `reaction` cuadros después se puede guardar.
   // Si el otro aprieta siempre el mismo botón, lo ve venir: reacciona antes y se cubre casi siempre (y después contraataca).
   const readable = foe.repeat >= 1;
+  // Rival con ataques propios frente a una carga LENTA: cubrirse no sirve (el mazazo pasa por arriba de la guardia); lo corta o
+  // se corre (`rivalDecide`). Suelta la guardia que tuviera.
+  const dodge = !!me.model.moves?.length && windLeft(foe) > 12;
+  if (dodge && mem.doing === 'guard') mem.left = 0;
   if (foeStriking && !mem.seenStrike) {
     mem.seenStrike = true;
     mem.react = readable ? Math.max(3, Math.round(L.reaction * 0.45)) : L.reaction;
@@ -57,13 +66,13 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   if (mem.react > 0) {
     mem.react--;
     const guardP = readable ? Math.min(0.95, Math.max(L.guard, 0.55 + 0.15 * foe.repeat)) : L.guard;
-    if (mem.react === 0 && foeStriking && near < reach * 1.8 && rnd(mem) < guardP) {
+    if (mem.react === 0 && !dodge && foeStriking && near < reach * 1.8 && rnd(mem) < guardP) {
       mem.doing = 'guard';
       mem.left = 18 + Math.floor(rnd(mem) * 14);
     }
   }
   // Le leyó el ritmo (pega sin parar): se anticipa y espera el próximo golpe con la guardia arriba, para atajarlo y contraatacar.
-  if (readable && mem.left <= 0 && me.stun <= 0 && near < reach * 1.8 && rnd(mem) < (mem.level === 1 ? 0.14 : 0.18 + 0.05 * mem.level)) {
+  if (readable && !dodge && mem.left <= 0 && me.stun <= 0 && near < reach * 1.8 && rnd(mem) < (mem.level === 1 ? 0.14 : 0.18 + 0.05 * mem.level)) {
     mem.doing = 'guard';
     mem.left = 22 + Math.floor(rnd(mem) * 16);
   }
@@ -99,7 +108,8 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   }
   const attackPrev = mem.wasAttack;
   mem.wasAttack = false;
-  if (me.stun > 0) return { x: 0 };
+  // Recién golpeado: al salir del aturdimiento decide enseguida (si no, bajo presión casi no jugaba: lo aporreaban sin respuesta).
+  if (me.stun > 0) { mem.think = Math.min(mem.think, L.reaction >> 2); return { x: 0 }; }
   if (me.model.moves?.length) return rivalDecide(s, mem, who, near, dir);
   // El otro quedó trabado (pegó contra la guardia o pifió): es el momento de castigarlo.
   if (foe.lock > 4 && near < reach * 1.15 && rnd(mem) < 0.3 + 0.12 * mem.level) return { x: 0, punch: true };
@@ -159,6 +169,20 @@ function rivalDecide(s: Match, mem: AiMem, who: 0 | 1, near: number, dir: -1 | 1
   const foe = s.f[1 - who];
   const ids = me.model.moves!;
   const inReach = ids.filter((id) => MOVES[id].reach >= near && MOVES[id].hits.length > 0);
+  // Lo lento se castiga (el peso es costo): si al otro le falta más para soltar que lo que tarda mi ataque más rápido, lo corto.
+  const slow = windLeft(foe);
+  if (slow > 0 && inReach.length && rnd(mem) < L.cut) {
+    const fast = inReach.reduce((a, b) => (MOVES[a].hits[0].from <= MOVES[b].hits[0].from ? a : b));
+    if (slow > MOVES[fast].hits[0].from + 2) return { x: 0, move: fast };
+  }
+  // Carga algo lento y no llego a cortarlo: un paso atrás para que pifie (pifiar con peso deja muy trabado).
+  if (slow > 14 && !inReach.length && near < 0.1 && rnd(mem) < L.cut * 2) {
+    mem.doing = 'retreat';
+    mem.left = Math.min(slow, 18);
+    return { x: (-dir) as -1 | 1 };
+  }
+  // Pifió y quedó trabado lejos: entrar a castigar.
+  if (foe.lock > 12 && !inReach.length && near < 0.12) return { x: dir };
   // El otro ya está cargando cerca: arrancar un ataque ahora es comerse el golpe a mitad de camino; mejor cubrirse.
   const foeWinding = foe.limbs.some((q) => q.phase === 'windup' || q.phase === 'strike');
   if (foeWinding && near < 0.085 && rnd(mem) < 0.06 + 0.04 * mem.level + (foe.repeat >= 1 ? 0.25 : 0)) {
@@ -179,7 +203,8 @@ function rivalDecide(s: Match, mem: AiMem, who: 0 | 1, near: number, dir: -1 | 1
   // Fase: con poca vida se juega el todo por el todo (ataca más).
   const angry = me.hp < 45 ? 0.15 : 0;
   const band = near < 0.06 ? 0 : near < 0.1 ? 1 : 2;
-  if (rnd(mem) < 0.35 + 0.07 * mem.level + angry) {
+  // Si el otro pega sin pausa (ritmo leído), contesta más: no se queda mirando.
+  if (rnd(mem) < 0.35 + 0.07 * mem.level + angry + (foe.repeat >= 1 ? 0.3 : 0)) {
     const pool = ids.filter((id) => MOVES[id].w[band] > 0 && MOVES[id].reach >= near * 0.85);
     if (pool.length) {
       let r = rnd(mem) * pool.reduce((a, id) => a + MOVES[id].w[band], 0);
