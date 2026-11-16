@@ -548,7 +548,7 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   carteles usan `me()`. Sin presentación, sin niveles, sin pausa (Esc abre un menú; la pelea sigue). Revancha = pelea `gen + 1`
   en los dos lados. Salir cierra la sala. Red: WebRTC con PeerJS y su servidor público de presentación; `?sala=local-x` (+
   `&anfitrion` en una de las dos) usa BroadcastChannel entre dos pestañas del mismo navegador, sin internet (para probar).
-  Pruebas: lockstep puro en `creature-fight-test.mjs`; de punta a punta `node scripts/versus-test.mjs <dir>` (~15 min por software).
+  Pruebas: lockstep puro en `creature-fight-test.mjs`; de punta a punta `node scripts/versus-test.mjs <dir>` (~7 min por software; 6 de 6 OK). OJO: si se instala un paquete con el server prendido, reiniciarlo con `npx vite --force` (queda sirviendo dependencias viejas y la página no arranca).
 - BALANCE (medido, `docs/creature/BALANCE.md`): el sangrado no sale de golpes gastados por aporrear (`bleed.minWorn`); frente a una
   carga LENTA el rival no se cubre: la corta con su ataque más rápido (`AI_LEVELS.cut`) o da un paso atrás para que pifie y
   castiga; al salir del aturdimiento decide enseguida. Los granos de la quinoa saltan hacia el que pegó (`grains.spill`): quedan
