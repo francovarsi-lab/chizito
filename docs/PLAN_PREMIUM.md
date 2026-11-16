@@ -218,6 +218,7 @@ Hecho cuando: del botón al impacto ≥ 12 cuadros para un palito, la fase de go
 tolerancia, matriz dentro de objetivos o diferencias explicadas.
 
 ### T3 — Entradas nuevas: rápido / cargado, gancho, barrida, pasito, atajada, guardia rota
+**Hecha** (2026-11-16). Todo en `FIGHT.hold/upper/dash/parry/guardBreak` y `chain.scale`; la IA carga y da pasitos desde el nivel 2.
 Especificación: 4.2, 4.3, 4.4. Una sub-tarea por commit, cada una con su prueba pura:
 1. **Rápido / cargado.** `FightInput.quad` pasa a ser estado mantenido + flanco de soltar (`quadHeld`, `quadUp`). En `mount.ts`
    (teclado, ~1040) mandar `keydown` / `keyup`. En el motor: al apretar arranca la anticipación; si se suelta antes de 12

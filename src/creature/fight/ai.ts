@@ -1,4 +1,5 @@
 import type { FightInput, Match } from './engine';
+import type { Quad } from '../zones';
 import { AI_LEVELS, FIGHT, POWERS } from './tuning';
 
 /** Memoria del rival (determinista: azar con semilla). */
@@ -8,7 +9,9 @@ export interface AiMem {
   /** Cuadros hasta poder reaccionar a lo que hace el otro. */
   react: number;
   /** Acción en curso y cuadros que le quedan. */
-  doing: 'none' | 'guard' | 'retreat' | 'crouch' | 'step';
+  doing: 'none' | 'guard' | 'retreat' | 'crouch' | 'step' | 'charge' | 'dash';
+  /** Golpe cargado en curso: cuadrante que mantiene. */
+  quad: Quad | null;
   /** Hacia dónde va el paso de acomodarse (+1 adelante, −1 atrás). */
   stepDir: 1 | -1;
   left: number;
@@ -16,7 +19,7 @@ export interface AiMem {
   wasAttack: boolean;
 }
 
-export const newAi = (seed = 1, level = 1): AiMem => ({ seed, level: Math.max(1, Math.min(AI_LEVELS.length, level)), react: 0, doing: 'none', stepDir: 1, left: 0, seenStrike: false, wasAttack: false });
+export const newAi = (seed = 1, level = 1): AiMem => ({ seed, level: Math.max(1, Math.min(AI_LEVELS.length, level)), react: 0, doing: 'none', quad: null, stepDir: 1, left: 0, seenStrike: false, wasAttack: false });
 
 /** Azar chico y determinista (mulberry32). */
 function rnd(m: AiMem): number {
@@ -73,6 +76,10 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
     if (mem.doing === 'retreat') return { x: (-dir) as -1 | 1 };
     if (mem.doing === 'crouch') return { x: 0, down: true };
     if (mem.doing === 'step') return { x: (mem.stepDir * dir) as -1 | 1 };
+    // Golpe cargado (nivel 2+): mantiene el botón; si le pegan, lo suelta.
+    if (mem.doing === 'charge') return me.stun > 0 ? { x: 0, quadHeld: null } : { x: 0, quadHeld: mem.left > 0 ? mem.quad : null };
+    // Pasito (nivel 2+): doble toque.
+    if (mem.doing === 'dash') return { x: mem.left === 1 ? 0 : ((mem.stepDir * dir) as -1 | 1) };
   }
   mem.doing = 'none';
   // El poder, cuando conviene (cada uno con su lógica): vapor si lo tiene encima, rodar si está a media distancia y en el piso,
@@ -100,6 +107,14 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   }
   if (!attackPrev && rnd(mem) < L.aggression) {
     mem.wasAttack = true;
+    // Desde el nivel 2 a veces carga el golpe (mantiene el botón 14–30 cuadros).
+    const arm = me.arms.find((k) => !me.model.limbs[k].rigid);
+    if (mem.level >= 2 && arm !== undefined && rnd(mem) < 0.25 + 0.1 * (mem.level - 2)) {
+      mem.doing = 'charge';
+      mem.quad = `${me.model.limbs[arm].side}A` as Quad;
+      mem.left = 14 + Math.floor(rnd(mem) * 17);
+      return { x: 0, quad: mem.quad, quadHeld: mem.quad };
+    }
     const kick = me.legs.length > 0 && (foe.crouch > 0.5 || rnd(mem) < 0.22);
     if (rnd(mem) < L.retreat) {
       mem.doing = 'retreat';
@@ -110,6 +125,13 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   // A veces se acomoda: un PASO decidido adelante o atrás (varios cuadros). Antes eran toques de un cuadro al azar que lo hacían
   // temblar en el lugar, como una marioneta.
   const r = rnd(mem);
+  // Desde el nivel 2, a veces un pasito (adelante si está lejos, atrás si está encima).
+  if (mem.level >= 2 && r < 0.008) {
+    mem.doing = 'dash';
+    mem.stepDir = near > reach * 0.8 ? 1 : -1;
+    mem.left = 2;
+    return { x: (mem.stepDir * dir) as -1 | 1 };
+  }
   if (r < 0.025) {
     mem.doing = 'step';
     mem.stepDir = rnd(mem) < 0.6 ? 1 : -1;

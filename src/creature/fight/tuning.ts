@@ -148,6 +148,20 @@ export const FIGHT = {
   strikeGap: 16,
   /** Golpes sin pausa (cada uno arranca antes de `window` cuadros del anterior): daño × (1 − step · seguidos), piso `min`. */
   repeat: { window: 75, step: 0.25, min: 0.35 },
+  /** T3. Mantener el botón del cuadrante: soltar antes de `quick` = RÁPIDO (daño × quickMul, carga × quickArc); mantener =
+   *  CARGADO (1 → fullMul hasta `max` cuadros; la carga completa rompe la guardia). */
+  hold: { quick: 12, max: 30, quickMul: 0.6, quickArc: 0.6, fullMul: 1.6 },
+  /** ↓ + brazo = GANCHO: levanta al rival; en el aire, hasta 3 golpes con este daño. */
+  upper: { lift: 0.55, juggle: [1, 0.8, 0.6] as readonly number[] },
+  /** ↓ + pierna = BARRIDA: derriba estos cuadros; al levantarse queda invulnerable `getUpInv`. */
+  sweepDown: 40,
+  getUpInv: 10,
+  /** Doble toque de flecha (dentro de `taps` cuadros) = PASITO de `dist` en `frames`; hacia atrás, invulnerable `backInv`. */
+  dash: { taps: 12, frames: 10, dist: 0.03, backInv: 6 },
+  /** ATAJADA: guardia apretada hasta `window` cuadros antes del impacto → sin daño, el otro abierto `open`, + `meter` de poder. */
+  parry: { window: 6, open: 24, meter: 25 },
+  /** GUARDIA ROTA: `blocks` bloqueos en `window` cuadros → `frames` sin poder cubrirse. */
+  guardBreak: { blocks: 4, window: 180, frames: 40 },
   /** Cuadros sin poder seguir después de pegarle a una guardia. */
   blockedLock: 16,
   /** Cuadros sin poder golpear después de acertar. */
@@ -272,7 +286,10 @@ export const FIGHT = {
   chain: {
     window: 26,
     counterWindow: 22,
-    mul: { 'UNO-DOS': 1.15, 'RÁFAGA': 1.3, 'PIÑA Y PATADA': 1.25, CONTRA: 1.35 } as Record<string, number>,
+    mul: { CONTRA: 1.35 } as Record<string, number>,
+    /** Cada golpe de la cadena pega 10 % menos que el anterior (100 / 90 / 80 / 70), con piso. */
+    scale: 0.1,
+    floor: 0.5,
   },
 } as const;
 

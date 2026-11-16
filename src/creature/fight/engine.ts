@@ -32,6 +32,8 @@ export interface FightInput {
   quad?: Quad;
   /** Poder especial (flanco): solo con la barra de PODER llena. */
   power?: boolean;
+  /** Cuadrante que se MANTIENE apretado (null: ninguno). Sin el campo no hay golpe rápido / cargado (la máquina, Z/X). */
+  quadHeld?: Quad | null;
 }
 
 export const IDLE: FightInput = { x: 0 };
@@ -62,7 +64,18 @@ export interface LimbState {
   combo: string | null;
   /** Daño × esto: un golpe repetido con el mismo botón se ve venir y pega menos. */
   worn: number;
+  /** Cuadros que se mantuvo el botón (−1: no se sigue), su cuadrante y si ya se soltó. */
+  hold: number;
+  holdQuad: Quad | null;
+  released: boolean;
+  /** Daño × esto (rápido 0,6; cargado hasta 1,6) y si rompe la guardia (carga completa). */
+  power: number;
+  breaker: boolean;
+  /** Golpe especial: gancho (levanta) o barrida (derriba). */
+  move: Move;
 }
+
+export type Move = 'normal' | 'upper' | 'sweep';
 
 export interface FighterState {
   model: FighterModel;
@@ -99,7 +112,7 @@ export interface FighterState {
   swing: { k: number; sign: 1 | -1; t0?: number } | null;
   /** Se cubre con un escudo: inclinación (rad) para ponerlo de frente; `turned` = se dio vuelta para mostrar la espalda. */
   shieldPose: { tilt: number; turned: boolean } | null;
-  buffer: { kind: 'arm' | 'kick' | 'air'; t: number; quad?: Quad } | null;
+  buffer: { kind: 'arm' | 'kick' | 'air'; t: number; quad?: Quad; move?: Move } | null;
   /** Por cuadrante: cuál toca la próxima vez (de a una). */
   nextQ: Record<Quad, number>;
   gait: number;
@@ -166,6 +179,25 @@ export interface FighterState {
   jellyN: number;
   /** Coraza que le falta (quinoa, después de tirar granos): 0..1, se rearma sola. */
   armorLoss: number;
+  /** Cuadrante mantenido este paso (undefined: la entrada no lo informa). */
+  held: Quad | null | undefined;
+  /** Pasito: doble toque de flecha (último toque y su dirección), cuadros que le quedan, dirección. */
+  lastX: number;
+  tapDir: number;
+  tapT: number;
+  dash: number;
+  dashDir: number;
+  /** Cuadros invulnerable (pasito atrás, al levantarse). */
+  inv: number;
+  /** Cuadros desde que apretó la guardia (atajada justa) y si la tenía apretada el paso anterior. */
+  guardT: number;
+  guardIn: boolean;
+  /** Bloqueos recientes (cuadro de cada uno) y cuadros de guardia rota. */
+  blocks: number[];
+  guardBreak: number;
+  /** Derribado (cuadros) y golpes recibidos en el aire después de un gancho (−1: no está en el aire por un gancho). */
+  down: number;
+  juggle: number;
 }
 
 /** Un proyectil (granos de quinoa). */
@@ -186,7 +218,7 @@ export type FightEvent =
   | { type: 'shieldBreak'; who: 0 | 1; piece: string; at: [number, number]; vel: [number, number] }
   | { type: 'swing'; who: 0 | 1; limb: number; heavy: boolean }
   | { type: 'whiff'; who: 0 | 1; heavy: boolean; lock: number }
-  | { type: 'jump' | 'land' | 'dizzy' | 'ko' | 'stumble'; who: 0 | 1 }
+  | { type: 'jump' | 'land' | 'dizzy' | 'ko' | 'stumble' | 'parry' | 'guardBreak' | 'down' | 'dash' | 'launch'; who: 0 | 1 }
   | { type: 'round'; round: number }
   | { type: 'fight' }
   | { type: 'roundEnd'; winner: 0 | 1 | 'draw'; reason: 'ko' | 'time' }
@@ -309,7 +341,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     bleed: [],
     guard: 0,
     crouch: 0,
-    limbs: model.limbs.map((_, i) => ({ q: stance[i], w: [0, 0, 0], phase: 'rest', t: 0, axis: [0, 0, 1], windup: 0, target: 0, phi: 0, landed: false, active: false, slack: 0, charge: 0, follow: 0, combo: null, worn: 1 })),
+    limbs: model.limbs.map((_, i) => ({ q: stance[i], w: [0, 0, 0], phase: 'rest', t: 0, axis: [0, 0, 1], windup: 0, target: 0, phi: 0, landed: false, active: false, slack: 0, charge: 0, follow: 0, combo: null, worn: 1, hold: -1, holdQuad: null, released: false, power: 1, breaker: false, move: 'normal' })),
     nextArm: 0,
     strikeCool: 0,
     lock: 0,
@@ -359,6 +391,19 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     heavyLoad: 0,
     jellyN: 0,
     armorLoss: 0,
+    held: undefined,
+    lastX: 0,
+    tapDir: 0,
+    tapT: -999,
+    dash: 0,
+    dashDir: 0,
+    inv: 0,
+    guardT: 999,
+    guardIn: false,
+    blocks: [],
+    guardBreak: 0,
+    down: 0,
+    juggle: -1,
   };
   // Desproporción (el chupetín pesa más que el chizito entero): marcha, salto y giros más pesados. Pocos gramos, pero la
   // proporción manda: una extremidad que pesa más que el cuerpo lo arrastra.
@@ -532,7 +577,7 @@ const phiOf = (s: LimbState): number => dotv(qToVec(s.q), s.axis);
 
 // ───────────────────────── Golpes ─────────────────────────
 
-function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air', combo: string | null = null): void {
+function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air', combo: string | null = null, move: Move = 'normal'): void {
   const f = m.f[i];
   const foe = m.f[1 - i];
   const l = f.model.limbs[k];
@@ -540,7 +585,8 @@ function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air'
   const d0 = l.dir;
   // Hacia dónde: el centro del rival visto desde la articulación (local), siempre hacia adelante.
   let tx = (foe.x - f.x) * f.facing - fwd(f, l.pivot);
-  let ty = foe.y + (kind === 'kick' ? -0.012 : 0.004) - f.y - l.pivot[1];
+  // Gancho: apunta arriba del rival (sube por debajo); barrida: a los pies.
+  let ty = foe.y + (move === 'upper' ? 0.03 : move === 'sweep' ? -0.022 : kind === 'kick' ? -0.012 : 0.004) - f.y - l.pivot[1];
   if (kind === 'air') ty -= Math.abs(tx) * 0.9;
   tx = Math.max(tx, Math.abs(ty) * 0.35 + 0.004);
   // Hacia el rival en 3D: la dirección de avance (con la postura de 3/4) y la altura.
@@ -574,6 +620,12 @@ function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air'
   s.target = target;
   s.phi = phiOf(s);
   s.w = [0, 0, 0];
+  s.move = move;
+  s.hold = -1;
+  s.holdQuad = null;
+  s.released = false;
+  s.power = 1;
+  s.breaker = false;
   s.phase = 'windup';
   s.t = 0;
   s.landed = false;
@@ -934,9 +986,31 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   if (f.buffer && --f.buffer.t <= 0) f.buffer = null;
   if (fighting && !f.ko && !f.pw) f.meter = Math.min(FIGHT.power.max, f.meter + FIGHT.power.passive * dt);
   if (f.armorLoss > 0) f.armorLoss = Math.max(0, f.armorLoss - POWERS.metralla.armorLoss / POWERS.metralla.regrow);
-  const canAct = fighting && !f.ko && f.stun <= 0 && f.block <= 0;
+  if (f.inv > 0) f.inv--;
+  if (f.guardBreak > 0) f.guardBreak--;
+  if (f.down > 0 && --f.down === 0) f.inv = FIGHT.getUpInv;
+  if (f.juggle >= 0 && f.grounded && f.vy <= 0) f.juggle = -1;
+  const canAct = fighting && !f.ko && f.stun <= 0 && f.block <= 0 && f.down <= 0;
   const input = canAct ? inp : IDLE;
   const busy = !!f.pw || f.limbs.some((s) => s.phase === 'windup' || s.phase === 'strike');
+  f.held = input === IDLE ? (inp.quadHeld === undefined ? undefined : null) : input.quadHeld;
+  // Atajada justa: cuadros desde que se APRETÓ la guardia.
+  f.guardT = input.guard && !f.guardIn ? 0 : f.guardT + 1;
+  f.guardIn = !!input.guard;
+  // Pasito: doble toque de flecha (en el motor, con el historial de la entrada).
+  if (input.x !== 0 && f.lastX === 0) {
+    if (input.x === f.tapDir && m.frame - f.tapT <= FIGHT.dash.taps && f.grounded && !busy && f.dash <= 0) {
+      f.dash = FIGHT.dash.frames;
+      f.dashDir = input.x;
+      if (input.x === -f.facing) f.inv = Math.max(f.inv, FIGHT.dash.backInv);
+      f.tapDir = 0;
+      m.events.push({ type: 'dash', who: i });
+    } else {
+      f.tapDir = input.x;
+      f.tapT = m.frame;
+    }
+  }
+  f.lastX = input.x;
 
   // Mira siempre al rival (como en los juegos de pelea): giro de 180°, no espejo.
   const toFoeRaw: 1 | -1 = foe.x >= f.x ? 1 : -1;
@@ -951,13 +1025,14 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
 
   // Cubrirse: con un escudo (papita, nacho) si le queda alguno; si no, con los brazos. No mientras paga un golpe.
   const shield = liveShield(f);
-  const guardHeld = !!input.guard && f.grounded && f.lock <= 0 && (f.arms.length > 0 || !!shield);
+  const guardHeld = !!input.guard && f.grounded && f.lock <= 0 && f.guardBreak <= 0 && (f.arms.length > 0 || !!shield);
   f.shieldPose = guardHeld && shield ? shieldPose(f, shield) : null;
   const crouchHeld = (!!input.down && f.grounded && !guardHeld) || f.squat > 0 || (f.pw?.kind === 'rodada' && f.pw.phase === 'wind');
   f.guard += ((guardHeld ? 1 : 0) - f.guard) * 0.22;
   f.crouch += ((crouchHeld ? 1 : 0) - f.crouch) * (f.squat > 0 ? 0.45 : 0.2);
   if (input.punch) f.buffer = { kind: f.grounded ? 'arm' : 'air', t: FIGHT.buffer };
-  if (input.quad) f.buffer = { kind: input.quad[1] === 'L' ? 'kick' : f.grounded ? 'arm' : 'air', t: FIGHT.buffer, quad: input.quad };
+  // ↓ + brazo = GANCHO, ↓ + pierna = BARRIDA.
+  if (input.quad) f.buffer = { kind: input.quad[1] === 'L' ? 'kick' : f.grounded ? 'arm' : 'air', t: FIGHT.buffer, quad: input.quad, move: input.down && f.grounded ? (input.quad[1] === 'L' ? 'sweep' : 'upper') : 'normal' };
   if (input.kick) f.buffer = { kind: 'kick', t: FIGHT.buffer };
   // Saltar necesita piernas que aguanten el peso (`f.jump` es 0 si no). Primero se agacha (las piernas lentas tardan más) y
   // recién ahí despega: el salto se lee y se puede castigar.
@@ -980,8 +1055,13 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
         // borra (antes lo borraba: golpe, UNO-DOS, golpe… pegaba siempre entero aporreando).
         f.repeat = m.frame - f.lastStrikeF < FIGHT.repeat.window ? f.repeat + (combo ? 0 : 1) : 0;
         f.lastStrikeF = m.frame;
-        startStrike(m, i, k, f.buffer.kind, combo);
+        startStrike(m, i, k, f.buffer.kind, combo, f.model.limbs[k].rigid ? 'normal' : f.buffer.move);
         f.limbs[k].worn = Math.max(FIGHT.repeat.min, 1 - FIGHT.repeat.step * f.repeat);
+        // Golpe rápido / cargado: se sigue cuánto se mantiene el botón (sólo con cuadrante y si la entrada lo informa).
+        if (f.buffer.quad && f.held !== undefined && !combo && !f.model.limbs[k].rigid) {
+          f.limbs[k].hold = 0;
+          f.limbs[k].holdQuad = f.buffer.quad;
+        }
         f.buffer = null;
       }
     }
@@ -1034,9 +1114,27 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       react += drive(f, k, qAxis(s.axis, lead), g, boost);
     };
     if (s.phase === 'windup') {
+      const H = FIGHT.hold;
+      if (s.hold >= 0 && !s.released) {
+        if (f.held === s.holdQuad) s.hold++;
+        else {
+          s.released = true;
+          // Soltó enseguida: golpe RÁPIDO (carga corta, pega menos). Lo pesado no tiene rápido.
+          if (s.hold < H.quick && l.kind !== 'heavy') {
+            s.power = H.quickMul;
+            s.windup *= H.quickArc;
+          }
+        }
+      }
+      const charging = s.hold >= 0 && !s.released && s.hold < H.max;
       // Mientras carga, la extremidad tiembla apenas (se está "endureciendo").
-      react += drive(f, k, qAxis(s.axis, clamp(s.windup, s.phi - 1.5, s.phi + 1.5) + (s.charge ? Math.sin(s.t * 1.7) * FIGHT.charge.tremble : 0)), FIGHT.joint.windup);
-      if ((Math.abs(s.phi - s.windup) < 0.12 && s.t >= FIGHT.windMin + s.charge) || s.t > FIGHT.windMax + s.charge) {
+      react += drive(f, k, qAxis(s.axis, clamp(s.windup, s.phi - 1.5, s.phi + 1.5) + (s.charge || charging ? Math.sin(s.t * 1.7) * FIGHT.charge.tremble : 0)), FIGHT.joint.windup);
+      if (!charging && ((Math.abs(s.phi - s.windup) < 0.12 && s.t >= FIGHT.windMin + s.charge) || s.t > FIGHT.windMax + s.charge)) {
+        // Lo mantuvo: golpe CARGADO, de 1 a 1,6 según cuánto; la carga completa rompe la guardia.
+        if (s.hold >= H.quick) {
+          s.power = 1 + (H.fullMul - 1) * clamp((s.hold - H.quick) / (H.max - H.quick), 0, 1);
+          s.breaker = s.hold >= H.max;
+        }
         s.phase = 'strike';
         s.t = 0;
         // Al soltar el peso va adelante: el cuerpo acompaña la piña (una patada empuja menos: se para en la otra pierna).
@@ -1066,7 +1164,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if (s.phase === 'recover' && s.t > FIGHT.recoverMax) s.phase = 'rest';
     let target: Q = QI();
     let g: { wn: number; zeta: number } = s.phase === 'recover' ? FIGHT.joint.recover : FIGHT.joint.rest;
-    if (f.ko || f.pw?.phase === 'go' && f.pw.kind === 'rodada') {
+    if (f.ko || f.down > 12 || f.pw?.phase === 'go' && f.pw.kind === 'rodada') {
       // Noqueado (o hecho bola para rodar): las extremidades se aflojan y caen pegadas al cuerpo (a lo largo de su eje), así queda acostado sobre la
       // mesa y no apuntalado en el aire por varas rígidas. Las de arriba hacia arriba, las de abajo hacia abajo, apenas abiertas.
       const along = l.dir[1] >= 0 ? 1 : -1;
@@ -1190,6 +1288,10 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   const wantVx = canAct ? input.x * f.speed * (1 - 0.65 * f.guard) * (1 - f.crouch) : 0;
   const acc = f.grounded ? FIGHT.groundAccel : FIGHT.airAccel;
   if (f.grounded || input.x !== 0) f.vx += clamp(wantVx - f.vx, -acc * dt, acc * dt);
+  if (f.dash > 0) {
+    f.dash--;
+    f.vx = f.dashDir * FIGHT.dash.dist / (FIGHT.dash.frames * dt);
+  }
   // Una pierna: avanza a saltitos.
   if (f.legs.length === 1 && f.grounded && canAct && input.x !== 0 && f.hopCool <= 0 && !busy) {
     f.vy = FIGHT.hopSpeed;
@@ -1211,7 +1313,12 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   f.comX = comX;
   const W = M.mass * G;
   let tau = 0;
-  if (f.ko) {
+  if (f.down > 0) {
+    // Derribado por una barrida: se va de espaldas (−) los primeros cuadros y se endereza al final.
+    const target = f.down > 12 ? -1.2 : 0;
+    const K = W * FIGHT.balanceH * 3;
+    tau = -K * (f.tilt - target) - 2 * 0.8 * Math.sqrt(K * f.It) * f.wt;
+  } else if (f.ko) {
     // Noqueado: cae y RUEDA hasta quedar quieto donde su centro de masa queda más bajo (lo que haría la gravedad), apoyado en lo
     // que de verdad toca la mesa: el cuerpo, una aceituna, un palito. Antes quedaba frenado a 86° y apuntalado en el aire.
     // El primer medio segundo se desploma (las piernas ya no lo sostienen); después rueda hasta su reposo.
@@ -1339,7 +1446,8 @@ function resolveHits(m: Match): void {
   for (const i of [0, 1] as const) {
     const a = m.f[i];
     const b = m.f[1 - i];
-    if (a.ko || b.ko) continue;
+    // Invulnerable: pasito atrás, derribado, levantándose, o ya recibió los 3 golpes en el aire después de un gancho.
+    if (a.ko || b.ko || b.inv > 0 || b.down > 0 || (b.juggle >= FIGHT.upper.juggle.length && !b.grounded)) continue;
     const bodies = b.model.body.map((sh) => {
       const A = toWorld(b, sh.a);
       const B = toWorld(b, sh.b);
@@ -1403,8 +1511,12 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   const travel = l.rigid ? Math.abs(a.twist - (a.swing?.t0 ?? a.twist)) / FIGHT.dmgTwist : (s.phi - s.windup) / FIGHT.dmgArc;
   let dmg = base * clamp(travel, FIGHT.dmgTravel[0], FIGHT.dmgTravel[1]) * (l.role === 'leg' ? FIGHT.legMul : 1);
   const chain = s.combo;
-  if (chain) dmg *= FIGHT.chain.mul[chain] ?? 1;
-  dmg *= s.worn;
+  // Cadena: la CONTRA premia; el resto pega 100 / 90 / 80 / 70 % (piso 50 %).
+  if (chain === 'CONTRA') dmg *= FIGHT.chain.mul.CONTRA;
+  else if (chain) dmg *= Math.max(FIGHT.chain.floor, 1 - FIGHT.chain.scale * (a.chain?.n ?? 1));
+  dmg *= s.worn * s.power;
+  // En el aire después de un gancho: 100 / 80 / 60 %.
+  if (b.juggle >= 0 && !b.grounded) dmg *= FIGHT.upper.juggle[Math.min(b.juggle, FIGHT.upper.juggle.length - 1)];
   const fromFront = Math.sign(a.x - b.x || 1) === b.facing;
   const blocked = blockedBy !== null;
   if (blocked) {
@@ -1420,8 +1532,26 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
       m.events.push({ type: 'shieldBreak', who: (1 - i) as 0 | 1, piece: shield, at: [px, py], vel: [a.facing * (0.15 + speed * 0.2), 0.25] });
     }
   }
+  let parry = false;
+  if (blocked && b.guardT <= FIGHT.parry.window) {
+    // ATAJADA justa: no pasa nada de daño, el que pegó queda abierto y el que atajó gana poder.
+    parry = true;
+    dmg = 0;
+    a.lock = Math.max(a.lock, FIGHT.parry.open);
+    b.meter = Math.min(FIGHT.power.max, b.meter + FIGHT.parry.meter);
+    m.events.push({ type: 'parry', who: (1 - i) as 0 | 1 });
+  } else if (blocked) {
+    // GUARDIA ROTA: carga completa, chupetín, o 4 bloqueos en 3 s.
+    b.blocks = b.blocks.filter((t) => m.frame - t < FIGHT.guardBreak.window);
+    b.blocks.push(m.frame);
+    if (s.breaker || l.rigid || b.blocks.length >= FIGHT.guardBreak.blocks) {
+      b.guardBreak = FIGHT.guardBreak.frames;
+      b.blocks = [];
+      m.events.push({ type: 'guardBreak', who: (1 - i) as 0 | 1 });
+    }
+  }
   if (blocked) {
-    dmg *= FIGHT.chip;
+    if (!parry) dmg *= FIGHT.chip;
     b.block = FIGHT.blockstun;
     // Bloqueó: si suelta la guardia y pega enseguida, sale una CONTRA.
     b.counter = FIGHT.blockstun + FIGHT.chain.counterWindow;
@@ -1452,6 +1582,11 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
       }
     }
     if (kind === 'cut' && b.bleed.length < FIGHT.bleed.max) b.bleed.push(FIGHT.bleed.frames);
+    if (b.juggle >= 0 && !b.grounded) b.juggle++;
+    if (s.move === 'sweep' && b.grounded) {
+      b.down = FIGHT.sweepDown;
+      m.events.push({ type: 'down', who: (1 - i) as 0 | 1 });
+    }
   }
   dmg = soak(m, b, dmg);
   b.hp = Math.max(0, b.hp - dmg);
@@ -1467,6 +1602,11 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   if (!blocked) {
     b.vy = Math.max(b.vy, kb * FIGHT.kbUp);
     b.grounded = false;
+    if (s.move === 'upper' && b.juggle < 0) {
+      b.vy = FIGHT.upper.lift;
+      b.juggle = 0;
+      m.events.push({ type: 'launch', who: (1 - i) as 0 | 1 });
+    }
   }
   const h = (py - comY(b)) / FIGHT.balanceH;
   b.wt += -FIGHT.hitTilt * kb * clamp(h, -1.5, 1.5) * (fromFront ? 1 : -1) * (blocked ? 0.3 : 1);
@@ -1509,7 +1649,7 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
       if (m.phase !== 'fight' || f.ko) return;
       if (inputs[i].punch) f.buffer = { kind: f.grounded ? 'arm' : 'air', t: FIGHT.buffer };
       const q = inputs[i].quad;
-      if (q) f.buffer = { kind: q[1] === 'L' ? 'kick' : f.grounded ? 'arm' : 'air', t: FIGHT.buffer, quad: q };
+      if (q) f.buffer = { kind: q[1] === 'L' ? 'kick' : f.grounded ? 'arm' : 'air', t: FIGHT.buffer, quad: q, move: inputs[i].down && f.grounded ? (q[1] === 'L' ? 'sweep' : 'upper') : 'normal' };
       if (inputs[i].kick) f.buffer = { kind: 'kick', t: FIGHT.buffer };
     });
     return;

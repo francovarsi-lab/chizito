@@ -770,6 +770,73 @@ try {
     }
   }
 
+  // ── T3: rápido / cargado, gancho, barrida, pasito, atajada, guardia rota ──
+  {
+    const box = fighterFromSnapshot(JSON.parse(fs.readFileSync('src/creature/fixtures/arq/boxeador.snapshot.json', 'utf8')));
+    // Pega con Q manteniéndolo `hold` cuadros (con `down` = gancho/barrida); el rival quieto a `gap`. Devuelve el primer golpe.
+    const press = (P, quad, hold, { gap = 0.045, down = false, foeGuard = false, frames = 120 } = {}) => {
+      const m = fight(P);
+      const pin = () => { m.f[1].x = m.f[0].x + gap; };
+      for (let i = 0; i < 20; i++) { pin(); stepMatch(m, [{ x: 0 }, { x: 0, guard: foeGuard }]); }
+      let hit = null, at = -1;
+      const ev = [];
+      for (let i = 0; i < frames && !hit; i++) {
+        if (!foeGuard) m.f[1].stun = Math.max(m.f[1].stun, 2);
+        pin();
+        stepMatch(m, [{ x: 0, down, quad: i === 0 ? quad : undefined, ...(hold >= 0 ? { quadHeld: i < hold ? quad : null } : {}) }, { x: 0, guard: foeGuard }]);
+        for (const e of m.events) { ev.push(e); if (e.type === 'hit' && e.by === 0) { hit = e; at = i; } }
+      }
+      return { m, hit, at, ev };
+    };
+    const quick = press(box, 'LA', 2), full = press(box, 'LA', 40), plain = press(box, 'LA', -1);
+    ok(quick.hit && full.hit, `rápido y cargado pegan (${quick.hit?.damage.toFixed(1)} / ${full.hit?.damage.toFixed(1)})`);
+    ok(quick.hit && full.hit && full.hit.damage > quick.hit.damage * 2, `el cargado pega mucho más que el rápido (${full.hit?.damage.toFixed(1)} vs ${quick.hit?.damage.toFixed(1)})`);
+    ok(quick.at < full.at, `el rápido sale antes (${quick.at} vs ${full.at} cuadros)`);
+    ok(plain.hit && quick.hit && quick.hit.damage < plain.hit.damage, 'tocar y soltar = rápido (pega menos que el golpe normal de la máquina)');
+    // Carga completa contra la guardia: la rompe.
+    const brk = press(box, 'LA', 40, { foeGuard: true });
+    ok(brk.ev.some((e) => e.type === 'guardBreak' && e.who === 1), 'la carga completa rompe la guardia');
+    // Gancho: levanta al rival.
+    const up = press(box, 'LA', 0, { down: true });
+    ok(up.ev.some((e) => e.type === 'launch'), `↓ + Q = gancho que levanta (${up.ev.filter((e) => e.type === 'hit').length} golpes)`);
+    // Barrida: derriba y el derribado no recibe.
+    const sw = press(box, 'LL', 0, { down: true, gap: 0.04, frames: 160 });
+    ok(sw.ev.some((e) => e.type === 'down') && sw.m.f[1].down > 0, 'barrida (↓ + A) derriba');
+    // Pasito: doble toque de flecha.
+    const d = fight(box);
+    d.f[1].x = d.f[0].x + 0.2;
+    const x0 = d.f[0].x;
+    const seq = [1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0];
+    let dashed = false;
+    for (const x of seq) { stepMatch(d, [{ x }, { x: 0 }]); dashed ||= d.events.some((e) => e.type === 'dash'); }
+    ok(dashed && d.f[0].x - x0 > 0.025, `doble toque = pasito (${((d.f[0].x - x0) * 100).toFixed(1)} cm)`);
+    const back = fight(box);
+    back.f[1].x = back.f[0].x + 0.2;
+    for (const x of [-1, 0, -1]) stepMatch(back, [{ x }, { x: 0 }]);
+    ok(back.f[0].inv > 0, 'el pasito atrás es invulnerable al principio');
+    // Atajada: apretar la guardia justo antes del golpe.
+    const pr = fight(box);
+    pr.f[1].x = pr.f[0].x + 0.045;
+    let parried = false, at = -1;
+    for (let i = 0; i < 120 && !parried; i++) {
+      pr.f[1].x = pr.f[0].x + 0.045;
+      // El rival pega; el jugador aprieta D 5 cuadros antes de que llegue (se mide con una corrida sin guardia: ver abajo).
+      stepMatch(pr, [{ x: 0, guard: at >= 0 && i >= at }, { x: 0, punch: i === 0 }]);
+      if (at < 0 && pr.f[1].limbs.some((q) => q.phase === 'strike')) at = i;
+      parried ||= pr.events.some((e) => e.type === 'parry');
+    }
+    ok(parried && pr.f[1].lock >= FIGHT.parry.open - 2, 'D justo antes del impacto = atajada (el otro queda abierto)');
+    // 4 bloqueos seguidos rompen la guardia.
+    const gb = fight(box);
+    let broke = false;
+    for (let i = 0; i < 600 && !broke; i++) {
+      gb.f[1].x = gb.f[0].x + 0.045;
+      stepMatch(gb, [{ x: 0, guard: i > 5 }, { x: 0, punch: i % 40 === 10 }]);
+      broke ||= gb.events.some((e) => e.type === 'guardBreak' && e.who === 0);
+    }
+    ok(broke, '4 bloqueos en 3 s rompen la guardia');
+  }
+
   // ── Rendimiento: 40 extremidades, dos luchadores ──
   {
     const m = fight(fighterFromSnapshot(snap('F40')));

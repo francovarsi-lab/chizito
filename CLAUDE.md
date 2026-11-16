@@ -404,6 +404,13 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   0,35; `limb.worn`) y la IA lo lee: se anticipa con la guardia, pegarle a la guardia traba al que pega (`blockedLock`) y la IA
   castiga esa ventana y contraataca (suelta la guardia para castigar). Encadenar después de acertar no suma al ritmo pero
   tampoco lo borra (antes golpe + UNO-DOS + golpe pegaba siempre entero). Medido en `docs/creature/BALANCE.md`.
+- ENTRADAS v2 (T3, `FightInput.quadHeld` = cuadrante mantenido): tocar Q/W = RÁPIDO (×0,6, carga corta); mantener = CARGADO
+  (×1 → ×1,6 a los 30 cuadros, tiembla; carga completa rompe la guardia; lo pesado no tiene rápido). ↓+Q/W = GANCHO (levanta,
+  en el aire 3 golpes ×1/0,8/0,6, después invulnerable hasta caer). ↓+A/S = BARRIDA (derriba 40 cuadros, invulnerable; al
+  levantarse 10 más). Doble toque de flecha = PASITO (3 cm en 10 cuadros; atrás, 6 invulnerables). D apretada ≤ 6 cuadros antes
+  del impacto = ATAJADA (sin daño, el otro abierto 24, +25 de poder). GUARDIA ROTA: 4 bloqueos en 3 s, carga completa o chupetín
+  → 40 cuadros sin guardia. Cadenas: 100/90/80/70 % (piso 50); CONTRA ×1,35. Sonidos `atajada`, `guardia-rota`, `barrida`,
+  `pasito` (sin archivo suenan como bloqueo/escudo/golpe-pesado/drop).
 - DESPROPORCIÓN (`heavyLoad` = extremidad más pesada / cuerpo − 0,6): si lo clavado pesa más que el chizito, camina y salta
   menos, pifiar lo traba más y la vuelta dura más; aviso al empezar la pelea.
 - PODERES (`POWERS` en tuning.ts, lógica de cada comida; barra de PODER que se llena pegando, recibiendo y sola; se guarda entre

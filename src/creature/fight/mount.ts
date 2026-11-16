@@ -165,7 +165,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       lastHint = m!.frame;
       hud.popup(f.x, f.y + 0.07, `PODER AL ${Math.floor(f.meter)} %`, '', 'hint');
     }
-    const inp: FightInput = { x, up: took('ArrowUp', 'Space'), down: held('ArrowDown'), punch: took('KeyZ', 'KeyJ'), kick: took('KeyX', 'KeyK'), guard: held('KeyD', 'KeyC', 'KeyL'), quad, power };
+    const inp: FightInput = { x, up: took('ArrowUp', 'Space'), down: held('ArrowDown'), punch: took('KeyZ', 'KeyJ'), kick: took('KeyX', 'KeyK'), guard: held('KeyD', 'KeyC', 'KeyL'), quad, power, quadHeld: held('KeyQ') ? 'LA' : held('KeyW') ? 'RA' : held('KeyA') ? 'LL' : held('KeyS') ? 'RL' : null };
     edges.clear();
     return inp;
   };
@@ -457,6 +457,24 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       }
       case 'stumble':
         g.audio.play('drop', 0.8);
+        break;
+      case 'parry': {
+        const f = m.f[e.who];
+        hud.popup(f.x, f.y + 0.05, '¡ATAJADA!', '', 'shout');
+        g.audio.play('atajada', 1);
+        break;
+      }
+      case 'guardBreak': {
+        const f = m.f[e.who];
+        hud.popup(f.x, f.y + 0.05, '¡GUARDIA ROTA!', '', 'shout');
+        g.audio.play('guardia-rota', 1);
+        break;
+      }
+      case 'down':
+        g.audio.play('barrida', 0.9);
+        break;
+      case 'dash':
+        g.audio.play('pasito', 0.4);
         break;
       case 'swing':
         if (e.heavy) g.audio.play('zumbido', 0.8);
