@@ -837,6 +837,58 @@ try {
     ok(broke, '4 bloqueos en 3 s rompen la guardia');
   }
 
+  // ── T4: poder con tres usos (remate, escape, súper) y súper según lo armado ──
+  {
+    const arq = (id) => { const P = fighterFromSnapshot(JSON.parse(fs.readFileSync(`src/creature/fixtures/arq/${id}.snapshot.json`, 'utf8'))); P.power = 'queso'; return P; };
+    const superKind = (id) => {
+      const m = fight(arq(id));
+      m.f[1].x = m.f[0].x + 0.05;
+      m.f[0].meter = FIGHT.power.max;
+      let kind = null;
+      for (let i = 0; i < 5 && !kind; i++) { stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); for (const e of m.events) if (e.type === 'power') kind = e.kind; }
+      return kind;
+    };
+    ok(superKind('boxeador') === 'nube' && superKind('chupetin2') === 'trompo' && superKind('mazo') === 'carozo' && superKind('pinchudo') === 'acupuntura' && superKind('tanque') === 'muralla',
+      `súper según lo armado (${['boxeador', 'chupetin2', 'mazo', 'pinchudo', 'tanque'].map(superKind).join(', ')})`);
+    // Cada súper hace lo suyo: daño (o muralla) contra el brócoli quieto a 5 cm.
+    for (const id of ['boxeador', 'chupetin2', 'mazo', 'pinchudo']) {
+      const m = fight(arq(id));
+      m.f[0].meter = FIGHT.power.max;
+      const hp0 = m.f[1].hp;
+      for (let i = 0; i < 200; i++) { m.f[1].x = m.f[0].x + 0.05; stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); }
+      ok(m.f[1].hp < hp0 - 3, `${id}: el súper lastima (${(hp0 - m.f[1].hp).toFixed(1)})`);
+    }
+    {
+      const m = fight(arq('tanque'));
+      m.f[0].meter = FIGHT.power.max;
+      for (let i = 0; i < 30; i++) stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]);
+      ok(m.f[0].wall > 100, 'tanque: muralla activa');
+    }
+    // Remate: acertar y apretar E con media barra.
+    {
+      const m = fight(arq('boxeador'));
+      m.f[0].meter = 60;
+      let landed = -1, remate = false;
+      for (let i = 0; i < 80 && !remate; i++) {
+        m.f[1].x = m.f[0].x + 0.045;
+        stepMatch(m, [{ x: 0, quad: i === 0 ? 'LA' : undefined, power: landed >= 0 && i === landed + 2 }, { x: 0 }]);
+        for (const e of m.events) { if (e.type === 'hit' && e.by === 0 && landed < 0) landed = i; if (e.type === 'power' && e.use === 'remate') remate = true; }
+      }
+      ok(remate && m.f[0].meter < 30, `E después de acertar = remate (barra ${m.f[0].meter.toFixed(0)})`);
+    }
+    // Escape: aturdido con media barra, E lo libera y separa al rival.
+    {
+      const m = fight(arq('boxeador'));
+      m.f[1].x = m.f[0].x + 0.04;
+      m.f[0].meter = 60;
+      m.f[0].stun = 30;
+      const g0 = m.f[1].x - m.f[0].x;
+      let esc = false;
+      for (let i = 0; i < 20; i++) { stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); esc ||= m.events.some((e) => e.type === 'escape'); }
+      ok(esc && m.f[0].stun === 0 && m.f[1].x - m.f[0].x > g0 + 0.02, `E aturdido = escape (separa ${((m.f[1].x - m.f[0].x - g0) * 100).toFixed(1)} cm)`);
+    }
+  }
+
   // ── Rendimiento: 40 extremidades, dos luchadores ──
   {
     const m = fight(fighterFromSnapshot(snap('F40')));

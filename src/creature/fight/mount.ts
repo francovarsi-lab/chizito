@@ -497,6 +497,14 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         if (e.kind === 'queso') cloud(front, 26, 0xff9424, 0.011, 0.05, 0.03, f.facing);
         if (e.kind === 'vapor') cloud(views[e.who].head(), 30, 0xffffff, 0.012, 0.06, 0.08);
         if (e.kind === 'rodada') cloud(P3(f.x, 0.004), 8, 0xe9e2d0, 0.006, 0.03, 0.02);
+        if (e.kind === 'nube') cloud(P3(f.x + f.facing * 0.035, f.y + 0.02), 60, 0xff9424, 0.016, 0.05, 0.02, f.facing);
+        if (e.kind === 'muralla') ring(P3(f.x, f.y + 0.02), 0.03, 0xffe066);
+        break;
+      }
+      case 'escape': {
+        cloud(P3(e.at[0], e.at[1]), 34, 0xff9424, 0.013, 0.06, 0.04);
+        hud.popup(e.at[0], e.at[1] + 0.05, '¡ESCAPE!', '', 'shout');
+        g.audio.play('escape', 1);
         break;
       }
       case 'powerHit': {
@@ -593,6 +601,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (cur) prev = cur;
     stepMatch(m, [input, aiInput(m, ai, 1)]);
     for (const e of m.events) onEvent(e);
+    // La nube del súper queda en la tabla: se renueva mientras dura.
+    if (m.frame % 12 === 0) for (const z of m.zones) cloud(P3(z.x, z.y), 6, 0xff9424, 0.015, z.r * 0.8, 0.01);
     trackTrails();
     cur = [poseOf(m.f[0]), poseOf(m.f[1])];
     if (!prev) prev = cur;

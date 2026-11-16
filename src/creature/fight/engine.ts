@@ -157,7 +157,7 @@ export interface FighterState {
   ys: number;
   /** Barra de PODER (0..max) y el poder en curso: fase y cuadros. */
   meter: number;
-  pw: { kind: PowerKind; phase: 'wind' | 'go'; t: number; hit: boolean } | null;
+  pw: { kind: PowerKind; phase: 'wind' | 'go'; t: number; hit: boolean; short?: boolean } | null;
   /** rad: vuelta de carnero al rodar (solo se dibuja; vuelve a 0 en una vuelta entera). */
   roll: number;
   /** rad: vuelta entera sobre sí mismo (0..2π) después de pifiar con el chupetín, hacia `whirlDir` (el lado del golpe). */
@@ -198,6 +198,11 @@ export interface FighterState {
   /** Derribado (cuadros) y golpes recibidos en el aire después de un gancho (−1: no está en el aire por un gancho). */
   down: number;
   juggle: number;
+  /** Muralla (súper con escudos): cuadros sin retroceder ni quedar aturdido. Nube: cuadros pifiando más (golpes × blind). */
+  wall: number;
+  blind: number;
+  /** E apretada durante el congelamiento del impacto (el remate se aprieta justo ahí): cuadros que se recuerda. */
+  pwBuf: number;
 }
 
 /** Un proyectil (granos de quinoa). */
@@ -211,6 +216,17 @@ export interface Shot {
   r: number;
   dmg: number;
   life: number;
+  /** Carozo: recto (sin gravedad) y marea. */
+  kind?: PowerKind;
+}
+
+/** Zona que queda en la tabla (la nube de queso del súper): daño por segundo a quien esté adentro. */
+export interface Zone {
+  x: number;
+  y: number;
+  r: number;
+  life: number;
+  by: 0 | 1;
 }
 
 export type FightEvent =
@@ -223,7 +239,8 @@ export type FightEvent =
   | { type: 'fight' }
   | { type: 'roundEnd'; winner: 0 | 1 | 'draw'; reason: 'ko' | 'time' }
   | { type: 'matchEnd'; winner: 0 | 1 }
-  | { type: 'power'; who: 0 | 1; kind: PowerKind; phase: 'wind' | 'go' }
+  | { type: 'power'; who: 0 | 1; kind: PowerKind; phase: 'wind' | 'go'; use?: 'remate' | 'super' }
+  | { type: 'escape'; who: 0 | 1; at: [number, number] }
   | { type: 'powerHit'; by: 0 | 1; kind: PowerKind; at: [number, number]; damage: number; blocked: boolean }
 
 
@@ -242,6 +259,7 @@ export interface Match {
   winner: 0 | 1 | null;
   /** Proyectiles en el aire. */
   shots: Shot[];
+  zones: Zone[];
   nextShot: number;
 }
 
@@ -404,6 +422,9 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     guardBreak: 0,
     down: 0,
     juggle: -1,
+    wall: 0,
+    blind: 0,
+    pwBuf: 0,
   };
   // Desproporción (el chupetín pesa más que el chizito entero): marcha, salto y giros más pesados. Pocos gramos, pero la
   // proporción manda: una extremidad que pesa más que el cuerpo lo arrastra.
@@ -434,6 +455,7 @@ export function createMatch(models: [FighterModel, FighterModel]): Match {
     roundWinner: null,
     winner: null,
     shots: [],
+    zones: [],
     nextShot: 1,
   };
   return m;
@@ -445,6 +467,7 @@ function resetRound(m: Match): void {
   m.f = [makeFighter(m.f[0].model, -FIGHT.startGap / 2, 1), makeFighter(m.f[1].model, FIGHT.startGap / 2, -1)];
   m.f.forEach((f, i) => (f.meter = meters[i]));
   m.shots = [];
+  m.zones = [];
   m.timer = FIGHT.roundSeconds * 60;
   m.phase = 'intro';
   m.phaseT = 0;
@@ -851,8 +874,9 @@ function powerHit(m: Match, i: 0 | 1, kind: PowerKind, at: [number, number], dmg
   b.hp = Math.max(0, b.hp - d);
   b.lastHurt = m.frame;
   b.meter = Math.min(FIGHT.power.max, b.meter + d * FIGHT.power.onHurt);
-  b.vx = dir * o.kb * (blocked ? 0.45 : 1);
+  b.vx = dir * o.kb * (blocked ? 0.45 : 1) * (b.wall > 0 ? 0 : 1);
   if (blocked) b.block = Math.max(b.block, FIGHT.blockstun);
+  else if (b.wall > 0) b.chain = null;
   else {
     b.vy = Math.max(b.vy, o.up);
     if (o.up > 0) b.grounded = false;
@@ -888,21 +912,39 @@ function stepPower(m: Match, i: 0 | 1): void {
   }
   const gap = Math.abs(foe.x - f.x);
   const center: [number, number] = [f.x + f.facing * 0.02, f.y + 0.02];
+  const sm = pw.short ? FIGHT.powerUse.short.dmg : 1;
   if (pw.phase === 'wind') {
     if (pw.t < POWERS[pw.kind].wind) return;
     pw.phase = 'go';
     pw.t = 0;
-    m.events.push({ type: 'power', who: i, kind: pw.kind, phase: 'go' });
+    m.events.push({ type: 'power', who: i, kind: pw.kind, phase: 'go', use: pw.short ? 'remate' : undefined });
+    if (pw.kind === 'nube') {
+      const P = POWERS.nube;
+      m.zones.push({ x: f.x + f.facing * 0.035, y: f.y + 0.02, r: P.r, life: P.life, by: i });
+    } else if (pw.kind === 'carozo') {
+      const P = POWERS.carozo;
+      m.shots.push({ id: m.nextShot++, by: i, x: center[0], y: foe.y + 0.02, vx: f.facing * P.speed, vy: 0, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'carozo' });
+    } else if (pw.kind === 'muralla') {
+      f.wall = POWERS.muralla.frames;
+    } else if (pw.kind === 'trompo') {
+      // La vuelta entera del chupetín, pero a propósito: tres vueltas parejas.
+      const P = POWERS.trompo;
+      f.whirlDir = f.facing;
+      f.whirlD = Math.PI * 6;
+      f.whirlV = f.whirlD / (P.go * dt);
+      f.whirlA = 0;
+      f.whirl = 1e-4;
+    }
     if (pw.kind === 'queso') {
       const P = POWERS.queso;
       const cx = f.x + f.facing * P.ahead;
       if (Math.abs(foe.x - cx) < P.reach && Math.abs(foe.y - f.y) < 0.05) {
         const guard = foe.guard >= FIGHT.guardReady && foe.grounded && foe.arms.length > 0;
-        powerHit(m, i, 'queso', [cx, f.y + 0.025], P.dmg, { kb: 0.08, up: 0, stun: guard ? 0 : 20, dizzy: guard ? 0 : P.dizzy, blocked: guard });
+        powerHit(m, i, 'queso', [cx, f.y + 0.025], P.dmg * sm, { kb: 0.08, up: 0, stun: guard ? 0 : 20, dizzy: guard ? 0 : P.dizzy, blocked: guard });
       }
     } else if (pw.kind === 'vapor') {
       const P = POWERS.vapor;
-      if (gap < P.reach && Math.abs(foe.y - f.y) < 0.06) powerHit(m, i, 'vapor', [(f.x + foe.x) / 2, f.y + 0.035], P.dmg, { kb: P.kb, up: 0.22, stun: P.stun });
+      if (gap < P.reach && Math.abs(foe.y - f.y) < 0.06) powerHit(m, i, 'vapor', [(f.x + foe.x) / 2, f.y + 0.035], P.dmg * sm, { kb: P.kb, up: 0.22, stun: P.stun });
     } else if (pw.kind === 'metralla') {
       const P = POWERS.metralla;
       // Los granos salen del puño de adelante, en abanico hacia el rival, y caen con la gravedad.
@@ -914,7 +956,7 @@ function stepPower(m: Match, i: 0 | 1): void {
       for (let n = 0; n < P.n; n++) {
         const a = base + (n / (P.n - 1) - 0.5) * P.spread * f.facing;
         const sp = P.speed * (0.85 + 0.3 * ((n * 7) % 5) / 4);
-        m.shots.push({ id: m.nextShot++, by: i, x: x0, y: y0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: P.r, dmg: P.dmg, life: P.life });
+        m.shots.push({ id: m.nextShot++, by: i, x: x0, y: y0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: P.r, dmg: P.dmg * sm, life: P.life });
       }
       f.armorLoss = P.armorLoss;
     }
@@ -930,21 +972,55 @@ function stepPower(m: Match, i: 0 | 1): void {
       // Si el otro saltó, el huevo pasa por abajo.
       if (gap < ra + rb + 0.008 && (foe.grounded || foe.air < 4) && Math.sign(foe.x - f.x) === f.facing) {
         pw.hit = true;
-        powerHit(m, i, 'rodada', [f.x + f.facing * ra, f.y + ra], P.dmg, { kb: P.kb, up: 0.25, stun: P.stun });
+        powerHit(m, i, 'rodada', [f.x + f.facing * ra, f.y + ra], P.dmg * sm, { kb: P.kb, up: 0.25, stun: P.stun });
         f.vx = -f.facing * 0.15;
         pw.t = Math.max(pw.t, P.go - 10);
       }
       if (Math.abs(f.x) >= FIGHT.arenaHalf - 1e-4) pw.t = Math.max(pw.t, P.go - 10);
     }
   }
+  // Golpes en tiempos fijos (trompo: 3 vueltas; acupuntura: 5 pinchazos) si el rival está al alcance.
+  if (pw.kind === 'trompo' || pw.kind === 'acupuntura') {
+    const P = POWERS[pw.kind];
+    if (P.hits.includes(pw.t) && gap < P.reach && Math.abs(foe.y - f.y) < 0.06) {
+      powerHit(m, i, pw.kind, [(f.x + foe.x) / 2, f.y + 0.025], P.dmg * sm, { kb: pw.kind === 'trompo' ? POWERS.trompo.kb : 0.03, up: 0, stun: P.stun });
+    }
+  }
   if (pw.t >= POWERS[pw.kind].go) f.pw = null;
+}
+
+/** Súper de TU CHIZITO: sale de lo que armó (la pieza que más pega); con 2 escudos o más, MURALLA. */
+function superOf(f: FighterState): PowerKind {
+  if (Object.keys(f.model.shields).length >= 2) return 'muralla';
+  let best = '', top = 0;
+  for (const l of f.model.limbs) if (l.role === 'arm') for (const p of l.points) {
+    const d = FIGHT.pieceDmg[p.tier] ?? 0;
+    if (!p.inside && d > top) { top = d; best = p.tier; }
+  }
+  if (best === 'chupetin') return 'trompo';
+  if (best === 'aceituna') return 'carozo';
+  if (best.startsWith('escarbadientes')) return 'acupuntura';
+  return 'nube';
+}
+
+/** Zonas en la tabla: daño por segundo y el rival pifia más mientras está adentro. */
+function stepZones(m: Match): void {
+  for (let n = m.zones.length - 1; n >= 0; n--) {
+    const z = m.zones[n];
+    const b = m.f[1 - z.by];
+    if (!b.ko && Math.abs(b.x - z.x) < z.r && Math.abs(b.y - z.y) < z.r) {
+      b.hp = Math.max(0, b.hp - soak(m, b, POWERS.nube.dps * dt));
+      b.blind = Math.max(b.blind, 2);
+    }
+    if (--z.life <= 0) m.zones.splice(n, 1);
+  }
 }
 
 /** Granos en el aire: caen con la gravedad y pegan al tocar el cuerpo del rival (o rebotan en su guardia). */
 function stepShots(m: Match): void {
   for (let n = m.shots.length - 1; n >= 0; n--) {
     const sh = m.shots[n];
-    sh.vy -= G * 0.6 * dt;
+    if (sh.kind !== 'carozo') sh.vy -= G * 0.6 * dt;
     sh.x += sh.vx * dt;
     sh.y += sh.vy * dt;
     const b = m.f[1 - sh.by];
@@ -958,7 +1034,8 @@ function stepShots(m: Match): void {
     }
     if (hit) {
       const blocked = b.guard >= FIGHT.guardReady && b.grounded && b.arms.length > 0 && Math.sign(sh.vx) === -b.facing;
-      powerHit(m, sh.by, 'metralla', [sh.x, sh.y], sh.dmg, { kb: 0.05, up: 0, stun: 5, blocked });
+      if (sh.kind === 'carozo') powerHit(m, sh.by, 'carozo', [sh.x, sh.y], sh.dmg, { kb: 0.2, up: 0, stun: 12, dizzy: POWERS.carozo.dizzy, blocked });
+      else powerHit(m, sh.by, 'metralla', [sh.x, sh.y], sh.dmg, { kb: 0.05, up: 0, stun: 5, blocked });
     }
     if (hit || --sh.life <= 0 || sh.y < 0 || Math.abs(sh.x) > FIGHT.arenaHalf + 0.05) m.shots.splice(n, 1);
   }
@@ -987,6 +1064,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   if (fighting && !f.ko && !f.pw) f.meter = Math.min(FIGHT.power.max, f.meter + FIGHT.power.passive * dt);
   if (f.armorLoss > 0) f.armorLoss = Math.max(0, f.armorLoss - POWERS.metralla.armorLoss / POWERS.metralla.regrow);
   if (f.inv > 0) f.inv--;
+  if (f.wall > 0) f.wall--;
+  if (f.blind > 0) f.blind--;
   if (f.guardBreak > 0) f.guardBreak--;
   if (f.down > 0 && --f.down === 0) f.inv = FIGHT.getUpInv;
   if (f.juggle >= 0 && f.grounded && f.vy <= 0) f.juggle = -1;
@@ -1056,7 +1135,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
         f.repeat = m.frame - f.lastStrikeF < FIGHT.repeat.window ? f.repeat + (combo ? 0 : 1) : 0;
         f.lastStrikeF = m.frame;
         startStrike(m, i, k, f.buffer.kind, combo, f.model.limbs[k].rigid ? 'normal' : f.buffer.move);
-        f.limbs[k].worn = Math.max(FIGHT.repeat.min, 1 - FIGHT.repeat.step * f.repeat);
+        f.limbs[k].worn = Math.max(FIGHT.repeat.min, 1 - FIGHT.repeat.step * f.repeat) * (f.blind > 0 ? POWERS.nube.blind : 1);
         // Golpe rápido / cargado: se sigue cuánto se mantiene el botón (sólo con cuadrante y si la entrada lo informa).
         if (f.buffer.quad && f.held !== undefined && !combo && !f.model.limbs[k].rigid) {
           f.limbs[k].hold = 0;
@@ -1068,11 +1147,38 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   }
 
   // ── Poder especial ──
-  if (input.power && canAct && !busy && f.grounded && f.squat <= 0 && f.model.power && f.meter >= FIGHT.power.max) {
-    f.meter = 0;
-    f.pw = { kind: f.model.power, phase: 'wind', t: 0, hit: false };
-    f.buffer = null;
-    m.events.push({ type: 'power', who: i, kind: f.pw.kind, phase: 'wind' });
+  const U = FIGHT.powerUse;
+  const wantPw = !!inp.power || f.pwBuf > 0;
+  if (f.pwBuf > 0) f.pwBuf--;
+  // ESCAPE: E mientras le pegan (aturdido o bloqueando) con media barra: estallido de polvo que separa a los dos.
+  if (wantPw && fighting && !f.ko && !f.pw && (f.stun > 0 || f.block > 0) && f.meter >= U.half) {
+    f.meter -= U.half;
+    f.stun = 0;
+    f.block = 0;
+    f.juggle = -1;
+    if (Math.abs(foe.x - f.x) < U.escapeRange && !foe.ko) {
+      foe.vx = Math.sign(foe.x - f.x || f.facing) * U.escapeKb;
+      foe.stun = Math.max(foe.stun, 10);
+      for (const q of foe.limbs) if (q.phase === 'windup' || q.phase === 'strike') { q.phase = 'recover'; q.t = 0; }
+    }
+    m.events.push({ type: 'escape', who: i, at: [f.x, f.y + 0.02] });
+  } else if (wantPw && canAct && f.model.power && f.grounded && f.squat <= 0 && !f.pw) {
+    // REMATE: E justo después de acertar (cadena viva) con media barra: cancela la vuelta y suelta el poder corto.
+    const remate = !!f.chain && f.chain.t > 0 && f.meter >= U.half && f.meter < FIGHT.power.max;
+    const sup = f.meter >= FIGHT.power.max && !busy;
+    if (remate || sup) {
+      f.meter -= remate ? U.half : FIGHT.power.max;
+      if (remate) {
+        f.lock = 0;
+        for (const q of f.limbs) if (q.phase !== 'rest') { q.phase = 'recover'; q.t = FIGHT.recoverMax; }
+      }
+      // El súper de TU CHIZITO sale de lo que armó; los rivales usan su poder.
+      const kind = sup && f.model.power === 'queso' ? superOf(f) : f.model.power;
+      f.pw = { kind, phase: 'wind', t: remate ? Math.round(POWERS[kind].wind * (1 - U.short.wind)) : 0, hit: false, short: remate };
+      f.buffer = null;
+      f.pwBuf = 0;
+      m.events.push({ type: 'power', who: i, kind, phase: 'wind', use: remate ? 'remate' : 'super' });
+    }
   }
   if (f.pw) stepPower(m, i);
   // La vuelta de carnero termina en una vuelta entera (así queda parado, no de cabeza).
@@ -1563,8 +1669,8 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
     a.chain = { n: (a.chain && a.chain.t > 0 ? a.chain.n : 0) + 1, last: l.role === 'leg' && !l.rigid ? 'kick' : 'arm', t: FIGHT.chain.window };
     b.chain = null;
     b.squat = 0;
-    b.stun = Math.round(FIGHT.hitstun.base + FIGHT.hitstun.k * dmg);
-    b.limbs.forEach((q) => {
+    b.stun = b.wall > 0 ? 0 : Math.round(FIGHT.hitstun.base + FIGHT.hitstun.k * dmg);
+    if (b.wall <= 0) b.limbs.forEach((q) => {
       if (q.phase === 'windup' || q.phase === 'strike') {
         q.phase = 'recover';
         q.t = 0;
@@ -1595,7 +1701,7 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   b.meter = Math.min(FIGHT.power.max, b.meter + dmg * FIGHT.power.onHurt);
   // Empujón (con lo que pesa el rival) y giro del cuerpo según la altura del golpe.
   const kb = clamp((FIGHT.knockback * mEff * speed) / b.model.mass, FIGHT.kbClamp[0], FIGHT.kbClamp[1]) * (blocked ? 0.45 : 1) * (chain === 'RÁFAGA' ? 1.4 : 1);
-  b.vx = a.facing * kb;
+  b.vx = a.facing * kb * (b.wall > 0 ? 0 : 1);
   // El que pega frena en seco contra el otro (acción y reacción): pierde el envión y rebota apenas. Al pifiar, en cambio, sigue.
   if (a.vx * a.facing > 0) a.vx = 0;
   a.vx -= a.facing * clamp((FIGHT.impactBack * mEff * speed) / a.model.mass, 0.015, 0.08);
@@ -1651,6 +1757,7 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
       const q = inputs[i].quad;
       if (q) f.buffer = { kind: q[1] === 'L' ? 'kick' : f.grounded ? 'arm' : 'air', t: FIGHT.buffer, quad: q, move: inputs[i].down && f.grounded ? (q[1] === 'L' ? 'sweep' : 'upper') : 'normal' };
       if (inputs[i].kick) f.buffer = { kind: 'kick', t: FIGHT.buffer };
+      if (inputs[i].power) f.pwBuf = FIGHT.buffer;
     });
     return;
   }
@@ -1668,6 +1775,7 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
   if (play) {
     resolveHits(m);
     stepShots(m);
+    stepZones(m);
     for (const f of m.f) {
       // Rearmarse (quinoa): si hace rato que no le pegan, los granos vuelven a su lugar y recupera vida.
       const rg = f.model.regen;
@@ -1697,7 +1805,10 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
       m.roundWinner = Math.abs(h0 - h1) < 1e-9 ? 'draw' : h0 > h1 ? 0 : 1;
     }
     // Terminó el round: nadie sigue pegando (el golpe que venía se corta y los brazos vuelven).
-    if (m.phase === 'ko') m.shots = [];
+    if (m.phase === 'ko') {
+      m.shots = [];
+      m.zones = [];
+    }
     if (m.phase === 'ko') for (const f of m.f) {
       f.pw = null;
       f.buffer = null;

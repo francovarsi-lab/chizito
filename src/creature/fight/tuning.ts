@@ -282,7 +282,10 @@ export const FIGHT = {
    * PODER: barra que se llena pegando (daño × `onHit`), recibiendo (× `onHurt`) y de a poco sola. Llena, se suelta el poder del
    * luchador (ver `POWERS`).
    */
-  power: { max: 100, onHit: 1.5, onHurt: 1, blockedMul: 0.4, passive: 1.4 },
+  power: { max: 100, onHit: 1.5, onHurt: 1, blockedMul: 0.4, passive: 0.3 },
+  /** T4. Tres usos de la barra: REMATE (E justo después de acertar: cancela la vuelta y suelta el poder corto), ESCAPE (E mientras
+   *  te pegan: estallido que separa), SÚPER (E con la barra llena). `short`: carga × wind, daño × dmg del poder corto. */
+  powerUse: { half: 50, escapeKb: 0.6, escapeRange: 0.09, short: { wind: 0.35, dmg: 0.6 } },
   chain: {
     window: 26,
     counterWindow: 22,
@@ -306,6 +309,12 @@ export const POWERS = {
   vapor: { name: '¡VAPORAZO!', wind: 24, go: 22, reach: 0.07, dmg: 9, kb: 0.55, stun: 30 },
   rodada: { name: '¡HUEVAZO RODANTE!', wind: 22, go: 48, speed: 0.4, dmg: 13, kb: 0.5, stun: 34 },
   metralla: { name: 'METRALLA DE GRANOS', wind: 20, go: 16, n: 7, speed: 0.6, spread: 0.55, dmg: 2.3, r: 0.0026, life: 80, armorLoss: 0.35, regrow: 240 },
+  // Súper de TU CHIZITO según lo que armó (la pieza que más pega): nube que queda, trompo, carozo, acupuntura o muralla.
+  nube: { name: '¡NUBE DE QUESO!', wind: 16, go: 20, life: 120, r: 0.045, dps: 2, blind: 0.7 },
+  trompo: { name: '¡TROMPO!', wind: 18, go: 42, reach: 0.07, dmg: 6, hits: [8, 20, 32] as readonly number[], kb: 0.18, stun: 14 },
+  carozo: { name: '¡CAROZAZO!', wind: 18, go: 10, speed: 0.55, dmg: 9, r: 0.004, life: 70, dizzy: 50 },
+  acupuntura: { name: '¡ACUPUNTURA!', wind: 12, go: 34, reach: 0.06, dmg: 2.6, hits: [4, 10, 16, 22, 28] as readonly number[], stun: 8 },
+  muralla: { name: '¡MURALLA!', wind: 10, go: 8, frames: 180 },
 } as const;
 export type PowerKind = keyof typeof POWERS;
 

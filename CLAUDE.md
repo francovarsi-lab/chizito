@@ -418,6 +418,12 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   BROCOLOCO VAPORAZO (vapor de la copa: quema y empuja de cerca), HUEVO HUEVAZO RODANTE (se hace bola y rueda: se salta o se
   bloquea; `f.roll` sólo se dibuja y termina en vuelta entera), QUINOA METRALLA DE GRANOS (proyectiles `m.shots` en abanico con
   gravedad; queda con menos coraza `armorLoss` hasta rearmarse). Todo se carga visiblemente (`wind`) antes de actuar.
+- PODER v2 (T4, `FIGHT.powerUse`): la barra casi no se llena sola (`passive` 0,3). REMATE = E justo después de acertar con media
+  barra (cancela la vuelta, poder corto: carga ×0,35, daño ×0,6; E en el congelamiento se recuerda, `pwBuf`). ESCAPE = E
+  aturdido o bloqueando con media barra (estallido que separa, `escape`). SÚPER = barra llena. El súper de TU CHIZITO sale de sus
+  BRAZOS (`superOf`): nada pesado → NUBE (zona `m.zones` 2 s, 2/s y el rival pega ×0,7), chupetín → TROMPO (3 vueltas, 3
+  golpes), aceituna → CAROZAZO (proyectil recto que marea), escarbadientes → ACUPUNTURA (5 pinchazos), 2+ escudos → MURALLA
+  (3 s sin retroceder ni aturdirse). Sonidos `poder-nube/trompo/carozo/acupuntura/muralla`, `escape`.
 - CUERPOS BLANDOS: el HUEVO es gelatina (`jelly`): vibra al recibir (`Jiggle` en render.ts) y los golpes seguidos pegan cada vez
   menos (`JELLY`); la QUINOA se abolla apenas. `soak()` aplica coraza + gelatina a todo daño.
 - GRAVEDAD: enderezarse necesita APOYO (en el aire no hay torque que lo endereza: antes flotaba como colgado de un cable) y el

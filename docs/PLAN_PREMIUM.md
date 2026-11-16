@@ -236,6 +236,7 @@ Especificación: 4.2, 4.3, 4.4. Una sub-tarea por commit, cada una con su prueba
 Hecho cuando: cada entrada tiene prueba, la matriz de T1 sigue en objetivos con un bot `listo` que use todo.
 
 ### T4 — Poder v2
+**Hecha** (2026-11-16).
 Especificación: 4.5. `stepPower` y `POWERS`. REMATE y ESCAPE primero (son los que le dan sentido a la barra); después los
 súper por pieza, uno por commit, cada uno con su efecto (coordinar con G3). La nube de queso pasa a ser una zona
 (`m.zones: { x, r, life, by }[]`) que el motor recorre cada cuadro.
