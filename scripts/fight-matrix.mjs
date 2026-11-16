@@ -9,6 +9,7 @@ try {
   const { createMatch, stepMatch } = await server.ssrLoadModule('/src/creature/fight/engine.ts');
   const { aiInput, newAi } = await server.ssrLoadModule('/src/creature/fight/ai.ts');
   const { FIGHT } = await server.ssrLoadModule('/src/creature/fight/tuning.ts');
+  const { MOVES } = await server.ssrLoadModule('/src/creature/fight/moves.ts');
   const DIR = 'src/creature/fixtures/arq';
   const seeds = Number(process.argv[2]) || 20;
   const only = process.argv.slice(3);
@@ -16,11 +17,13 @@ try {
 
   const reachOf = (f) => Math.max(0.02, ...f.model.limbs.filter((l) => l.role === 'arm').map((l) => l.reach + Math.max(0, l.pivot[0] * 0.5))) + 0.012;
   const toward = (m) => (m.f[1].x >= m.f[0].x ? 1 : -1);
-  // Bots de nuestro lado: (m, mem) => FightInput.
+  // Distancia útil: centro a centro menos lo que el rival es más ancho que el brócoli (la quinoa es gorda).
+  const gapOf = (m) => Math.abs(m.f[1].x - m.f[0].x) - Math.max(0, Math.max(...m.f[1].model.body.map((b) => b.r)) - 0.012);
+  // Bots de nuestro lado (`listo` usa todo el sistema v2): (m, mem) => FightInput.
   const BOTS = {
     // Aprieta Q y W alternados sin pensar (cada 6 cuadros) y camina hacia el rival si no llega.
     aporrea: (m, mem) => {
-      const near = Math.abs(m.f[1].x - m.f[0].x);
+      const near = gapOf(m);
       if (near > reachOf(m.f[0])) return { x: toward(m) };
       mem.t = (mem.t ?? 0) + 1;
       return mem.t % 6 ? { x: 0 } : { x: 0, quad: (mem.t / 6) % 2 ? 'LA' : 'RA' };
@@ -28,19 +31,41 @@ try {
     // La misma IA que maneja a los rivales, en su mejor nivel.
     ia: (m, mem) => aiInput(m, (mem.ai ??= newAi(mem.seed * 7 + 1, 3)), 0),
     // Juega bien: bloquea lo que ve venir, castiga cuando el rival queda trabado, usa el poder lleno y pega con cadencia.
+    // Juega bien con todo el sistema: lee los ataques del rival (ataja lo que se bloquea, salta lo bajo, se aleja de lo que rompe
+    // la guardia), castiga con golpes CARGADOS (revientan la quinoa) y usa el poder (súper lleno, escape si lo aturden).
     listo: (m, mem) => {
       const me = m.f[0], foe = m.f[1];
-      const near = Math.abs(foe.x - me.x), reach = reachOf(me);
+      const near = gapOf(m), reach = reachOf(me);
+      const dir = toward(m);
       mem.t = (mem.t ?? 0) + 1;
-      if (m.phase !== 'fight' || me.stun > 0) return { x: 0 };
+      if (m.phase !== 'fight') return { x: 0 };
+      if (me.stun > 0) return { x: 0, power: me.meter >= 50 && me.stun > 12 };
+      // Golpe cargado en curso: mantener hasta `mem.hold` cuadros.
+      if (mem.hold > 0) { mem.hold--; return { x: 0, quadHeld: mem.q }; }
+      const mv = foe.mv && MOVES[foe.mv.id];
+      // Humano, no perfecto: lee bien 2 de cada 3 ataques (se decide al verlo arrancar, con azar de semilla).
+      if (foe.mv && mem.seen !== foe.mv) { mem.seen = foe.mv; mem.r = ((mem.r ?? mem.seed * 9301 + 49297) * 9301 + 49297) % 233280; mem.reads = mem.r / 233280 < 0.66; }
+      if (mv && mv.hits.length && mem.reads) {
+        const next = mv.hits.find((h) => h.to >= foe.mv.t);
+        const until = next ? next.from - foe.mv.t : 99;
+        if (next && near < mv.reach + 0.02) {
+          if (mv.guard === 'low') return until <= 6 ? { x: 0, up: true } : { x: 0 };
+          if (mv.guard === 'break') return { x: -dir };
+          // Atajada: apretar la guardia justo antes (≤ 5 cuadros).
+          return { x: 0, guard: until <= 5 };
+        }
+        // Se está recuperando (pasó la última ventana): castigar con un cargado.
+        if (!next && near < reach * 1.3) { mem.q = mem.t % 2 ? 'LA' : 'RA'; mem.hold = 24; return { x: 0, quad: mem.q, quadHeld: mem.q }; }
+      }
       const foeWind = foe.limbs.some((q) => q.phase === 'windup' || q.phase === 'strike');
       const mineBusy = me.limbs.some((q) => q.phase !== 'rest');
-      if (foeWind && near < reach * 1.8 && !mineBusy) return { x: 0, guard: true };
+      if (!mv && foeWind && near < reach * 1.8 && !mineBusy) return { x: 0, guard: true };
       if (me.meter >= FIGHT.power.max && me.model.power && near < reach * 1.5) return { x: 0, power: true };
-      if (near > reach) return { x: toward(m) };
+      if (near > reach) return { x: dir };
       if (foe.lock > 4 || me.counter > 0 || mem.t % 80 === 0) {
-        mem.k = (mem.k ?? 0) + 1;
-        return { x: 0, quad: mem.k % 2 ? 'LA' : 'RA' };
+        mem.q = mem.t % 2 ? 'LA' : 'RA';
+        mem.hold = 24;
+        return { x: 0, quad: mem.q, quadHeld: mem.q };
       }
       return { x: 0 };
     },
@@ -53,8 +78,12 @@ try {
     const hits = [0, 0], dmg = [0, 0];
     for (let fr = 0; fr < 60 * 600 && m.phase !== 'over'; fr++) {
       stepMatch(m, [BOTS[bot](m, mem), aiInput(m, ai, 1)]);
-      for (const e of m.events) if (e.type === 'hit' && !e.blocked) { hits[e.by]++; dmg[e.by] += e.damage; }
+      for (const e of m.events) {
+        if (e.type === 'hit' && !e.blocked) { hits[e.by]++; dmg[e.by] += e.damage; }
+        if (process.env.MDEBUG) (mem.dbg ??= {})[e.type + (e.by ?? e.who ?? '')] = (mem.dbg[e.type + (e.by ?? e.who ?? '')] ?? 0) + (e.damage ?? 1);
+      }
     }
+    if (process.env.MDEBUG) console.error(bot, level, m.winner, Math.round(m.frame / 60), JSON.stringify(mem.dbg, (k, v) => (typeof v === 'number' ? Math.round(v) : v)));
     return { win: m.winner === 0, frames: m.frame, hits, dmg };
   };
 

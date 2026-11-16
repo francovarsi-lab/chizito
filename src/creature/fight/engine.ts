@@ -226,6 +226,14 @@ export interface Shot {
 }
 
 /** Zona que queda en la tabla (la nube de queso del súper): daño por segundo a quien esté adentro. */
+/** Montoncito de granos en la tabla (quinoa reventada): si la quinoa lo pisa o pasan `life` cuadros, se lo reabsorbe. */
+export interface Pile {
+  id: number;
+  x: number;
+  n: number;
+  t: number;
+}
+
 export interface Zone {
   x: number;
   y: number;
@@ -247,6 +255,9 @@ export type FightEvent =
   | { type: 'power'; who: 0 | 1; kind: PowerKind; phase: 'wind' | 'go'; use?: 'remate' | 'super' }
   | { type: 'escape'; who: 0 | 1; at: [number, number] }
   | { type: 'move'; who: 0 | 1; id: string; tell: string }
+  | { type: 'grains'; who: 0 | 1; at: [number, number]; n: number; pile: number; x: number }
+  | { type: 'absorb'; who: 0 | 1; at: [number, number] }
+  | { type: 'reabsorb' | 'scatter'; who: 0 | 1; pile: number }
   | { type: 'powerHit'; by: 0 | 1; kind: PowerKind; at: [number, number]; damage: number; blocked: boolean }
 
 
@@ -266,6 +277,7 @@ export interface Match {
   /** Proyectiles en el aire. */
   shots: Shot[];
   zones: Zone[];
+  piles: Pile[];
   nextShot: number;
 }
 
@@ -463,6 +475,7 @@ export function createMatch(models: [FighterModel, FighterModel]): Match {
     winner: null,
     shots: [],
     zones: [],
+    piles: [],
     nextShot: 1,
   };
   return m;
@@ -475,6 +488,7 @@ function resetRound(m: Match): void {
   m.f.forEach((f, i) => (f.meter = meters[i]));
   m.shots = [];
   m.zones = [];
+  m.piles = [];
   m.timer = FIGHT.roundSeconds * 60;
   m.phase = 'intro';
   m.phaseT = 0;
@@ -1044,6 +1058,8 @@ function stepMove(m: Match, i: 0 | 1): void {
     if (key.vx) f.vx = f.facing * key.vx;
     if (key.vy) { f.vy = key.vy; f.grounded = false; }
     if (key.wt) f.wt += key.wt;
+    if (key.inv) f.inv = Math.max(f.inv, key.inv);
+    if (key.dx) f.x = clamp(f.x + f.facing * key.dx, -FIGHT.arenaHalf, FIGHT.arenaHalf);
   }
   const live = mv.hits.findIndex((h) => t >= h.from && t <= h.to);
   const tags = new Set(mv.hits.flatMap((h) => h.with));
@@ -1146,6 +1162,34 @@ function superOf(f: FighterState): PowerKind {
   if (best === 'aceituna') return 'carozo';
   if (best.startsWith('escarbadientes')) return 'acupuntura';
   return 'nube';
+}
+
+/** Granos en la tabla: la quinoa los reabsorbe al pisarlos (o solos, al rato) y recupera vida; un golpe al ras los dispersa. */
+function stepPiles(m: Match): void {
+  const G2 = FIGHT.grains;
+  for (let n = m.piles.length - 1; n >= 0; n--) {
+    const p = m.piles[n];
+    p.t++;
+    const found = m.f.findIndex((f) => f.model.absorb);
+    if (found < 0) { m.piles.splice(n, 1); continue; }
+    const qi = found as 0 | 1;
+    const q = m.f[qi], o = m.f[1 - qi];
+    // Un golpe al ras de la tabla sobre el montón lo desparrama (fuera de la tabla).
+    let scattered = false;
+    o.limbs.forEach((s, k) => {
+      if (scattered || s.phase !== 'strike') return;
+      const c = o.cur[k];
+      for (let j = 0; j < c.length; j += 2) if (c[j + 1] < G2.sweepH && Math.abs(c[j] - p.x) < G2.sweepR) scattered = true;
+    });
+    if (scattered) {
+      m.piles.splice(n, 1);
+      m.events.push({ type: 'scatter', who: qi, pile: p.id });
+    } else if (!q.ko && (Math.abs(q.x - p.x) < G2.pickR || p.t >= G2.life)) {
+      q.hp = Math.min(FIGHT.hp, q.hp + p.n * G2.back);
+      m.piles.splice(n, 1);
+      m.events.push({ type: 'reabsorb', who: qi, pile: p.id });
+    }
+  }
 }
 
 /** Zonas en la tabla: daño por segundo y el rival pifia más mientras está adentro. */
@@ -1480,7 +1524,9 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       const dep = dotv(l.dir, gaitAxis(f));
       // Respira solo mientras pelea: terminado el round queda quieto (si no, parecía colgado de un hilo).
       const breath = fighting ? 0.06 * Math.sin(m.frame * 0.07 + n) + 0.05 * Math.sin(f.gait) : 0;
-      const want = normv(addv(addv(scl(fwdAxis(f), lead ? 0.8 : 0.45), [0, (lead ? 0.45 : 0.8) + breath, 0]), scl(gaitAxis(f), dep * 0.5)));
+      // La quinoa (brazos cortos y gordos) lleva los puños ADELANTE de la cara: arriba parecían orejas.
+      const [fw, up] = M.absorb ? [1, lead ? 0.12 : 0.28] : [lead ? 0.8 : 0.45, lead ? 0.45 : 0.8];
+      const want = normv(addv(addv(scl(fwdAxis(f), fw), [0, up + breath, 0]), scl(gaitAxis(f), dep * 0.5)));
       target = qFromTo(l.dir, want);
       g = FIGHT.joint.guard;
     } else if (l.role === 'arm' && f.guard > 0.02 && s.phase === 'rest' && !f.shieldPose) {
@@ -1799,6 +1845,18 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
       m.events.push({ type: 'shieldBreak', who: (1 - i) as 0 | 1, piece: shield, at: [px, py], vel: [a.facing * (0.15 + speed * 0.2), 0.25] });
     }
   }
+  // Quinoa: lo rápido se hunde en los granos (40 %, sin aturdir, el brazo queda trabado); lo cargado o pesado la REVIENTA.
+  const absorbed = !!b.model.absorb && blockedBy === null && !shield && s.power < FIGHT.grains.burstPower && kind !== 'heavy' && !l.rigid;
+  if (absorbed) {
+    dmg *= FIGHT.grains.absorb;
+    a.lock = Math.max(a.lock, FIGHT.hitLock + FIGHT.grains.stuck);
+    m.events.push({ type: 'absorb', who: (1 - i) as 0 | 1, at: [px, py] });
+  } else if (b.model.absorb && blockedBy === null) {
+    const n = Math.max(1, Math.round(dmg));
+    const pile: Pile = { id: m.nextShot++, x: clamp(b.x + a.facing * (0.018 + 0.006 * (n % 3)), -FIGHT.arenaHalf, FIGHT.arenaHalf), n, t: 0 };
+    m.piles.push(pile);
+    m.events.push({ type: 'grains', who: (1 - i) as 0 | 1, at: [px, py], n, pile: pile.id, x: pile.x });
+  }
   let parry = false;
   if (blocked && b.guardT <= FIGHT.parry.window) {
     // ATAJADA justa: no pasa nada de daño, el que pegó queda abierto y el que atajó gana poder.
@@ -1824,6 +1882,8 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
     b.counter = FIGHT.blockstun + FIGHT.chain.counterWindow;
     // Pegarle a una guardia rebota: el que pegó queda un instante sin poder seguir (y el otro tiene su CONTRA).
     a.lock = Math.max(a.lock, FIGHT.blockedLock);
+    a.chain = null;
+  } else if (absorbed) {
     a.chain = null;
   } else {
     // Acertó: el impulso sigue (combinaciones). Al que recibe se le corta la suya y el salto que estaba por dar.
@@ -1943,6 +2003,7 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
     resolveHits(m);
     stepShots(m);
     stepZones(m);
+    stepPiles(m);
     for (const f of m.f) {
       // Rearmarse (quinoa): si hace rato que no le pegan, los granos vuelven a su lugar y recupera vida.
       const rg = f.model.regen;

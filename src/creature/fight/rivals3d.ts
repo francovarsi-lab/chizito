@@ -404,6 +404,18 @@ const GRAIN_COLORS = [col('#ebdfc3'), col('#e3d3b0'), col('#93412e'), col('#6e2c
 const grainColor = (r: number): THREE.Color => GRAIN_COLORS[r < 0.42 ? 0 : r < 0.62 ? 1 : r < 0.76 ? 2 : r < 0.84 ? 3 : 4];
 
 /** Granos de quinoa sobre una superficie: un InstancedMesh de discos chatos, cada uno apoyado según su normal. */
+/** Granos sueltos en la tabla (los que saltan al reventar la quinoa): una sola malla instanciada, en coordenadas de mundo. */
+export function looseGrains(max: number): THREE.InstancedMesh {
+  const geo = new THREE.SphereGeometry(1, 6, 4);
+  geo.scale(1, 0.62, 1);
+  const mesh = new THREE.InstancedMesh(geo, quinoaMaterials().grain, max);
+  const rnd = mulberry32(3);
+  for (let i = 0; i < max; i++) mesh.setColorAt(i, grainColor(rnd()));
+  mesh.count = 0;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
 function grains(points: { p: THREE.Vector3; n: THREE.Vector3 }[], seed: number, size = 0.00078): THREE.InstancedMesh {
   const rnd = mulberry32(seed);
   const geo = new THREE.SphereGeometry(1, 6, 4);
@@ -518,7 +530,16 @@ export function createQuinoa(): THREE.Group {
   const EY = 0.052;
   const MOUTH = { y: 0.0375, w: 0.0115, h: 0.0062 };
   const inMouth = (p: THREE.Vector3): boolean => p.z > 0 && ((p.x / (MOUTH.w * 1.05)) ** 2 + ((p.y - MOUTH.y) / (MOUTH.h * 1.1)) ** 2 < 1);
-  root.add(grains(ellipsoidPoints(rx, ry, rz, spec.cy, 6200, inMouth), 7));
+  // Granos del cuerpo en orden mezclado: al perder vida se dibujan menos (`count`) y se achica parejo, no de abajo para arriba.
+  const pts = ellipsoidPoints(rx, ry, rz, spec.cy, 6200, inMouth);
+  const sh = mulberry32(99);
+  for (let i = pts.length - 1; i > 0; i--) {
+    const j = Math.floor(sh() * (i + 1));
+    [pts[i], pts[j]] = [pts[j], pts[i]];
+  }
+  const bodyGrains = grains(pts, 7);
+  bodyGrains.name = 'cuerpo-granos';
+  root.add(bodyGrains);
 
   // Cara: aceitunas verdes en rodaja con la pupila negra, cejas gruesas de morrón asado y boca abierta con dientes de poroto.
   const oliveGeo = new THREE.CylinderGeometry(0.0046, 0.0046, 0.0016, 28, 1);

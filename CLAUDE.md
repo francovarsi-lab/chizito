@@ -434,6 +434,12 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   L/3 y 2L/3; `render.ts` mueve los ángulos con un resorte sobre la velocidad de giro del brazo, tope 25° por tramo, y una
   ondulación en reposo). Ataques: PINCHAZO largo (alcance 8,5 cm, 14 de aviso) y LÁTIGO bajo ('low': hay que saltarlo; derriba).
   Rebota con golpes cargados (`FIGHT.bounce`). FASE 2 (vida < 40): se ve la grieta y la yema, recibe ×1,3 y ataca 20 % más rápido.
+- MONSTRUO DE QUINOA (T8, `model.absorb`, `FIGHT.grains`): sin regeneración mágica. Lo RÁPIDO (poder < 1,05) se hunde (40 %,
+  sin aturdir, el brazo trabado); lo CARGADO o pesado la REVIENTA: daño entero y un MONTONCITO (`m.piles`, n = daño) que vuelve si
+  la quinoa lo pisa o a los 8 s (+0,3 de vida por grano); un golpe al ras lo desparrama. Se achica con la vida (`count` de los
+  granos del cuerpo, mezclados). Granos sueltos en mount (`looseGrains`, hasta 600): saltan, quedan en la tabla y vuelven
+  volando. Ataques: PUÑO CAÑÓN, MAZAZO doble (rompe guardia, 34 de aviso), DERRUMBE (invulnerable 30, se rearma 6 cm más allá)
+  + METRALLA. En guardia lleva los puños adelante de la cara (arriba parecían orejas).
 - CUERPOS BLANDOS: el HUEVO es gelatina (`jelly`): vibra al recibir (`Jiggle` en render.ts) y los golpes seguidos pegan cada vez
   menos (`JELLY`); la QUINOA se abolla apenas. `soak()` aplica coraza + gelatina a todo daño.
 - GRAVEDAD: enderezarse necesita APOYO (en el aire no hay torque que lo endereza: antes flotaba como colgado de un cable) y el

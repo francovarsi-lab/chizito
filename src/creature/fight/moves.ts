@@ -13,6 +13,9 @@ export interface MoveKey {
   t: number;
   /** Dirección de cada extremidad (se normaliza). La z es "hacia afuera" de su lado. Las que faltan vuelven a su reposo. */
   limbs?: Partial<Record<LimbTag, V3>>;
+  /** Desde ese cuadro, invulnerable `inv` cuadros; y se corre `dx` m hacia el rival (se rearma más allá). */
+  inv?: number;
+  dx?: number;
   /** Impulso del cuerpo en ese cuadro (m/s; vx hacia el rival) y giro (rad/s, + = hacia adelante). */
   vx?: number;
   vy?: number;
@@ -79,17 +82,38 @@ export const MOVES: Record<string, Move> = {
 // ── HUEVO DURO (nivel 2: enseña distancia). Brazos largos de espárrago (látigos). ──
 // Pinchazo largo: recoge el brazo 14 cuadros (aviso) y lo dispara en línea (los tres tramos alineados): alcance 7 cm.
 MOVES.pinchazo = {
-  id: 'pinchazo', hits: [{ from: 16, to: 21, with: ['armF'] }], total: 40, dmg: 7, kb: 0.3, stun: 13, guard: 'block', reach: 0.085, tell: 'zumbido', w: [1, 3, 2],
+  id: 'pinchazo', hits: [{ from: 16, to: 21, with: ['armF'] }], total: 40, dmg: 5.5, kb: 0.3, stun: 13, guard: 'block', reach: 0.085, tell: 'zumbido', w: [1, 3, 2],
   keys: [{ t: 0, limbs: REST }, { t: 14, limbs: { armF: [-0.5, 0.2, 0.85] } }, { t: 18, limbs: { armF: [1, 0.05, 0] }, vx: 0.08 }, { t: 24, limbs: { armF: [1, 0.05, 0] } }, { t: 40, limbs: REST }],
 };
 // Látigo bajo: el brazo va atrás y abajo 18 cuadros y barre la tabla: no se bloquea (hay que saltar) y derriba.
 MOVES.latigo = {
-  id: 'latigo', hits: [{ from: 20, to: 27, with: ['armF', 'armB'] }], total: 48, dmg: 6, kb: 0.22, stun: 12, guard: 'low', reach: 0.08, tell: 'risa', w: [1, 2, 1], down: 36,
+  id: 'latigo', hits: [{ from: 20, to: 27, with: ['armF', 'armB'] }], total: 48, dmg: 4.5, kb: 0.22, stun: 12, guard: 'low', reach: 0.08, tell: 'risa', w: [1, 2, 1], down: 36,
   keys: [{ t: 0, limbs: REST }, { t: 18, limbs: { armF: [-0.6, -0.7, 0.4], armB: [-0.4, -0.8, 0.5] } }, { t: 23, limbs: { armF: [0.9, -0.55, 0], armB: [0.8, -0.6, 0.2] } }, { t: 30, limbs: { armF: [0.9, -0.5, -0.2], armB: [0.8, -0.5, 0] } }, { t: 48, limbs: REST }],
+};
+
+// ── MONSTRUO DE QUINOA (nivel 3: enseña a elegir el golpe). ──
+// Puño cañón: el brazo se dispara recto como un chorro de granos (se bloquea).
+MOVES.canon = {
+  id: 'canon', hits: [{ from: 18, to: 24, with: ['armF'] }], total: 46, dmg: 6, kb: 0.35, stun: 14, guard: 'block', reach: 0.08, tell: 'zumbido', w: [2, 3, 1],
+  keys: [{ t: 0, limbs: REST }, { t: 15, limbs: { armF: [-0.4, 0.3, 0.8] } }, { t: 19, limbs: { armF: [1, 0.08, 0] }, vx: 0.35 }, { t: 28, limbs: { armF: [1, 0.08, 0] } }, { t: 46, limbs: REST }],
+};
+// Mazazo doble: los dos puños arriba 34 cuadros (aviso) y bajan dos veces: rompe la guardia.
+MOVES.mazazo = {
+  id: 'mazazo', hits: [{ from: 36, to: 41, with: ['armF', 'armB'] }, { from: 52, to: 57, with: ['armF', 'armB'] }], total: 76, dmg: 5, kb: 0.3, stun: 16, guard: 'break', reach: 0.065, tell: 'rugido', w: [3, 1, 0],
+  keys: [
+    { t: 0, limbs: REST }, { t: 30, limbs: { armF: [0.1, 1, 0.3], armB: [0.1, 1, 0.3] } }, { t: 38, limbs: { armF: [0.9, -0.3, 0.1], armB: [0.9, -0.3, 0.1] }, vx: 0.15 },
+    { t: 46, limbs: { armF: [0.1, 1, 0.3], armB: [0.1, 1, 0.3] } }, { t: 54, limbs: { armF: [0.9, -0.3, 0.1], armB: [0.9, -0.3, 0.1] }, vx: 0.1 }, { t: 76, limbs: REST },
+  ],
+};
+// Derrumbe: se desarma en un montón (invulnerable 30 cuadros) y se rearma 6 cm más allá: castigable al rearmarse.
+MOVES.derrumbe = {
+  id: 'derrumbe', hits: [], total: 56, dmg: 0, kb: 0, stun: 0, guard: 'block', reach: 0.05, tell: 'risa', w: [2, 0, 0],
+  keys: [{ t: 0, limbs: REST }, { t: 2, inv: 30, limbs: { armF: [0.3, -1, 0.6], armB: [0.3, -1, 0.6] } }, { t: 30, dx: 0.06 }, { t: 56, limbs: REST }],
 };
 
 /** Ataques de cada rival (por nombre del modelo). */
 export const RIVAL_MOVES: Record<string, string[]> = {
   'EL BROCOLOCO': ['zanahoriazo', 'doble', 'cabezazo', 'pisoton'],
   'HUEVO DURO': ['pinchazo', 'latigo'],
+  'MONSTRUO DE QUINOA': ['canon', 'mazazo', 'derrumbe'],
 };

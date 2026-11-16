@@ -24,8 +24,11 @@ export interface RenderPose {
   armorLoss: number;
   /** Poder que está cargando o soltando (o null). */
   power: string | null;
-  /** Vida (para la fase 2 del huevo: se raja). */
+  /** Vida (para la fase 2 del huevo: se raja; la quinoa se achica). */
   hp?: number;
+  /** Ataque hecho a mano en curso y su cuadro (el derrumbe de la quinoa se dibuja aplastado). */
+  mv?: string | null;
+  mvT?: number;
 }
 
 export function blendPose(a: RenderPose, b: RenderPose, t: number): RenderPose {
@@ -380,6 +383,8 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
     return u ? { u, prev: c.obj.quaternion.clone(), b: new THREE.Vector3(), v: new THREE.Vector3(), t: Math.random() * 6 } : null;
   });
   const crackParts = inner.children.filter((o) => o.name === 'grieta' || o.name === 'yema');
+  const bodyGrains = inner.children.find((o) => o.name === 'cuerpo-granos') as THREE.InstancedMesh | undefined;
+  const grainTotal = bodyGrains?.count ?? 0;
   const dq = new THREE.Quaternion();
   const wv = new THREE.Vector3();
   const tgt = new THREE.Vector3();
@@ -412,7 +417,11 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       const j = jiggle ? jiggle.step(dt) : 0;
       hurt.step(dt);
       // La vibración alterna: se estira a lo alto y se ensancha (volumen parejo, como una gelatina).
-      sc.makeScale(1 - s * 0.5 - j * 0.5, 1 + s + j, 1 - s * 0.5 - j * 0.5);
+      // Derrumbe (quinoa): se aplasta en un montón y se vuelve a armar.
+      const t = p.mvT ?? 0;
+      const fall = p.mv === 'derrumbe' ? (t < 30 ? Math.min(1, t / 8) : Math.max(0, 1 - (t - 30) / 14)) : 0;
+      sc.makeScale((1 - s * 0.5 - j * 0.5) * (1 + 0.45 * fall), (1 + s + j) * (1 - 0.7 * fall), (1 - s * 0.5 - j * 0.5) * (1 + 0.45 * fall));
+      if (bodyGrains) bodyGrains.count = Math.round(grainTotal * (0.45 + 0.55 * Math.max(0, Math.min(1, (p.hp ?? 100) / 100))));
       outer.matrix
         .makeTranslation(p.x + hurt.offset.x, p.y + hurt.offset.y, z0)
         .multiply(rz.makeRotationZ(-p.facing * (p.tilt + p.roll)))

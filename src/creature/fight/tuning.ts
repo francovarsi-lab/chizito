@@ -159,6 +159,10 @@ export const FIGHT = {
   phase2: 40,
   phase2Mul: 1.04,
   bounce: { kb: 1.8, up: 0.35 },
+  /** Quinoa (T8): golpe con poder < burstPower se hunde (daño × absorb, el brazo trabado `stuck` cuadros); lo cargado revienta y
+   *  deja un montoncito (n = daño) que vuelve a la quinoa si lo pisa (pickR) o a los `life` cuadros (+ back de vida por grano).
+   *  Un golpe a menos de sweepH del piso y sweepR del montón lo desparrama. */
+  grains: { burstPower: 1.05, absorb: 0.4, stuck: 10, life: 480, pickR: 0.02, back: 0.3, sweepH: 0.022, sweepR: 0.014 },
   getUpInv: 10,
   /** Doble toque de flecha (dentro de `taps` cuadros) = PASITO de `dist` en `frames`; hacia atrás, invulnerable `backInv`. */
   dash: { taps: 12, frames: 10, dist: 0.03, backInv: 6 },

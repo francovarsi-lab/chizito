@@ -13,7 +13,7 @@ import { createMatch, stepMatch, type FightEvent, type FightInput, type Match } 
 import { fighterFromSnapshot, rivalFighter, type FighterModel } from './fighter';
 import { FightHud, type MenuAction } from './hud';
 import { blendPose, creatureView, rivalView, type FighterView, type RenderPose } from './render';
-import { createEgg, createQuinoa } from './rivals3d';
+import { createEgg, createQuinoa, looseGrains } from './rivals3d';
 import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT, POWERS } from './tuning';
 import { qFromTo, type Q } from './quat';
@@ -67,7 +67,7 @@ const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-wid
 
 const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyQ', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'KeyE', 'Escape', 'Enter', 'Space']);
 
-const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], armorLoss: f.armorLoss, power: f.pw?.kind ?? null, hp: f.hp });
+const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], armorLoss: f.armorLoss, power: f.pw?.kind ?? null, hp: f.hp, mv: f.mv?.id ?? null, mvT: f.mv?.t ?? 0 });
 
 /**
  * La pelea en LA MISMA mesa donde se arma la criatura: la cámara pasa a una vista lateral que sigue y encuadra a los dos, y tu
@@ -173,6 +173,49 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // ── Efectos ──
   /** Punto del plano de la pelea (y del motor) en el mundo: el piso es la tabla. */
   const P3 = (x: number, y: number, dz = 0.008): THREE.Vector3 => new THREE.Vector3(x, y + GROUND, z0 + dz);
+  // Granos sueltos de la quinoa (T8): saltan al reventarla, quedan en la tabla y vuelven volando cuando los reabsorbe.
+  const LOOSE_MAX = 600;
+  let loose: THREE.InstancedMesh | null = null;
+  const lg: { pile: number; who: 0 | 1; p: THREE.Vector3; v: THREE.Vector3; st: 0 | 1 | 2 | 3; t: number; s: number }[] = [];
+  const lgM = new THREE.Matrix4();
+  const lgQ = new THREE.Quaternion();
+  const lgS = new THREE.Vector3();
+  const spawnGrains = (who: 0 | 1, at: [number, number], x: number, n: number, pile: number): void => {
+    if (!loose) {
+      loose = looseGrains(LOOSE_MAX);
+      game().stage.scene.add(loose);
+    }
+    const k = Math.min(n * 5, LOOSE_MAX - lg.length);
+    for (let i = 0; i < k; i++) {
+      const r = Math.random;
+      lg.push({ pile, who, p: P3(at[0], at[1], 0.004 + r() * 0.01), v: new THREE.Vector3((x - at[0]) * 2.2 + (r() - 0.5) * 0.1, 0.25 + r() * 0.25, (r() - 0.5) * 0.08), st: 0, t: 0, s: 0.0007 + r() * 0.0004 });
+    }
+  };
+  const updateGrains = (dt: number): void => {
+    if (!loose) return;
+    for (let i = lg.length - 1; i >= 0; i--) {
+      const g = lg[i];
+      g.t += dt;
+      if (g.st === 0 || g.st === 3) {
+        g.v.y -= 2.4 * dt;
+        g.p.addScaledVector(g.v, dt);
+        if (g.st === 0 && g.p.y < GROUND + g.s * 0.6) {
+          g.p.y = GROUND + g.s * 0.6;
+          if (Math.abs(g.v.y) > 0.15) g.v.set(g.v.x * 0.4, -g.v.y * 0.3, g.v.z * 0.4);
+          else g.st = 1;
+        }
+        if (g.st === 3 && g.t > 1.2) lg.splice(i, 1);
+      } else if (g.st === 2) {
+        const f = m?.f[g.who];
+        const to = f ? P3(f.x, f.y + 0.035, 0) : g.p;
+        g.p.lerp(to, Math.min(1, dt * 7));
+        if (g.p.distanceTo(to) < 0.004) lg.splice(i, 1);
+      }
+    }
+    lg.forEach((g, i) => loose!.setMatrixAt(i, lgM.compose(g.p, lgQ, lgS.setScalar(g.s))));
+    loose.count = lg.length;
+    loose.instanceMatrix.needsUpdate = true;
+  };
   const project = (x: number, y: number): [number, number] | null => {
     const v = P3(x, y).project(game().stage.camera);
     if (v.z > 1) return null;
@@ -358,6 +401,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     });
     syncShots();
     crumbs?.forEach((c) => c.update(dt));
+    updateGrains(dt);
     chips?.update(dt);
     // Estrellitas del mareo.
     if (m && views) {
@@ -464,6 +508,19 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         views[e.who].hurt(0.25, 0);
         break;
       }
+      case 'grains':
+        spawnGrains(e.who, e.at, e.x, e.n, e.pile);
+        g.audio.play('crunch', 1);
+        break;
+      case 'reabsorb':
+        for (const q of lg) if (q.pile === e.pile) q.st = 2;
+        break;
+      case 'scatter':
+        for (const q of lg) if (q.pile === e.pile) { q.st = 3; q.t = 0; q.v.set((Math.random() - 0.5) * 0.8, 0.5, 0.3); }
+        break;
+      case 'absorb':
+        views[e.who].bump(0.35);
+        break;
       case 'parry': {
         const f = m.f[e.who];
         hud.popup(f.x, f.y + 0.05, '¡ATAJADA!', '', 'shout');
@@ -1012,6 +1069,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       viewLevel = level;
     }
     m = createMatch([model, bro]);
+    lg.length = 0;
     ai = newAi(seed++, level);
     hud.show([model.name, bro.name], warnings(m.f[0]));
     // Cuántas extremidades hay en cada cuadrante del chizito (lo que maneja cada botón).

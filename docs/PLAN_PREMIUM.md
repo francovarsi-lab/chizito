@@ -268,6 +268,7 @@ Hecho cuando: en `lab/brocoli.html?rival=huevo` los brazos se ven elásticos en 
 `views[1].face()` ya existe: gesto por estado (aviso = cejas abajo + boca abierta, recibe = ojos cerrados, gana = risa).
 
 ### T8 — MONSTRUO DE QUINOA hecho de granos
+**Hecha** (2026-11-16). Balance en `docs/creature/BALANCE.md`.
 Especificación: 4.6. `rivals3d.ts` (`grains`, `ellipsoidPoints`, InstancedMesh) y motor.
 1. Motor: `absorb` en `FighterModel` (rápido = 40 % y `a.lock += 10`; cargado / pesado = 100 %). Evento `grains { at, n }` con
    n ∝ daño. `m.piles: { x, n }[]`: se juntan al pasar por encima (`|f.x − pile.x| < 0.02` → vida + n · k) o a los 360

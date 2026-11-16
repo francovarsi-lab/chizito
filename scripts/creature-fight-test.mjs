@@ -598,14 +598,48 @@ try {
       for (let i = 0; i < 60; i++) stepMatch(m, [{ x: 0 }, { x: -1 }]);
       ok(x0 - f.x > 0.03, `nivel ${lvl}: camina (${((x0 - f.x) * 1000).toFixed(0)} mm en 1 s)`);
     }
+    // T8: la quinoa no se regenera sola: absorbe lo rápido, revienta con lo cargado y deja granos que vuelven.
     const q = createMatch([mine, rivalFighter(3)]);
     for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
     q.f[1].hp = 50;
-    q.f[1].lastHurt = q.frame;
-    for (let i = 0; i < 60; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
-    const early = q.f[1].hp;
-    for (let i = 0; i < 240; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
-    ok(early === 50 && q.f[1].hp > 53, `la quinoa se rearma si no le pegan (50 → ${early.toFixed(1)} al segundo → ${q.f[1].hp.toFixed(1)} a los 5 s)`);
+    for (let i = 0; i < 300; i++) stepMatch(q, [{ x: 0 }, { x: 0 }]);
+    ok(q.f[1].hp === 50, 'la quinoa ya no se regenera sola');
+    const box = fighterFromSnapshot(JSON.parse(fs.readFileSync('src/creature/fixtures/arq/boxeador.snapshot.json', 'utf8')));
+    const strike = (hold) => {
+      const m = createMatch([box, rivalFighter(3)]);
+      for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      const ev = [];
+      let hit = null;
+      for (let i = 0; i < 90 && !hit; i++) {
+        m.f[1].x = m.f[0].x + 0.05;
+        m.f[1].stun = Math.max(m.f[1].stun, 2);
+        stepMatch(m, [{ x: 0, quad: i === 0 ? 'RA' : undefined, quadHeld: i < hold ? 'RA' : null }, { x: 0 }]);
+        for (const e of m.events) { ev.push(e); if (e.type === 'hit' && e.by === 0) hit = e; }
+      }
+      return { m, ev, hit };
+    };
+    const soft = strike(2), hard = strike(40);
+    ok(soft.ev.some((e) => e.type === 'absorb') && !soft.ev.some((e) => e.type === 'grains'), 'el golpe rápido se hunde en la quinoa');
+    ok(hard.ev.some((e) => e.type === 'grains') && hard.m.piles.length === 1, 'el cargado la revienta y deja un montoncito');
+    ok(hard.hit && soft.hit && hard.hit.damage > soft.hit.damage * 3, `reventar saca mucho más (${hard.hit?.damage.toFixed(1)} vs ${soft.hit?.damage.toFixed(1)})`);
+    {
+      const m = hard.m;
+      const hp0 = m.f[1].hp;
+      for (let i = 0; i < FIGHT.grains.life + 5; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      ok(m.piles.length === 0 && m.f[1].hp > hp0, `los granos vuelven y recupera vida (${hp0.toFixed(1)} → ${m.f[1].hp.toFixed(1)})`);
+    }
+    {
+      const m = strike(40).m;
+      const pile = m.piles[0];
+      let sc = false;
+      for (let i = 0; i < 120 && !sc; i++) {
+        m.f[1].x = pile.x + 0.06;
+        m.f[0].x = pile.x - 0.03;
+        stepMatch(m, [{ x: 0, down: true, quad: i === 30 ? 'LL' : undefined }, { x: 0 }]);
+        sc ||= m.events.some((e) => e.type === 'scatter');
+      }
+      ok(sc, 'una barrida sobre el montón lo desparrama');
+    }
   }
 
   // ── Daño por pieza: chupetín > aceituna > palito de la selva > palito > espadita > escarbadientes, siempre ──
@@ -924,6 +958,20 @@ try {
       ok(mv.guard === 'low' ? g.hit && !g.hit.blocked : g.hit?.blocked, `huevo ${id}: guardia ${mv.guard}`);
     }
     ok(rivalFighter(2).moves?.length >= 2, 'el huevo tiene sus ataques');
+    for (const id of ['canon', 'mazazo']) {
+      const open = run(id, false, rivalFighter(3));
+      ok(open.hit && !open.hit.blocked, `quinoa ${id}: pega (cuadro ${open.at})`);
+      const g = run(id, true, rivalFighter(3));
+      ok(MOVES[id].guard === 'break' ? g.gb : g.hit?.blocked, `quinoa ${id}: guardia ${MOVES[id].guard}`);
+    }
+    {
+      const m = createMatch([box, rivalFighter(3)]);
+      for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      const x0 = m.f[1].x;
+      let inv = 0;
+      for (let i = 0; i < 60; i++) { stepMatch(m, [{ x: 0 }, { x: 0, move: i === 0 ? 'derrumbe' : undefined }]); if (m.f[1].inv > 0) inv++; }
+      ok(inv >= 25 && Math.abs(m.f[1].x - x0) > 0.04, `quinoa derrumbe: invulnerable ${inv} cuadros y se rearma ${((Math.abs(m.f[1].x - x0)) * 100).toFixed(1)} cm más allá`);
+    }
     // La IA del brócoli usa sus ataques (no las piñas del motor).
     const m = createMatch([box, broccoliFighter(1)]);
     const ai = newAi(5, 2);

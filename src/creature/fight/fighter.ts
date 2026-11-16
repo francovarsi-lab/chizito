@@ -106,6 +106,8 @@ export interface FighterModel {
   moves?: string[];
   /** Cuerpo de gelatina (huevo): los golpes seguidos pegan menos y el cuerpo vibra. */
   jelly?: boolean;
+  /** Hecho de granos (quinoa): absorbe lo rápido, revienta con lo cargado o pesado y deja granos en la tabla. */
+  absorb?: boolean;
 }
 
 const ROD_TYPES = new Set(['palito', 'escarbadientes', 'palito-selva', 'chupetin']);
@@ -371,6 +373,7 @@ export interface RivalSpec {
   label: { arm: string; leg: string };
   power: PowerKind;
   jelly?: boolean;
+  absorb?: boolean;
 }
 
 /** HUEVO DURO (nivel 2): pelado y gelatinoso, brazos LARGOS de espárrago (más alcance) y menos defensa. */
@@ -419,8 +422,8 @@ export const QUINOA: RivalSpec = {
   carryGrams: 14,
   legKind: { power: 1.5, quick: 0.75 },
   armKind: 'heavy',
-  armorMul: 0.7,
-  regen: { delay: 90, hps: 1.2 },
+  armorMul: 0.95,
+  absorb: true,
   faceAt: { mouth: 0.44, eyes: 0.67 },
   yaw: 1.0,
   label: { arm: 'puño de quinoa', leg: 'pata de quinoa' },
@@ -484,6 +487,7 @@ export function rivalFromSpec(spec: RivalSpec): FighterModel {
     yaw: spec.yaw,
     power: spec.power,
     jelly: spec.jelly,
+    absorb: spec.absorb,
   };
 }
 

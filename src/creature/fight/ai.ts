@@ -69,6 +69,11 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   }
   // Le pegó a la guardia y quedó trabado: suelta la guardia y castiga (antes seguía cubierto y dejaba pasar la ventana).
   if (mem.doing === 'guard' && foe.lock > 4 && me.stun <= 0 && near < reach * 1.15 && rnd(mem) < 0.3 + 0.12 * mem.level) {
+    if (me.model.moves?.length) {
+      mem.doing = 'none';
+      mem.left = 0;
+      return rivalDecide(s, mem, who, near, dir);
+    }
     mem.doing = 'none';
     mem.left = 0;
     return { x: 0, punch: true };
@@ -153,16 +158,16 @@ function rivalDecide(s: Match, mem: AiMem, who: 0 | 1, near: number, dir: -1 | 1
   const me = s.f[who];
   const foe = s.f[1 - who];
   const ids = me.model.moves!;
-  const inReach = ids.filter((id) => MOVES[id].reach >= near);
+  const inReach = ids.filter((id) => MOVES[id].reach >= near && MOVES[id].hits.length > 0);
   // El otro ya está cargando cerca: arrancar un ataque ahora es comerse el golpe a mitad de camino; mejor cubrirse.
   const foeWinding = foe.limbs.some((q) => q.phase === 'windup' || q.phase === 'strike');
-  if (foeWinding && near < 0.085 && rnd(mem) < 0.06 + 0.04 * mem.level) {
+  if (foeWinding && near < 0.085 && rnd(mem) < 0.06 + 0.04 * mem.level + (foe.repeat >= 1 ? 0.25 : 0)) {
     mem.doing = 'guard';
     mem.left = 16 + Math.floor(rnd(mem) * 12);
     return { x: 0, guard: true };
   }
   // Castigo: el otro pifió o le pegó a la guardia → el ataque más rápido que llegue.
-  if (foe.lock > 4 && inReach.length && rnd(mem) < 0.25 + 0.15 * mem.level) {
+  if (foe.lock > 4 && inReach.length && rnd(mem) < 0.2 + 0.1 * mem.level) {
     const fast = inReach.reduce((a, b) => (MOVES[a].hits[0].from <= MOVES[b].hits[0].from ? a : b));
     return { x: 0, move: fast };
   }
@@ -174,7 +179,7 @@ function rivalDecide(s: Match, mem: AiMem, who: 0 | 1, near: number, dir: -1 | 1
   // Fase: con poca vida se juega el todo por el todo (ataca más).
   const angry = me.hp < 45 ? 0.15 : 0;
   const band = near < 0.06 ? 0 : near < 0.1 ? 1 : 2;
-  if (rnd(mem) < 0.35 + 0.12 * mem.level + angry) {
+  if (rnd(mem) < 0.35 + 0.07 * mem.level + angry) {
     const pool = ids.filter((id) => MOVES[id].w[band] > 0 && MOVES[id].reach >= near * 0.85);
     if (pool.length) {
       let r = rnd(mem) * pool.reduce((a, id) => a + MOVES[id].w[band], 0);
