@@ -458,6 +458,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       case 'stumble':
         g.audio.play('drop', 0.8);
         break;
+      case 'move': {
+        // Aviso del ataque del rival: sonido y destello (se ve venir).
+        g.audio.play(e.tell as SoundId, 0.7);
+        views[e.who].hurt(0.25, 0);
+        break;
+      }
       case 'parry': {
         const f = m.f[e.who];
         hud.popup(f.x, f.y + 0.05, '¡ATAJADA!', '', 'shout');

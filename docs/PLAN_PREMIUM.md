@@ -242,6 +242,7 @@ súper por pieza, uno por commit, cada uno con su efecto (coordinar con G3). La 
 (`m.zones: { x, r, life, by }[]`) que el motor recorre cada cuadro.
 
 ### T5 — Sistema de ataques de rivales (`moves.ts`) + IA por estados
+**Hecha** (2026-11-16). Contacto por puntas/cuerpo en vez de cápsulas sueltas (mismo resultado: pega lo que se ve).
 Especificación: 4.6. Es la base de T6–T8.
 1. `moves.ts` con el tipo `Move` y `stepMove(m, i)`: cuenta cuadros, activa cajas, llama a un `applyMoveHit` (extraer de
    `powerHit` lo común). Mientras un rival ejecuta un `Move`, sus extremidades NO pasan por `drive()`: el motor guarda

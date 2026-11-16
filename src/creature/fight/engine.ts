@@ -1,7 +1,8 @@
 import type { V3 } from '../types';
 import type { FighterModel, HitKind, MassPoint } from './fighter';
-import { qAxis, qConj, qFromTo, QI, qIntegrate, qMul, qToVec, type Q } from './quat';
+import { qAxis, qConj, qFromTo, QI, qIntegrate, qMul, qRot, qToVec, type Q } from './quat';
 import { FIGHT, JELLY, POWERS, type PowerKind } from './tuning';
+import { MOVE_REST, MOVES, type LimbTag } from './moves';
 import type { Quad } from '../zones';
 
 /**
@@ -34,6 +35,8 @@ export interface FightInput {
   power?: boolean;
   /** Cuadrante que se MANTIENE apretado (null: ninguno). Sin el campo no hay golpe rápido / cargado (la máquina, Z/X). */
   quadHeld?: Quad | null;
+  /** Ataque hecho a mano (rivales, `moves.ts`). */
+  move?: string;
 }
 
 export const IDLE: FightInput = { x: 0 };
@@ -203,6 +206,8 @@ export interface FighterState {
   blind: number;
   /** E apretada durante el congelamiento del impacto (el remate se aprieta justo ahí): cuadros que se recuerda. */
   pwBuf: number;
+  /** Ataque hecho a mano en curso: cuadro y qué ventanas ya pegaron. */
+  mv: { id: string; t: number; hit: boolean[] } | null;
 }
 
 /** Un proyectil (granos de quinoa). */
@@ -241,6 +246,7 @@ export type FightEvent =
   | { type: 'matchEnd'; winner: 0 | 1 }
   | { type: 'power'; who: 0 | 1; kind: PowerKind; phase: 'wind' | 'go'; use?: 'remate' | 'super' }
   | { type: 'escape'; who: 0 | 1; at: [number, number] }
+  | { type: 'move'; who: 0 | 1; id: string; tell: string }
   | { type: 'powerHit'; by: 0 | 1; kind: PowerKind; at: [number, number]; damage: number; blocked: boolean }
 
 
@@ -425,6 +431,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     wall: 0,
     blind: 0,
     pwBuf: 0,
+    mv: null,
   };
   // Desproporción (el chupetín pesa más que el chizito entero): marcha, salto y giros más pesados. Pocos gramos, pero la
   // proporción manda: una extremidad que pesa más que el cuerpo lo arrastra.
@@ -883,6 +890,7 @@ function powerHit(m: Match, i: 0 | 1, kind: PowerKind, at: [number, number], dmg
     b.stun = Math.max(b.stun, o.stun);
     b.chain = null;
     b.buffer = null;
+    b.mv = null;
     b.swing = null;
     b.squat = 0;
     for (const q of b.limbs) if (q.phase === 'windup' || q.phase === 'strike') {
@@ -989,6 +997,139 @@ function stepPower(m: Match, i: 0 | 1): void {
   if (pw.t >= POWERS[pw.kind].go) f.pw = null;
 }
 
+/** Nombres de la extremidad k para las claves: por lado ('armR') y por posición frente al rival ('armF' adelante, 'armB' atrás). */
+function tagsOf(f: FighterState, k: number): LimbTag[] {
+  const l = f.model.limbs[k];
+  const role = l.role === 'leg' ? 'leg' : 'arm';
+  const mates = f.model.limbs.map((_, j) => j).filter((j) => (f.model.limbs[j].role === 'leg' ? 'leg' : 'arm') === role);
+  const front = mates.reduce((a, b) => (fwd(f, f.model.limbs[a].pivot) >= fwd(f, f.model.limbs[b].pivot) ? a : b));
+  return [`${role}${l.side}`, `${role}${k === front ? 'F' : 'B'}`] as LimbTag[];
+}
+
+/** Pose de la extremidad k en el cuadro actual del ataque: interpola entre claves (suave); sin clave, su reposo. */
+function movePose(f: FighterState, k: number): Q {
+  const mv = MOVES[f.mv!.id];
+  const l = f.model.limbs[k];
+  const tags = tagsOf(f, k);
+  const t = f.mv!.t;
+  const rest: Q = l.role === 'leg' && f.stance[k] ? f.stance[k] : QI();
+  const dirOf = (key: (typeof mv.keys)[number]): V3 => {
+    const v = key.limbs?.[tags[0]] ?? key.limbs?.[tags[1]];
+    if (!v) return qRot(rest, l.dir);
+    // x = hacia el rival (con el giro hacia la cámara), y = arriba, z = hacia afuera de su lado (en profundidad).
+    const F = fwdAxis(f), D = gaitAxis(f);
+    const out = Math.sign(dotv(l.pivot, D)) || (l.side === 'L' ? 1 : -1);
+    return normv(addv(addv(scl(F, v[0]), [0, v[1], 0]), scl(D, v[2] * out)));
+  };
+  let a = mv.keys[0], b = mv.keys[mv.keys.length - 1];
+  for (const key of mv.keys) {
+    const has = key.limbs && (key.limbs === MOVE_REST || tags.some((g) => key.limbs![g]));
+    if (key.t <= t && has) a = key;
+    if (key.t >= t && has) { b = key; break; }
+  }
+  const span = b.t - a.t;
+  const e0 = span > 0 ? clamp((t - a.t) / span, 0, 1) : 1;
+  const e = e0 * e0 * (3 - 2 * e0);
+  const d0 = dirOf(a), d1 = dirOf(b);
+  return qFromTo(l.dir, normv(addv(scl(d0, 1 - e), scl(d1, e))));
+}
+
+/** Avanza el ataque hecho a mano: impulsos de las claves, fases (para que el otro lo lea) y ventanas de golpe. */
+function stepMove(m: Match, i: 0 | 1): void {
+  const f = m.f[i];
+  const b = m.f[1 - i];
+  const mv = MOVES[f.mv!.id];
+  const t = ++f.mv!.t;
+  for (const key of mv.keys) if (key.t === t) {
+    if (key.vx) f.vx = f.facing * key.vx;
+    if (key.vy) { f.vy = key.vy; f.grounded = false; }
+    if (key.wt) f.wt += key.wt;
+  }
+  const live = mv.hits.findIndex((h) => t >= h.from && t <= h.to);
+  const tags = new Set(mv.hits.flatMap((h) => h.with));
+  f.limbs.forEach((s, k) => {
+    s.active = false;
+    if (!tagsOf(f, k).some((g) => tags.has(g))) return;
+    s.phase = live >= 0 ? 'strike' : t < mv.hits[mv.hits.length - 1].to ? 'windup' : 'recover';
+    s.t = t;
+  });
+  if (live >= 0 && !f.mv!.hit[live] && !b.ko && b.inv <= 0 && b.down <= 0) {
+    const h = mv.hits[live];
+    const bodies = b.model.body.map((sh) => { const A = toWorld(b, sh.a), B = toWorld(b, sh.b); return { A, B, r: sh.r }; });
+    let at: [number, number] | null = null;
+    for (const w of h.with) {
+      if (w === 'body') {
+        for (const mine of f.model.body) {
+          const A = toWorld(f, mine.a), B = toWorld(f, mine.b);
+          for (const o of bodies) if (segSegD(A[0], A[1], B[0], B[1], o.A[0], o.A[1], o.B[0], o.B[1]) < mine.r + o.r + 0.004) at = [(A[0] + o.A[0]) / 2, (A[1] + o.A[1]) / 2];
+        }
+        continue;
+      }
+      f.model.limbs.forEach((l, k) => {
+        if (!tagsOf(f, k).includes(w)) return;
+        const c = f.cur[k];
+        l.points.forEach((p, j) => {
+          if (p.inside) return;
+          const x = c[2 * j], y = c[2 * j + 1];
+          for (const o of bodies) if (segD(x, y, o.A[0], o.A[1], o.B[0], o.B[1]) < o.r + p.r) at = [x, y];
+        });
+      });
+    }
+    // Lo bajo pasa por arriba si el otro saltó.
+    if (at && mv.guard === 'low' && !b.grounded) at = null;
+    if (at) {
+      f.mv!.hit[live] = true;
+      moveHit(m, i, mv, at);
+    }
+  }
+  if (t >= mv.total) {
+    f.mv = null;
+    for (const s of f.limbs) if (s.phase !== 'rest') { s.phase = 'recover'; s.t = FIGHT.recoverMax - 6; }
+  }
+}
+
+/** Un ataque hecho a mano toca al rival: guardia (bloquea, se rompe o no sirve), atajada, daño, aturdimiento y empujón. */
+function moveHit(m: Match, i: 0 | 1, mv: (typeof MOVES)[string], at: [number, number]): void {
+  const a = m.f[i];
+  const b = m.f[1 - i];
+  const dir = Math.sign(b.x - a.x) || a.facing;
+  const guarding = b.guard >= FIGHT.guardReady && b.grounded && (b.arms.length > 0 || !!b.shieldPose) && dir === -b.facing && mv.guard !== 'low';
+  if (guarding && b.guardT <= FIGHT.parry.window) {
+    a.lock = Math.max(a.lock, FIGHT.parry.open);
+    a.mv = null;
+    b.meter = Math.min(FIGHT.power.max, b.meter + FIGHT.parry.meter);
+    m.events.push({ type: 'parry', who: (1 - i) as 0 | 1 });
+    m.hitstop = Math.max(m.hitstop, 4);
+    return;
+  }
+  const blocked = guarding && mv.guard === 'block';
+  if (guarding && mv.guard === 'break') {
+    b.guardBreak = FIGHT.guardBreak.frames;
+    m.events.push({ type: 'guardBreak', who: (1 - i) as 0 | 1 });
+  }
+  const d = soak(m, b, mv.dmg * (blocked ? FIGHT.chip : 1));
+  b.hp = Math.max(0, b.hp - d);
+  b.lastHurt = m.frame;
+  b.meter = Math.min(FIGHT.power.max, b.meter + d * FIGHT.power.onHurt);
+  a.meter = Math.min(FIGHT.power.max, a.meter + d * FIGHT.power.onHit * (blocked ? FIGHT.power.blockedMul : 1));
+  b.vx = dir * mv.kb * (blocked ? 0.45 : 1) * (b.wall > 0 ? 0 : 1);
+  if (blocked) {
+    b.block = Math.max(b.block, FIGHT.blockstun);
+    b.counter = FIGHT.blockstun + FIGHT.chain.counterWindow;
+  } else if (b.wall <= 0) {
+    b.stun = Math.max(b.stun, mv.stun);
+    b.chain = null;
+    b.buffer = null;
+    b.mv = null;
+    b.swing = null;
+    b.squat = 0;
+    for (const q of b.limbs) if (q.phase === 'windup' || q.phase === 'strike') { q.phase = 'recover'; q.t = 0; }
+    b.wt += (dir === -b.facing ? -1 : 1) * Math.min(4, 10 * mv.kb);
+  }
+  m.hitstop = Math.max(m.hitstop, blocked ? 3 : 5);
+  m.events.push({ type: 'hit', by: i, at, damage: d, kind: 'light', blocked, shield: false, shieldPiece: null, piece: mv.id, speed: 1, combo: 1, heavy: mv.dmg >= 9, chain: null });
+}
+
 /** Súper de TU CHIZITO: sale de lo que armó (la pieza que más pega); con 2 escudos o más, MURALLA. */
 function superOf(f: FighterState): PowerKind {
   if (Object.keys(f.model.shields).length >= 2) return 'muralla';
@@ -1071,7 +1212,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   if (f.juggle >= 0 && f.grounded && f.vy <= 0) f.juggle = -1;
   const canAct = fighting && !f.ko && f.stun <= 0 && f.block <= 0 && f.down <= 0;
   const input = canAct ? inp : IDLE;
-  const busy = !!f.pw || f.limbs.some((s) => s.phase === 'windup' || s.phase === 'strike');
+  const busy = !!f.pw || !!f.mv || f.limbs.some((s) => s.phase === 'windup' || s.phase === 'strike');
   f.held = input === IDLE ? (inp.quadHeld === undefined ? undefined : null) : input.quadHeld;
   // Atajada justa: cuadros desde que se APRETÓ la guardia.
   f.guardT = input.guard && !f.guardIn ? 0 : f.guardT + 1;
@@ -1122,6 +1263,13 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     f.grounded = false;
     m.events.push({ type: 'jump', who: i });
   }
+  // Ataque hecho a mano (rivales): arranca con su aviso.
+  if (input.move && MOVES[input.move] && !busy && f.grounded && f.lock <= 0) {
+    f.mv = { id: input.move, t: 0, hit: [] };
+    f.buffer = null;
+    m.events.push({ type: 'move', who: i, id: input.move, tell: MOVES[input.move].tell });
+  }
+  if (f.mv) stepMove(m, i);
   // Un golpe por vez: no arranca otro mientras uno carga o pega, ni mientras paga el anterior (salvo una combinación, que sigue
   // el impulso del golpe que acertó).
   if (f.buffer && canAct && !busy && !f.wobbly && f.guard < 0.3 && f.squat <= 0) {
@@ -1196,6 +1344,13 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   let react = 0;
   M.limbs.forEach((l, k) => {
     const s = f.limbs[k];
+    if (f.mv) {
+      // Ataque hecho a mano: la pose sale de las claves (el PD no interviene).
+      const q = movePose(f, k);
+      s.w = scl(qToVec(qMul(q, qConj(s.q))), 1 / dt);
+      s.q = q;
+      return;
+    }
     if (l.rigid) {
       // El chupetín y lo que atraviesa no giran: si pegan, pega el cuerpo entero (ver la inclinación más abajo).
       if (s.phase !== 'rest') s.t++;
@@ -1677,6 +1832,7 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
       }
     });
     b.buffer = null;
+    b.mv = null;
     b.swing = null; // si estaba cargando un balanceo, lo pierde
     if (kind === 'heavy') {
       b.dizzy += dmg;
@@ -1811,6 +1967,7 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
     }
     if (m.phase === 'ko') for (const f of m.f) {
       f.pw = null;
+      f.mv = null;
       f.buffer = null;
       f.chain = null;
       for (const q of f.limbs) if (q.phase === 'windup' || q.phase === 'strike') {

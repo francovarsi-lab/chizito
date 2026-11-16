@@ -1,6 +1,7 @@
 import type { FightInput, Match } from './engine';
 import type { Quad } from '../zones';
 import { AI_LEVELS, FIGHT, POWERS } from './tuning';
+import { MOVES } from './moves';
 
 /** Memoria del rival (determinista: azar con semilla). */
 export interface AiMem {
@@ -12,6 +13,8 @@ export interface AiMem {
   doing: 'none' | 'guard' | 'retreat' | 'crouch' | 'step' | 'charge' | 'dash';
   /** Golpe cargado en curso: cuadrante que mantiene. */
   quad: Quad | null;
+  /** Rivales con ataques propios: cuadros hasta la próxima decisión. */
+  think: number;
   /** Hacia dónde va el paso de acomodarse (+1 adelante, −1 atrás). */
   stepDir: 1 | -1;
   left: number;
@@ -19,7 +22,7 @@ export interface AiMem {
   wasAttack: boolean;
 }
 
-export const newAi = (seed = 1, level = 1): AiMem => ({ seed, level: Math.max(1, Math.min(AI_LEVELS.length, level)), react: 0, doing: 'none', quad: null, stepDir: 1, left: 0, seenStrike: false, wasAttack: false });
+export const newAi = (seed = 1, level = 1): AiMem => ({ seed, level: Math.max(1, Math.min(AI_LEVELS.length, level)), react: 0, doing: 'none', quad: null, think: 0, stepDir: 1, left: 0, seenStrike: false, wasAttack: false });
 
 /** Azar chico y determinista (mulberry32). */
 function rnd(m: AiMem): number {
@@ -92,6 +95,7 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   const attackPrev = mem.wasAttack;
   mem.wasAttack = false;
   if (me.stun > 0) return { x: 0 };
+  if (me.model.moves?.length) return rivalDecide(s, mem, who, near, dir);
   // El otro quedó trabado (pegó contra la guardia o pifió): es el momento de castigarlo.
   if (foe.lock > 4 && near < reach * 1.15 && rnd(mem) < 0.3 + 0.12 * mem.level) return { x: 0, punch: true };
   // Acaba de atajar: contraataca enseguida (la CONTRA pega más).
@@ -138,4 +142,49 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
     mem.left = 12 + Math.floor(rnd(mem) * 10);
   }
   return { x: 0 };
+}
+
+/**
+ * Rivales con ataques propios: una máquina de estados que decide cada `think` cuadros (no una moneda por cuadro) entre atacar
+ * (pesos por distancia y por vida), acercarse, esperar o alejarse; y castiga apenas el otro queda trabado.
+ */
+function rivalDecide(s: Match, mem: AiMem, who: 0 | 1, near: number, dir: -1 | 1): FightInput {
+  const L = AI_LEVELS[mem.level - 1];
+  const me = s.f[who];
+  const foe = s.f[1 - who];
+  const ids = me.model.moves!;
+  const inReach = ids.filter((id) => MOVES[id].reach >= near);
+  // El otro ya está cargando cerca: arrancar un ataque ahora es comerse el golpe a mitad de camino; mejor cubrirse.
+  const foeWinding = foe.limbs.some((q) => q.phase === 'windup' || q.phase === 'strike');
+  if (foeWinding && near < 0.085 && rnd(mem) < 0.06 + 0.04 * mem.level) {
+    mem.doing = 'guard';
+    mem.left = 16 + Math.floor(rnd(mem) * 12);
+    return { x: 0, guard: true };
+  }
+  // Castigo: el otro pifió o le pegó a la guardia → el ataque más rápido que llegue.
+  if (foe.lock > 4 && inReach.length && rnd(mem) < 0.25 + 0.15 * mem.level) {
+    const fast = inReach.reduce((a, b) => (MOVES[a].hits[0].from <= MOVES[b].hits[0].from ? a : b));
+    return { x: 0, move: fast };
+  }
+  if (mem.think > 0) {
+    mem.think--;
+    return { x: 0 };
+  }
+  mem.think = L.think + Math.floor(rnd(mem) * L.think);
+  // Fase: con poca vida se juega el todo por el todo (ataca más).
+  const angry = me.hp < 45 ? 0.15 : 0;
+  const band = near < 0.06 ? 0 : near < 0.1 ? 1 : 2;
+  if (rnd(mem) < 0.35 + 0.12 * mem.level + angry) {
+    const pool = ids.filter((id) => MOVES[id].w[band] > 0 && MOVES[id].reach >= near * 0.85);
+    if (pool.length) {
+      let r = rnd(mem) * pool.reduce((a, id) => a + MOVES[id].w[band], 0);
+      for (const id of pool) if ((r -= MOVES[id].w[band]) <= 0) return { x: 0, move: id };
+    }
+  }
+  const best = Math.max(...ids.map((id) => MOVES[id].reach));
+  mem.doing = 'step';
+  mem.stepDir = near > best * 0.8 ? 1 : near < 0.035 || rnd(mem) < 0.25 ? -1 : 1;
+  mem.left = 8 + Math.floor(rnd(mem) * 12);
+  if (rnd(mem) < 0.3) { mem.doing = 'none'; return { x: 0 }; }
+  return { x: (mem.stepDir * dir) as -1 | 1 };
 }

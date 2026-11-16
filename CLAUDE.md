@@ -424,6 +424,12 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   BRAZOS (`superOf`): nada pesado → NUBE (zona `m.zones` 2 s, 2/s y el rival pega ×0,7), chupetín → TROMPO (3 vueltas, 3
   golpes), aceituna → CAROZAZO (proyectil recto que marea), escarbadientes → ACUPUNTURA (5 pinchazos), 2+ escudos → MURALLA
   (3 s sin retroceder ni aturdirse). Sonidos `poder-nube/trompo/carozo/acupuntura/muralla`, `escape`.
+- ATAQUES HECHOS A MANO (T5, `moves.ts`): un ataque es DATO (ventanas de golpe, claves de pose en [hacia el rival, arriba,
+  afuera], impulsos, guardia 'block'|'break'|'low', alcance, aviso, pesos por distancia). Claves por lado (`armR`) o por posición
+  (`armF` adelante / `armB` atrás). El motor (`stepMove`/`movePose`/`moveHit`) pone las poses sin PD y pega si la punta (o el
+  cuerpo) toca: lo que se ve es lo que pega. Con `FighterModel.moves`, la IA usa `rivalDecide` (decide cada `think` cuadros por
+  distancia y vida, castiga trabas, se cubre si el otro ya carga). EL BROCOLOCO: zanahoriazo, doble, cabezazo (rompe guardia,
+  30 cuadros de aviso sacudiendo la copa), pisotón (salta, rompe guardia) + VAPORAZO (poder).
 - CUERPOS BLANDOS: el HUEVO es gelatina (`jelly`): vibra al recibir (`Jiggle` en render.ts) y los golpes seguidos pegan cada vez
   menos (`JELLY`); la QUINOA se abolla apenas. `soak()` aplica coraza + gelatina a todo daño.
 - GRAVEDAD: enderezarse necesita APOYO (en el aire no hay torque que lo endereza: antes flotaba como colgado de un cable) y el

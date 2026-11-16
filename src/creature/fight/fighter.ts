@@ -2,6 +2,7 @@ import { makeBasis, type Basis } from '../math/basis';
 import { cross, dist, dot, len, mid, norm, sub } from '../math/vec';
 import type { CreatureSnapshot, SnapLink, SnapPiece, V3 } from '../types';
 import { FIGHT, type PowerKind } from './tuning';
+import { RIVAL_MOVES } from './moves';
 import { zoneOf, type Side } from '../zones';
 
 /**
@@ -101,6 +102,8 @@ export interface FighterModel {
   yaw?: number;
   /** Poder especial (ver `POWERS` en tuning.ts). */
   power?: PowerKind;
+  /** Ataques hechos a mano (`moves.ts`): si los tiene, la IA usa éstos y no las piñas del motor. */
+  moves?: string[];
   /** Cuerpo de gelatina (huevo): los golpes seguidos pegan menos y el cuerpo vibra. */
   jelly?: boolean;
 }
@@ -328,6 +331,7 @@ export function broccoliFighter(_level = 1): FighterModel {
     faceAt: { mouth: 0.44, eyes: 0.63 },
     yaw: FIGHT.broccoli.yaw,
     power: 'vapor',
+    moves: RIVAL_MOVES['EL BROCOLOCO'],
   };
 }
 

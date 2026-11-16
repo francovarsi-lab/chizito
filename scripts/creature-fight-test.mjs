@@ -889,6 +889,44 @@ try {
     }
   }
 
+  // ── T5: ataques hechos a mano (moves.ts): cada uno pega dentro de su ventana y respeta su tipo de guardia ──
+  {
+    const { MOVES, RIVAL_MOVES } = await server.ssrLoadModule('/src/creature/fight/moves.ts');
+    const box = fighterFromSnapshot(JSON.parse(fs.readFileSync('src/creature/fixtures/arq/boxeador.snapshot.json', 'utf8')));
+    const run = (id, guard) => {
+      const m = createMatch([box, broccoliFighter(1)]);
+      for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      m.f[0].x = m.f[1].x - Math.min(0.05, MOVES[id].reach * 0.8);
+      for (let i = 0; i < 20; i++) stepMatch(m, [{ x: 0, guard }, { x: 0 }]);
+      let hit = null, at = -1, gb = false;
+      for (let i = 0; i < MOVES[id].total + 5 && !hit; i++) {
+        stepMatch(m, [{ x: 0, guard }, { x: 0, move: i === 0 ? id : undefined }]);
+        for (const e of m.events) { if (e.type === 'hit' && e.by === 1) { hit = e; at = i; } if (e.type === 'guardBreak') gb = true; }
+      }
+      return { hit, at, gb };
+    };
+    ok(RIVAL_MOVES['EL BROCOLOCO'].length >= 4 && broccoliFighter(1).moves?.length >= 4, 'el brócoli tiene sus ataques');
+    for (const id of RIVAL_MOVES['EL BROCOLOCO']) {
+      const mv = MOVES[id];
+      const open = run(id, false);
+      const w = mv.hits[0];
+      ok(open.hit && !open.hit.blocked && open.at >= w.from - 2 && open.at <= mv.hits[mv.hits.length - 1].to + 2, `${id}: pega en su ventana (cuadro ${open.at}, ventana ${w.from}–${w.to})`);
+      const g = run(id, true);
+      if (mv.guard === 'block') ok(g.hit?.blocked, `${id}: se bloquea`);
+      if (mv.guard === 'break') ok(g.gb, `${id}: rompe la guardia`);
+    }
+    // La IA del brócoli usa sus ataques (no las piñas del motor).
+    const m = createMatch([box, broccoliFighter(1)]);
+    const ai = newAi(5, 2);
+    const used = new Set();
+    for (let fr = 0; fr < 60 * 40; fr++) {
+      const inp = aiInput(m, ai, 1);
+      if (inp.move) used.add(inp.move);
+      stepMatch(m, [{ x: 0 }, inp]);
+    }
+    ok(used.size >= 3, `la IA del brócoli usa varios ataques (${[...used]})`);
+  }
+
   // ── Rendimiento: 40 extremidades, dos luchadores ──
   {
     const m = fight(fighterFromSnapshot(snap('F40')));
