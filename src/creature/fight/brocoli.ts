@@ -41,6 +41,16 @@ export function loadBroccoliParts(): Promise<BroccoliParts | null> {
       prepareGlb(g);
       g.traverse((o) => (o.userData.shared = true));
     }
+    // La zanahoria del GLB sale casi roja: se la corre a naranja de zanahoria (sube el verde según el rojo) (G1/V5).
+    gc.scene.traverse((o) => {
+      const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      if (!mat || !(o as THREE.Mesh).isMesh) return;
+      mat.onBeforeCompile = (sh) => {
+        sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.g = max(diffuseColor.g, diffuseColor.r * 0.42);');
+      };
+      mat.customProgramCacheKey = () => 'zanahoria-naranja';
+      mat.needsUpdate = true;
+    });
     return { body: gb.scene, carrot: gc.scene };
   })().catch((err) => {
     console.warn('[brócoli] no se pudieron leer los GLB, uso el procedural', err);

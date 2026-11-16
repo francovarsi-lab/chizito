@@ -505,8 +505,9 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - CUERPO ENTERO: el torso gira con el golpe (`FIGHT.twist`: el hombro va atrás al cargar y adelante al soltar; física y dibujo
   con el mismo giro, `f.yaw`) y las piernas apoyadas ponen el pie bajo el centro de masa (`FIGHT.support`; mucho más mientras
   otra patea: se para sobre ésa).
-- Escenario (`stage.ts`), con el arte clave `docs/arte/arte-clave-pelea.jpg` como norte: la misma mesa de NOCHE, el cuarto casi
-  negro (entorno ×0,06, sólo lucecitas y velas como bokeh, sombras apenas frías con `look.lift`). Arena = tabla de picar grande
+- Escenario (`stage.ts`), con el arte clave `docs/arte/arte-clave-pelea.jpg` como norte: la misma mesa de NOCHE, el cuarto en penumbra
+  que se ADIVINA (G1: entorno ×0,16, fondo ×0,11; foco principal BLANCO neutro, tabla desaturada a madera en el shader,
+  zanahorias corridas a naranja; antes ×0,06, sólo lucecitas y velas como bokeh, sombras apenas frías con `look.lift`). Arena = tabla de picar grande
   (50 × 32 cm, corrida hacia atrás para que el foco caiga sobre madera; `public/assets/fight/tabla.jpg`, se precarga con
   `preloadFightSet`; `GROUND` = 1,2 cm: el piso del motor está ahí). Foco CENITAL apenas detrás (sombras hacia adelante, sobre la
   madera) con su haz visible (columna aditiva + 260 motas de polvo), FOCOS DE CARA que siguen a cada luchador y se cambian de lado
@@ -530,6 +531,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   sonrisa malvada en media luna con dientes blancos arriba y abajo. Zanahorias CLAVADAS: la punta queda adentro del tallo y
   asoma la parte gruesa. Laboratorio rápido (sólo el brócoli, sin posprocesado): `lab/brocoli.html` con `npm run dev`. EL BROCOLOCO tiene su propio giro hacia la cámara (`FIGHT.broccoli.yaw` ≈ 60°, más de frente que
   la criatura): PRIORIDAD del usuario, su cara se tiene que entender fácil. Si faltan los GLB, queda el procedural entero.
+- OJO: `Hurt` clona los materiales para el destello; `clone()` NO copia `onBeforeCompile`: se pasa a mano (si no, se pierden
+  la zanahoria naranja y el látigo del huevo).
 - Render: la parte de la vara que queda adentro del chizito se recorta con un plano por extremidad (`clippingPlanes`), así al girar
   no asoma. El squash de la criatura se integra en subpasos (a < 24 fps divergía: era el bug del zoom que crecía y parpadeaba).
 - Balance: `node scripts/make-archetypes.mjs` (arquetipos con el frente real en `src/creature/fixtures/arq/`) y

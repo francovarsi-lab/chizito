@@ -73,7 +73,8 @@ function getArena(z0: number): Arena {
   // luchadores caen hacia adelante, sobre la madera. Alcance limitado: no ilumina la pared.
   const keyPos = new THREE.Vector3(0.02, 0.62, z0 - 0.12);
   const keyAim = new THREE.Vector3(0, GROUND, z0 + 0.02);
-  const key = new THREE.SpotLight(0xffe2bc, 9, 1.0, 0.31, 0.75, 0);
+  // Blanca neutra (≈ 5200 K): con la cálida las zanahorias y la tabla salían rojas (G1).
+  const key = new THREE.SpotLight(0xfff3e6, 9, 1.0, 0.31, 0.75, 0);
   key.position.copy(keyPos);
   key.target.position.copy(keyAim);
   key.castShadow = true;
@@ -86,22 +87,22 @@ function getArena(z0: number): Arena {
   // Focos de cara, uno por luchador (sin sombra: son baratos): siguen a cada uno y le iluminan la cara de 3/4, del lado del
   // rival y de la cámara. Al darse vuelta, el foco se cambia de lado con él.
   const faces = [0, 1].map(() => {
-    const l = new THREE.SpotLight(0xfff0dc, 3.2, 0.42, 0.42, 1, 0);
+    const l = new THREE.SpotLight(0xfff6ee, 3.2, 0.42, 0.42, 1, 0);
     l.position.set(0, 0.1, z0 + 0.2);
     l.target.position.set(0, 0.05, z0);
     return l;
   });
   const faceInit = [false, false];
   // Contorno frío desde atrás, angosto: recorta las siluetas sin iluminar la mesa del fondo.
-  const rim = new THREE.SpotLight(0xa9c6ff, 5, 0.9, 0.2, 0.7, 0);
+  const rim = new THREE.SpotLight(0x9fc0ff, 7, 0.9, 0.24, 0.7, 0);
   rim.position.set(0.12, 0.3, z0 - 0.48);
   rim.target.position.set(0, 0.03, z0);
   // Relleno mínimo (es direccional: alcanza todo el cuarto; la cara ya la iluminan los focos de cara).
-  const fill = new THREE.DirectionalLight(0xffd8c0, 0.05);
+  const fill = new THREE.DirectionalLight(0xffc890, 0.12);
   fill.position.set(0.4, 0.12, z0 + 0.5);
   fill.target.position.set(0, 0.03, z0);
   // Resplandor cálido de las guirnaldas sobre la pared y la mesa del fondo.
-  const glowA = new THREE.PointLight(0xffb070, 0.012, 1.4, 2);
+  const glowA = new THREE.PointLight(0xffb070, 0.04, 1.4, 2);
   glowA.position.set(-0.4, 0.32, -0.9);
   const glowB = glowA.clone();
   glowB.position.set(0.45, 0.3, -0.95);
@@ -178,7 +179,11 @@ function getArena(z0: number): Arena {
   // ── Arena: tabla de picar de haya (foto generada de una tabla usada: vetas, tablillas pegadas, marcas de cuchillo y
   //    manchas), aceitada y mate para que no espeje el cuarto; el relieve sale de la misma foto. ──
   // Gris neutro: oscurece la haya sin correrle el tono (bajo el foco cálido se iba a naranja y el chizito amarillo se perdía).
-  const wood = new THREE.MeshPhysicalMaterial({ color: '#6c7c86', map: boardTex, bumpMap: boardTex, bumpScale: 0.6, roughness: 0.62, specularIntensity: 0.3, envMapIntensity: 0.35 });
+  const wood = new THREE.MeshPhysicalMaterial({ color: '#a89a8c', map: boardTex, bumpMap: boardTex, bumpScale: 0.6, roughness: 0.62, specularIntensity: 0.3, envMapIntensity: 0.35 });
+  // La foto de la tabla es rojiza: se le baja la saturación hacia un marrón de madera aceitada (G1: la tabla se veía roja).
+  wood.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))) * vec3(1.12, 0.92, 0.72), 0.7);');
+  };
   if (!boardTex) wood.color.set('#7a5a40');
   // Tabla grande (50 × 32 cm), corrida hacia atrás: el foco cae entero sobre la madera, no sobre el mantel.
   const board = new THREE.Mesh(new RoundedBoxGeometry(BOARD.w, GROUND, BOARD.d, 4, 0.004), wood);
@@ -321,8 +326,9 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
 
   // ── De noche (como el arte clave): el cuarto casi negro, sólo lucecitas y velas; la luz es la del show sobre la arena. ──
   const env = { e: scene.environmentIntensity, b: scene.backgroundIntensity };
-  scene.environmentIntensity = env.e * 0.06;
-  scene.backgroundIntensity = env.b * 0.05;
+  // El cuarto se tiene que ADIVINAR (lucecitas, torta, servilletas), no ser un vacío negro (G1).
+  scene.environmentIntensity = env.e * 0.16;
+  scene.backgroundIntensity = env.b * 0.11;
   const sun = { i: s.sun.intensity, cast: s.sun.castShadow };
   s.sun.intensity = sun.i * 0.02;
   s.sun.castShadow = false;
@@ -389,7 +395,7 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     lights(k) {
       arena.level(k);
       if (bulbs) bulbs.level = k;
-      scene.environmentIntensity = env.e * 0.06 * (0.15 + 0.85 * k);
+      scene.environmentIntensity = env.e * 0.16 * (0.15 + 0.85 * k);
     },
     candle(at, k) {
       arena.candle(at, k);

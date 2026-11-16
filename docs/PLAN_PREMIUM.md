@@ -281,6 +281,7 @@ Especificación: 4.6. `rivals3d.ts` (`grains`, `ellipsoidPoints`, InstancedMesh)
 Hecho cuando: se ve achicarse, los granos quedan en la tabla y vuelven, y la prueba pura cubre absorber / reventar / reabsorber.
 
 ### G1 — Luz y escenario de la pelea según el arte clave
+**Hecha en parte** (2026-11-16): cuarto ×0,16/×0,11 (se adivina), luz principal blanca, contorno frío más fuerte, relleno cálido, tabla desaturada a madera, zanahorias naranjas. Falta: normal/roughness desde la foto y calcos de migas.
 `stage.ts`. Referencia: `docs/arte/arte-clave-pelea.jpg` (capturar y comparar lado a lado en cada iteración).
 1. Entorno × 0,06 → × 0,22 y fondo × 0,05 → × 0,18: el cuarto se tiene que ADIVINAR (lucecitas, torta con velas atrás a la
    derecha, gorrito, servilletas), desenfocado por el DoF.

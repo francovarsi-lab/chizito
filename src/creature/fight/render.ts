@@ -142,6 +142,11 @@ class Hurt {
       if (!c) {
         // Las varas con plano de recorte ya tienen copia propia (y clonarla copiaría el plano, que dejaría de moverse).
         c = m.clippingPlanes?.length ? m : m.clone();
+        // clone() no copia los ajustes de shader (zanahoria naranja, látigo del huevo): se los pasa a mano.
+        if (c !== m) {
+          c.onBeforeCompile = m.onBeforeCompile;
+          c.customProgramCacheKey = m.customProgramCacheKey;
+        }
         copies.set(m, c);
         const sm = c as THREE.MeshStandardMaterial;
         this.mats.push({ m: sm, color: sm.emissive.clone(), i: sm.emissiveIntensity });
