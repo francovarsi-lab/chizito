@@ -340,6 +340,7 @@ premultiplicado de los materiales transparentes en `BokehDofPass.ts`); HDRI real
 `public/assets/hdri/interior.hdr` (ya se usa solo si existe). No mover la cámara ni `BOWL_LAYOUT`.
 
 ### O1 — Pelea contra un amigo
+**Hecha la primera versión** (2026-11-16): sala por link, intercambio de criatura + modelo, lockstep de 3 cuadros, huella cada 60, revancha. Falta: jugador 2 en el mismo teclado (se reemplazó por la sala `local-…` entre dos pestañas), reenvío del estado si se desincroniza, servidor de presentación propio, probarla entre dos computadoras de verdad.
 El motor ya sirve: es puro, determinista, a paso fijo y sin azar. Pasos, de a uno:
 1. **Dos chizitos en pantalla (local).** `creatureView` hoy asume una sola `Construction`. Cargar una segunda criatura desde su
    archivo en un segundo pivote y un segundo `creatureView`. Jugador 2 en el mismo teclado (I J K L + U O) para probar.

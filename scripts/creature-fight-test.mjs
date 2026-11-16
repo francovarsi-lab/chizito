@@ -936,6 +936,30 @@ try {
     ok(cut && !guarded, `el brócoli corta la carga lenta con el zanahoriazo y no se cubre (${cut}, guardia ${guarded})`);
   }
 
+  // ── O1: sincronía por pasos: dos lados con la red atrasada distinto simulan la MISMA pelea ──
+  {
+    const { Lockstep, hashMatch } = await server.ssrLoadModule('/src/creature/fight/net.ts');
+    const box = () => fighterFromSnapshot(JSON.parse(fs.readFileSync('src/creature/fixtures/arq/boxeador.snapshot.json', 'utf8')));
+    const wire = [[], []]; // mensajes en viaje hacia cada lado: { at, f, i }
+    let now = 0;
+    const side = (me, lag) => ({ me, m: createMatch([box(), box()]), ai: newAi(11 + me, 2), ls: new Lockstep(me, (f, i) => wire[1 - me].push({ at: now + lag(), f, i })), stalls: 0 });
+    let r = 7;
+    const rnd = () => (r = (r * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const S = [side(0, () => 1 + Math.floor(rnd() * 3)), side(1, () => 2 + Math.floor(rnd() * 9))];
+    const hashes = [[], []];
+    for (now = 0; now < 1500; now++) for (const s of S) {
+      wire[s.me] = wire[s.me].filter((w) => (w.at <= now ? (s.ls.recv(w.f, w.i), false) : true));
+      if (s.ls.wants()) s.ls.push(aiInput(s.m, s.ai, s.me));
+      const pair = s.ls.take();
+      if (!pair) { s.stalls++; continue; }
+      stepMatch(s.m, pair);
+      if (s.m.frame % 60 === 0) hashes[s.me].push(hashMatch(s.m));
+    }
+    const n = Math.min(hashes[0].length, hashes[1].length);
+    ok(n >= 10 && hashes[0].slice(0, n).every((h, k) => h === hashes[1][k]), `lockstep: ${n} huellas iguales en los dos lados (esperas ${S[0].stalls} / ${S[1].stalls})`);
+    ok(S[0].m.f[0].hp < 100 || S[0].m.f[1].hp < 100, 'lockstep: en la pelea sincronizada se pegan de verdad');
+  }
+
   // ── T5: ataques hechos a mano (moves.ts): cada uno pega dentro de su ventana y respeta su tipo de guardia ──
   {
     const { MOVES, RIVAL_MOVES } = await server.ssrLoadModule('/src/creature/fight/moves.ts');

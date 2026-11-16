@@ -1,11 +1,16 @@
 import * as THREE from 'three';
 import type { AudioManager, SoundId } from '../../audio/AudioManager';
 import { Crumbs } from '../../fx/Crumbs';
-import type { Construction } from '../../model/Construction';
+import type { AssetRegistry } from '../../assets/AssetRegistry';
+import { clonePieces } from '../../commands/CommandStack';
+import { CONFIG } from '../../config';
+import { poseFromData } from '../../interaction/attach';
+import { fromCreatureFile } from '../../persistence/CreatureFile';
+import { markHero } from '../../render/ContactShadow';
 import type { PieceRegistry } from '../../pieces/PieceRegistry';
 import type { CameraRig } from '../../render/CameraRig';
 import type { Stage } from '../../render/Stage';
-import { BUILDER_FACE, DEFAULT_COMBAT_UP } from '../../model/Construction';
+import { BUILDER_FACE, Construction, DEFAULT_COMBAT_UP } from '../../model/Construction';
 import { resolveSnapshot } from '../resolve';
 import { createBrocoli, loadBroccoliParts } from './brocoli';
 import { aiInput, newAi, type AiMem } from './ai';
@@ -17,6 +22,7 @@ import { createEgg, createQuinoa, looseGrains } from './rivals3d';
 import { FightFx } from './fx';
 import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT, POWERS } from './tuning';
+import { hashMatch, Lockstep, newRoom, openLink, type Link, type NetMsg } from './net';
 import { qFromTo, type Q } from './quat';
 import type { Quad } from '../zones';
 
@@ -28,6 +34,8 @@ export interface Game {
   construction: Construction;
   interaction: { enabled: boolean; hideFront(): void };
   audio: AudioManager;
+  assets: AssetRegistry;
+  persistence: { toJSON(): string };
   /** Sombras suaves del constructor (la de los recipientes y la del chizito): en la pelea se esconden. */
   bowlShadow?: { decal: THREE.Object3D };
   contactShadow?: { decal: THREE.Object3D };
@@ -61,7 +69,14 @@ const btnCss = `
 #cf-btn:hover{transform:translateY(-3px) scale(1.03);filter:brightness(1.08)}
 #cf-btn:active{transform:translateY(2px)}
 #cf-btn svg{width:26px;height:26px}
-#cf-btn[hidden]{display:none}#cf-black{position:fixed;inset:0;z-index:30;background:#000;opacity:0;pointer-events:none}#cf-nag{position:fixed;right:22px;bottom:92px;z-index:41;max-width:300px;padding:12px 16px;border-radius:16px;background:#fff8ee;color:#b3121f;font:800 17px/1.25 "Baloo 2",Nunito,sans-serif;box-shadow:0 10px 28px rgba(120,40,40,.28),inset 0 0 0 2px #e8352b;pointer-events:none;opacity:0;transform:translateY(10px) scale(.9);transform-origin:90% 100%;transition:opacity .25s,transform .35s cubic-bezier(.2,1.6,.4,1)}#cf-nag:after{content:'';position:absolute;right:46px;bottom:-9px;border:9px solid transparent;border-bottom:0;border-top-color:#fff8ee}#cf-nag.on{opacity:1;transform:none}
+#cf-btn[hidden]{display:none}
+#cf-vs{position:fixed;right:212px;bottom:26px;z-index:41;border:0;border-radius:14px;padding:11px 16px 10px;cursor:pointer;font:400 13px/1 "Bungee",Impact,sans-serif;letter-spacing:.04em;color:#0d1024;background:#fff;box-shadow:0 0 0 3px #0d1024,0 5px 0 3px #0d1024;transition:transform .12s}
+#cf-vs:hover{transform:translateY(-2px)}#cf-vs[hidden]{display:none}
+#cf-room{position:fixed;right:22px;bottom:150px;z-index:41;width:300px;padding:14px 16px;border-radius:16px;background:#fff8ee;color:#0d1024;font:700 14px/1.35 Nunito,system-ui,sans-serif;box-shadow:0 0 0 3px #0d1024,0 10px 30px rgba(13,16,36,.3)}
+#cf-room[hidden]{display:none}#cf-room b{display:block;font:400 15px/1.1 "Bungee",Impact,sans-serif;margin-bottom:6px;color:#e2231a}
+#cf-room input{width:100%;box-sizing:border-box;margin:8px 0 6px;padding:7px 8px;border:2px solid #0d1024;border-radius:8px;font:600 12px/1 ui-monospace,monospace;background:#fff}
+#cf-room button{border:0;border-radius:9px;padding:7px 12px;margin-right:6px;cursor:pointer;font:800 13px/1 Nunito,system-ui,sans-serif;background:#ffd23f;color:#0d1024;box-shadow:0 0 0 2px #0d1024}
+#cf-room button.alt{background:#fff}#cf-black{position:fixed;inset:0;z-index:30;background:#000;opacity:0;pointer-events:none}#cf-nag{position:fixed;right:22px;bottom:92px;z-index:41;max-width:300px;padding:12px 16px;border-radius:16px;background:#fff8ee;color:#b3121f;font:800 17px/1.25 "Baloo 2",Nunito,sans-serif;box-shadow:0 10px 28px rgba(120,40,40,.28),inset 0 0 0 2px #e8352b;pointer-events:none;opacity:0;transform:translateY(10px) scale(.9);transform-origin:90% 100%;transition:opacity .25s,transform .35s cubic-bezier(.2,1.6,.4,1)}#cf-nag:after{content:'';position:absolute;right:46px;bottom:-9px;border:9px solid transparent;border-bottom:0;border-top-color:#fff8ee}#cf-nag.on{opacity:1;transform:none}
 @keyframes cfb{0%,100%{box-shadow:0 0 0 3px #fff,0 0 0 6px #0d1024,0 6px 0 6px #0d1024,0 18px 36px rgba(13,16,36,.35)}50%{box-shadow:0 0 0 3px #fff,0 0 0 6px #0d1024,0 6px 0 6px #0d1024,0 18px 44px rgba(255,159,28,.6)}}
 `;
 const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/></svg>`;
@@ -98,6 +113,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // ?nivel=2 o 3 arranca contra ese rival (para probarlo sin ganar los anteriores).
   let level = Math.min(AI_LEVELS.length, Math.max(1, Number(new URLSearchParams(location.search).get('nivel') ?? 1) || 1));
   let ai: AiMem = newAi(1, 1);
+  // ── Pelea contra un amigo (O1): sala por link. `me` = qué luchador soy (0 el que invitó, 1 el invitado). ──
+  interface Side { file: string; model: FighterModel }
+  let vs: { room: string; me: 0 | 1; link: Link | null; mine: Side | null; theirs: Side | null; ls: Lockstep | null; gen: number; other: THREE.Group | null; sums: [Map<number, number>, Map<number, number>]; desync: boolean } | null = null;
+  const me = (): 0 | 1 => vs?.me ?? 0;
   /** Nivel del rival que está dibujado (si cambia el nivel, se rearma su modelo 3D). */
   let viewLevel = 0;
   let rivalParts: Awaited<ReturnType<typeof loadBroccoliParts>> | null = null;
@@ -143,7 +162,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const quad: Quad | undefined = took('KeyQ') ? 'LA' : took('KeyW') ? 'RA' : took('KeyA') ? 'LL' : took('KeyS') ? 'RL' : undefined;
     if (quad) hud.padHit(quad);
     // Si la tecla no puede hacer nada, se dice por qué (si no, parece que el juego no respondió).
-    const f = m?.f[0];
+    const f = m?.f[me()];
     if (f && m!.phase === 'fight' && (quad || took('KeyZ', 'KeyJ', 'KeyX', 'KeyK')) && m!.frame - lastHint > 50) {
       const role = quad ? (quad[1] === 'A' ? 'arm' : 'leg') : took('KeyX', 'KeyK') ? 'leg' : 'arm';
       const has = f.model.limbs.some((l) => l.role === role && (!quad || l.side === quad[0]));
@@ -546,21 +565,21 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         g.audio.play('ko', 1);
         break;
       case 'roundEnd': {
-        const who = e.winner === 'draw' ? '' : e.winner === 0 ? 'GANA TU CHIZITO' : `GANA ${rival().name}`;
+        const who = e.winner === 'draw' ? '' : e.winner === me() ? 'GANA TU CHIZITO' : `GANA ${vs ? 'TU AMIGO' : rival().name}`;
         if (e.reason === 'time') hud.announce('¡TIEMPO!', e.winner === 'draw' ? 'EMPATE: RONDA EXTRA' : who, false, 2);
-        else hud.announce(e.winner === 'draw' ? '¡DOBLE K.O.!' : e.winner === 0 ? '¡BIEN!' : 'AY…', who, e.winner === 1, 2);
+        else hud.announce(e.winner === 'draw' ? '¡DOBLE K.O.!' : e.winner === me() ? '¡BIEN!' : 'AY…', who, e.winner === 1 - me(), 2);
         break;
       }
       case 'matchEnd': {
-        const win = e.winner === 0;
+        const win = e.winner === me();
         // Cañón de confeti para el que gana (G5).
         { const w = m.f[e.winner]; fxOn().confetti(P3(w.x, w.y + 0.06)); }
         hud.announce(win ? '¡GANASTE!' : 'PERDISTE', '', !win, 99);
         const buttons: { a: MenuAction; label: string; alt?: boolean }[] = [];
-        if (win && level < AI_LEVELS.length) buttons.push({ a: 'next', label: `Nivel ${level + 1} ▶` });
-        buttons.push({ a: 'again', label: 'Revancha', alt: win && level < AI_LEVELS.length }, { a: 'exit', label: 'Volver a armar', alt: true });
+        if (!vs && win && level < AI_LEVELS.length) buttons.push({ a: 'next', label: `Nivel ${level + 1} ▶` });
+        buttons.push({ a: 'again', label: 'Revancha', alt: !vs && win && level < AI_LEVELS.length }, { a: 'exit', label: 'Volver a armar', alt: true });
         window.setTimeout(() => {
-          if (open && m?.phase === 'over') hud.showMenu(win ? '¡GANASTE!' : 'PERDISTE', win ? `Le ganaste a ${rival().name} (nivel ${level}).` : 'Probá cambiar brazos, piernas o el peso de tu chizito.', buttons);
+          if (open && m?.phase === 'over') hud.showMenu(win ? '¡GANASTE!' : 'PERDISTE', win ? (vs ? 'Le ganaste a tu amigo.' : `Le ganaste a ${rival().name} (nivel ${level}).`) : vs ? 'Ganó tu amigo. Pedile la revancha.' : 'Probá cambiar brazos, piernas o el peso de tu chizito.', buttons);
         }, 1400);
         break;
       }
@@ -641,9 +660,44 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   let tween: { t: number; from: { pos: THREE.Vector3; quat: THREE.Quaternion }; done?: () => void } | null = null;
 
   const step = (input: FightInput): void => {
+    if (m) advance2([input, aiInput(m, ai, 1)]);
+  };
+  /** Contra un amigo: da mi entrada (vale 3 cuadros más adelante) y simula sólo si ya están las dos. false = hay que esperar. */
+  const stepVs = (): boolean => {
+    const ls = vs?.ls;
+    if (!m || !vs || !ls) return false;
+    if (ls.wants()) ls.push(hud.menuOpen() ? { x: 0 } : readInput());
+    const pair = ls.take();
+    if (!pair) return false;
+    advance2(pair);
+    // Cada segundo los dos lados comparan una huella del estado: si difiere, se avisa (no debería pasar: el motor es determinista).
+    if (m.frame % 60 === 0) {
+      const h = hashMatch(m);
+      vs.sums[0].set(m.frame, h);
+      vs.link?.send({ t: 'h', g: vs.gen, f: m.frame, h });
+      checkSums();
+    }
+    return true;
+  };
+  const checkSums = (): void => {
+    if (!vs || vs.desync) return;
+    for (const [f, h] of vs.sums[0]) {
+      const o = vs.sums[1].get(f);
+      if (o === undefined) continue;
+      vs.sums[0].delete(f);
+      vs.sums[1].delete(f);
+      if (o !== h) {
+        // shortcut: sólo se avisa; si llega a pasar en la práctica, reenviar el estado entero desde el que invitó.
+        vs.desync = true;
+        console.warn(`[pelea] los dos lados se separaron en el cuadro ${f}`);
+        if (m) hud.popup(0, 0.09, 'SE DESINCRONIZÓ: PEDÍ REVANCHA', '', 'hint');
+      }
+    }
+  };
+  const advance2 = (pair: [FightInput, FightInput]): void => {
     if (!m) return;
     if (cur) prev = cur;
-    stepMatch(m, [input, aiInput(m, ai, 1)]);
+    stepMatch(m, pair);
     for (const e of m.events) onEvent(e);
     // La nube del súper queda en la tabla: se renueva mientras dura.
     if (m.frame % 12 === 0) for (const z of m.zones) cloud(P3(z.x, z.y), 6, 0xff9424, 0.015, z.r * 0.8, 0.01);
@@ -984,7 +1038,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       while (acc >= FIGHT.dt && n < 6) {
         acc -= FIGHT.dt;
         n++;
-        step(readInput());
+        if (!vs) step(readInput());
+        else if (!stepVs()) { acc = 0; break; }
       }
       if (m.phase === 'fight') {
         fightT += dt;
@@ -1037,9 +1092,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const restart = (lv = level, withPresent = false): void => {
     if (!model || !views) return;
     level = Math.max(1, Math.min(AI_LEVELS.length, lv));
-    const bro = rivalFighter(level);
+    const bro = vs?.theirs ? vs.theirs.model : rivalFighter(level);
     // Otro nivel = otro rival: se cambia también su modelo 3D (antes seguía el brócoli dibujado con el huevo o la quinoa adentro).
-    if (viewLevel !== level) {
+    if (!vs && viewLevel !== level) {
       const g = game();
       views[1].dispose();
       views[1] = rivalView(g.stage.scene, bro, level, rivalParts);
@@ -1049,12 +1104,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       });
       viewLevel = level;
     }
-    m = createMatch([model, bro]);
+    m = createMatch(me() === 0 ? [model, bro] : [bro, model]);
     lg.length = 0;
     ai = newAi(seed++, level);
-    hud.show([model.name, bro.name], warnings(m.f[0]));
+    hud.show(!vs ? [model.name, bro.name] : me() === 0 ? ['TU CHIZITO', 'TU AMIGO'] : ['TU AMIGO', 'TU CHIZITO'], warnings(m.f[me()]));
     // Cuántas extremidades hay en cada cuadrante del chizito (lo que maneja cada botón).
-    const f0 = m.f[0];
+    const f0 = m.f[me()];
     const count = (q: Quad): number => (q[1] === 'A' ? f0.arms : [...f0.legs, ...f0.pegs]).filter((k) => model!.limbs[k].side === q[0]).length;
     hud.pad({ LA: count('LA'), RA: count('RA'), LL: count('LL'), RL: count('RL') });
     paused = false;
@@ -1062,7 +1117,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     acc = 0;
     prev = cur = null;
     views.forEach((v) => v.reattach());
-    if (withPresent) present = { t: 0, pending: [...m.events], fired: new Set() };
+    if (withPresent && !vs) present = { t: 0, pending: [...m.events], fired: new Set() };
     else for (const e of m.events) onEvent(e);
     cur = [poseOf(m.f[0]), poseOf(m.f[1])];
     prev = cur;
@@ -1085,11 +1140,168 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     return w;
   };
 
+  // ── Sala contra un amigo ──
+  /** Mi luchador tal como se arma ahora (el frente de la pelea es la CARA que marca la F: +Z del chizito, arriba = su eje largo). */
+  const myModel = (): FighterModel => {
+    const snap = resolveSnapshot({ construction: game().construction, pieces: deps.pieces, orientation: { front: [...BUILDER_FACE], up: [...DEFAULT_COMBAT_UP] } });
+    const f = fighterFromSnapshot(snap, 'TU CHIZITO');
+    // El poder de tu chizito: la NUBE DE QUESO (el polvito naranja de su cáscara).
+    f.power = 'queso';
+    return f;
+  };
+  /** Arma en la escena el chizito del amigo desde su archivo (validado como cualquier archivo cargado). */
+  const buildOther = (g: Game, file: string): { construction: Construction; pivot: THREE.Group } => {
+    const { snapshot } = fromCreatureFile(JSON.parse(file), deps.pieces);
+    const mk = (type: string, seed: number, params?: Parameters<AssetRegistry['create']>[3]): THREE.Object3D => {
+      const o = g.assets.create(type, seed, 'hero', params);
+      markHero(o);
+      return o;
+    };
+    const pivot = new THREE.Group();
+    pivot.position.copy(g.pivot.position);
+    pivot.quaternion.copy(CONFIG.creature.homeRotation);
+    const rootType = g.construction.root.data.type;
+    pivot.add(mk(rootType, snapshot.rootSeed));
+    g.stage.scene.add(pivot);
+    const c = new Construction(rootType, snapshot.rootSeed, pivot);
+    c.restore(clonePieces(snapshot.pieces), (d) => mk(d.type, d.seed, d.params), (d, parent) => poseFromData(d, deps.pieces.get(d.type), parent));
+    return { construction: c, pivot };
+  };
+  const vsBtn = document.createElement('button');
+  vsBtn.id = 'cf-vs';
+  vsBtn.textContent = 'INVITAR A UN AMIGO';
+  vsBtn.title = 'Pelear contra el chizito de un amigo, cada uno en su compu';
+  const card = document.createElement('div');
+  card.id = 'cf-room';
+  card.hidden = true;
+  host.append(vsBtn, card);
+  const roomUrl = (room: string): string => `${location.origin}${location.pathname}?sala=${room}`;
+  /** Tarjeta de la sala: estado y, para el que invita, el link. */
+  const say = (text: string): void => {
+    if (!vs) return;
+    card.hidden = false;
+    card.innerHTML = `<b>PELEA CONTRA UN AMIGO</b><span></span>${vs.me === 0 ? '<input readonly><button data-a="copy">Copiar link</button>' : ''}<button class="alt" data-a="leave">Cerrar sala</button>`;
+    card.querySelector('span')!.textContent = text;
+    const inp = card.querySelector('input');
+    if (inp) inp.value = roomUrl(vs.room);
+  };
+  card.addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).dataset.a;
+    if (a === 'copy' && vs) {
+      void navigator.clipboard?.writeText(roomUrl(vs.room));
+      card.querySelector('input')?.select();
+      (e.target as HTMLElement).textContent = '¡Copiado!';
+    }
+    if (a === 'leave') leaveRoom();
+  });
+  const leaveRoom = (): void => {
+    if (!vs) return;
+    const v = vs;
+    if (open) controller.close(); // cierra también la sala
+    if (vs) {
+      v.link?.close();
+      vs = null;
+      game().interaction.enabled = true;
+    }
+    card.hidden = true;
+    btn.innerHTML = `${SWORDS}PELEAR`;
+    btn.disabled = false;
+  };
+  /** Pelea número `g` de la sala: cuenta de cuadros nueva (se crea ANTES de que puedan llegar entradas del otro). */
+  const newGen = (g: number): void => {
+    if (!vs) return;
+    vs.gen = g;
+    vs.desync = false;
+    vs.sums = [new Map(), new Map()];
+    const v = vs;
+    vs.ls = new Lockstep(v.me, (f, i) => v.link?.send({ t: 'in', g, f, i }));
+  };
+  const tryStart = (): void => {
+    if (!vs?.mine || !vs.theirs || !vs.link || open) return;
+    newGen(1);
+    card.hidden = true;
+    void controller.open();
+  };
+  const onNet = (o: NetMsg): void => {
+    if (!vs) return;
+    if (o.t === 'me') {
+      vs.theirs = { file: o.file, model: o.model };
+      if (!vs.mine) say('Tu amigo ya está listo. Terminá tu chizito y apretá PELEAR.');
+      tryStart();
+    } else if (o.t === 'in') {
+      if (o.g === vs.gen) vs.ls?.recv(o.f, o.i);
+    } else if (o.t === 'h') {
+      if (o.g === vs.gen) { vs.sums[1].set(o.f, o.h); checkSums(); }
+    } else if (o.t === 'again' && o.g > vs.gen) {
+      newGen(o.g);
+      hud.hideMenu();
+      restart();
+    }
+  };
+  const joinRoom = (room: string, who: 0 | 1): void => {
+    vs = { room, me: who, link: null, mine: null, theirs: null, ls: null, gen: 0, other: null, sums: [new Map(), new Map()], desync: false };
+    btn.innerHTML = `${SWORDS}PELEAR CON TU AMIGO`;
+    say(who === 0 ? 'Mandale este link a tu amigo. Cuando los dos aprieten PELEAR, arranca.' : 'Te invitaron a pelear. Conectando con tu amigo…');
+    openLink(room, who === 0).then((link) => {
+      if (vs?.room !== room) return link.close();
+      vs.link = link;
+      link.on(onNet);
+      link.onClose(() => {
+        if (vs?.room !== room) return;
+        if (open) {
+          hud.showMenu('TU AMIGO SE FUE', 'Se cortó la conexión.', [{ a: 'exit', label: 'Volver a armar' }]);
+          vs.ls = null;
+        } else {
+          leaveRoom();
+          card.hidden = false;
+          card.innerHTML = '<b>PELEA CONTRA UN AMIGO</b>Tu amigo cerró la sala.';
+          window.setTimeout(() => { if (!vs) card.hidden = true; }, 4000);
+        }
+      });
+      if (vs.mine) link.send({ t: 'me', ...vs.mine });
+      say(vs.mine ? 'Listo. Esperando a que tu amigo apriete PELEAR…' : who === 0 ? 'Tu amigo entró. Cuando los dos aprieten PELEAR, arranca.' : 'Conectado. Armá tu chizito y apretá PELEAR.');
+      tryStart();
+    }, (err) => {
+      console.warn('[pelea] sala', err);
+      if (vs?.room !== room) return;
+      say(who === 0 ? 'No se pudo abrir la sala (¿sin internet?). Cerrala y probá de nuevo.' : 'No se encontró la sala: pedile a tu amigo un link nuevo.');
+    });
+  };
+  /** PELEAR dentro de una sala: fija mi chizito (no se edita más), lo manda y espera al otro. */
+  const readyUp = (): void => {
+    if (!vs || vs.mine) return;
+    const g = game();
+    for (let k = 0; k < 2; k++) window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }));
+    // Los dos lados simulan con el modelo pasado por JSON (idéntico bit a bit: JSON no distingue −0 de 0).
+    vs.mine = { file: g.persistence.toJSON(), model: JSON.parse(JSON.stringify(myModel())) as FighterModel };
+    g.interaction.enabled = false;
+    btn.disabled = true;
+    vs.link?.send({ t: 'me', ...vs.mine });
+    say(vs.link ? 'Listo. Esperando a que tu amigo apriete PELEAR…' : 'Listo. Esperando a que tu amigo entre con el link…');
+    tryStart();
+  };
+  /** Revancha: contra un amigo, los dos lados arrancan la pelea siguiente. */
+  const again = (): void => {
+    if (vs) {
+      if (!vs.ls) return;
+      newGen(vs.gen + 1);
+      vs.link?.send({ t: 'again', g: vs.gen });
+      hud.hideMenu();
+    }
+    restart(level);
+  };
+  vsBtn.addEventListener('click', () => { if (!vs) joinRoom(newRoom(), 0); });
+  {
+    const room = new URLSearchParams(location.search).get('sala');
+    if (room && /^[a-z0-9-]{4,40}$/.test(room)) joinRoom(room, new URLSearchParams(location.search).has('anfitrion') ? 0 : 1);
+  }
+
   const pause = (on: boolean): void => {
     if (!m || m.phase === 'over') return;
-    paused = on;
+    // Contra un amigo no se congela (el otro sigue): sólo se abre el menú.
+    paused = on && !vs;
     keys.clear();
-    if (on) hud.showMenu('PAUSA', 'La pelea está congelada.', [
+    if (on) hud.showMenu(vs ? 'MENÚ' : 'PAUSA', vs ? 'La pelea sigue: tu amigo te espera.' : 'La pelea está congelada.', vs ? [{ a: 'resume', label: 'Seguir' }, { a: 'exit', label: 'Salir de la sala', alt: true }] : [
       { a: 'resume', label: 'Seguir' },
       { a: 'again', label: 'Revancha', alt: true },
       { a: 'exit', label: 'Volver a armar', alt: true },
@@ -1099,7 +1311,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
 
   hud.onMenu = (a) => {
     if (a === 'resume') pause(false);
-    if (a === 'again') restart(level);
+    if (a === 'again') again();
     if (a === 'next') {
       // Rival nuevo: con su presentación (apagón, vela, sus frases), como el primero. La música vuelve con los focos.
       const withPresent = wantsPresent();
@@ -1119,13 +1331,13 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       return;
     }
     if (hud.menuOpen()) {
-      if (e.code === 'Escape' && paused) pause(false);
+      if (e.code === 'Escape' && (paused || (vs && m?.phase !== 'over'))) pause(false);
       else if (!e.repeat) hud.menuKey(e.code);
       return;
     }
     if (present) return endPresent();
     if (e.code === 'Escape') return pause(true);
-    if (e.code === 'KeyR' && m?.phase === 'over') return restart(level);
+    if (e.code === 'KeyR' && m?.phase === 'over') return again();
     if (!e.repeat) edges.add(e.code);
     keys.add(e.code);
   };
@@ -1142,7 +1354,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   window.addEventListener('keyup', ku, true);
   window.addEventListener('wheel', noWheel, true);
   window.addEventListener('blur', blur);
-  const poll = window.setInterval(() => (btn.hidden = open || game().rig.inIntro), 300);
+  const poll = window.setInterval(() => {
+    btn.hidden = open || game().rig.inIntro;
+    vsBtn.hidden = btn.hidden || !!vs;
+    if (btn.hidden && !open) card.hidden = true;
+    else if (vs && !open && !(vs.mine && vs.theirs && vs.link) && card.innerHTML) card.hidden = false;
+  }, 300);
 
   // ── Ensayo invisible: mientras se arma el chizito, en ratos libres y de a un paso, se deja todo listo (modelos del brócoli,
   //    foto de la tabla, la arena armada y los shaders compilados con la luz de la pelea) para que PELEAR salga al instante. ──
@@ -1193,24 +1410,29 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       for (let k = 0; k < 2; k++) window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }));
       // El frente de la pelea es la CARA que marca la F en el constructor (+Z del chizito), con arriba = su eje largo (+X):
       // de enfrentarse, se ven de perfil y la cara mira al rival.
-      const snap = resolveSnapshot({ construction: g.construction, pieces: deps.pieces, orientation: { front: [...BUILDER_FACE], up: [...DEFAULT_COMBAT_UP] } });
+      const mine = vs?.mine?.model ?? myModel();
       // Con presentación, primero se apagan las luces de la fiesta (todo lo que sigue se arma a oscuras).
-      if (wantsPresent()) await blackout();
+      if (wantsPresent() && !vs) await blackout();
       // Si el ensayo no terminó (se apretó PELEAR enseguida), termina ya, sin esperar ratos libres.
       hurryUp();
       await prewarm();
       const parts = await loadBroccoliParts();
       rivalParts = parts;
       viewLevel = level;
-      model = fighterFromSnapshot(snap, 'TU CHIZITO');
-      // El poder de tu chizito: la NUBE DE QUESO (el polvito naranja de su cáscara).
-      model.power = 'queso';
+      model = mine;
       z0 = g.pivot.position.z;
       saved = { pos: g.stage.camera.position.clone(), quat: g.stage.camera.quaternion.clone(), focal: g.stage.camera.getFocalLength(), enabled: g.interaction.enabled };
       g.interaction.enabled = false;
       g.interaction.hideFront();
-      views = [creatureView(g.construction, g.pivot, model, g.stage.renderer), rivalView(g.stage.scene, rivalFighter(level), level, parts)];
-      crumbs = [new Crumbs(g.stage.scene, '#f2c95a'), new Crumbs(g.stage.scene, '#5c9a35')];
+      const myView = creatureView(g.construction, g.pivot, model, g.stage.renderer);
+      if (vs?.theirs) {
+        // Contra un amigo: su chizito se arma desde su archivo y se mueve con el modelo que él mandó.
+        const o = buildOther(g, vs.theirs.file);
+        vs.other = o.pivot;
+        const theirView = creatureView(o.construction, o.pivot, vs.theirs.model, g.stage.renderer);
+        views = vs.me === 0 ? [myView, theirView] : [theirView, myView];
+      } else views = [myView, rivalView(g.stage.scene, rivalFighter(level), level, parts)];
+      crumbs = [new Crumbs(g.stage.scene, '#f2c95a'), new Crumbs(g.stage.scene, vs ? '#f2c95a' : '#5c9a35')];
       chips = new Crumbs(g.stage.scene, '#e0a640');
       for (const c of [...crumbs, chips]) c.floorY = GROUND;
       open = true;
@@ -1235,7 +1457,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         if (open) update(dt);
         render(dt);
       };
-      restart(level, wantsPresent());
+      restart(level, wantsPresent() && !vs);
       // Sin presentación, la cámara viaja del constructor a la pelea; con presentación, la primera toma entra al corte.
       tween = present ? null : { t: 0, from: { pos: saved.pos.clone(), quat: saved.quat.clone() } };
       // Con presentación, la música entra recién cuando se encienden los focos (en la oscuridad, silencio y la vela).
@@ -1255,6 +1477,16 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       delete (g.stage as { render?: unknown }).render;
       views?.forEach((v) => v.dispose());
       views = null;
+      // Salir de la pelea contra un amigo cierra la sala (el otro ve "tu amigo se fue").
+      const wasVs = vs;
+      if (wasVs) {
+        wasVs.other?.removeFromParent();
+        wasVs.link?.close();
+        vs = null;
+        card.hidden = true;
+        btn.innerHTML = `${SWORDS}PELEAR`;
+        btn.disabled = false;
+      }
       set?.restore();
       set = null;
       crumbs?.forEach((c) => c.clear());
@@ -1279,7 +1511,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         g.stage.camera.quaternion.copy(saved.quat);
         g.stage.camera.setFocalLength(saved.focal);
         g.stage.camera.updateMatrixWorld();
-        g.interaction.enabled = saved.enabled;
+        g.interaction.enabled = saved.enabled || !!wasVs;
       }
       tween = null;
       shake = 0;
@@ -1309,6 +1541,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       window.removeEventListener('wheel', noWheel, true);
       window.removeEventListener('blur', blur);
       hud.destroy();
+      vsBtn.remove();
+      card.remove();
       btn.remove();
       st.remove();
     },
@@ -1343,7 +1577,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       return;
     }
     nag.classList.remove('on');
-    void controller.open();
+    if (vs) readyUp();
+    else void controller.open();
   });
   return controller;
 }

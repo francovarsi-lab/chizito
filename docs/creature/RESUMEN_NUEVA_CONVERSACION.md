@@ -1,6 +1,6 @@
 # Resumen para un chat nuevo — CUMPLEAÑITO / Chizito Fight (al 2026-11-16)
 
-Repo privado `francovarsi-lab/chizito`. **Rama vigente: `claude/charming-cray-7n5v8f`** (último commit de esta etapa: ver
+Repo privado `francovarsi-lab/chizito`. **Rama vigente: `claude/wonderful-galileo-8j38yn`** (sale de `claude/charming-cray-7n5v8f`) (último commit de esta etapa: ver
 `git log -1`). Contiene todo lo anterior (`claude/sharp-einstein-iuyqgn` ← `claude/wonderful-noether-lvp9gc`).
 Leer primero `CLAUDE.md` (decisiones) y `docs/PLAN_PREMIUM.md` (plan con el estado de cada tarea).
 
@@ -39,12 +39,17 @@ Leer primero `CLAUDE.md` (decisiones) y `docs/PLAN_PREMIUM.md` (plan con el esta
 - G3–G6 efectos 3D (`fx.ts`), luz de impacto, cámara de espectáculo, público que salta, confeti, barra de poder partida.
 - G7 constructor: saturación 0,32 → 0,24 (revertir si a Franco no le gusta).
 
+## Hecho después (misma fecha, sesión siguiente)
+- Balance en objetivo: jugando bien 66 / 57 / 17 %, aporreando 9 / 0 / 0 % (detalle y qué se cambió: `BALANCE.md`).
+- O1 primera versión: pelea contra un amigo por link (ver "PELEA CONTRA UN AMIGO" en `CLAUDE.md`). Pruebas: 233 puras +
+  `scripts/versus-test.mjs`.
+
 ## Pendiente (en orden)
-1. Que Franco JUEGUE y diga: sensación del golpe lento, rápido/cargado, atajada, dificultad de los 3 niveles, saturación.
-2. Balance (`BALANCE.md`): bot "listo" gana 81 / 69 / 9 % (objetivo 45–70 / 30–55 / 15–40); aporreando gana 64 % en nivel 1
-   (objetivo ≤ 25). La quinoa (nivel 3) está dura; el `mazo` (aceitunas + selva) es el armado más fuerte.
-3. O1 pelea contra un amigo (no empezado): pasos en el plan (2 chizitos local → intercambio de modelo → sala WebRTC → lockstep).
+1. Que Franco JUEGUE: los 3 niveles con el balance nuevo, y la pelea contra un amigo ENTRE DOS COMPUTADORAS (sólo se probó
+   entre dos pestañas; el camino por internet con PeerJS no se pudo probar desde la nube).
+2. Armados fuera de rango: `pinchudo` fuerte (90 / 90 / 40), `chupetin2` no le gana al brócoli jugando "bien", `tanque`
+   aporreando 60 % al nivel 1; `mazo` y `tanque` 0 % contra la quinoa.
+3. O1, lo que falta: reenvío de estado si se desincroniza, aviso de "esperando a tu amigo" si se cuelga, servidor propio.
 4. Restos visuales: velitas que se apagan en el KO, focos que barren, capas de música por combo, retratos y reloj en el HUD,
    fundido por profundidad y aberración en efectos, halos del DoF en el constructor, HDRI real, normal map de la tabla.
-5. Nada de esto se vio jugando en pantalla: sólo pruebas puras y 5 capturas estáticas. Revisar primero en el juego.
-6. Integración con `main`: historias distintas; decidir con Franco antes.
+5. Integración con `main`: historias distintas; decidir con Franco antes.
