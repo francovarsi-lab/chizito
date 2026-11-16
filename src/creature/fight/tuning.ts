@@ -155,6 +155,10 @@ export const FIGHT = {
   upper: { lift: 0.55, juggle: [1, 0.8, 0.6] as readonly number[] },
   /** ↓ + pierna = BARRIDA: derriba estos cuadros; al levantarse queda invulnerable `getUpInv`. */
   sweepDown: 40,
+  /** Huevo: vida bajo la cual se raja (fase 2: recibe × phase2Mul y ataca 20 % más rápido); rebote con golpe cargado. */
+  phase2: 40,
+  phase2Mul: 1.04,
+  bounce: { kb: 1.8, up: 0.35 },
   getUpInv: 10,
   /** Doble toque de flecha (dentro de `taps` cuadros) = PASITO de `dist` en `frames`; hacia atrás, invulnerable `backInv`. */
   dash: { taps: 12, frames: 10, dist: 0.03, backInv: 6 },

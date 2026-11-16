@@ -862,7 +862,7 @@ function restTilt(f: FighterState): number {
  * granos) y la gelatina del huevo (los golpes seguidos rebotan y pegan cada vez menos).
  */
 function soak(m: Match, b: FighterState, dmg: number): number {
-  let mul = (b.model.armorMul ?? 1) + b.armorLoss;
+  let mul = ((b.model.armorMul ?? 1) + b.armorLoss) * (b.model.jelly && b.hp < FIGHT.phase2 ? FIGHT.phase2Mul : 1);
   if (b.model.jelly) {
     b.jellyN = m.frame - b.lastHurt < JELLY.window ? b.jellyN + 1 : 0;
     mul *= Math.max(JELLY.min, 1 - JELLY.step * b.jellyN);
@@ -1125,6 +1125,10 @@ function moveHit(m: Match, i: 0 | 1, mv: (typeof MOVES)[string], at: [number, nu
     b.squat = 0;
     for (const q of b.limbs) if (q.phase === 'windup' || q.phase === 'strike') { q.phase = 'recover'; q.t = 0; }
     b.wt += (dir === -b.facing ? -1 : 1) * Math.min(4, 10 * mv.kb);
+    if (mv.down && b.grounded) {
+      b.down = mv.down;
+      m.events.push({ type: 'down', who: (1 - i) as 0 | 1 });
+    }
   }
   m.hitstop = Math.max(m.hitstop, blocked ? 3 : 5);
   m.events.push({ type: 'hit', by: i, at, damage: d, kind: 'light', blocked, shield: false, shieldPiece: null, piece: mv.id, speed: 1, combo: 1, heavy: mv.dmg >= 9, chain: null });
@@ -1270,6 +1274,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     m.events.push({ type: 'move', who: i, id: input.move, tell: MOVES[input.move].tell });
   }
   if (f.mv) stepMove(m, i);
+  // Huevo en fase 2 (se rajó): ataca un 20 % más rápido (un paso extra cada 4).
+  if (f.mv && f.model.jelly && f.hp < FIGHT.phase2 && m.frame % 4 === 0) stepMove(m, i);
   // Un golpe por vez: no arranca otro mientras uno carga o pega, ni mientras paga el anterior (salvo una combinación, que sigue
   // el impulso del golpe que acertó).
   if (f.buffer && canAct && !busy && !f.wobbly && f.guard < 0.3 && f.squat <= 0) {
@@ -1861,6 +1867,11 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   // El que pega frena en seco contra el otro (acción y reacción): pierde el envión y rebota apenas. Al pifiar, en cambio, sigue.
   if (a.vx * a.facing > 0) a.vx = 0;
   a.vx -= a.facing * clamp((FIGHT.impactBack * mEff * speed) / a.model.mass, 0.015, 0.08);
+  // El huevo (gelatina) sale rebotando con un golpe cargado: no conviene perseguirlo.
+  if (!blocked && b.model.jelly && s.power >= 1.3) {
+    b.vx *= FIGHT.bounce.kb;
+    b.vy = Math.max(b.vy, FIGHT.bounce.up);
+  }
   if (!blocked) {
     b.vy = Math.max(b.vy, kb * FIGHT.kbUp);
     b.grounded = false;

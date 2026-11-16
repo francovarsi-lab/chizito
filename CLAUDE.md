@@ -430,6 +430,10 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   cuerpo) toca: lo que se ve es lo que pega. Con `FighterModel.moves`, la IA usa `rivalDecide` (decide cada `think` cuadros por
   distancia y vida, castiga trabas, se cubre si el otro ya carga). EL BROCOLOCO: zanahoriazo, doble, cabezazo (rompe guardia,
   30 cuadros de aviso sacudiendo la copa), pisotón (salta, rompe guardia) + VAPORAZO (poder).
+- HUEVO DURO (T6): brazos de LÁTIGO (`whipify` en rivals3d: geometría horneada en el marco del brazo + shader que dobla en
+  L/3 y 2L/3; `render.ts` mueve los ángulos con un resorte sobre la velocidad de giro del brazo, tope 25° por tramo, y una
+  ondulación en reposo). Ataques: PINCHAZO largo (alcance 8,5 cm, 14 de aviso) y LÁTIGO bajo ('low': hay que saltarlo; derriba).
+  Rebota con golpes cargados (`FIGHT.bounce`). FASE 2 (vida < 40): se ve la grieta y la yema, recibe ×1,3 y ataca 20 % más rápido.
 - CUERPOS BLANDOS: el HUEVO es gelatina (`jelly`): vibra al recibir (`Jiggle` en render.ts) y los golpes seguidos pegan cada vez
   menos (`JELLY`); la QUINOA se abolla apenas. `soak()` aplica coraza + gelatina a todo daño.
 - GRAVEDAD: enderezarse necesita APOYO (en el aire no hay torque que lo endereza: antes flotaba como colgado de un cable) y el

@@ -893,8 +893,8 @@ try {
   {
     const { MOVES, RIVAL_MOVES } = await server.ssrLoadModule('/src/creature/fight/moves.ts');
     const box = fighterFromSnapshot(JSON.parse(fs.readFileSync('src/creature/fixtures/arq/boxeador.snapshot.json', 'utf8')));
-    const run = (id, guard) => {
-      const m = createMatch([box, broccoliFighter(1)]);
+    const run = (id, guard, R = broccoliFighter(1)) => {
+      const m = createMatch([box, R]);
       for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
       m.f[0].x = m.f[1].x - Math.min(0.05, MOVES[id].reach * 0.8);
       for (let i = 0; i < 20; i++) stepMatch(m, [{ x: 0, guard }, { x: 0 }]);
@@ -915,6 +915,15 @@ try {
       if (mv.guard === 'block') ok(g.hit?.blocked, `${id}: se bloquea`);
       if (mv.guard === 'break') ok(g.gb, `${id}: rompe la guardia`);
     }
+    // HUEVO DURO: pinchazo largo (se bloquea) y látigo bajo (no se bloquea y derriba).
+    for (const id of RIVAL_MOVES['HUEVO DURO']) {
+      const mv = MOVES[id];
+      const open = run(id, false, rivalFighter(2));
+      ok(open.hit && !open.hit.blocked, `huevo ${id}: pega (cuadro ${open.at})`);
+      const g = run(id, true, rivalFighter(2));
+      ok(mv.guard === 'low' ? g.hit && !g.hit.blocked : g.hit?.blocked, `huevo ${id}: guardia ${mv.guard}`);
+    }
+    ok(rivalFighter(2).moves?.length >= 2, 'el huevo tiene sus ataques');
     // La IA del brócoli usa sus ataques (no las piñas del motor).
     const m = createMatch([box, broccoliFighter(1)]);
     const ai = newAi(5, 2);

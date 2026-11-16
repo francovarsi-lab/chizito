@@ -67,7 +67,7 @@ const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-wid
 
 const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyQ', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'KeyE', 'Escape', 'Enter', 'Space']);
 
-const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], armorLoss: f.armorLoss, power: f.pw?.kind ?? null });
+const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], armorLoss: f.armorLoss, power: f.pw?.kind ?? null, hp: f.hp });
 
 /**
  * La pelea en LA MISMA mesa donde se arma la criatura: la cámara pasa a una vista lateral que sigue y encuadra a los dos, y tu

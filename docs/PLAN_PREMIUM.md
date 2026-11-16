@@ -255,6 +255,7 @@ Hecho cuando: el brócoli no usa más `startStrike`, cada ataque tiene aviso vis
 de su ventana, se bloquea / no se bloquea según `guard`).
 
 ### T6 — HUEVO DURO: brazos de látigo y ataques propios
+**Hecha** (2026-11-16). El látigo es un shader de flexión (no 3 grupos): mismo efecto, sin rehacer la malla.
 1. Render (`rivals3d.ts` `asparagus`, `render.ts` `modelView`): partir cada espárrago en 3 tramos encadenados (grupos padre →
    hijo). Movimiento secundario sólo de dibujo: cada tramo gira un extra = resorte amortiguado de la velocidad angular del
    brazo (la punta llega tarde y se pasa), tope 25° por tramo para que la caja de golpe del motor siga valiendo.

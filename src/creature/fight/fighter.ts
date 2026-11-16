@@ -467,6 +467,7 @@ export function rivalFromSpec(spec: RivalSpec): FighterModel {
   });
   const bodyMass = spec.bodyGrams / 1000;
   return {
+    moves: RIVAL_MOVES[spec.name],
     name: spec.name,
     basis: { f: [0, 0, 1], u: [0, 1, 0], s: [-1, 0, 0] },
     origin: [0, 0, 0],

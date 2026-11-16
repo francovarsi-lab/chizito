@@ -24,6 +24,8 @@ export interface RenderPose {
   armorLoss: number;
   /** Poder que está cargando o soltando (o null). */
   power: string | null;
+  /** Vida (para la fase 2 del huevo: se raja). */
+  hp?: number;
 }
 
 export function blendPose(a: RenderPose, b: RenderPose, t: number): RenderPose {
@@ -372,6 +374,16 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   const auras: THREE.Object3D[] = [];
   inner.traverse((o) => o.name === 'aura' && auras.push(o));
   const carrots = model.limbs.map((_, i) => ({ obj: inner.children[i], base: inner.children[i].quaternion.clone() }));
+  // Brazos de látigo (huevo): cada tramo llega tarde y se pasa (resorte sobre la velocidad de giro del brazo), tope 25° por tramo.
+  const whips = carrots.map((c) => {
+    const u = c.obj.children[0]?.userData.whip as { uJ1: { value: THREE.Vector3 }; uJ2: { value: THREE.Vector3 } } | undefined;
+    return u ? { u, prev: c.obj.quaternion.clone(), b: new THREE.Vector3(), v: new THREE.Vector3(), t: Math.random() * 6 } : null;
+  });
+  const crackParts = inner.children.filter((o) => o.name === 'grieta' || o.name === 'yema');
+  const dq = new THREE.Quaternion();
+  const wv = new THREE.Vector3();
+  const tgt = new THREE.Vector3();
+  const MAXB = (25 * Math.PI) / 180;
   // Partes de la cara (ver `addFace`): la boca y los dientes se estiran hacia abajo desde su borde de arriba; las cejas suben o bajan.
   const faceParts = (name: string): THREE.Object3D[] => inner.children.filter((o) => o.name === name);
   const mouthParts = [...faceParts('boca'), ...faceParts('dientes')];
@@ -425,7 +437,28 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
         // Giro en el marco del luchador llevado al del modelo: Bᵀ · q · B.
         tq.set(q[0], q[1], q[2], q[3]);
         c.obj.quaternion.copy(BqInv).multiply(tq).multiply(Bq).multiply(c.base);
+        const w = whips[k];
+        if (w && dt > 0) {
+          // Velocidad de giro del brazo en su propio marco (dq = prev⁻¹ · actual).
+          dq.copy(w.prev).invert().multiply(c.obj.quaternion);
+          const ang = 2 * Math.acos(Math.min(1, Math.abs(dq.w)));
+          wv.set(dq.x, dq.y, dq.z);
+          if (wv.lengthSq() > 1e-12) wv.normalize().multiplyScalar((Math.sign(dq.w) || 1) * ang / dt);
+          else wv.set(0, 0, 0);
+          w.prev.copy(c.obj.quaternion);
+          // La punta se queda atrás del movimiento (y en reposo, una ondulación apenas: está vivo).
+          w.t += dt;
+          tgt.copy(wv).multiplyScalar(-0.035).add(new THREE.Vector3(Math.sin(w.t * 2.1) * 0.06, 0, Math.cos(w.t * 1.7) * 0.06));
+          // Resorte poco amortiguado: llega tarde y se pasa.
+          const K = 160, C = 9;
+          w.v.addScaledVector(tgt.sub(w.b).multiplyScalar(K).addScaledVector(w.v, -C), Math.min(dt, 1 / 30));
+          w.b.addScaledVector(w.v, Math.min(dt, 1 / 30));
+          if (w.b.length() > MAXB) w.b.setLength(MAXB);
+          w.u.uJ1.value.copy(w.b).multiplyScalar(0.6);
+          w.u.uJ2.value.copy(w.b);
+        }
       });
+      for (const o of crackParts) o.visible = (p.hp ?? 100) < 40;
     },
     bump(st) {
       squash.kick(st * jelly);

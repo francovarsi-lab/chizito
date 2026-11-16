@@ -245,6 +245,49 @@ function asparagus(L: number, r: number, inner: number, withTip: boolean, seed: 
   return g;
 }
 
+/**
+ * Prepara un espárrago para doblarse como látigo: hornea la transformación de cada pieza en su geometría (todo queda en el marco
+ * del brazo, con y a lo largo) y le da materiales propios con un shader que dobla en las articulaciones y = L/3 y 2L/3 (`uJ1`,
+ * `uJ2`: vector de giro). Los ángulos los mueve `render.ts` con un resorte.
+ */
+function whipify(g: THREE.Group, L: number): void {
+  const u = { uJ1: { value: new THREE.Vector3() }, uJ2: { value: new THREE.Vector3() }, uLen: { value: L } };
+  const mats = new Map<THREE.Material, THREE.Material>();
+  g.updateMatrix();
+  g.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.updateMatrix();
+    m.geometry = m.geometry.clone().applyMatrix4(m.matrix);
+    m.position.set(0, 0, 0);
+    m.quaternion.identity();
+    m.scale.set(1, 1, 1);
+    m.userData.ownGeometry = true;
+    const src = m.material as THREE.Material;
+    let mat = mats.get(src);
+    if (!mat) {
+      mat = src.clone();
+      mat.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, u);
+        sh.vertexShader = `uniform vec3 uJ1; uniform vec3 uJ2; uniform float uLen;
+vec3 rotv(vec3 v, vec3 r) { float a = length(r); if (a < 1e-5) return v; vec3 k = r / a; return v * cos(a) + cross(k, v) * sin(a) + k * dot(k, v) * (1.0 - cos(a)); }
+vec3 whipP(vec3 p) { float j1 = uLen / 3.0, j2 = 2.0 * uLen / 3.0; vec3 q = p;
+  q = mix(q, rotv(q - vec3(0.0, j2, 0.0), uJ2) + vec3(0.0, j2, 0.0), smoothstep(j2 - 0.003, j2 + 0.003, p.y));
+  q = mix(q, rotv(q - vec3(0.0, j1, 0.0), uJ1) + vec3(0.0, j1, 0.0), smoothstep(j1 - 0.003, j1 + 0.003, p.y)); return q; }
+vec3 whipN(vec3 n, vec3 p) { float j1 = uLen / 3.0, j2 = 2.0 * uLen / 3.0;
+  n = mix(n, rotv(n, uJ2), smoothstep(j2 - 0.003, j2 + 0.003, p.y)); return mix(n, rotv(n, uJ1), smoothstep(j1 - 0.003, j1 + 0.003, p.y)); }
+${sh.vertexShader}`
+          .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n  objectNormal = whipN(objectNormal, position);')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n  transformed = whipP(position);');
+      };
+      mat.customProgramCacheKey = () => 'whip';
+      mats.set(src, mat);
+    }
+    m.material = mat;
+  });
+  g.userData.whip = u;
+}
+
 /** HUEVO DURO pelado: clara lisa y gelatinosa, brazos largos de espárrago, patas de tallo y cara de aceituna y morrón. */
 export function createEgg(): THREE.Group {
   const spec = EGG;
@@ -256,9 +299,24 @@ export function createEgg(): THREE.Group {
   root.userData.jiggle = { freq: 14, decay: 5, amp: 0.16 };
   spec.limbs.forEach((sk, i) => {
     const { g, L } = holder(sk.from, sk.to);
-    g.add(asparagus(L, sk.r0, sk.arm ? 0.006 : 0.008, sk.arm, 11 + i * 7));
+    const a = asparagus(L, sk.r0, sk.arm ? 0.006 : 0.008, sk.arm, 11 + i * 7);
+    // Brazos de LÁTIGO: se doblan en 3 tramos (sólo de dibujo, ver `whip` en render.ts).
+    if (sk.arm) whipify(a, L);
+    g.add(a);
     root.add(g);
   });
+  // Fase 2 (vida < 40 %): la clara se raja y asoma la yema. Ocultas hasta entonces.
+  const crack = new THREE.Mesh(new THREE.TorusGeometry(spec.shell.rx * 0.55, 0.0009, 6, 24, Math.PI * 0.9), new THREE.MeshStandardMaterial({ color: 0x6b5a3a, roughness: 0.9 }));
+  crack.name = 'grieta';
+  crack.position.set(spec.shell.rx * 0.35, spec.cy + spec.shell.ry * 0.25, spec.shell.rz * 0.82);
+  crack.rotation.set(0.3, 0.6, -0.5);
+  crack.visible = false;
+  root.add(crack);
+  const yolk = new THREE.Mesh(new THREE.SphereGeometry(spec.shell.rx * 0.32, 20, 14), new THREE.MeshStandardMaterial({ color: 0xffb21e, roughness: 0.45, emissive: 0x3a2000 }));
+  yolk.name = 'yema';
+  yolk.position.set(spec.shell.rx * 0.38, spec.cy + spec.shell.ry * 0.22, spec.shell.rz * 0.72);
+  yolk.visible = false;
+  root.add(yolk);
   // Cuerpo: un huevo de verdad (más ancho abajo, más agudo arriba), con unos poquitos hoyuelos de la clara cocida.
   const { rx, ry } = spec.shell;
   const prof: THREE.Vector2[] = [];
