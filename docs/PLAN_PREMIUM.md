@@ -265,6 +265,7 @@ de su ventana, se bloquea / no se bloquea según `guard`).
 Hecho cuando: en `lab/brocoli.html?rival=huevo` los brazos se ven elásticos en reposo y en cada ataque.
 
 ### T7 — (reservada) Segundo pase del brócoli: cara que reacciona
+**Hecha** (2026-11-16): en mount, para todos los rivales (aviso, recibe, gana).
 `views[1].face()` ya existe: gesto por estado (aviso = cejas abajo + boca abierta, recibe = ojos cerrados, gana = risa).
 
 ### T8 — MONSTRUO DE QUINOA hecho de granos

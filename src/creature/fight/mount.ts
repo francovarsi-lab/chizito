@@ -402,6 +402,16 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     syncShots();
     crumbs?.forEach((c) => c.update(dt));
     updateGrains(dt);
+    // T7: la cara del rival reacciona (aviso = cejas abajo y boca abierta; recibe = cejas arriba y boca chica; gana = se ríe).
+    if (m && views && !present) {
+      const r = m.f[1];
+      const mvW = r.mv && r.limbs.some((q) => q.phase === 'windup');
+      const hurtNow = m.frame - r.lastHurt < 20;
+      if (m.winner === 1 || (m.phase !== 'fight' && m.roundWinner === 1)) views[1].face?.(0.6 + 0.4 * Math.abs(Math.sin(m.frame * 0.35)), 0.4);
+      else if (hurtNow) views[1].face?.(0.1, 0.9);
+      else if (mvW || r.pw?.phase === 'wind') views[1].face?.(0.9, -1);
+      else views[1].face?.(0.15, -0.6);
+    }
     chips?.update(dt);
     // Estrellitas del mareo.
     if (m && views) {
