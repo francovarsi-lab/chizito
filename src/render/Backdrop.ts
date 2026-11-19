@@ -120,7 +120,9 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   farProps.add(fightOnly);
   const plasticOrange = new THREE.MeshPhysicalMaterial({ color: '#ff8a3d', roughness: 0.35, clearcoat: 0.3 });
   const bgBowl = makeBowl(0.085, 0.05, plasticOrange);
-  bgBowl.position.set(-0.3, 0, -0.62);
+  // La HINCHADA: pegado a la tabla, atrás a la izquierda; sus chizitos saltan para alentar (`stage.ts`, 'hinchada').
+  bgBowl.name = 'hinchada';
+  bgBowl.position.set(-0.2, 0, -0.35);
   bgBowl.add(fillBowl(assets, 'chizito', 0.085, 0.05, 26, 21));
   fightOnly.add(bgBowl);
 
@@ -134,8 +136,8 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   fightOnly.add(
     litter(
       [
-        { kind: 'pit', x: -0.165, z: -0.34, rot: 0.3 },
-        { kind: 'pit', x: -0.15, z: -0.365, rot: 2.4 },
+        { kind: 'pit', x: -0.03, z: -0.31, rot: 0.3 },
+        { kind: 'pit', x: -0.015, z: -0.335, rot: 2.4 },
         { kind: 'candy', x: 0.235, z: -0.36, rot: 0.4, flavor: 2 },
         { kind: 'candy', x: 0.27, z: -0.405, rot: -0.3, flavor: 0 },
         { kind: 'candy', x: 0.205, z: -0.425, rot: 1.2, flavor: 4 },

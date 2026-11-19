@@ -120,6 +120,8 @@ export const FIGHT = {
     strike: { wn: 30, zeta: 0.3 },
     recover: { wn: 22, zeta: 0.38 },
     guard: { wn: 34, zeta: 0.6 },
+    // Noqueado: sin rigidez (cae y rebota apenas).
+    limp: { wn: 13, zeta: 0.3 },
   },
   /** Torque máximo = tau0 · (I / I0)^tauExp: una extremidad pesada tiene más "músculo", pero no tanto como su inercia. */
   tau0: 9e-5,
@@ -136,9 +138,9 @@ export const FIGHT = {
   /** rad: arco total (carga + golpe) de una piña, igual para el brazo de adelante y el de atrás; tope de la carga hacia atrás. */
   sweep: 2.9,
   sweepHeavy: 3.1,
-  windupCap: 1.6,
+  windupCap: 1.0,
   /** Cuadros: mínimo y máximo de la carga, máximo del golpe y de la recuperación. */
-  windMin: 9,
+  windMin: 7,
   /** El golpe no avanza más de arco / esto por cuadro: dura al menos estos cuadros (se ve). */
   strikeMinFrames: 6,
   windMax: 16,
@@ -179,18 +181,19 @@ export const FIGHT = {
    * chizito); el giro que traía pasa al cuerpo (`transfer`) y lo arrastra hacia adelante (`lurch`); si se inclina más que
    * `stumbleTilt`, trastabilla. Una aceituna puede pesar más que el chizito.
    */
-  whiff: { base: 10, k: 26, max: 75, transfer: 0.9, lurch: 0.3, lurchBase: 0.05, slack: 12 },
+  whiff: { base: 8, k: 12, max: 40, transfer: 0.9, lurch: 0.3, lurchBase: 0.05, slack: 12 },
   stumbleTilt: 0.45,
   stumbleFrames: 26,
   /** rad/s: hasta que el cuerpo no se bambolea menos que esto, no vuelve a golpear después de pifiar. */
   stableW: 0.8,
   /** Carga del golpe: cuadros = k · (masa extremidad / masa chizito − free). Temblor mientras carga (rad). */
-  charge: { k: 26, free: 0.3, tremble: 0.05 },
+  // (k era 26: la aceituna tardaba 41 cuadros en pegar; ahora ~24. Pedido del usuario: jugable primero.)
+  charge: { k: 11, free: 0.3, tremble: 0.05 },
   /**
    * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
    * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento y el que más pega (`pieceDmg.chupetin`). Pifiar cuesta `whiffMul` veces más y da la vuelta entera (`whirl`).
    */
-  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 14, maxCharge: 30, loadCharge: 0.25, strikeFrames: 26, chargeMul: 2, turnSpeed: 9, massShare: 0.85, whiffMul: 1.1, lunge: 0.22 },
+  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 10, maxCharge: 12, loadCharge: 0.25, strikeFrames: 26, chargeMul: 2, turnSpeed: 9, massShare: 0.85, whiffMul: 1.1, lunge: 0.22, gesture: { back: 0.45, fwd: 0.55, frames: 6 } },
   /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
   shieldFront: 0.35,
   shieldBack: 2.2,
@@ -209,7 +212,7 @@ export const FIGHT = {
    * Giro del torso (rad) al pegar con el cuerpo entero: el hombro que pega va atrás al cargar y adelante al soltar (piña); la
    * cadera gira menos en una patada. `rate` = qué tan rápido sigue al objetivo (1/s).
    */
-  twist: { arm: -0.2, armBack: 1.5, kick: 0.15, swing: 0.95, wind: 0.6, rate: { strike: 16, windup: 9, rest: 6 }, min: -0.9, max: 2.2 },
+  twist: { arm: -0.2, armWind: 0.7, armBack: 1.5, kick: 0.15, swing: 0.95, wind: 0.6, rate: { strike: 16, windup: 9, rest: 6 }, min: -0.9, max: 2.2 },
   /** Pies bajo el centro de masa: cuánto corrigen las piernas apoyadas (normal / mientras otra patea) y hasta cuánto (rad). */
   support: { rest: 0.25, kick: 0.9, max: 0.45 },
   /** Ángulo de la marcha (rad) y de las piernas al agacharse. */
@@ -228,8 +231,8 @@ export const FIGHT = {
    * es pegar. Rivales: su extremidad.
    */
   pieceDmg: {
-    chupetin: 11.6,
-    aceituna: 9.4,
+    chupetin: 15,
+    aceituna: 12,
     'palito-selva': 7.6,
     palito: 6.2,
     'escarbadientes:espadita': 5,
@@ -243,9 +246,9 @@ export const FIGHT = {
   } as Record<string, number>,
   legMul: 1.15,
   /** Daño × recorrido del golpe al tocar (rad recorridos desde la carga / `dmgArc`; lo fijo: giro del torso / `dmgTwist`), entre estos topes. */
-  dmgTravel: [0.4, 1] as const,
+  dmgTravel: [0.75, 1] as const,
   dmgArc: 1.4,
-  dmgTwist: 0.6,
+  dmgTwist: 0.45,
   /** m/s: por debajo de esto el contacto no lastima (apoyar no es pegar). */
   minHitSpeed: 0.14,
   hitPad: 0.0015,
@@ -285,7 +288,7 @@ export const FIGHT = {
    * Chupetín que pifia: el peso lo arrastra y la criatura da una VUELTA ENTERA (360°) sobre sí misma, desestabilizada: `frames`
    * cuadros girando y `stun` cuadros sin poder hacer nada (queda expuesta).
    */
-  whirl: { stun: 50, wobble: 1.2, minSpeed: 7, endSpeed: 1.2 },
+  whirl: { wobble: 0.4, minSpeed: 9, end: 0.6 },
   /**
    * PODER: barra que se llena pegando (daño × `onHit`), recibiendo (× `onHurt`) y de a poco sola. Llena, se suelta el poder del
    * luchador (ver `POWERS`).
@@ -293,7 +296,7 @@ export const FIGHT = {
   power: { max: 100, onHit: 1.5, onHurt: 1, blockedMul: 0.4, passive: 0.3 },
   /** T4. Tres usos de la barra: REMATE (E justo después de acertar: cancela la vuelta y suelta el poder corto), ESCAPE (E mientras
    *  te pegan: estallido que separa), SÚPER (E con la barra llena). `short`: carga × wind, daño × dmg del poder corto. */
-  powerUse: { half: 50, escapeKb: 0.6, escapeRange: 0.09, short: { wind: 0.35, dmg: 0.6 } },
+  powerUse: { half: 50 },
   chain: {
     window: 26,
     counterWindow: 22,
@@ -323,6 +326,8 @@ export const POWERS = {
   carozo: { name: '¡CAROZAZO!', wind: 18, go: 10, speed: 0.55, dmg: 9, r: 0.004, life: 70, dizzy: 50 },
   acupuntura: { name: '¡ACUPUNTURA!', wind: 12, go: 34, reach: 0.06, dmg: 2.6, hits: [4, 10, 16, 22, 28] as readonly number[], stun: 8 },
   muralla: { name: '¡MURALLA!', wind: 10, go: 8, frames: 180 },
+  // Barra LLENA de TU CHIZITO: olor a pata. Marea al que lo huele y queda 4 s en el lugar (quema y el rival pega × blind).
+  olor: { name: '¡OLOR A PATA!', wind: 16, go: 22, life: 240, r: 0.075, dps: 3.5, blind: 0.55, dmg: 8, dizzy: 70 },
 } as const;
 export type PowerKind = keyof typeof POWERS;
 
@@ -331,7 +336,7 @@ export const JELLY = { window: 36, step: 0.22, min: 0.45 };
 
 /** Rival: cuán bien juega el brócoli en cada nivel. */
 export const AI_LEVELS = [
-  { reaction: 26, guard: 0.22, aggression: 0.035, jump: 0.002, retreat: 0.2, chain: 0, think: 26, cut: 0.05 },
+  { reaction: 30, guard: 0.1, aggression: 0.035, jump: 0.002, retreat: 0.2, chain: 0, think: 32, cut: 0.03 },
   { reaction: 18, guard: 0.36, aggression: 0.05, jump: 0.004, retreat: 0.3, chain: 0.04, think: 18, cut: 0.08 },
   { reaction: 13, guard: 0.5, aggression: 0.065, jump: 0.006, retreat: 0.35, chain: 0.07, think: 16, cut: 0.1 },
 ] as const;

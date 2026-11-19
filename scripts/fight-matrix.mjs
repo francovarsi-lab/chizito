@@ -32,14 +32,14 @@ try {
     ia: (m, mem) => aiInput(m, (mem.ai ??= newAi(mem.seed * 7 + 1, 3)), 0),
     // Juega bien: bloquea lo que ve venir, castiga cuando el rival queda trabado, usa el poder lleno y pega con cadencia.
     // Juega bien con todo el sistema: lee los ataques del rival (ataja lo que se bloquea, salta lo bajo, se aleja de lo que rompe
-    // la guardia), castiga con golpes CARGADOS (revientan la quinoa) y usa el poder (súper lleno, escape si lo aturden).
+    // la guardia), castiga con golpes CARGADOS (revientan la quinoa) y usa el poder (media barra o llena).
     listo: (m, mem) => {
       const me = m.f[0], foe = m.f[1];
       const near = gapOf(m), reach = reachOf(me);
       const dir = toward(m);
       mem.t = (mem.t ?? 0) + 1;
       if (m.phase !== 'fight') return { x: 0 };
-      if (me.stun > 0) return { x: 0, power: me.meter >= 50 && me.stun > 12 };
+      if (me.stun > 0) return { x: 0 };
       // Golpe cargado en curso: mantener hasta `mem.hold` cuadros.
       if (mem.hold > 0) { mem.hold--; return { x: 0, quadHeld: mem.q }; }
       const mv = foe.mv && MOVES[foe.mv.id];
@@ -60,7 +60,7 @@ try {
       const foeWind = foe.limbs.some((q) => q.phase === 'windup' || q.phase === 'strike');
       const mineBusy = me.limbs.some((q) => q.phase !== 'rest');
       if (!mv && foeWind && near < reach * 1.8 && !mineBusy) return { x: 0, guard: true };
-      if (me.meter >= FIGHT.power.max && me.model.power && near < reach * 1.5) return { x: 0, power: true };
+      if (me.meter >= FIGHT.powerUse.half && me.model.power && near < reach * 1.5) return { x: 0, power: true };
       if (near > reach) return { x: dir };
       if (foe.lock > 4 || me.counter > 0 || mem.t % 80 === 0) {
         mem.q = mem.t % 2 ? 'LA' : 'RA';

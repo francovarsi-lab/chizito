@@ -18,8 +18,8 @@ import { probeFile } from '../assets/probe';
  *  quinoa-frase1/2/3 (la voz de cada rival en su presentación: ver los subtítulos en `RIVALS` de mount.ts),
  *  poder-carga (carga un poder), poder-queso, poder-vapor, poder-rodada, poder-metralla
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3' | 'huevo-frase1' | 'huevo-frase2' | 'huevo-frase3' | 'quinoa-frase1' | 'quinoa-frase2' | 'quinoa-frase3' | 'poder-carga' | 'poder-queso' | 'poder-vapor' | 'poder-rodada' | 'poder-metralla' | 'atajada' | 'guardia-rota' | 'barrida' | 'pasito' | 'poder-nube' | 'poder-trompo' | 'poder-carozo' | 'poder-acupuntura' | 'poder-muralla' | 'escape';
-const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3', 'huevo-frase1', 'huevo-frase2', 'huevo-frase3', 'quinoa-frase1', 'quinoa-frase2', 'quinoa-frase3', 'poder-carga', 'poder-queso', 'poder-vapor', 'poder-rodada', 'poder-metralla', 'atajada', 'guardia-rota', 'barrida', 'pasito', 'poder-nube', 'poder-trompo', 'poder-carozo', 'poder-acupuntura', 'poder-muralla', 'escape'];
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3' | 'huevo-frase1' | 'huevo-frase2' | 'huevo-frase3' | 'quinoa-frase1' | 'quinoa-frase2' | 'quinoa-frase3' | 'poder-carga' | 'poder-queso' | 'poder-vapor' | 'poder-rodada' | 'poder-metralla' | 'atajada' | 'guardia-rota' | 'barrida' | 'pasito' | 'poder-nube' | 'poder-trompo' | 'poder-carozo' | 'poder-acupuntura' | 'poder-muralla' | 'poder-olor' | 'musica-brocoloco' | 'musica-huevo' | 'musica-quinoa';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3', 'huevo-frase1', 'huevo-frase2', 'huevo-frase3', 'quinoa-frase1', 'quinoa-frase2', 'quinoa-frase3', 'poder-carga', 'poder-queso', 'poder-vapor', 'poder-rodada', 'poder-metralla', 'atajada', 'guardia-rota', 'barrida', 'pasito', 'poder-nube', 'poder-trompo', 'poder-carozo', 'poder-acupuntura', 'poder-muralla', 'poder-olor', 'musica-brocoloco', 'musica-huevo', 'musica-quinoa'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -99,7 +99,7 @@ export class AudioManager {
       return;
     }
     // Sin archivo propio: suenan como el más parecido (ids listos para grabar).
-    const alias: Partial<Record<SoundId, SoundId>> = { atajada: 'bloqueo', 'guardia-rota': 'escudo', barrida: 'golpe-pesado', pasito: 'drop', 'poder-nube': 'poder-queso', 'poder-trompo': 'zumbido', 'poder-carozo': 'golpe-pesado', 'poder-acupuntura': 'golpe', 'poder-muralla': 'escudo', escape: 'poder-queso' };
+    const alias: Partial<Record<SoundId, SoundId>> = { atajada: 'bloqueo', 'guardia-rota': 'escudo', barrida: 'golpe-pesado', pasito: 'drop', 'poder-nube': 'poder-queso', 'poder-trompo': 'zumbido', 'poder-carozo': 'golpe-pesado', 'poder-acupuntura': 'golpe', 'poder-muralla': 'escudo', 'poder-olor': 'poder-queso' };
     if (alias[id]) return this.play(alias[id]!, intensity);
     switch (id) {
       case 'crack':
@@ -320,7 +320,7 @@ export class AudioManager {
    * Música de la pelea: `assets/sounds/musica-pelea.(ogg|mp3|wav)` en loop si está; si no, una base sintetizada (bombo, caja,
    * platillo y un bajo en menor a 132 BPM) hasta que esté la de verdad. Entra y sale con fundido.
    */
-  musicOn(on: boolean): void {
+  musicOn(on: boolean, song: SoundId = 'musica-pelea'): void {
     const ctx = this.ctx;
     if (!on || !ctx || ctx.state !== 'running') {
       this.music?.stop();
@@ -337,7 +337,8 @@ export class AudioManager {
       out.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
       return ctx.currentTime + 1.2;
     };
-    const file = this.files.get('musica-pelea');
+    // Una canción por villano (`musica-brocoloco`, …); si no está, la de la pelea; si tampoco, la base sintetizada.
+    const file = this.files.get(song) ?? this.files.get('musica-pelea');
     if (file) {
       const src = ctx.createBufferSource();
       src.buffer = file;

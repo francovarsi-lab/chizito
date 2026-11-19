@@ -28,6 +28,8 @@ export interface FightSet {
   candle(at: THREE.Vector3 | null, k: number): void;
   /** El público (los restos de la fiesta sobre la tabla) salta con un golpe fuerte (0..1). */
   cheer(k: number): void;
+  /** La hinchada (los chizitos del bowl) hace la OLA: una vuelta alrededor del bowl. */
+  wave(): void;
 }
 
 interface Hide {
@@ -394,11 +396,30 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
   };
   setPR(Math.min(1.25, prWas));
 
+  // HINCHADA: cada chizito del bowl salta por su cuenta (ritmo y altura propios) cuando hay algo que alentar, y una vez por pelea
+  // hacen la OLA (salto en orden alrededor del bowl). Sólo se mueven en Y y giran apenas: sin caras ni formas raras.
+  const fans = (scene.getObjectByName('hinchada')?.children.find((c) => c.children.length > 4)?.children ?? []).map((o, n) => ({
+    o, y: o.position.y, a: Math.atan2(o.position.z, o.position.x), ph: (n * 2.399) % (Math.PI * 2), f: 9 + ((n * 7) % 5), h: 0.006 + ((n * 3) % 4) * 0.0015,
+  }));
+  let fanHop = 0;
+  let waveT = -1;
   let t = 0;
   return {
     update(dt) {
       t += dt;
       arena.update(t);
+      fanHop *= Math.pow(0.25, dt);
+      if (waveT >= 0) waveT += dt;
+      if (waveT > 2.2) waveT = -1;
+      for (const c of fans) {
+        // Ola: 1,6 s para dar la vuelta; cada uno salta cuando le llega.
+        const w = waveT < 0 ? 0 : Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, (waveT - ((c.a + Math.PI) / (Math.PI * 2)) * 1.6) / 0.35))));
+        const j = Math.abs(Math.sin(t * c.f + c.ph)) * fanHop;
+        c.o.position.y = c.y + c.h * j + 0.016 * w;
+      }
+    },
+    wave() {
+      waveT = 0;
     },
     track(i, head, facing) {
       arena.track(i, head, facing);
@@ -413,6 +434,7 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     },
     cheer(k) {
       arena.cheer(k);
+      fanHop = Math.max(fanHop, k);
     },
     degrade(lv) {
       if (lv >= 1 && ao) ao.enabled = false;
@@ -420,6 +442,7 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
       if (lv >= 3) setPR(Math.min(0.8, prWas));
     },
     restore() {
+      for (const c of fans) c.o.position.y = c.y;
       // La arena queda armada para la próxima pelea: sólo se saca de la escena (con las luces a pleno y la vela apagada).
       arena.level(1);
       arena.candle(null, 0);

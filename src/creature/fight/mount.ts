@@ -113,6 +113,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // ?nivel=2 o 3 arranca contra ese rival (para probarlo sin ganar los anteriores).
   let level = Math.min(AI_LEVELS.length, Math.max(1, Number(new URLSearchParams(location.search).get('nivel') ?? 1) || 1));
   let ai: AiMem = newAi(1, 1);
+  /** La hinchada hace la ola UNA vez por pelea (con el primer golpe fuerte de tu chizito). */
+  let waved = false;
   // ── Pelea contra un amigo (O1): sala por link. `me` = qué luchador soy (0 el que invitó, 1 el invitado). ──
   interface Side { file: string; model: FighterModel }
   let vs: { room: string; me: 0 | 1; link: Link | null; mine: Side | null; theirs: Side | null; ls: Lockstep | null; gen: number; other: THREE.Group | null; sums: [Map<number, number>, Map<number, number>]; desync: boolean } | null = null;
@@ -450,6 +452,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           camPunch = 0.25;
           set?.cheer(1);
         } else if (!e.blocked && e.damage >= 6) set?.cheer(0.4);
+        if (!waved && !e.blocked && e.by === me() && e.damage >= 6) {
+          waved = true;
+          set?.wave();
+        }
         if (big && !e.blocked) hud.flash(0.28);
         g.audio.play(e.blocked ? 'bloqueo' : big ? 'golpe-pesado' : 'golpe', Math.min(1, 0.55 + e.damage / 20));
         if (!e.blocked) g.audio.play('crunch', 0.8);
@@ -520,7 +526,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const f = m.f[e.who];
         const P = POWERS[e.kind];
         if (e.phase === 'wind') {
-          if (e.use === 'super') camCut = { t: 0.6, who: e.who };
+          // Corte de cámara sólo para TU barra llena (con el vaporazo del rival era un zoom raro que te sacaba de la pelea).
+          if (e.use === 'super' && e.who === me()) camCut = { t: 0.6, who: e.who };
           g.audio.play('poder-carga', 1);
           hud.flash(0.18);
           break;
@@ -534,12 +541,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         if (e.kind === 'rodada') cloud(P3(f.x, 0.004), 8, 0xe9e2d0, 0.006, 0.03, 0.02);
         if (e.kind === 'nube') cloud(P3(f.x + f.facing * 0.035, f.y + 0.02), 60, 0xff9424, 0.016, 0.05, 0.02, f.facing);
         if (e.kind === 'muralla') ring(P3(f.x, f.y + 0.02), 0.03, 0xffe066);
-        break;
-      }
-      case 'escape': {
-        cloud(P3(e.at[0], e.at[1]), 34, 0xff9424, 0.013, 0.06, 0.04);
-        hud.popup(e.at[0], e.at[1] + 0.05, '¡ESCAPE!', '', 'shout');
-        g.audio.play('escape', 1);
+        if (e.kind === 'olor') cloud(P3(f.x + f.facing * 0.035, f.y + 0.02), 70, 0xa9b83a, 0.018, 0.07, 0.025, f.facing);
+        if (e.who === me()) set?.cheer(1);
         break;
       }
       case 'powerHit': {
@@ -628,7 +631,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       roll = THREE.MathUtils.degToRad(2) * f.facing;
       if (camCut.t <= 0) camCut = null;
     }
-    const elev = THREE.MathUtils.degToRad(camCut ? 6 : 11);
+    // Round 2: vista más aérea (se ve la tabla entera y la mesa alrededor).
+    const aerial = m.round === 2 && !camCut && m.phase !== 'ko';
+    if (aerial) D = Math.max(D * 1.35, 0.34);
+    const elev = THREE.MathUtils.degToRad(camCut ? 6 : aerial ? 38 : 11);
     const tp = new THREE.Vector3(mid, GROUND + lookY + D * Math.sin(elev), z0 + D * Math.cos(elev));
     const tl = new THREE.Vector3(mid, GROUND + lookY, z0);
     if (m.phase === 'ko') {
@@ -748,6 +754,16 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     },
   };
   const rival = (): (typeof RIVALS)[number] => RIVALS[Math.min(3, Math.max(1, level))];
+  // Una canción por villano: arranca apenas se entra a la pelea (`public/assets/sounds/musica-brocoloco.mp3`, etc.).
+  const SONGS: Record<number, SoundId> = { 1: 'musica-brocoloco', 2: 'musica-huevo', 3: 'musica-quinoa' };
+  let song: SoundId | null = null;
+  const playSong = (): void => {
+    const want = vs ? 'musica-pelea' : SONGS[Math.min(3, Math.max(1, level))];
+    if (want === song) return game().audio.musicOn(true, want);
+    game().audio.musicOn(false);
+    game().audio.musicOn(true, want);
+    song = want;
+  };
   let presShake = 0;
   let candleProp: THREE.Group | null = null;
   const once = (key: string, at: number, fn: () => void): void => {
@@ -828,7 +844,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       hud.flash(0.55);
       g.audio.play('golpe-pesado', 1);
       g.audio.play('rugido', 1);
-      g.audio.musicOn(true);
     });
     // ── Tu chizito: se despierta, piñas a la cámara, pose de héroe ──
     once('despierta', P_CHIZ0 + 0.3, () => {
@@ -1012,7 +1027,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     present = null;
     hud.present(null);
     hud.sub(null);
-    game().audio.musicOn(true);
     black.style.opacity = '0';
     set?.lights(1);
     set?.candle(null, 0);
@@ -1107,6 +1121,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     m = createMatch(me() === 0 ? [model, bro] : [bro, model]);
     lg.length = 0;
     ai = newAi(seed++, level);
+    hud.me = me();
     hud.show(!vs ? [model.name, bro.name] : me() === 0 ? ['TU CHIZITO', 'TU AMIGO'] : ['TU AMIGO', 'TU CHIZITO'], warnings(m.f[me()]));
     // Cuántas extremidades hay en cada cuadrante del chizito (lo que maneja cada botón).
     const f0 = m.f[me()];
@@ -1117,6 +1132,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     acc = 0;
     prev = cur = null;
     views.forEach((v) => v.reattach());
+    playSong();
+    waved = false;
     if (withPresent && !vs) present = { t: 0, pending: [...m.events], fired: new Set() };
     else for (const e of m.events) onEvent(e);
     cur = [poseOf(m.f[0]), poseOf(m.f[1])];
@@ -1315,7 +1332,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (a === 'next') {
       // Rival nuevo: con su presentación (apagón, vela, sus frases), como el primero. La música vuelve con los focos.
       const withPresent = wantsPresent();
-      if (withPresent) game().audio.musicOn(false);
       restart(level + 1, withPresent);
     }
     if (a === 'exit') controller.close();
@@ -1460,8 +1476,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       restart(level, wantsPresent() && !vs);
       // Sin presentación, la cámara viaja del constructor a la pelea; con presentación, la primera toma entra al corte.
       tween = present ? null : { t: 0, from: { pos: saved.pos.clone(), quat: saved.quat.clone() } };
-      // Con presentación, la música entra recién cuando se encienden los focos (en la oscuridad, silencio y la vela).
-      if (!present) g.audio.musicOn(true);
     },
     close() {
       if (!open) return;
@@ -1474,6 +1488,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       candleProp = null;
       const g = game();
       g.audio.musicOn(false);
+      song = null;
       delete (g.stage as { render?: unknown }).render;
       views?.forEach((v) => v.dispose());
       views = null;

@@ -113,6 +113,8 @@ const css = `
 export type MenuAction = 'resume' | 'again' | 'next' | 'exit';
 
 export class FightHud {
+  /** Qué luchador es el jugador de esta pantalla (contra un amigo, el invitado es el 1). */
+  me: 0 | 1 = 0;
   readonly root: HTMLElement;
   private readonly style: HTMLStyleElement;
   private readonly fill: HTMLElement[];
@@ -148,7 +150,7 @@ export class FightHud {
     r.innerHTML = `<div class="top">${side('l')}<div><div class="clock">90</div><div class="round">ROUND 1</div></div>${side('r')}</div>
 <div class="status l"></div><div class="status r"></div><div class="combo l"></div><div class="combo r"></div><div class="warn"></div>
 <div class="ann"></div><div class="flash"></div>
-<div class="keys"><span><kbd>Q</kbd><kbd>W</kbd>brazos (tocar = rápido · mantener = cargado)</span><span><kbd>A</kbd><kbd>S</kbd>piernas</span><span><kbd>↓</kbd>+<kbd>Q</kbd>gancho · <kbd>↓</kbd>+<kbd>A</kbd>barrida</span><span><kbd>→</kbd><kbd>→</kbd>pasito</span><span><kbd>D</kbd>guardia (justo = atajada)</span><span><kbd>E</kbd>poder (barra llena)</span><span><kbd>←</kbd><kbd>→</kbd>moverse</span><span><kbd>↑</kbd>saltar</span><span><kbd>↓</kbd>agacharse</span><span><kbd>Esc</kbd>pausa</span></div>
+<div class="keys"><span><kbd>Q</kbd><kbd>W</kbd>brazos (tocar = rápido · mantener = cargado)</span><span><kbd>A</kbd><kbd>S</kbd>piernas</span><span><kbd>↓</kbd>+<kbd>Q</kbd>gancho · <kbd>↓</kbd>+<kbd>A</kbd>barrida</span><span><kbd>→</kbd><kbd>→</kbd>pasito</span><span><kbd>D</kbd>guardia (justo = atajada)</span><span><kbd>E</kbd>poder (media barra) · olor a pata (llena)</span><span><kbd>←</kbd><kbd>→</kbd>moverse</span><span><kbd>↑</kbd>saltar</span><span><kbd>↓</kbd>agacharse</span><span><kbd>Esc</kbd>pausa</span></div>
 <div class="pad"><div class="cap"><div class="ln" style="top:19%"></div><div class="ln" style="top:75%"></div><div class="vl"></div><div class="hd">cabeza</div>
 <div class="q" data-q="LA" style="left:0;top:19%;width:50%;height:56%"></div><div class="q" data-q="RA" style="left:50%;top:19%;width:50%;height:56%"></div>
 <div class="q" data-q="LL" style="left:0;top:75%;width:50%;height:25%"></div><div class="q" data-q="RL" style="left:50%;top:75%;width:50%;height:25%"></div></div></div>
@@ -302,7 +304,7 @@ export class FightHud {
   showMenu(title: string, sub: string, buttons: { a: MenuAction; label: string; alt?: boolean }[], withKeys = false): void {
     const card = this.menu.querySelector('.card') as HTMLElement;
     const grid = withKeys
-      ? `<div class="grid"><span><kbd>Q</kbd> <kbd>W</kbd></span><span>brazos izquierdos / derechos (como armaste el chizito, de frente): cada toque usa el siguiente de ese lado</span><span><kbd>A</kbd> <kbd>S</kbd></span><span>piernas izquierdas / derechas (la parte de abajo del chizito)</span><span><kbd>Q</kbd> mantener</span><span>GOLPE CARGADO: el brazo tiembla atrás y pega hasta 1,6 veces; la carga completa rompe la guardia. Tocar y soltar = golpe RÁPIDO</span><span><kbd>↓</kbd>+<kbd>Q</kbd></span><span>GANCHO: levanta al rival y lo podés seguir en el aire (3 golpes)</span><span><kbd>↓</kbd>+<kbd>A</kbd></span><span>BARRIDA: lo tira al piso</span><span><kbd>→</kbd><kbd>→</kbd></span><span>PASITO (hacia atrás, esquiva)</span><span><kbd>D</kbd></span><span>guardia (mantener): los brazos tapan. Apretada justo antes del golpe = ATAJADA (no recibís nada y el otro queda abierto). 4 bloqueos seguidos rompen la guardia</span><span><kbd>E</kbd></span><span>PODER con la barra llena: NUBE DE QUESO (marea al rival si está cerca). La barra se llena pegando y recibiendo</span><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar (brazo en el aire = en picada)</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Q</kbd> <kbd>W</kbd></span><span>UNO-DOS: si la piña acierta, otra enseguida (con 3 brazos, RÁFAGA)</span><span><kbd>Q</kbd> <kbd>A</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>D</kbd> → <kbd>Q</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span><span>cabeza</span><span>lo que tenga arriba pesa y protege</span></div>`
+      ? `<div class="grid"><span><kbd>Q</kbd> <kbd>W</kbd></span><span>brazos izquierdos / derechos (como armaste el chizito, de frente): cada toque usa el siguiente de ese lado</span><span><kbd>A</kbd> <kbd>S</kbd></span><span>piernas izquierdas / derechas (la parte de abajo del chizito)</span><span><kbd>Q</kbd> mantener</span><span>GOLPE CARGADO: el brazo tiembla atrás y pega hasta 1,6 veces; la carga completa rompe la guardia. Tocar y soltar = golpe RÁPIDO</span><span><kbd>↓</kbd>+<kbd>Q</kbd></span><span>GANCHO: levanta al rival y lo podés seguir en el aire (3 golpes)</span><span><kbd>↓</kbd>+<kbd>A</kbd></span><span>BARRIDA: lo tira al piso</span><span><kbd>→</kbd><kbd>→</kbd></span><span>PASITO (hacia atrás, esquiva)</span><span><kbd>D</kbd></span><span>guardia (mantener): los brazos tapan. Apretada justo antes del golpe = ATAJADA (no recibís nada y el otro queda abierto). 4 bloqueos seguidos rompen la guardia</span><span><kbd>E</kbd></span><span>PODER: con media barra, el de lo que armaste (nube, trompo, carozazo, acupuntura o muralla); con la barra llena, OLOR A PATA (marea y queda flotando). Justo después de acertar sale como remate. La barra se llena pegando y recibiendo</span><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar (brazo en el aire = en picada)</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Q</kbd> <kbd>W</kbd></span><span>UNO-DOS: si la piña acierta, otra enseguida (con 3 brazos, RÁFAGA)</span><span><kbd>Q</kbd> <kbd>A</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>D</kbd> → <kbd>Q</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span><span>cabeza</span><span>lo que tenga arriba pesa y protege</span></div>`
       : '';
     card.innerHTML = `<h2>${title}</h2><p>${sub}</p>${buttons.map((b, i) => `<button data-a="${b.a}" class="${b.alt ? 'alt' : ''}${i === 0 ? ' sel' : ''}">${b.label}</button>`).join('')}${grid}`;
     this.menuSel = 0;
@@ -337,10 +339,12 @@ export class FightHud {
       [...this.pips[i].children].forEach((p, n) => p.classList.toggle('on', n < m.wins[i]));
       // PODER: llena, titila (E lo suelta).
       (this.pows[i].firstElementChild as HTMLElement).style.transform = `scaleX(${f.meter / FIGHT.power.max})`;
-      // Partida en dos: con la mitad, REMATE (E justo después de acertar) o ESCAPE (E mientras te pegan); llena, SÚPER.
+      // Partida en dos (TU CHIZITO): media barra = el poder de lo que armó; llena = OLOR A PATA. Los rivales: un poder, lleno.
+      const mine = f.model.power === 'queso';
       const full = f.meter >= FIGHT.power.max;
-      const half = !full && f.meter >= FIGHT.powerUse.half;
-      const label = full ? (i === 0 ? '¡SÚPER! · E' : '¡SÚPER!') : half ? (i === 0 ? 'REMATE / ESCAPE · E' : 'MEDIA BARRA') : 'PODER';
+      const half = !full && mine && f.meter >= FIGHT.powerUse.half;
+      const you = i === this.me;
+      const label = full ? (mine ? '¡OLOR A PATA!' : '¡PODER!') + (you ? ' · E' : '') : half ? `PODER${you ? ' · E' : ''}` : 'PODER';
       this.pows[i].classList.toggle('full', full);
       this.pows[i].classList.toggle('half', half);
       const sp = this.pows[i].lastElementChild as HTMLElement;

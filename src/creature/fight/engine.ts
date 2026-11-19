@@ -204,6 +204,7 @@ export interface FighterState {
   /** Muralla (súper con escudos): cuadros sin retroceder ni quedar aturdido. Nube: cuadros pifiando más (golpes × blind). */
   wall: number;
   blind: number;
+  blindMul: number;
   /** E apretada durante el congelamiento del impacto (el remate se aprieta justo ahí): cuadros que se recuerda. */
   pwBuf: number;
   /** Ataque hecho a mano en curso: cuadro y qué ventanas ya pegaron. */
@@ -240,6 +241,7 @@ export interface Zone {
   r: number;
   life: number;
   by: 0 | 1;
+  kind: 'nube' | 'olor';
 }
 
 export type FightEvent =
@@ -253,7 +255,6 @@ export type FightEvent =
   | { type: 'roundEnd'; winner: 0 | 1 | 'draw'; reason: 'ko' | 'time' }
   | { type: 'matchEnd'; winner: 0 | 1 }
   | { type: 'power'; who: 0 | 1; kind: PowerKind; phase: 'wind' | 'go'; use?: 'remate' | 'super' }
-  | { type: 'escape'; who: 0 | 1; at: [number, number] }
   | { type: 'move'; who: 0 | 1; id: string; tell: string }
   | { type: 'grains'; who: 0 | 1; at: [number, number]; n: number; pile: number; x: number }
   | { type: 'absorb'; who: 0 | 1; at: [number, number] }
@@ -442,6 +443,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     juggle: -1,
     wall: 0,
     blind: 0,
+    blindMul: 1,
     pwBuf: 0,
     mv: null,
   };
@@ -777,10 +779,13 @@ function endStrike(m: Match, i: 0 | 1, k: number): void {
     f.wt += f.swing.sign * FIGHT.whirl.wobble;
     f.whirlDir = (Math.sign(f.twist) || shoulderSign(f, l.pivot)) as 1 | -1;
     f.whirlD = Math.PI * 2 - Math.abs(f.twist);
+    // UN solo movimiento: la vuelta sigue a la velocidad del golpe y apenas afloja al final (`whirl.end` de esa velocidad); antes
+    // frenaba hasta casi pararse y se leía como otro movimiento. Queda expuesto lo que dura la vuelta, ni un cuadro más.
     f.whirlV = Math.max(Math.abs(f.twistV), FIGHT.whirl.minSpeed);
-    f.whirlA = (f.whirlV * f.whirlV) / (2 * f.whirlD);
+    const vEnd = f.whirlV * FIGHT.whirl.end;
+    f.whirlA = (f.whirlV * f.whirlV - vEnd * vEnd) / (2 * f.whirlD);
     if (f.whirl <= 0) f.whirl = 1e-4;
-    f.stun = Math.max(f.stun, Math.round(FIGHT.whirl.stun * (1 + f.heavyLoad * 0.5)));
+    f.stun = Math.max(f.stun, Math.ceil((2 * f.whirlD) / (f.whirlV + vEnd) / dt) + 2);
   } else {
     const wAx = dotv(s.w, s.axis);
     const I = inertia(f, k, s.axis);
@@ -835,38 +840,23 @@ function shieldPose(f: FighterState, id: string): { tilt: number; turned: boolea
  * Inclinación de reposo de un cuerpo caído: desde la actual, hacia donde baja el centro de masa, hasta el primer mínimo (rueda
  * cuesta abajo y se queda en el primer pozo, como un objeto de verdad). Mide la altura del centro de masa sobre el punto más bajo.
  */
-function restTilt(f: FighterState): number {
-  const M = f.model;
-  const pts: { p: V3; r: number; m: number }[] = [];
-  for (const b of M.body) for (const p of [b.a, b.b]) pts.push({ p, r: b.r, m: M.bodyMass / (2 * M.body.length) });
-  M.limbs.forEach((l, k) => {
-    for (const p of l.points) if (!p.inside && !f.broken.includes(p.piece)) pts.push({ p: posed(f.limbs[k].q, l.pivot, p.p), r: p.r, m: p.m });
-  });
-  const height = (t: number): number => {
-    const c = Math.cos(t);
-    const sn = Math.sin(t);
-    let lo = Infinity;
-    let com = 0;
-    let mass = 0;
-    for (const q of pts) {
-      const y = -fwd(f, q.p) * sn + q.p[1] * c;
-      lo = Math.min(lo, y - q.r);
-      com += q.m * y;
-      mass += q.m;
-    }
-    return com / mass - lo;
-  };
-  const STEP = 0.03;
-  let t = f.tilt;
-  let h = height(t);
-  const dir = height(t + STEP) < height(t - STEP) ? 1 : -1;
-  for (let n = 0; n < 100 && Math.abs(t) < 2.9; n++) {
-    const h2 = height(t + dir * STEP);
-    if (h2 >= h) break;
-    t += dir * STEP;
-    h = h2;
-  }
-  return t;
+/**
+ * Pose de una extremidad SIN rigidez (noqueado): cae hacia la tabla desde su articulación, todo lo que la altura le deja (no
+ * apuntala el cuerpo), abierta hacia donde ya apuntaba. `up` = el "arriba" del mundo en el marco del luchador inclinado.
+ */
+function limp(f: FighterState, k: number): Q {
+  const l = f.model.limbs[k];
+  const fa = fwdAxis(f);
+  const c = Math.cos(f.tilt);
+  const sn = Math.sin(f.tilt);
+  const up: V3 = [-sn * fa[0], c, -sn * fa[2]];
+  let flat = sub(l.dir, scl(up, dotv(l.dir, up)));
+  // Apuntaba derecho arriba o abajo: cae a lo largo del cuerpo.
+  if (lenv(flat) < 0.2) flat = sub([0, l.dir[1] >= 0 ? 1 : -1, 0], scl(up, (l.dir[1] >= 0 ? 1 : -1) * up[1]));
+  flat = normv(flat);
+  const h = toWorld(f, l.pivot)[1];
+  const droop = Math.asin(clamp((h - 0.004) / Math.max(l.reach, 1e-3), 0, 1));
+  return qFromTo(l.dir, normv(sub(scl(flat, Math.cos(droop)), scl(up, Math.sin(droop)))));
 }
 
 // ───────────────────────── Poderes ─────────────────────────
@@ -934,15 +924,17 @@ function stepPower(m: Match, i: 0 | 1): void {
   }
   const gap = Math.abs(foe.x - f.x);
   const center: [number, number] = [f.x + f.facing * 0.02, f.y + 0.02];
-  const sm = pw.short ? FIGHT.powerUse.short.dmg : 1;
+  const sm = 1;
   if (pw.phase === 'wind') {
     if (pw.t < POWERS[pw.kind].wind) return;
     pw.phase = 'go';
     pw.t = 0;
-    m.events.push({ type: 'power', who: i, kind: pw.kind, phase: 'go', use: pw.short ? 'remate' : undefined });
-    if (pw.kind === 'nube') {
-      const P = POWERS.nube;
-      m.zones.push({ x: f.x + f.facing * 0.035, y: f.y + 0.02, r: P.r, life: P.life, by: i });
+    m.events.push({ type: 'power', who: i, kind: pw.kind, phase: 'go' });
+    if (pw.kind === 'nube' || pw.kind === 'olor') {
+      const P = POWERS[pw.kind];
+      m.zones.push({ x: f.x + f.facing * 0.035, y: f.y + 0.02, r: P.r, life: P.life, by: i, kind: pw.kind });
+      // OLOR A PATA: además del olor que queda, el primer golpe de aire marea al que esté adentro (la guardia no tapa la nariz).
+      if (pw.kind === 'olor' && Math.abs(foe.x - (f.x + f.facing * 0.035)) < P.r) powerHit(m, i, 'olor', [foe.x, foe.y + 0.03], POWERS.olor.dmg, { kb: 0.1, up: 0, stun: 24, dizzy: POWERS.olor.dizzy });
     } else if (pw.kind === 'carozo') {
       const P = POWERS.carozo;
       m.shots.push({ id: m.nextShot++, by: i, x: center[0], y: foe.y + 0.02, vx: f.facing * P.speed, vy: 0, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'carozo' });
@@ -1198,8 +1190,9 @@ function stepZones(m: Match): void {
     const z = m.zones[n];
     const b = m.f[1 - z.by];
     if (!b.ko && Math.abs(b.x - z.x) < z.r && Math.abs(b.y - z.y) < z.r) {
-      b.hp = Math.max(0, b.hp - soak(m, b, POWERS.nube.dps * dt));
+      b.hp = Math.max(0, b.hp - soak(m, b, POWERS[z.kind].dps * dt));
       b.blind = Math.max(b.blind, 2);
+      b.blindMul = POWERS[z.kind].blind;
     }
     if (--z.life <= 0) m.zones.splice(n, 1);
   }
@@ -1333,7 +1326,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
         f.repeat = m.frame - f.lastStrikeF < FIGHT.repeat.window ? f.repeat + (combo ? 0 : 1) : 0;
         f.lastStrikeF = m.frame;
         startStrike(m, i, k, f.buffer.kind, combo, f.model.limbs[k].rigid ? 'normal' : f.buffer.move);
-        f.limbs[k].worn = Math.max(FIGHT.repeat.min, 1 - FIGHT.repeat.step * f.repeat) * (f.blind > 0 ? POWERS.nube.blind : 1);
+        f.limbs[k].worn = Math.max(FIGHT.repeat.min, 1 - FIGHT.repeat.step * f.repeat) * (f.blind > 0 ? f.blindMul : 1);
         // Golpe rápido / cargado: se sigue cuánto se mantiene el botón (sólo con cuadrante y si la entrada lo informa).
         if (f.buffer.quad && f.held !== undefined && !combo && !f.model.limbs[k].rigid) {
           f.limbs[k].hold = 0;
@@ -1348,34 +1341,24 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   const U = FIGHT.powerUse;
   const wantPw = !!inp.power || f.pwBuf > 0;
   if (f.pwBuf > 0) f.pwBuf--;
-  // ESCAPE: E mientras le pegan (aturdido o bloqueando) con media barra: estallido de polvo que separa a los dos.
-  if (wantPw && fighting && !f.ko && !f.pw && (f.stun > 0 || f.block > 0) && f.meter >= U.half) {
-    f.meter -= U.half;
-    f.stun = 0;
-    f.block = 0;
-    f.juggle = -1;
-    if (Math.abs(foe.x - f.x) < U.escapeRange && !foe.ko) {
-      foe.vx = Math.sign(foe.x - f.x || f.facing) * U.escapeKb;
-      foe.stun = Math.max(foe.stun, 10);
-      for (const q of foe.limbs) if (q.phase === 'windup' || q.phase === 'strike') { q.phase = 'recover'; q.t = 0; }
-    }
-    m.events.push({ type: 'escape', who: i, at: [f.x, f.y + 0.02] });
-  } else if (wantPw && canAct && f.model.power && f.grounded && f.squat <= 0 && !f.pw) {
-    // REMATE: E justo después de acertar (cadena viva) con media barra: cancela la vuelta y suelta el poder corto.
-    const remate = !!f.chain && f.chain.t > 0 && f.meter >= U.half && f.meter < FIGHT.power.max;
-    const sup = f.meter >= FIGHT.power.max && !busy;
-    if (remate || sup) {
-      f.meter -= remate ? U.half : FIGHT.power.max;
+  if (wantPw && canAct && f.model.power && f.grounded && f.squat <= 0 && !f.pw) {
+    // La barra tiene DOS mitades. TU CHIZITO: con media barra, el poder de lo que armó (nube, trompo, carozazo, acupuntura,
+    // muralla); con la barra llena, OLOR A PATA. Justo después de acertar sale como REMATE (cancela la vuelta del golpe).
+    // Los rivales tienen un solo poder, con la barra llena.
+    const mine = f.model.power === 'queso';
+    const remate = !!f.chain && f.chain.t > 0;
+    const full = f.meter >= FIGHT.power.max;
+    if ((full || (mine && f.meter >= U.half)) && (remate || !busy)) {
+      f.meter -= full ? FIGHT.power.max : U.half;
       if (remate) {
         f.lock = 0;
         for (const q of f.limbs) if (q.phase !== 'rest') { q.phase = 'recover'; q.t = FIGHT.recoverMax; }
       }
-      // El súper de TU CHIZITO sale de lo que armó; los rivales usan su poder.
-      const kind = sup && f.model.power === 'queso' ? superOf(f) : f.model.power;
-      f.pw = { kind, phase: 'wind', t: remate ? Math.round(POWERS[kind].wind * (1 - U.short.wind)) : 0, hit: false, short: remate };
+      const kind = !mine ? f.model.power : full ? 'olor' : superOf(f);
+      f.pw = { kind, phase: 'wind', t: 0, hit: false };
       f.buffer = null;
       f.pwBuf = 0;
-      m.events.push({ type: 'power', who: i, kind, phase: 'wind', use: remate ? 'remate' : 'super' });
+      m.events.push({ type: 'power', who: i, kind, phase: 'wind', use: full ? 'super' : 'remate' });
     }
   }
   if (f.pw) stepPower(m, i);
@@ -1402,8 +1385,20 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       return;
     }
     if (l.rigid) {
-      // El chupetín y lo que atraviesa no giran: si pegan, pega el cuerpo entero (ver la inclinación más abajo).
+      // El chupetín y lo que atraviesa no giran solos: si pegan, pega el cuerpo entero (ver la inclinación más abajo).
+      if (f.ko && !l.through) {
+        drive(f, k, limp(f, k), FIGHT.joint.limp);
+        return;
+      }
       if (s.phase !== 'rest') s.t++;
+      // El chupetín acompaña el golpe con un gesto corto (atrás al cargar, adelante al soltar): se ve con CUÁL pega.
+      if (!l.through) {
+        const G = FIGHT.swing.gesture;
+        const a = s.phase === 'windup' ? -G.back * Math.min(1, s.t / FIGHT.swing.windFrames) : s.phase === 'strike' ? -G.back + (G.back + G.fwd) * Math.min(1, s.t / G.frames) : s.phase === 'recover' ? G.fwd * Math.max(0, 1 - s.t / 14) : 0;
+        const q = a ? qAxis(s.axis, a) : QI();
+        s.w = scl(qToVec(qMul(q, qConj(s.q))), 1 / dt);
+        s.q = q;
+      }
       if (s.phase === 'windup' && s.t >= FIGHT.swing.windFrames + s.charge) {
         s.phase = 'strike';
         s.t = 0;
@@ -1475,7 +1470,11 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if (s.phase === 'recover' && s.t > FIGHT.recoverMax) s.phase = 'rest';
     let target: Q = QI();
     let g: { wn: number; zeta: number } = s.phase === 'recover' ? FIGHT.joint.recover : FIGHT.joint.rest;
-    if (f.ko || f.down > 12 || f.pw?.phase === 'go' && f.pw.kind === 'rodada') {
+    if (f.ko) {
+      // Noqueado: el cuerpo pierde la estructura. Cada extremidad se afloja y cae sobre la tabla (como un dormido), sin rigidez.
+      target = limp(f, k);
+      g = FIGHT.joint.limp;
+    } else if (f.down > 12 || f.pw?.phase === 'go' && f.pw.kind === 'rodada') {
       // Noqueado (o hecho bola para rodar): las extremidades se aflojan y caen pegadas al cuerpo (a lo largo de su eje), así queda acostado sobre la
       // mesa y no apuntalado en el aire por varas rígidas. Las de arriba hacia arriba, las de abajo hacia abajo, apenas abiertas.
       const along = l.dir[1] >= 0 ? 1 : -1;
@@ -1564,7 +1563,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       // El hombro de atrás (con la guardia de 3/4 queda más lejos del rival) gira más, para llegar igual de lejos que el de adelante.
       const back = l.role === 'arm' && shoulderSign(f, l.pivot) * Math.sign(base) < 0;
       const amt = l.rigid ? T.swing : l.role === 'leg' ? T.kick : back ? T.armBack : T.arm;
-      want = f.limbs[sk].phase === 'windup' ? -sg * amt * T.wind : sg * amt;
+      // Los DOS hombros giran al pegar: el de atrás va adelante con el golpe; el de adelante se echa atrás al cargar y vuelve.
+      want = f.limbs[sk].phase === 'windup' ? -sg * (l.role === 'arm' && !l.rigid && !back ? T.armWind : amt * T.wind) : sg * amt;
       // Lo fijo gira alrededor de la cara de frente (giro 0), no de la guardia de 3/4: si no, el hombro de adelante llega antes.
       if (l.rigid) want -= base;
       rate = f.limbs[sk].phase === 'windup' ? T.rate.windup : T.rate.strike;
@@ -1573,7 +1573,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if (f.whirl > 0) {
       // La vuelta del chupetín: el torso queda donde estaba y suma el giro, que frena parejo hasta cerrar la vuelta.
       f.whirl += f.whirlV * dt;
-      f.whirlV = Math.max(FIGHT.whirl.endSpeed, f.whirlV - f.whirlA * dt);
+      f.whirlV = Math.max(FIGHT.whirl.minSpeed * FIGHT.whirl.end, f.whirlV - f.whirlA * dt);
       if (f.whirl >= f.whirlD) {
         f.whirl = 0;
         f.twist = 0;
@@ -1635,8 +1635,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     // Noqueado: cae y RUEDA hasta quedar quieto donde su centro de masa queda más bajo (lo que haría la gravedad), apoyado en lo
     // que de verdad toca la mesa: el cuerpo, una aceituna, un palito. Antes quedaba frenado a 86° y apuntalado en el aire.
     // El primer medio segundo se desploma (las piernas ya no lo sostienen); después rueda hasta su reposo.
-    const collapsing = m.phase === 'ko' && m.phaseT < 30;
-    const target = collapsing ? Math.sign(f.tilt || -1) * 1.7 : restTilt(f);
+    // Cae ACOSTADO (de espaldas o de frente, hacia donde ya se iba), no de cabeza sobre su parte más pesada.
+    const target = (Math.sign(Math.abs(f.tilt) > 0.05 ? f.tilt : f.wt || -1) * Math.PI) / 2;
     const K = W * FIGHT.balanceH * 3;
     tau = -K * (f.tilt - target) - 2 * 0.7 * Math.sqrt(K * f.It) * f.wt;
   } else {
@@ -1815,7 +1815,8 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   const r = lenv(sub(p.p, l.pivot));
   const I = inertia(a, k, s.axis);
   const mEff = l.rigid ? l.mass * FIGHT.swing.massShare : clamp(I / Math.max(r * r, 1e-8), 0.2 * l.mass, l.mass);
-  const kind: HitKind = p.kind === 'shield' ? l.kind : p.kind;
+  // Un brazo con aceituna pega PESADO toque con la parte que toque (antes, si rozaba el palito, salía un golpe liviano).
+  const kind: HitKind = p.kind === 'shield' || l.kind === 'heavy' ? l.kind : p.kind;
   // Pega con su pieza más fuerte (un brazo con aceituna es un brazo de aceituna: más lento, pega más; orden fijo, ver
   // `pieceDmg`), por lo que ya recorrió el golpe (apoyar no es pegar); las piernas, un poco más.
   const D = FIGHT.pieceDmg;
