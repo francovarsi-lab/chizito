@@ -549,6 +549,20 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   en los dos lados. Salir cierra la sala. Red: WebRTC con PeerJS y su servidor público de presentación; `?sala=local-x` (+
   `&anfitrion` en una de las dos) usa BroadcastChannel entre dos pestañas del mismo navegador, sin internet (para probar).
   Pruebas: lockstep puro en `creature-fight-test.mjs`; de punta a punta `node scripts/versus-test.mjs <dir>` (~7 min por software; 6 de 6 OK). OJO: si se instala un paquete con el server prendido, reiniciarlo con `npx vite --force` (queda sirviendo dependencias viejas y la página no arranca).
+- JUGABLE PRIMERO (pedido del usuario, 2026-11-19): palito 11–13 cuadros al impacto, aceituna ~24, chupetín ~27; daño por
+  recorrido con piso 0,75; brazo con aceituna = golpe pesado siempre. Los DOS hombros giran igual (atrás al cargar, adelante al
+  soltar; `twist.armWind/armFwd` para el de adelante). El chupetín hace un gesto corto (`swing.gesture`) para que se vea con cuál
+  pega; la vuelta al pifiar es UN movimiento (`whirl.end`: afloja apenas, sin frenar). KO: el cuerpo pierde la estructura, cae
+  ACOSTADO (±90°) y cada extremidad se afloja sobre la tabla (`limp`, `joint.limp`), todos los luchadores.
+- PODER v3 (reemplaza al v2): sin ESCAPE. Barra en dos mitades para TU CHIZITO: media = el poder de lo que armó (nube, trompo,
+  carozazo, acupuntura, muralla), también como remate justo después de acertar; llena = OLOR A PATA (marea, zona de 4 s; sonido
+  `poder-olor`). Rivales: su poder con la barra llena. El corte de cámara del súper es sólo para el poder lleno del jugador (con el
+  vaporazo del rival era un zoom indeseado).
+- MÚSICA POR VILLANO: `musica-brocoloco` / `musica-huevo` / `musica-quinoa` (en `public/assets/sounds/`), desde que se entra a la
+  pelea (también con la presentación); si falta, `musica-pelea`; si falta, la base sintetizada. Contra un amigo: `musica-pelea`.
+- HINCHADA: el bowl de chizitos (`hinchada`, pegado a la tabla atrás a la izquierda): cada chizito salta por su cuenta con los
+  golpes fuertes y hacen LA OLA una vez por pelea (primer golpe fuerte de tu chizito). Sin caras ni sonido (`FightSet.wave`).
+- ROUND 2: cámara más aérea (38°, más lejos): se ve la tabla y la mesa.
 - BALANCE (medido, `docs/creature/BALANCE.md`): el sangrado no sale de golpes gastados por aporrear (`bleed.minWorn`); frente a una
   carga LENTA el rival no se cubre: la corta con su ataque más rápido (`AI_LEVELS.cut`) o da un paso atrás para que pifie y
   castiga; al salir del aturdimiento decide enseguida. Los granos de la quinoa saltan hacia el que pegó (`grains.spill`): quedan

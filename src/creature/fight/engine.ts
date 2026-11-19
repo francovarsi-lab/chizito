@@ -1564,7 +1564,10 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       const back = l.role === 'arm' && shoulderSign(f, l.pivot) * Math.sign(base) < 0;
       const amt = l.rigid ? T.swing : l.role === 'leg' ? T.kick : back ? T.armBack : T.arm;
       // Los DOS hombros giran al pegar: el de atrás va adelante con el golpe; el de adelante se echa atrás al cargar y vuelve.
-      want = f.limbs[sk].phase === 'windup' ? -sg * (l.role === 'arm' && !l.rigid && !back ? T.armWind : amt * T.wind) : sg * amt;
+      // Los DOS hombros giran igual de sentido: atrás al cargar y adelante al soltar (antes el de adelante giraba al revés y el
+      // golpe parecía venir "de allá hacia acá"). El de adelante gira menos: ya está cerca del rival.
+      const front = l.role === 'arm' && !l.rigid && !back;
+      want = f.limbs[sk].phase === 'windup' ? -sg * (front ? T.armWind : amt * T.wind) : sg * (front ? T.armFwd : amt);
       // Lo fijo gira alrededor de la cara de frente (giro 0), no de la guardia de 3/4: si no, el hombro de adelante llega antes.
       if (l.rigid) want -= base;
       rate = f.limbs[sk].phase === 'windup' ? T.rate.windup : T.rate.strike;

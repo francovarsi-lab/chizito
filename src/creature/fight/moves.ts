@@ -82,13 +82,13 @@ export const MOVES: Record<string, Move> = {
 // ── HUEVO DURO (nivel 2: enseña distancia). Brazos largos de espárrago (látigos). ──
 // Pinchazo largo: recoge el brazo 14 cuadros (aviso) y lo dispara en línea (los tres tramos alineados): alcance 7 cm.
 MOVES.pinchazo = {
-  id: 'pinchazo', hits: [{ from: 16, to: 21, with: ['armF'] }], total: 40, dmg: 5.5, kb: 0.3, stun: 13, guard: 'block', reach: 0.085, tell: 'zumbido', w: [1, 3, 2],
+  id: 'pinchazo', hits: [{ from: 16, to: 21, with: ['armF'] }], total: 40, dmg: 6.8, kb: 0.3, stun: 13, guard: 'block', reach: 0.085, tell: 'zumbido', w: [1, 3, 2],
   keys: [{ t: 0, limbs: REST }, { t: 14, limbs: { armF: [-0.5, 0.2, 0.85] } }, { t: 18, limbs: { armF: [1, 0.05, 0] }, vx: 0.08 }, { t: 24, limbs: { armF: [1, 0.05, 0] } }, { t: 40, limbs: REST }],
 };
 // Látigo bajo: el brazo va atrás y abajo 18 cuadros y barre la tabla: no se bloquea (hay que saltar) y derriba.
 MOVES.latigo = {
-  id: 'latigo', hits: [{ from: 20, to: 27, with: ['armF', 'armB'] }], total: 48, dmg: 4.5, kb: 0.22, stun: 12, guard: 'low', reach: 0.08, tell: 'risa', w: [1, 2, 1], down: 36,
-  keys: [{ t: 0, limbs: REST }, { t: 18, limbs: { armF: [-0.6, -0.7, 0.4], armB: [-0.4, -0.8, 0.5] } }, { t: 23, limbs: { armF: [0.9, -0.55, 0], armB: [0.8, -0.6, 0.2] } }, { t: 30, limbs: { armF: [0.9, -0.5, -0.2], armB: [0.8, -0.5, 0] } }, { t: 48, limbs: REST }],
+  id: 'latigo', hits: [{ from: 20, to: 27, with: ['armF', 'armB'] }], total: 48, dmg: 5.8, kb: 0.22, stun: 12, guard: 'low', reach: 0.08, tell: 'risa', w: [1, 2, 1], down: 36,
+  keys: [{ t: 0, limbs: REST }, { t: 18, limbs: { armF: [-0.6, -0.7, 0.4], armB: [-0.4, -0.8, 0.5] } }, { t: 23, limbs: { armF: [0.9, -0.55, 0], armB: [0.8, -0.6, 0.2] }, vx: 0.15 }, { t: 30, limbs: { armF: [0.9, -0.5, -0.2], armB: [0.8, -0.5, 0] } }, { t: 48, limbs: REST }],
 };
 
 // ── MONSTRUO DE QUINOA (nivel 3: enseña a elegir el golpe). ──

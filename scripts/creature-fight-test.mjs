@@ -131,7 +131,7 @@ try {
     const heavy = whiffOf(true);
     ok(light.ev && heavy.ev, 'errar se registra');
     if (light.ev && heavy.ev) {
-      ok(heavy.ev.lock > light.ev.lock * 2.5, `errar con la aceituna cuesta mucho más (${heavy.ev.lock} vs ${light.ev.lock} cuadros)`);
+      ok(heavy.ev.lock > light.ev.lock * 2, `errar con la aceituna cuesta mucho más (${heavy.ev.lock} vs ${light.ev.lock} cuadros)`);
       ok(heavy.tiltMax > light.tiltMax && heavy.tiltMax > 0.15, `la aceituna que erra desestabiliza al chizito (${heavy.tiltMax.toFixed(2)} vs ${light.tiltMax.toFixed(2)} rad)`);
     }
   }
@@ -256,7 +256,7 @@ try {
       return wind;
     };
     const wl = windOf(false), wh = windOf(true);
-    ok(wh > wl * 2.5 && wh > 25, `la aceituna carga mucho más que el palito (${wh} vs ${wl} cuadros)`);
+    ok(wh > wl * 2 && wh >= 14, `la aceituna carga mucho más que el palito (${wh} vs ${wl} cuadros)`);
     // Cortarle la carga: el rival pega mientras carga la aceituna.
     const m = fight(mine);
     m.f[1].x = m.f[0].x + 0.045;
@@ -564,9 +564,9 @@ try {
       stepMatch(m, [{ x: 0, punch: i === 0 }, { x: 0 }]);
       const ph = f.limbs.find((q) => q.phase === 'windup' || q.phase === 'strike')?.phase;
       if (ph === 'windup' && Math.abs(f.twist) > Math.abs(wind)) wind = f.twist;
-      if (ph === 'strike' && Math.abs(f.twist) > Math.abs(strike)) strike = f.twist;
+      if (ph === 'strike') strike = f.twist;
     }
-    ok(Math.abs(strike) > 0.12 && Math.sign(strike) !== Math.sign(wind), `el torso gira al pegar: atrás al cargar, adelante al soltar (${wind.toFixed(2)} → ${strike.toFixed(2)} rad)`);
+    ok(Math.abs(strike - wind) > 0.12 && Math.sign(strike - wind) !== Math.sign(wind), `el torso gira al pegar: atrás al cargar, adelante al soltar (${wind.toFixed(2)} → ${strike.toFixed(2)} rad)`);
     const k = fight(mine);
     const kf = k.f[0];
     for (let i = 0; i < 60; i++) stepMatch(k, [{ x: 0 }, { x: 0 }]);
@@ -871,13 +871,13 @@ try {
     ok(broke, '4 bloqueos en 3 s rompen la guardia');
   }
 
-  // ── T4: poder con tres usos (remate, escape, súper) y súper según lo armado ──
+  // ── T4: poder en dos mitades (media = lo armado, también como remate; llena = olor a pata) y según lo armado ──
   {
     const arq = (id) => { const P = fighterFromSnapshot(JSON.parse(fs.readFileSync(`src/creature/fixtures/arq/${id}.snapshot.json`, 'utf8'))); P.power = 'queso'; return P; };
     const superKind = (id) => {
       const m = fight(arq(id));
       m.f[1].x = m.f[0].x + 0.05;
-      m.f[0].meter = FIGHT.power.max;
+      m.f[0].meter = FIGHT.powerUse.half;
       let kind = null;
       for (let i = 0; i < 5 && !kind; i++) { stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); for (const e of m.events) if (e.type === 'power') kind = e.kind; }
       return kind;
@@ -887,14 +887,14 @@ try {
     // Cada súper hace lo suyo: daño (o muralla) contra el brócoli quieto a 5 cm.
     for (const id of ['boxeador', 'chupetin2', 'mazo', 'pinchudo']) {
       const m = fight(arq(id));
-      m.f[0].meter = FIGHT.power.max;
+      m.f[0].meter = FIGHT.powerUse.half;
       const hp0 = m.f[1].hp;
       for (let i = 0; i < 200; i++) { m.f[1].x = m.f[0].x + 0.05; stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); }
       ok(m.f[1].hp < hp0 - 3, `${id}: el súper lastima (${(hp0 - m.f[1].hp).toFixed(1)})`);
     }
     {
       const m = fight(arq('tanque'));
-      m.f[0].meter = FIGHT.power.max;
+      m.f[0].meter = FIGHT.powerUse.half;
       for (let i = 0; i < 30; i++) stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]);
       ok(m.f[0].wall > 100, 'tanque: muralla activa');
     }
@@ -910,16 +910,15 @@ try {
       }
       ok(remate && m.f[0].meter < 30, `E después de acertar = remate (barra ${m.f[0].meter.toFixed(0)})`);
     }
-    // Escape: aturdido con media barra, E lo libera y separa al rival.
+    // Barra llena = OLOR A PATA: marea al que está cerca y el olor queda en la tabla.
     {
       const m = fight(arq('boxeador'));
-      m.f[1].x = m.f[0].x + 0.04;
-      m.f[0].meter = 60;
-      m.f[0].stun = 30;
-      const g0 = m.f[1].x - m.f[0].x;
-      let esc = false;
-      for (let i = 0; i < 20; i++) { stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); esc ||= m.events.some((e) => e.type === 'escape'); }
-      ok(esc && m.f[0].stun === 0 && m.f[1].x - m.f[0].x > g0 + 0.02, `E aturdido = escape (separa ${((m.f[1].x - m.f[0].x - g0) * 100).toFixed(1)} cm)`);
+      m.f[1].x = m.f[0].x + 0.05;
+      m.f[0].meter = FIGHT.power.max;
+      const hp0 = m.f[1].hp;
+      let kind = null;
+      for (let i = 0; i < 90; i++) { m.f[1].x = m.f[0].x + 0.05; stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); for (const e of m.events) if (e.type === 'power') kind = e.kind; }
+      ok(kind === 'olor' && m.f[1].hp < hp0 - 8 && m.f[0].meter < 10, `barra llena = olor a pata (saca ${(hp0 - m.f[1].hp).toFixed(1)})`);
     }
   }
 
