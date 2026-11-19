@@ -316,7 +316,7 @@ export function createEgg(): THREE.Group {
   yolk.name = 'yema';
   yolk.position.set(spec.shell.rx * 0.42, spec.cy - spec.shell.ry * 0.42, spec.shell.rz * 0.62);
   yolk.visible = false;
-  root.add(yolk);
+  // shortcut: la yema no se agrega (el usuario veía "un punto amarillo" afuera del huevo); la fase 2 se ve sólo por la grieta.
   // Cuerpo: un huevo de verdad (más ancho abajo, más agudo arriba), con unos poquitos hoyuelos de la clara cocida.
   const { rx, ry } = spec.shell;
   const prof: THREE.Vector2[] = [];
