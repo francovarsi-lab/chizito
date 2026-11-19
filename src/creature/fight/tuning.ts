@@ -123,7 +123,7 @@ export const FIGHT = {
     recover: { wn: 22, zeta: 0.38 },
     guard: { wn: 34, zeta: 0.6 },
     // Noqueado: sin rigidez (cae y rebota apenas).
-    limp: { wn: 13, zeta: 0.3 },
+    limp: { wn: 20, zeta: 0.35 },
   },
   /** Torque máximo = tau0 · (I / I0)^tauExp: una extremidad pesada tiene más "músculo", pero no tanto como su inercia. */
   tau0: 9e-5,

@@ -855,6 +855,8 @@ function limp(f: FighterState, k: number): Q {
   // Apuntaba derecho arriba o abajo: cae a lo largo del cuerpo.
   if (lenv(flat) < 0.2) flat = sub([0, l.dir[1] >= 0 ? 1 : -1, 0], scl(up, (l.dir[1] >= 0 ? 1 : -1) * up[1]));
   flat = normv(flat);
+  // Las piernas se pliegan contra el cuerpo (si caen hacia la tabla, lo apuntalan y queda flotando sobre ellas).
+  if (l.role === 'leg') return qFromTo(l.dir, normv([l.dir[0] * 0.15, l.dir[1] >= 0 ? 1 : -1, l.dir[2] * 0.15]));
   const h = toWorld(f, l.pivot)[1];
   const droop = Math.asin(clamp((h - 0.004) / Math.max(l.reach, 1e-3), 0, 1));
   return qFromTo(l.dir, normv(sub(scl(flat, Math.cos(droop)), scl(up, Math.sin(droop)))));

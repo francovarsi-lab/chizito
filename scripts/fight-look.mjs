@@ -22,13 +22,11 @@ const snap = async (name) => {
 await p.evaluate(() => { window.__fight.advance(140, { x: 1 }); });
 await p.evaluate(() => window.__chizito.renderFrames(30));
 await snap('r1');
-// Round 2: vista aérea.
-await p.evaluate(() => { const m = window.__fight.match(); m.round = 2; });
-await p.evaluate(() => window.__chizito.renderFrames(50));
-await snap('r2-aerea');
-// KO del rival: cae acostado y suelta las extremidades.
-await p.evaluate(() => { const m = window.__fight.match(); m.round = 1; m.f[1].hp = 0.1; m.f[1].bleed = [600]; });
-await p.evaluate(() => window.__chizito.renderFrames(160));
+// KO del rival (huevo, nivel 2): cae al piso, suelta las extremidades y pone cara de noqueado.
+await p.evaluate(() => window.__fight.restart(2));
+await p.evaluate(() => { window.__fight.advance(140, { x: 1 }); });
+await p.evaluate(() => { const m = window.__fight.match(); m.f[1].hp = 0.1; m.f[1].bleed = [600]; });
+await p.evaluate(() => window.__chizito.renderFrames(320));
 await snap('ko-rival');
 console.log(errs.slice(0, 4).join('\n') || 'sin errores');
 await b.close();
