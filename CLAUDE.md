@@ -562,7 +562,19 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   pelea (también con la presentación); si falta, `musica-pelea`; si falta, la base sintetizada. Contra un amigo: `musica-pelea`.
 - HINCHADA: el bowl de chizitos (`hinchada`, pegado a la tabla atrás a la izquierda): cada chizito salta por su cuenta con los
   golpes fuertes y hacen LA OLA una vez por pelea (primer golpe fuerte de tu chizito). Sin caras ni sonido (`FightSet.wave`).
-- ROUND 2: cámara más aérea (38°, más lejos): se ve la tabla y la mesa.
+- CÁMARA: la lateral de siempre (el usuario: "la cámara está bien"); V alterna una AÉREA opcional (38°, más lejos). Los poderes NO
+  hacen zoom (se sacó el corte de cámara).
+- KO (v2): cae al piso con `koFall` (gravedad y caída × 3,5; con la cámara lenta parecía que flotaba). Los rivales ponen cara de
+  noqueado (`face(..., dead)`: ojos en rendija, sin pupila ni brillo, boca floja).
+- CARTELES: el número de daño sólo con 8+ o en cadenas; ¡PIFIÓ! sólo cuando pifia lo pesado.
+- NUBE DE QUESO (media barra sin piezas pesadas) y OLOR A PATA: al soltarlos MAREAN al que está adentro (nube 60 cuadros, olor 70;
+  la guardia no tapa la nariz). Antes la nube "no hacía nada".
+- CHUPETÍN: la IA no corta su carga (antes la cortaba siempre: "no puedo golpear con el chupetín"); se aleja para que pifie. Al
+  pifiar: vuelta entera limpia (sin bamboleo, `whirl.wobble` 0) y expuesto `whirl.after` (40) cuadros más. `swing.poiseHits`
+  (aguantar un golpe cargando) quedó en 0: con 1, el doble chupetín ganaba todo.
+- QUINOA jugable sin chupetín: lo rápido saca 75 % (antes 40 %), traba 4 cuadros, cada grano devuelve 0,08; recibe × 0,9.
+- VOLVER A ARMAR: la próxima pelea arranca contra el primer rival (antes seguía en el nivel en el que se salió).
+- Huevo: sin el grano de arroz en los ojos (se leía amarillo); grieta y yema de la fase 2 abajo, en la panza.
 - BALANCE (medido, `docs/creature/BALANCE.md`): el sangrado no sale de golpes gastados por aporrear (`bleed.minWorn`); frente a una
   carga LENTA el rival no se cubre: la corta con su ataque más rápido (`AI_LEVELS.cut`) o da un paso atrás para que pifie y
   castiga; al salir del aturdimiento decide enseguida. Los granos de la quinoa saltan hacia el que pegó (`grains.spill`): quedan

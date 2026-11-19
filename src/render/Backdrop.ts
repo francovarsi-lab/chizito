@@ -81,7 +81,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   const swordCup = makeStandCup(assets, { type: 'escarbadientes', count: 12, seed: 67, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'espadita' }), stripe: '#8a4dff' });
   swordCup.position.copy(BOWL_LAYOUT['escarbadientes:espadita']);
   // Sobrecitos de ketchup en un platito: clic = modo dibujar.
-  const sachetDish = makeBowl(0.026, 0.011, ceramic);
+  const sachetDish = makeBowl(0.029, 0.012, ceramic);
   sachetDish.position.copy(BOWL_LAYOUT.ketchup);
   sachetDish.add(fillSachets(3, 81));
   // Palitos de la selva con su envoltorio (se desenrolla al agarrarlos) y chupetines en un vasito.
@@ -318,14 +318,21 @@ function fillSachets(count: number, seed: number): THREE.Object3D {
     const g = new THREE.Group();
     // Acostados como cartas en abanico corrido: todos con la MISMA inclinación y giro, cada uno apenas más arriba y corrido
     // (planos paralelos: no se atraviesan; antes cada uno tenía su giro y se cortaban entre sí).
-    s.rotation.x = -Math.PI / 2 + 0.6;
-    s.position.y = SACHET_H * 0.22;
+    s.rotation.x = -Math.PI / 2 + 0.2;
+    s.position.y = SACHET_H * 0.08;
     g.add(s);
-    g.rotation.y = 0.12 + (rnd() - 0.5) * 0.02;
-    g.position.set((i - (count - 1) / 2) * 0.009, 0.006 + i * 0.0032, -(i - (count - 1) / 2) * 0.004);
+    // A lo ancho del platito (como se lo ve desde la cámara) y un poco más chicos: así entran enteros.
+    g.rotation.y = Math.PI / 2 + 0.12 + (rnd() - 0.5) * 0.02;
+    g.position.set((i - (count - 1) / 2) * 0.003, 0.004 + i * 0.0024, (i - (count - 1) / 2) * 0.005);
     pile.add(g);
   }
-  return bakeStatic(pile, 'sobres-ketchup');
+  // Centrados en el platito (el sobre tiene el origen en un borde: si no, uno asomaba por adelante).
+  const c = new THREE.Box3().setFromObject(pile).getCenter(new THREE.Vector3());
+  pile.scale.setScalar(0.85);
+  pile.position.set(-c.x * 0.85, 0, -c.z * 0.85);
+  const wrap = new THREE.Group();
+  wrap.add(pile);
+  return bakeStatic(wrap, 'sobres-ketchup');
 }
 
 function makeCup(color: string, x: number, z: number, roughness = 0.32): THREE.Mesh {
