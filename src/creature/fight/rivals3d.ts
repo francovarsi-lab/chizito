@@ -308,13 +308,13 @@ export function createEgg(): THREE.Group {
   // Fase 2 (vida < 40 %): la clara se raja y asoma la yema. Ocultas hasta entonces.
   const crack = new THREE.Mesh(new THREE.TorusGeometry(spec.shell.rx * 0.55, 0.0009, 6, 24, Math.PI * 0.9), new THREE.MeshStandardMaterial({ color: 0x6b5a3a, roughness: 0.9 }));
   crack.name = 'grieta';
-  crack.position.set(spec.shell.rx * 0.35, spec.cy + spec.shell.ry * 0.25, spec.shell.rz * 0.82);
+  crack.position.set(spec.shell.rx * 0.4, spec.cy - spec.shell.ry * 0.4, spec.shell.rz * 0.72);
   crack.rotation.set(0.3, 0.6, -0.5);
   crack.visible = false;
   root.add(crack);
   const yolk = new THREE.Mesh(new THREE.SphereGeometry(spec.shell.rx * 0.32, 20, 14), new THREE.MeshStandardMaterial({ color: 0xffb21e, roughness: 0.45, emissive: 0x3a2000 }));
   yolk.name = 'yema';
-  yolk.position.set(spec.shell.rx * 0.38, spec.cy + spec.shell.ry * 0.22, spec.shell.rz * 0.72);
+  yolk.position.set(spec.shell.rx * 0.42, spec.cy - spec.shell.ry * 0.42, spec.shell.rz * 0.62);
   yolk.visible = false;
   root.add(yolk);
   // Cuerpo: un huevo de verdad (más ancho abajo, más agudo arriba), con unos poquitos hoyuelos de la clara cocida.
@@ -342,7 +342,7 @@ export function createEgg(): THREE.Group {
   body.computeVertexNormals();
   root.add(new THREE.Mesh(body, M.white));
 
-  // Cara (simple pero bien hecha, como el boceto): aceitunas negras con un grano de arroz, cejas de morrón en V y una sonrisa
+  // Cara (simple pero bien hecha, como el boceto): rodajas de aceituna negra (sin el grano de arroz: se leía como algo amarillo en el ojo), cejas de morrón en V y una sonrisa
   // de aceituna con dientes de sésamo.
   const EY = 0.0505;
   for (const sx of [-1, 1]) {
@@ -350,9 +350,6 @@ export function createEgg(): THREE.Group {
     eye.scale.z = 0.55;
     eye.name = 'ojo';
     root.add(stick(spec, eye, sx * 0.0058, EY, 0.0005));
-    const rice = new THREE.Mesh(new THREE.CapsuleGeometry(0.0007, 0.0011, 4, 8), M.rice);
-    rice.name = 'ojo';
-    root.add(stick(spec, rice, sx * 0.0058, EY, 0.0008, sx * 0.6));
     const a = onShell(spec, sx * 0.0115, EY + 0.0055, 0.0007);
     const b = onShell(spec, sx * 0.0022, EY + 0.0028, 0.0007);
     const brow = strip(a, b, shellNormal(spec, a.clone().lerp(b, 0.5)), 0.0011, M.pepper);

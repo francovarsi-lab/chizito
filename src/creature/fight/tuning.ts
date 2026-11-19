@@ -64,6 +64,8 @@ export const FIGHT = {
   // ── Cuerpo ──
   /** m/s²: gravedad de juego (más flotante que la real, para que los saltos se lean). */
   gravity: 3.4,
+  /** Noqueado: gravedad y caída del cuerpo × esto (se desploma al piso, no flota). */
+  koFall: 3.5,
   /** m/s: caminar con piernas que cargan justo su peso. */
   walkSpeed: 0.1,
   massRef: 0.006,
@@ -164,7 +166,7 @@ export const FIGHT = {
   /** Quinoa (T8): golpe con poder < burstPower se hunde (daño × absorb, el brazo trabado `stuck` cuadros); lo cargado revienta y
    *  deja un montoncito (n = daño) que vuelve a la quinoa si lo pisa (pickR) o a los `life` cuadros (+ back de vida por grano).
    *  Un golpe a menos de sweepH del piso y sweepR del montón lo desparrama. */
-  grains: { burstPower: 1.05, absorb: 0.4, stuck: 10, life: 480, pickR: 0.02, spill: 0.034, back: 0.2, sweepH: 0.022, sweepR: 0.014 },
+  grains: { burstPower: 1.05, absorb: 0.75, stuck: 4, life: 480, pickR: 0.02, spill: 0.034, back: 0.08, sweepH: 0.022, sweepR: 0.014 },
   getUpInv: 10,
   /** Doble toque de flecha (dentro de `taps` cuadros) = PASITO de `dist` en `frames`; hacia atrás, invulnerable `backInv`. */
   dash: { taps: 12, frames: 10, dist: 0.03, backInv: 6 },
@@ -193,7 +195,7 @@ export const FIGHT = {
    * Golpe de cuerpo entero con una pieza fija (chupetín): se inclina atrás (`back`), y de golpe adelante (`fwd`) con más rigidez
    * (`stiff`); pega mientras gira más rápido que `activeW`. Es lento y el que más pega (`pieceDmg.chupetin`). Pifiar cuesta `whiffMul` veces más y da la vuelta entera (`whirl`).
    */
-  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 12, maxCharge: 16, loadCharge: 0.25, strikeFrames: 26, chargeMul: 2, turnSpeed: 9, massShare: 0.85, whiffMul: 1.1, lunge: 0.22, gesture: { back: 0.45, fwd: 0.55, frames: 6 } },
+  swing: { back: 0.5, fwd: 0.75, stiff: 6, backStiff: 3.2, activeW: 1.6, windFrames: 12, maxCharge: 16, loadCharge: 0.25, strikeFrames: 26, chargeMul: 2, turnSpeed: 9, massShare: 0.85, whiffMul: 1.1, lunge: 0.22, gesture: { back: 0.45, fwd: 0.55, frames: 6 }, poiseHits: 0 },
   /** Escudo de frente: si está a menos de `shieldFront` del frente no se mueve; a más de `shieldBack`, se da vuelta. */
   shieldFront: 0.35,
   shieldBack: 2.2,
@@ -231,8 +233,8 @@ export const FIGHT = {
    * es pegar. Rivales: su extremidad.
    */
   pieceDmg: {
-    chupetin: 12.5,
-    aceituna: 11,
+    chupetin: 10.8,
+    aceituna: 10.2,
     'palito-selva': 7.6,
     palito: 6.2,
     'escarbadientes:espadita': 5,
@@ -288,7 +290,7 @@ export const FIGHT = {
    * Chupetín que pifia: el peso lo arrastra y la criatura da una VUELTA ENTERA (360°) sobre sí misma, desestabilizada: `frames`
    * cuadros girando y `stun` cuadros sin poder hacer nada (queda expuesta).
    */
-  whirl: { wobble: 0.4, minSpeed: 9, end: 0.6 },
+  whirl: { after: 40, wobble: 0, minSpeed: 9, end: 0.6 },
   /**
    * PODER: barra que se llena pegando (daño × `onHit`), recibiendo (× `onHurt`) y de a poco sola. Llena, se suelta el poder del
    * luchador (ver `POWERS`).
@@ -321,7 +323,8 @@ export const POWERS = {
   rodada: { name: '¡HUEVAZO RODANTE!', wind: 22, go: 48, speed: 0.4, dmg: 13, kb: 0.5, stun: 34 },
   metralla: { name: 'METRALLA DE GRANOS', wind: 20, go: 16, n: 7, speed: 0.6, spread: 0.55, dmg: 2.3, r: 0.0026, life: 80, armorLoss: 0.35, regrow: 240 },
   // Súper de TU CHIZITO según lo que armó (la pieza que más pega): nube que queda, trompo, carozo, acupuntura o muralla.
-  nube: { name: '¡NUBE DE QUESO!', wind: 16, go: 20, life: 120, r: 0.045, dps: 2, blind: 0.7 },
+  // Marea 1,5 s al que está adentro al soltarla (antes "no hacía nada": sólo 2/s mientras estuviera adentro).
+  nube: { name: '¡NUBE DE QUESO!', wind: 16, go: 20, life: 150, r: 0.055, dps: 2, blind: 0.7, dmg: 3, dizzy: 60 },
   trompo: { name: '¡TROMPO!', wind: 18, go: 42, reach: 0.07, dmg: 6, hits: [8, 20, 32] as readonly number[], kb: 0.18, stun: 14 },
   carozo: { name: '¡CAROZAZO!', wind: 18, go: 10, speed: 0.55, dmg: 9, r: 0.004, life: 70, dizzy: 50 },
   acupuntura: { name: '¡ACUPUNTURA!', wind: 12, go: 34, reach: 0.06, dmg: 2.6, hits: [4, 10, 16, 22, 28] as readonly number[], stun: 8 },
@@ -336,7 +339,7 @@ export const JELLY = { window: 36, step: 0.22, min: 0.45 };
 
 /** Rival: cuán bien juega el brócoli en cada nivel. */
 export const AI_LEVELS = [
-  { reaction: 30, guard: 0.1, aggression: 0.035, jump: 0.002, retreat: 0.2, chain: 0, think: 26, cut: 0.08 },
+  { reaction: 30, guard: 0.1, aggression: 0.035, jump: 0.002, retreat: 0.2, chain: 0, think: 16, cut: 0.08 },
   { reaction: 15, guard: 0.48, aggression: 0.05, jump: 0.004, retreat: 0.3, chain: 0.06, think: 11, cut: 0.25 },
   { reaction: 11, guard: 0.6, aggression: 0.065, jump: 0.006, retreat: 0.35, chain: 0.09, think: 9, cut: 0.32 },
 ] as const;

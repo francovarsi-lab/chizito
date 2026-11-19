@@ -112,7 +112,7 @@ export interface FighterState {
   /** Erró y quedó desestabilizado: no vuelve a golpear hasta estabilizarse; si se inclina de más, trastabilla (una vez). */
   wobbly: boolean;
   /** Golpe de cuerpo entero con una pieza fija (chupetín): hacia dónde se balancea (+1 adelante, −1 atrás). */
-  swing: { k: number; sign: 1 | -1; t0?: number } | null;
+  swing: { k: number; sign: 1 | -1; t0?: number; held?: boolean } | null;
   /** Se cubre con un escudo: inclinación (rad) para ponerlo de frente; `turned` = se dio vuelta para mostrar la espalda. */
   shieldPose: { tilt: number; turned: boolean } | null;
   buffer: { kind: 'arm' | 'kick' | 'air'; t: number; quad?: Quad; move?: Move } | null;
@@ -785,7 +785,8 @@ function endStrike(m: Match, i: 0 | 1, k: number): void {
     const vEnd = f.whirlV * FIGHT.whirl.end;
     f.whirlA = (f.whirlV * f.whirlV - vEnd * vEnd) / (2 * f.whirlD);
     if (f.whirl <= 0) f.whirl = 1e-4;
-    f.stun = Math.max(f.stun, Math.ceil((2 * f.whirlD) / (f.whirlV + vEnd) / dt) + 2);
+    // Queda expuesto lo que dura la vuelta y un rato más, mareado (sin bambolearse: la vuelta es un círculo limpio).
+    f.stun = Math.max(f.stun, Math.ceil((2 * f.whirlD) / (f.whirlV + vEnd) / dt) + Math.round(FIGHT.whirl.after * (1 + 0.5 * f.heavyLoad)));
   } else {
     const wAx = dotv(s.w, s.axis);
     const I = inertia(f, k, s.axis);
@@ -865,6 +866,23 @@ function limp(f: FighterState, k: number): Q {
  * Daño que de verdad entra según el cuerpo del que recibe: la coraza (huevo blandito ×1,25, quinoa ×0,6, menos coraza si tiró
  * granos) y la gelatina del huevo (los golpes seguidos rebotan y pegan cada vez menos).
  */
+/**
+ * Le pegaron: se le corta el golpe en curso. La CARGA del chupetín no se pierde (pedido del usuario: "se anula la carga"): queda
+ * en pausa mientras está aturdido y sigue después. Lo que ya estaba girando (fase de golpe) sí se corta.
+ */
+function interrupt(b: FighterState): void {
+  let kept = false;
+  b.limbs.forEach((q, k) => {
+    // Aguanta UN golpe (la carga queda en pausa); el segundo golpe durante la misma carga sí la corta.
+    if (q.phase === 'windup' && b.model.limbs[k].rigid && b.swing?.k === k && !b.swing.held && FIGHT.swing.poiseHits > 0) kept = b.swing.held = true;
+    else if (q.phase === 'windup' || q.phase === 'strike') {
+      q.phase = 'recover';
+      q.t = 0;
+    }
+  });
+  if (!kept) b.swing = null;
+}
+
 function soak(m: Match, b: FighterState, dmg: number): number {
   let mul = ((b.model.armorMul ?? 1) + b.armorLoss) * (b.model.jelly && b.hp < FIGHT.phase2 ? FIGHT.phase2Mul : 1);
   if (b.model.jelly) {
@@ -895,12 +913,8 @@ function powerHit(m: Match, i: 0 | 1, kind: PowerKind, at: [number, number], dmg
     b.chain = null;
     b.buffer = null;
     b.mv = null;
-    b.swing = null;
     b.squat = 0;
-    for (const q of b.limbs) if (q.phase === 'windup' || q.phase === 'strike') {
-      q.phase = 'recover';
-      q.t = 0;
-    }
+    interrupt(b);
     if (o.dizzy) {
       b.dizzyT = o.dizzy;
       b.stun = Math.max(b.stun, o.dizzy);
@@ -934,7 +948,8 @@ function stepPower(m: Match, i: 0 | 1): void {
       const P = POWERS[pw.kind];
       m.zones.push({ x: f.x + f.facing * 0.035, y: f.y + 0.02, r: P.r, life: P.life, by: i, kind: pw.kind });
       // OLOR A PATA: además del olor que queda, el primer golpe de aire marea al que esté adentro (la guardia no tapa la nariz).
-      if (pw.kind === 'olor' && Math.abs(foe.x - (f.x + f.facing * 0.035)) < P.r) powerHit(m, i, 'olor', [foe.x, foe.y + 0.03], POWERS.olor.dmg, { kb: 0.1, up: 0, stun: 24, dizzy: POWERS.olor.dizzy });
+      // La nube y el olor MAREAN de entrada al que está adentro (la guardia no tapa la nariz): queda atontado un rato.
+      if (Math.abs(foe.x - (f.x + f.facing * 0.035)) < P.r * 1.5 && !foe.ko) powerHit(m, i, pw.kind, [foe.x, foe.y + 0.03], P.dmg, { kb: 0.06, up: 0, stun: 20, dizzy: P.dizzy, blocked: false });
     } else if (pw.kind === 'carozo') {
       const P = POWERS.carozo;
       m.shots.push({ id: m.nextShot++, by: i, x: center[0], y: foe.y + 0.02, vx: f.facing * P.speed, vy: 0, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'carozo' });
@@ -1129,9 +1144,8 @@ function moveHit(m: Match, i: 0 | 1, mv: (typeof MOVES)[string], at: [number, nu
     b.chain = null;
     b.buffer = null;
     b.mv = null;
-    b.swing = null;
     b.squat = 0;
-    for (const q of b.limbs) if (q.phase === 'windup' || q.phase === 'strike') { q.phase = 'recover'; q.t = 0; }
+    interrupt(b);
     b.wt += (dir === -b.facing ? -1 : 1) * Math.min(4, 10 * mv.kb);
     if (mv.down && b.grounded) {
       b.down = mv.down;
@@ -1390,7 +1404,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
         drive(f, k, limp(f, k), FIGHT.joint.limp);
         return;
       }
-      if (s.phase !== 'rest') s.t++;
+      // Aturdido con la carga del chupetín: la carga queda en pausa (no avanza ni se pierde).
+      if (s.phase !== 'rest' && !(s.phase === 'windup' && f.stun > 0)) s.t++;
       // El chupetín acompaña el golpe con un gesto corto (atrás al cargar, adelante al soltar): se ve con CUÁL pega.
       if (!l.through) {
         const G = FIGHT.swing.gesture;
@@ -1614,7 +1629,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     f.grounded = false;
     f.hopCool = FIGHT.hopRest;
   }
-  if (!f.grounded) f.vy -= G * dt;
+  // Noqueado cae PESADO (con la gravedad de juego, flotante, y la cámara lenta del KO parecía que flotaba).
+  if (!f.grounded) f.vy -= G * dt * (f.ko ? FIGHT.koFall : 1);
   f.x += f.vx * dt;
   f.y += f.vy * dt;
 
@@ -1640,7 +1656,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     // El primer medio segundo se desploma (las piernas ya no lo sostienen); después rueda hasta su reposo.
     // Cae ACOSTADO (de espaldas o de frente, hacia donde ya se iba), no de cabeza sobre su parte más pesada.
     const target = (Math.sign(Math.abs(f.tilt) > 0.05 ? f.tilt : f.wt || -1) * Math.PI) / 2;
-    const K = W * FIGHT.balanceH * 3;
+    const K = W * FIGHT.balanceH * 3 * FIGHT.koFall;
     tau = -K * (f.tilt - target) - 2 * 0.7 * Math.sqrt(K * f.It) * f.wt;
   } else {
     if (f.support && f.grounded) {
@@ -1895,15 +1911,9 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
     b.chain = null;
     b.squat = 0;
     b.stun = b.wall > 0 ? 0 : Math.round(FIGHT.hitstun.base + FIGHT.hitstun.k * dmg);
-    if (b.wall <= 0) b.limbs.forEach((q) => {
-      if (q.phase === 'windup' || q.phase === 'strike') {
-        q.phase = 'recover';
-        q.t = 0;
-      }
-    });
+    if (b.wall <= 0) interrupt(b);
     b.buffer = null;
     b.mv = null;
-    b.swing = null; // si estaba cargando un balanceo, lo pierde
     if (kind === 'heavy') {
       b.dizzy += dmg;
       if (b.dizzy >= FIGHT.dizzyMax) {

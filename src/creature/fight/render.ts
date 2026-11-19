@@ -69,7 +69,8 @@ export interface FighterView {
   /** Punto de mundo de la cabeza (para las estrellitas de mareo). */
   head(): THREE.Vector3;
   /** Gesto de la cara, si tiene una armada (el brócoli): boca abierta 0..1 y cejas (−1 furia, abajo; +1 arriba). */
-  face?(open: number, brow: number): void;
+  /** `dead`: noqueado (ojos cerrados, sin pupila ni brillo, boca floja). */
+  face?(open: number, brow: number, dead?: boolean): void;
   dispose(): void;
 }
 
@@ -398,6 +399,8 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   const faceParts = (name: string): THREE.Object3D[] => inner.children.filter((o) => o.name === name);
   const mouthParts = [...faceParts('boca'), ...faceParts('dientes')];
   const brows = faceParts('ceja');
+  const eyes = faceParts('ojo').map((o) => ({ o, sy: o.scale.y }));
+  const eyeDots = [...faceParts('pupila'), ...faceParts('brillo')];
   const MOUTH_TOP = inner.userData.mouthTop as number;
   const TOP = inner.userData.top as number;
   const BROW_STEP = (inner.userData.browStep as number | undefined) ?? 0.05;
@@ -489,7 +492,10 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       outer.updateMatrixWorld(true);
       return new THREE.Vector3(0, TOP, 0).applyMatrix4(outer.matrixWorld);
     },
-    face(open, brow) {
+    face(open, brow, dead = false) {
+      // Noqueado: los ojos se cierran (rendija), sin mirada, y la boca queda floja.
+      for (const e of eyes) e.o.scale.y = dead ? e.sy * 0.12 : e.sy;
+      for (const d of eyeDots) d.visible = !dead;
       const sy = 1 + 1.1 * Math.max(0, open);
       for (const o of mouthParts) {
         o.scale.y = sy;

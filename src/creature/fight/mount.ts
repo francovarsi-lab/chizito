@@ -81,7 +81,7 @@ const btnCss = `
 `;
 const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/></svg>`;
 
-const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyQ', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'KeyE', 'Escape', 'Enter', 'Space']);
+const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyQ', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'KeyE', 'KeyV', 'Escape', 'Enter', 'Space']);
 
 const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], armorLoss: f.armorLoss, power: f.pw?.kind ?? null, hp: f.hp, mv: f.mv?.id ?? null, mvT: f.mv?.t ?? 0 });
 
@@ -111,7 +111,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   let cur: [RenderPose, RenderPose] | null = null;
   let acc = 0;
   // ?nivel=2 o 3 arranca contra ese rival (para probarlo sin ganar los anteriores).
-  let level = Math.min(AI_LEVELS.length, Math.max(1, Number(new URLSearchParams(location.search).get('nivel') ?? 1) || 1));
+  const startLevel = Math.min(AI_LEVELS.length, Math.max(1, Number(new URLSearchParams(location.search).get('nivel') ?? 1) || 1));
+  let level = startLevel;
   let ai: AiMem = newAi(1, 1);
   /** La hinchada hace la ola UNA vez por pelea (con el primer golpe fuerte de tu chizito). */
   let waved = false;
@@ -366,7 +367,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const r = m.f[1];
       const mvW = r.mv && r.limbs.some((q) => q.phase === 'windup');
       const hurtNow = m.frame - r.lastHurt < 20;
-      if (m.winner === 1 || (m.phase !== 'fight' && m.roundWinner === 1)) views[1].face?.(0.6 + 0.4 * Math.abs(Math.sin(m.frame * 0.35)), 0.4);
+      if (r.ko) views[1].face?.(0.45, 0.8, true);
+      else if (m.winner === 1 || (m.phase !== 'fight' && m.roundWinner === 1)) views[1].face?.(0.6 + 0.4 * Math.abs(Math.sin(m.frame * 0.35)), 0.4);
       else if (hurtNow) views[1].face?.(0.1, 0.9);
       else if (mvW || r.pw?.phase === 'wind') views[1].face?.(0.9, -1);
       else views[1].face?.(0.15, -0.6);
@@ -428,7 +430,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         shake = Math.max(shake, e.blocked ? 0.0008 : 0.0012 + e.damage * 0.00022);
         // Sólo el número (no todos los golpes llevan palabra): azul si lo tapó, rojizo si cortó.
         const label = '';
-        hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, label, e.blocked ? 'block' : e.kind === 'heavy' ? 'heavy' : e.kind === 'cut' ? 'cut' : '');
+        if (e.damage >= 8 || e.chain) hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, label, e.blocked ? 'block' : e.kind === 'heavy' ? 'heavy' : e.kind === 'cut' ? 'cut' : '');
         if (!e.blocked) hud.combo(e.by, e.combo, e.chain);
         // Palabras de historieta, no en todos los golpes (si no, no se lee ninguna): ¡JAPISH! en los que valen la pena
         // (pesados, fuertes o el cierre de una combinación), ¡PIMBA! en las patadas que entran y ¡SOPLAMOCO! en las piñas a la cara.
@@ -472,7 +474,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       case 'whiff': {
         // Cada golpe que no toca nada: ¡PIFIÓ! y ¡PIF!, intercalados (sin más texto: el cuerpo que se desarma ya lo explica).
         const f = m.f[e.who];
-        hud.popup(f.x, f.y + 0.045, whiffN++ % 2 ? '¡PIF!' : '¡PIFIÓ!', '', 'whiff');
+        if (e.heavy) hud.popup(f.x, f.y + 0.045, whiffN++ % 2 ? '¡PIF!' : '¡PIFIÓ!', '', 'whiff');
         g.audio.play('pifio', e.heavy ? 1 : 0.5);
         break;
       }
@@ -526,8 +528,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const f = m.f[e.who];
         const P = POWERS[e.kind];
         if (e.phase === 'wind') {
-          // Corte de cámara sólo para TU barra llena (con el vaporazo del rival era un zoom raro que te sacaba de la pelea).
-          if (e.use === 'super' && e.who === me()) camCut = { t: 0.6, who: e.who };
           g.audio.play('poder-carga', 1);
           hud.flash(0.18);
           break;
@@ -555,7 +555,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         views[victim].hurt(e.blocked ? 0.3 : small ? 0.4 : 1, e.blocked ? 0.0006 : small ? 0.0008 : 0.0022);
         if (!e.blocked && !small) crumbs?.[victim].emit(at, new THREE.Vector3(m.f[e.by].facing, 0.6, 0.3).normalize(), 5);
         shake = Math.max(shake, small ? 0.0006 : 0.003);
-        hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, '', e.blocked ? 'block' : '');
+        if (e.damage >= 8) hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, '', e.blocked ? 'block' : '');
         g.audio.play(e.blocked ? 'bloqueo' : small ? 'golpe' : 'golpe-pesado', small ? 0.5 : 1);
         break;
       }
@@ -596,6 +596,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // de 20° alrededor del que cae en el KO (en cámara lenta).
   let camPunch = 0;
   let camCut: { t: number; who: 0 | 1 } | null = null;
+  let camAerial = false;
   const camera = (dt: number): void => {
     if (!m) return;
     if (present) return presentCamera(dt);
@@ -631,8 +632,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       roll = THREE.MathUtils.degToRad(2) * f.facing;
       if (camCut.t <= 0) camCut = null;
     }
-    // Round 2: vista más aérea (se ve la tabla entera y la mesa alrededor).
-    const aerial = m.round === 2 && !camCut && m.phase !== 'ko';
+    // Cámara aérea OPCIONAL (tecla V): se ve la tabla entera y la mesa alrededor. Por defecto, la lateral de siempre.
+    const aerial = camAerial && !camCut && m.phase !== 'ko';
     if (aerial) D = Math.max(D * 1.35, 0.34);
     const elev = THREE.MathUtils.degToRad(camCut ? 6 : aerial ? 38 : 11);
     const tp = new THREE.Vector3(mid, GROUND + lookY + D * Math.sin(elev), z0 + D * Math.cos(elev));
@@ -1353,6 +1354,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     }
     if (present) return endPresent();
     if (e.code === 'Escape') return pause(true);
+    if (e.code === 'KeyV' && !e.repeat) {
+      camAerial = !camAerial;
+      return;
+    }
     if (e.code === 'KeyR' && m?.phase === 'over') return again();
     if (!e.repeat) edges.add(e.code);
     keys.add(e.code);
@@ -1489,6 +1494,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const g = game();
       g.audio.musicOn(false);
       song = null;
+      // Volver a armar: la próxima pelea empieza otra vez por el primer rival (antes seguía el nivel en el que se salió).
+      level = startLevel;
       delete (g.stage as { render?: unknown }).render;
       views?.forEach((v) => v.dispose());
       views = null;
