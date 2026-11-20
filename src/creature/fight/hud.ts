@@ -39,6 +39,7 @@ const css = `
 #cfh .pop.power{font-size:44px;color:#fff3b0;-webkit-text-stroke-color:#a3420a}
 @keyframes cfh-shine{from{background-position:120% 0}to{background-position:-120% 0}}
 #cfh .meta{display:flex;align-items:center;gap:10px}
+#cfh .face{width:48px;height:48px;border-radius:50%;background:#14172b center/cover;border:3px solid var(--ink);box-shadow:0 0 0 2px #fff,0 6px 16px rgba(13,16,36,.5);margin-top:-18px;display:none}#cfh .face.on{display:block;animation:cfh-pop .3s cubic-bezier(.2,1.6,.4,1) both}#cfh .side.l .face{border-color:var(--gold)}#cfh .side.r .face{border-color:var(--leaf)}
 #cfh .side.r .meta{flex-direction:row-reverse}
 #cfh .name{font:400 17px/1 "Bungee",Impact,sans-serif;letter-spacing:.04em;padding:6px 12px 5px;background:var(--panel);border-radius:6px;transform:skewX(-16deg);
   border-left:5px solid var(--gold);text-shadow:0 2px 0 var(--ink)}
@@ -49,6 +50,8 @@ const css = `
 #cfh .clock{min-width:78px;height:62px;display:grid;place-items:center;background:var(--panel);border:3px solid var(--ink);border-radius:12px;
   box-shadow:0 0 0 2px rgba(255,255,255,.85),0 8px 22px rgba(13,16,36,.45);font:400 34px/1 "Bungee",Impact,sans-serif;color:#fff;text-shadow:0 3px 0 var(--ink)}
 #cfh .clock.hurry{color:var(--hot);animation:cfh-low .4s ease-in-out infinite alternate}
+#cfh .clock{overflow:hidden}#cfh .clock span{display:block;animation:cfh-tick .32s cubic-bezier(.2,1.5,.4,1) both}#cfh .clock.hurry span{animation-duration:.45s;animation-name:cfh-tick-hot}
+@keyframes cfh-tick{from{transform:translateY(-55%) scale(1.15);opacity:0}to{transform:none;opacity:1}}@keyframes cfh-tick-hot{0%{transform:scale(1.7)}100%{transform:none}}
 #cfh .round{text-align:center;font:400 11px/1 "Bungee",sans-serif;letter-spacing:.12em;margin-top:6px;color:#fff;text-shadow:0 2px 0 var(--ink)}
 #cfh .status{position:absolute;top:108px;font:800 15px/1 "Baloo 2",sans-serif;letter-spacing:.03em;display:flex;flex-direction:column;gap:6px}
 #cfh .status.l{left:max(2.5vw,calc(50% - 590px))}#cfh .status.r{right:max(2.5vw,calc(50% - 590px));align-items:flex-end}
@@ -122,6 +125,7 @@ export class FightHud {
   private readonly bars: HTMLElement[];
   private readonly pips: HTMLElement[];
   private readonly names: HTMLElement[];
+  private readonly faces: HTMLElement[];
   private readonly status: HTMLElement[];
   private readonly combos: HTMLElement[];
   private readonly clock: HTMLElement;
@@ -146,7 +150,7 @@ export class FightHud {
     const r = document.createElement('div');
     r.id = 'cfh';
     r.hidden = true;
-    const side = (s: 'l' | 'r') => `<div class="side ${s}"><div class="bar"><b></b><i></i><div class="shine"></div></div><div class="gauges"><div class="gauge pow"><i></i><span>PODER</span></div></div><div class="meta"><div class="name"></div><div class="pips"></div></div></div>`;
+    const side = (s: 'l' | 'r') => `<div class="side ${s}"><div class="bar"><b></b><i></i><div class="shine"></div></div><div class="gauges"><div class="gauge pow"><i></i><span>PODER</span></div></div><div class="meta"><i class="face"></i><div class="name"></div><div class="pips"></div></div></div>`;
     r.innerHTML = `<div class="top">${side('l')}<div><div class="clock">90</div><div class="round">ROUND 1</div></div>${side('r')}</div>
 <div class="status l"></div><div class="status r"></div><div class="combo l"></div><div class="combo r"></div><div class="warn"></div>
 <div class="ann"></div><div class="flash"></div>
@@ -166,6 +170,7 @@ export class FightHud {
     this.pips = qa('.pips');
     this.pows = qa('.gauge.pow');
     this.names = qa('.name');
+    this.faces = qa('.face');
     this.status = [q('.status.l'), q('.status.r')];
     this.combos = [q('.combo.l'), q('.combo.r')];
     this.clock = q('.clock');
@@ -182,10 +187,17 @@ export class FightHud {
     });
   }
 
+  /** Retrato de cada luchador (una foto de su cara sacada en la pelea). */
+  portrait(i: 0 | 1, url: string): void {
+    this.faces[i].style.backgroundImage = `url(${url})`;
+    this.faces[i].classList.add('on');
+  }
+
   show(names: [string, string], warnings: string[]): void {
     this.root.hidden = false;
     this.names[0].textContent = names[0];
     this.names[1].textContent = names[1];
+    this.faces.forEach((f) => f.classList.remove('on'));
     for (const p of this.pips) p.innerHTML = '<span></span>'.repeat(FIGHT.roundsToWin);
     this.warn.innerHTML = warnings.map((w) => `<b>${w}</b>`).join('');
     this.warn.style.opacity = '1';
@@ -358,7 +370,8 @@ export class FightHud {
     });
     const secs = Math.max(0, Math.ceil(m.timer / 60));
     const txt = String(secs);
-    if (this.clock.textContent !== txt) this.clock.textContent = txt;
+    // Cada dígito nuevo entra cayendo desde arriba (un elemento nuevo reinicia la animación); en los últimos 10 s, golpea.
+    if (this.clock.textContent !== txt) this.clock.innerHTML = `<span>${txt}</span>`;
     this.clock.classList.toggle('hurry', m.phase === 'fight' && secs <= 10);
     const rt = `ROUND ${m.round}`;
     if (this.roundEl.textContent !== rt) this.roundEl.textContent = rt;

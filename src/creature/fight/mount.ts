@@ -406,6 +406,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         views.forEach((v) => v.reattach());
         set?.candles(false);
         set?.sweep();
+        if (e.round === 1) wantPortraits = true;
         camInit = false;
         break;
       }
@@ -681,7 +682,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const pair = ls.take();
     if (!pair) {
       // Medio segundo sin la entrada del otro: se avisa (si no, parece que se colgó el juego).
-      if (++vs.wait === 30) hud.sub('', 'Esperando a tu amigo…');
+      if (++vs.wait === 30) hud.sub('CONEXIÓN', 'Esperando a tu amigo…');
       return false;
     }
     if (vs.wait >= 30) hud.sub(null);
@@ -727,6 +728,37 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     vs.epoch = fix.e;
     vs.sums = [new Map(), new Map()];
     prev = cur = [poseOf(m.f[0]), poseOf(m.f[1])];
+  };
+  /**
+   * Retratos del HUD: una foto de la cara de cada uno con la misma cámara y el mismo posprocesado (de 3/4, del lado al que mira),
+   * recortada en cuadrado del centro del lienzo. Se saca al empezar el round 1, con las luces del show prendidas.
+   */
+  let wantPortraits = false;
+  const portraits = (): void => {
+    if (!m || !views) return;
+    const st = game().stage;
+    st.scene.updateMatrixWorld();
+    const cam = st.camera;
+    const was = { p: cam.position.clone(), q: cam.quaternion.clone(), fd: st.dof.focusDistance };
+    const cv = st.renderer.domElement;
+    const side = Math.min(cv.width, cv.height) * 0.8;
+    views.forEach((v, i) => {
+      // La cara: el mismo punto al que apunta su foco de cara (entre la coronilla y el centro).
+      const h = v.head().lerp(new THREE.Vector3(m!.f[i].x, m!.f[i].y + GROUND, z0), 0.65);
+      cam.position.set(h.x + m!.f[i].facing * 0.03, h.y + 0.006, h.z + 0.085);
+      cam.lookAt(h.x, h.y - 0.006, h.z);
+      cam.updateMatrixWorld();
+      st.dof.focusDistance = cam.position.distanceTo(h);
+      st.composer.render(0);
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      c.getContext('2d')!.drawImage(cv, (cv.width - side) / 2, (cv.height - side) / 2, side, side, 0, 0, 128, 128);
+      hud.portrait(i as 0 | 1, c.toDataURL('image/jpeg', 0.85));
+    });
+    cam.position.copy(was.p);
+    cam.quaternion.copy(was.q);
+    cam.updateMatrixWorld();
+    st.dof.focusDistance = was.fd;
   };
   const advance2 = (pair: [FightInput, FightInput]): void => {
     if (!m) return;
@@ -1096,6 +1128,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     set?.update(raw);
     // El foco de cara apunta a la altura de la cara (un tercio del centro a la coronilla), no a la punta de la cabeza.
     if (set) views.forEach((v, i) => set!.track(i as 0 | 1, v.head().lerp(new THREE.Vector3(m!.f[i].x, m!.f[i].y + GROUND, z0), 0.65), m!.f[i].facing));
+    // Con los luchadores ya posados en este cuadro (si no, la foto sale del lugar donde estaban antes).
+    if (wantPortraits && !present) { wantPortraits = false; portraits(); }
     if (tween) {
       tween.t = Math.min(1, tween.t + raw / 1.0);
       const e = tween.t * tween.t * (3 - 2 * tween.t);

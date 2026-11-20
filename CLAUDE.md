@@ -586,3 +586,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - Pruebas: `node scripts/creature-fight-test.mjs` (puras: modelo, apoyo, contrapeso, caminar, golpes, peso, guardia, escudos,
   carga, chupetín, rounds, tiempo, determinismo, rendimiento) y con `npm run dev`: `node scripts/fight-ui-test.mjs [dir] [criatura]`
   (navegador, teclado real, capturas con HUD). Balance: `node scripts/fight-balance.mjs <criatura>`.
+- HUD v2 (2026-11-20): RETRATOS (foto de la cara de cada uno con la cámara y el posprocesado de la pelea, al empezar el round 1,
+  `portraits` en mount.ts) y RELOJ con dígito que cae (en los últimos 10 s, golpea). Al entrar cada round el FOCO BARRE la tabla
+  (`arena.sweep`: haz y polvo cuelgan de un soporte en la lámpara). En el KO las LUCECITAS se apagan de un soplido en barrida
+  (`Bulbs.blow`) y vuelven titilando en el round siguiente. Contra un amigo, si falta la entrada del otro medio segundo: "Esperando
+  a tu amigo…". Capas de música por combo: NO (con una canción entera en mp3 no hay pistas que sumar; haría falta tenerla en stems).
