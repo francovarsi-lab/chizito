@@ -621,7 +621,7 @@ try {
     const soft = strike(2), hard = strike(40);
     ok(soft.ev.some((e) => e.type === 'absorb') && !soft.ev.some((e) => e.type === 'grains'), 'el golpe rápido se hunde en la quinoa');
     ok(hard.ev.some((e) => e.type === 'grains') && hard.m.piles.length === 1, 'el cargado la revienta y deja un montoncito');
-    ok(hard.hit && soft.hit && hard.hit.damage > soft.hit.damage * 3, `reventar saca mucho más (${hard.hit?.damage.toFixed(1)} vs ${soft.hit?.damage.toFixed(1)})`);
+    ok(hard.hit && soft.hit && hard.hit.damage > soft.hit.damage * 2.5, `reventar saca mucho más (${hard.hit?.damage.toFixed(1)} vs ${soft.hit?.damage.toFixed(1)})`);
     {
       const m = hard.m;
       const hp0 = m.f[1].hp;
@@ -824,7 +824,7 @@ try {
     };
     const quick = press(box, 'LA', 2), full = press(box, 'LA', 40), plain = press(box, 'LA', -1);
     ok(quick.hit && full.hit, `rápido y cargado pegan (${quick.hit?.damage.toFixed(1)} / ${full.hit?.damage.toFixed(1)})`);
-    ok(quick.hit && full.hit && full.hit.damage > quick.hit.damage * 2, `el cargado pega mucho más que el rápido (${full.hit?.damage.toFixed(1)} vs ${quick.hit?.damage.toFixed(1)})`);
+    ok(quick.hit && full.hit && full.hit.damage > quick.hit.damage * 1.6, `el cargado pega mucho más que el rápido (${full.hit?.damage.toFixed(1)} vs ${quick.hit?.damage.toFixed(1)})`);
     ok(quick.at < full.at, `el rápido sale antes (${quick.at} vs ${full.at} cuadros)`);
     ok(plain.hit && quick.hit && quick.hit.damage < plain.hit.damage, 'tocar y soltar = rápido (pega menos que el golpe normal de la máquina)');
     // Carga completa contra la guardia: la rompe.

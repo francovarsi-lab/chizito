@@ -643,7 +643,25 @@ function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air'
   const heavy = l.kind === 'heavy';
   let target: number;
   let windup = -(heavy ? FIGHT.windupHeavy : FIGHT.windup);
-  if (sn < 0.25 && cs > 0) {
+  // Piña = GANCHO de afuera hacia adentro, igual con los dos brazos (pedido del usuario: ni de arriba hacia abajo ni de adentro
+  // hacia afuera): gira alrededor de la vertical, con un poco de inclinación hacia el rival para no pasarle por arriba.
+  const hd: V3 = [d0[0], 0, d0[2]];
+  const hT: V3 = [T[0], 0, T[2]];
+  const hook = !f.model.moves && kind === 'arm' && move === 'normal' && lenv(hd) > 0.3 * lenv(d0);
+  if (hook) {
+    const yc = crossv(hd, hT)[1];
+    // Ya apunta al rival (o casi): entra desde su propio lado (afuera), según de qué lado del cuerpo está el hombro.
+    const sg = Math.abs(yc) > 0.05 * lenv(hd) * lenv(hT) ? Math.sign(yc) : -Math.sign(l.pivot[2] || d0[2] || 1);
+    const v: V3 = [0, sg, 0];
+    const c = sn > 1e-6 ? scl(axis, 1 / sn) : v;
+    axis = dotv(c, v) > 0 ? normv(addv(scl(v, 0.75), scl(c, 0.25))) : v;
+    const pr = (u: V3): V3 => sub(u, scl(axis, dotv(u, axis)));
+    const a0 = pr(d0), a1 = pr(T);
+    let ang = Math.atan2(dotv(crossv(a0, a1), axis), dotv(a0, a1));
+    if (ang < 0) ang += Math.PI * 2;
+    target = Math.min(ang, Math.PI * 1.2) + FIGHT.overshoot;
+    windup = Math.min(windup, Math.max(target - (heavy ? FIGHT.sweepHeavy : FIGHT.sweep), -FIGHT.windupCap));
+  } else if (sn < 0.25 && cs > 0) {
     // Ya apunta al rival: hachazo de arriba hacia abajo.
     axis = crossv(d0, [0, -1, 0]);
     if (lenv(axis) < 1e-6) axis = [0, 0, -1];
@@ -770,7 +788,7 @@ function endStrike(m: Match, i: 0 | 1, k: number): void {
   f.chain = null;
   const mul = l.rigid ? FIGHT.swing.whiffMul : 1;
   const lock = Math.min(W.max * mul, Math.round((W.base + W.k * (l.mass / f.model.bodyMass)) * mul * (1 + 0.4 * f.heavyLoad)));
-  f.lock = Math.max(f.lock, lock);
+  if (!(l.rigid && f.swing)) f.lock = Math.max(f.lock, lock);
   if (l.rigid && f.swing) {
     // El chupetín pesa más que el chizito: al no encontrar nada, el peso lo arrastra y da una VUELTA ENTERA sobre sí mismo,
     // desestabilizado (se tambalea y queda expuesto hasta frenar).
@@ -785,8 +803,10 @@ function endStrike(m: Match, i: 0 | 1, k: number): void {
     const vEnd = f.whirlV * FIGHT.whirl.end;
     f.whirlA = (f.whirlV * f.whirlV - vEnd * vEnd) / (2 * f.whirlD);
     if (f.whirl <= 0) f.whirl = 1e-4;
-    // Queda expuesto lo que dura la vuelta y un rato más, mareado (sin bambolearse: la vuelta es un círculo limpio).
-    f.stun = Math.max(f.stun, Math.ceil((2 * f.whirlD) / (f.whirlV + vEnd) / dt) + Math.round(FIGHT.whirl.after * (1 + 0.5 * f.heavyLoad)));
+    // La vuelta ES el castigo: queda expuesto lo que dura, sin quedarse quieto después (pedido del usuario).
+    const spin = Math.ceil((2 * f.whirlD) / (f.whirlV + vEnd) / dt) + Math.round(FIGHT.whirl.after * (1 + 0.5 * f.heavyLoad));
+    f.stun = Math.max(f.stun, spin);
+    f.lock = Math.max(f.lock, spin);
   } else {
     const wAx = dotv(s.w, s.axis);
     const I = inertia(f, k, s.axis);

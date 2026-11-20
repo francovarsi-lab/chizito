@@ -117,3 +117,12 @@ Promedio de victorias por bot (nivel 1 / 2 / 3):
 - listo: 99% / 74% / 76% · a más de 15 puntos del promedio: boxeador@2 100%, mazo@2 95%, chupetin1@2 55%, chupetin1@3 95%, pinchudo@2 95%, pinchudo@3 100%, chupetin2@2 95%, chupetin2@3 100%, tanque@2 20%, tanque@3 0%, desparejo@2 55%
 
 (70 s)
+
+## Cerca pega, gancho y vuelta del chupetín (2026-11-20, 12 semillas)
+Pedido del usuario: "la distancia corta no genera daño, sin chupetín no se puede ganar". Causa: el toque rápido sacaba 60 %, el
+aporreo bajaba a 35 % y el recorrido corto a 75 % (de cerca, un palito sacaba 1–2). Ahora rápido 85 %, aporreo −20 % por golpe
+(piso 45 %), recorrido piso 90 %. Las piñas de TU chizito son GANCHO de afuera hacia adentro con los dos brazos. La vuelta del
+chupetín al pifiar es el castigo entero (`whirl.after` 0, sin quedarse quieto después).
+- aporrea: 79 % / 0 % / 17 % · ia: 87 % / 48 % / 49 % · listo: 100 % / 67 % / 80 %.
+- boxeador (sólo palitos) con `listo`: 100 / 100 / 100 (antes 100 / 100 / 85): sin chupetín se gana jugando bien.
+- Sigue: el tanque no le gana a huevo ni quinoa (8 % / 0 %).

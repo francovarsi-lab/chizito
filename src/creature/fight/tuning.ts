@@ -151,10 +151,10 @@ export const FIGHT = {
   /** Cuadros entre dos golpes seguidos (y nunca dos a la vez). */
   strikeGap: 16,
   /** Golpes sin pausa (cada uno arranca antes de `window` cuadros del anterior): daño × (1 − step · seguidos), piso `min`. */
-  repeat: { window: 75, step: 0.25, min: 0.35 },
+  repeat: { window: 75, step: 0.2, min: 0.45 },
   /** T3. Mantener el botón del cuadrante: soltar antes de `quick` = RÁPIDO (daño × quickMul, carga × quickArc); mantener =
    *  CARGADO (1 → fullMul hasta `max` cuadros; la carga completa rompe la guardia). */
-  hold: { quick: 12, max: 30, quickMul: 0.6, quickArc: 0.6, fullMul: 1.6 },
+  hold: { quick: 12, max: 30, quickMul: 0.85, quickArc: 0.6, fullMul: 1.6 },
   /** ↓ + brazo = GANCHO: levanta al rival; en el aire, hasta 3 golpes con este daño. */
   upper: { lift: 0.55, juggle: [1, 0.8, 0.6] as readonly number[] },
   /** ↓ + pierna = BARRIDA: derriba estos cuadros; al levantarse queda invulnerable `getUpInv`. */
@@ -248,7 +248,7 @@ export const FIGHT = {
   } as Record<string, number>,
   legMul: 1.15,
   /** Daño × recorrido del golpe al tocar (rad recorridos desde la carga / `dmgArc`; lo fijo: giro del torso / `dmgTwist`), entre estos topes. */
-  dmgTravel: [0.75, 1] as const,
+  dmgTravel: [0.9, 1] as const,
   dmgArc: 1.4,
   dmgTwist: 0.45,
   /** m/s: por debajo de esto el contacto no lastima (apoyar no es pegar). */
@@ -290,7 +290,7 @@ export const FIGHT = {
    * Chupetín que pifia: el peso lo arrastra y la criatura da una VUELTA ENTERA (360°) sobre sí misma, desestabilizada: `frames`
    * cuadros girando y `stun` cuadros sin poder hacer nada (queda expuesta).
    */
-  whirl: { after: 40, wobble: 0, minSpeed: 9, end: 0.6 },
+  whirl: { after: 0, wobble: 0, minSpeed: 9, end: 0.6 },
   /**
    * PODER: barra que se llena pegando (daño × `onHit`), recibiendo (× `onHurt`) y de a poco sola. Llena, se suelta el poder del
    * luchador (ver `POWERS`).
