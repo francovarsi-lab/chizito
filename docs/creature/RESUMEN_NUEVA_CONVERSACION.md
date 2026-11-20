@@ -42,6 +42,6 @@ al final tiene lo último) y `docs/PLAN_PREMIUM.md`. Balance medido: `docs/creat
    tanque no le gana a la quinoa ni al huevo jugando bien; nivel 3 tan fácil como el 2 con `listo`.
 4. Pelea contra un amigo: HECHOS el aviso "Esperando a tu amigo…" y el reenvío de estado si se desincroniza. Falta probar entre dos computadoras.
 5. Restos visuales: HECHOS lucecitas que se apagan en el KO, foco que barre, retratos y reloj en el HUD. Capas de música: sólo
-   con la canción en stems. Quedan: fundido por profundidad y aberración en efectos, halos del DoF en el constructor, HDRI real,
+   con la canción en stems. Aberración en impactos: HECHA. Quedan: fundido por profundidad en efectos, halos del DoF en el constructor, HDRI real,
    normal map de la tabla.
 6. Integración con `main`: historias distintas; decidir con Franco antes.

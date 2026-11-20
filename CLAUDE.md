@@ -591,3 +591,4 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   (`arena.sweep`: haz y polvo cuelgan de un soporte en la lámpara). En el KO las LUCECITAS se apagan de un soplido en barrida
   (`Bulbs.blow`) y vuelven titilando en el round siguiente. Contra un amigo, si falta la entrada del otro medio segundo: "Esperando
   a tu amigo…". Capas de música por combo: NO (con una canción entera en mp3 no hay pistas que sumar; haría falta tenerla en stems).
+  ABERRACIÓN CROMÁTICA de impacto (`Stage.aberration`, en 0 no hace nada; en la pelea golpe pesado o poder = 1 y se apaga en ~0,3 s).

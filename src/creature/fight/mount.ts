@@ -130,6 +130,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const hidden: HTMLElement[] = [];
   let saved: { pos: THREE.Vector3; quat: THREE.Quaternion; focal: number; enabled: boolean } | null = null;
   let shake = 0;
+  /** Aberración cromática de impacto (0..1): golpe pesado y poder; se apaga en ~0,3 s. */
+  let aber = 0;
   let whiffN = 0;
   let lastShout = -999;
   let lastHint = -999;
@@ -418,6 +420,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const victim = (1 - e.by) as 0 | 1;
         const at = P3(e.at[0], e.at[1]);
         const big = e.damage >= 12 || e.heavy;
+        if (big && !e.blocked) aber = 1;
         burst(at, e.blocked ? 6 : big ? 22 : 12, big ? 1.5 : 1);
         ring(at, big ? 0.016 : 0.01, e.blocked ? 0x9fe0ff : e.kind === 'cut' ? 0xff5a7a : 0xffe066);
         if (e.shieldPiece && !e.blocked) {
@@ -552,6 +555,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const victim = (1 - e.by) as 0 | 1;
         const at = P3(e.at[0], e.at[1]);
         const small = e.kind === 'metralla';
+        if (!small && !e.blocked) aber = 1;
         if (!small) burst(at, e.blocked ? 6 : 16, 1.2);
         ring(at, small ? 0.006 : 0.016, e.blocked ? 0x9fe0ff : e.kind === 'queso' ? 0xff9424 : 0xffe066);
         views[victim].bump(e.blocked ? 0.15 : small ? 0.25 : 0.8);
@@ -659,6 +663,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     camPos.lerp(tp, k);
     camLook.lerp(tl, k);
     shake *= Math.pow(0.002, dt);
+    aber = aber < 0.02 ? 0 : aber * Math.pow(1e-6, dt);
+    game().stage.aberration.offset.set(0.0045 * aber, 0.0015 * aber);
     const j = new THREE.Vector3((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, 0);
     cam.position.copy(camPos).add(j);
     cam.lookAt(camLook.clone().add(j.multiplyScalar(0.5)));
@@ -1576,6 +1582,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         btn.disabled = false;
       }
       set?.restore();
+      game().stage.aberration.offset.set(0, 0);
       set = null;
       crumbs?.forEach((c) => c.clear());
       crumbs = null;

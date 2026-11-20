@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   BlendFunction,
   BloomEffect,
+  ChromaticAberrationEffect,
   EffectComposer,
   EffectPass,
   NoiseEffect,
@@ -28,6 +29,8 @@ export class Stage {
   readonly sun: THREE.DirectionalLight;
   readonly composer: EffectComposer;
   readonly dof: BokehDofPass;
+  /** Aberración cromática: en 0 no hace nada; la pelea la sacude en los golpes pesados y los poderes. */
+  readonly aberration = new ChromaticAberrationEffect({ offset: new THREE.Vector2(0, 0), radialModulation: true, modulationOffset: 0.2 });
   /** Ajuste de color y viñeta finales (la pelea los sube un poco). */
   readonly look: LookEffect;
   readonly vignette: VignetteEffect;
@@ -123,7 +126,7 @@ export class Stage {
     });
     const grain = new NoiseEffect({ blendFunction: BlendFunction.SOFT_LIGHT, premultiply: false });
     grain.blendMode.opacity.value = 0.035;
-    this.composer.addPass(new EffectPass(this.camera, bloom, tone, look, vignette));
+    this.composer.addPass(new EffectPass(this.camera, this.aberration, bloom, tone, look, vignette));
     this.composer.addPass(new EffectPass(this.camera, new SMAAEffect({ preset: SMAAPreset.HIGH }), grain));
 
     window.addEventListener('resize', () => this.resize());
