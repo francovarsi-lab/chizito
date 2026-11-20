@@ -608,7 +608,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // de 20° alrededor del que cae en el KO (en cámara lenta).
   let camPunch = 0;
   let camCut: { t: number; who: 0 | 1 } | null = null;
-  let camAerial = false;
+  /** Tecla V: 0 la lateral de siempre, 1 aérea, 2 primera persona (detrás de la cabeza de tu chizito, mirando al rival). */
+  let camMode = 0;
   const camera = (dt: number): void => {
     if (!m) return;
     if (present) return presentCamera(dt);
@@ -645,7 +646,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       if (camCut.t <= 0) camCut = null;
     }
     // Cámara aérea OPCIONAL (tecla V): se ve la tabla entera y la mesa alrededor. Por defecto, la lateral de siempre.
-    const aerial = camAerial && !camCut && m.phase !== 'ko';
+    const aerial = camMode === 1 && !camCut && m.phase !== 'ko';
     if (aerial) D = Math.max(D * 1.35, 0.34);
     const elev = THREE.MathUtils.degToRad(camCut ? 6 : aerial ? 38 : 11);
     const tp = new THREE.Vector3(mid, GROUND + lookY + D * Math.sin(elev), z0 + D * Math.cos(elev));
@@ -657,6 +658,18 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const piv = new THREE.Vector3(loser.x, tp.y, z0);
         tp.sub(piv).applyAxisAngle(new THREE.Vector3(0, 1, 0), ang).add(piv);
       }
+    }
+    // PRIMERA PERSONA: atrás y apenas arriba de la cabeza de tu chizito, mirando al rival (se ve el borde de tu cabeza y los
+    // brazos cuando pegan). En el KO y en los cortes vuelve la lateral.
+    if (camMode === 2 && !camCut && m.phase !== 'ko' && views) {
+      cam.setFocalLength(24);
+      const i = me();
+      const f = m.f[i];
+      const o = m.f[1 - i];
+      const h = views[i].head();
+      tp.set(h.x - f.facing * 0.045, h.y + 0.014, z0 + 0.012);
+      const oTop = Math.max(...o.model.body.map((sh) => Math.max(sh.a[1], sh.b[1]) + sh.r));
+      tl.set(o.x, GROUND + o.y + oTop * 0.45, z0);
     }
     if (!camInit) {
       camPos.copy(tp);
@@ -1472,7 +1485,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (present) return endPresent();
     if (e.code === 'Escape') return pause(true);
     if (e.code === 'KeyV' && !e.repeat) {
-      camAerial = !camAerial;
+      camMode = (camMode + 1) % 3;
+      if (m) hud.popup(m.f[me()].x, m.f[me()].y + 0.07, ['CÁMARA LATERAL', 'CÁMARA AÉREA', 'PRIMERA PERSONA'][camMode], '', 'hint');
       return;
     }
     if (e.code === 'KeyR' && m?.phase === 'over') return again();
