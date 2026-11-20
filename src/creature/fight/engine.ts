@@ -525,7 +525,8 @@ function settle(f: FighterState, stick = false): boolean {
       const w = toWorld(f, posed(q, l.pivot, p.p));
       arr[2 * j] = w[0];
       arr[2 * j + 1] = w[1];
-      if (!p.inside && !f.broken.includes(p.piece)) low = Math.min(low, w[1] - p.r * 0.5);
+      // Noqueado es un cadáver: cae el cuerpo sobre la tabla; las extremidades flojas no lo apuntalan (quedan tiradas encima).
+      if (!p.inside && !f.broken.includes(p.piece) && !f.ko) low = Math.min(low, w[1] - p.r * 0.5);
     });
   });
   let landed = false;
@@ -574,7 +575,7 @@ function contactPoint(f: FighterState): V3 | null {
     test(b.a, b.r);
     test(b.b, b.r);
   }
-  f.model.limbs.forEach((l, k) => {
+  if (!f.ko) f.model.limbs.forEach((l, k) => {
     for (const p of l.points) if (!p.inside && !f.broken.includes(p.piece)) test(posed(f.limbs[k].q, l.pivot, p.p), p.r * 0.5);
   });
   return best;
@@ -875,8 +876,6 @@ function limp(f: FighterState, k: number): Q {
   // Apuntaba derecho arriba o abajo: cae a lo largo del cuerpo.
   if (lenv(flat) < 0.2) flat = sub([0, l.dir[1] >= 0 ? 1 : -1, 0], scl(up, (l.dir[1] >= 0 ? 1 : -1) * up[1]));
   flat = normv(flat);
-  // Las piernas se pliegan contra el cuerpo (si caen hacia la tabla, lo apuntalan y queda flotando sobre ellas).
-  if (l.role === 'leg') return qFromTo(l.dir, normv([l.dir[0] * 0.15, l.dir[1] >= 0 ? 1 : -1, l.dir[2] * 0.15]));
   const h = toWorld(f, l.pivot)[1];
   const droop = Math.asin(clamp((h - 0.004) / Math.max(l.reach, 1e-3), 0, 1));
   return qFromTo(l.dir, normv(sub(scl(flat, Math.cos(droop)), scl(up, Math.sin(droop)))));
@@ -1408,7 +1407,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     }
     if (l.rigid) {
       // El chupetín y lo que atraviesa no giran solos: si pegan, pega el cuerpo entero (ver la inclinación más abajo).
-      if (f.ko && !l.through) {
+      if (f.ko) {
         drive(f, k, limp(f, k), FIGHT.joint.limp);
         return;
       }
