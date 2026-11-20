@@ -356,7 +356,7 @@ export class FightHud {
       const full = f.meter >= FIGHT.power.max;
       const half = !full && mine && f.meter >= FIGHT.powerUse.half;
       const you = i === this.me;
-      const label = full ? (mine ? '¡OLOR A PATA!' : '¡PODER!') + (you ? ' · E' : '') : half ? `PODER${you ? ' · E' : ''}` : 'PODER';
+      const label = full ? (mine ? 'CALESITA DEL DOLOR' : '¡PODER!') + (you ? ' · E' : '') : half ? `OLOR A PATA${you ? ' · E' : ''}` : 'PODER';
       this.pows[i].classList.toggle('full', full);
       this.pows[i].classList.toggle('half', half);
       const sp = this.pows[i].lastElementChild as HTMLElement;

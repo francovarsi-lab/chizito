@@ -325,11 +325,11 @@ export const POWERS = {
   // Súper de TU CHIZITO según lo que armó (la pieza que más pega): nube que queda, trompo, carozo, acupuntura o muralla.
   // Marea 1,5 s al que está adentro al soltarla (antes "no hacía nada": sólo 2/s mientras estuviera adentro).
   nube: { name: '¡NUBE DE QUESO!', wind: 16, go: 20, life: 150, r: 0.055, dps: 2, blind: 0.7, dmg: 3, dizzy: 60 },
-  trompo: { name: '¡TROMPO!', wind: 18, go: 42, reach: 0.07, dmg: 6, hits: [8, 20, 32] as readonly number[], kb: 0.18, stun: 14 },
+  trompo: { name: '¡CALESITA DEL DOLOR!', wind: 18, go: 42, reach: 0.07, dmg: 7, hits: [8, 20, 32] as readonly number[], kb: 0.18, stun: 14 },
   carozo: { name: '¡CAROZAZO!', wind: 18, go: 10, speed: 0.55, dmg: 9, r: 0.004, life: 70, dizzy: 50 },
   acupuntura: { name: '¡ACUPUNTURA!', wind: 12, go: 34, reach: 0.06, dmg: 2.6, hits: [4, 10, 16, 22, 28] as readonly number[], stun: 8 },
   muralla: { name: '¡MURALLA!', wind: 10, go: 8, frames: 180 },
-  // Barra LLENA de TU CHIZITO: olor a pata. Marea al que lo huele y queda 4 s en el lugar (quema y el rival pega × blind).
+  // MEDIA barra de TU CHIZITO: olor a pata (la barra llena es la calesita del dolor, `trompo`). Marea al que lo huele y queda 4 s en el lugar (quema y el rival pega × blind).
   olor: { name: '¡OLOR A PATA!', wind: 16, go: 22, life: 240, r: 0.075, dps: 3.5, blind: 0.55, dmg: 8, dizzy: 70 },
 } as const;
 export type PowerKind = keyof typeof POWERS;

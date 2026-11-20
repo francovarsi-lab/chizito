@@ -758,13 +758,13 @@ try {
     const ch = createMatch([me, broccoliFighter(1)]);
     for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(ch, [{ x: 0 }, { x: 0 }]);
     ch.f[1].x = ch.f[0].x + 0.05;
-    ch.f[0].meter = FIGHT.power.max;
+    ch.f[0].meter = FIGHT.powerUse.half;
     let dz = false;
     for (let i = 0; i < 60; i++) {
       stepMatch(ch, [{ x: 0, power: i === 0 }, { x: 0 }]);
       dz ||= ch.events.some((e) => e.type === 'dizzy' && e.who === 1);
     }
-    ok(dz, 'la NUBE DE QUESO de tu chizito marea al rival');
+    ok(dz, 'el OLOR A PATA (media barra) de tu chizito marea al rival');
     // Sin la barra llena no sale.
     const no = createMatch([me, broccoliFighter(1)]);
     for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(no, [{ x: 0 }, { x: 0 }]);
@@ -882,8 +882,8 @@ try {
       for (let i = 0; i < 5 && !kind; i++) { stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); for (const e of m.events) if (e.type === 'power') kind = e.kind; }
       return kind;
     };
-    ok(superKind('boxeador') === 'nube' && superKind('chupetin2') === 'trompo' && superKind('mazo') === 'carozo' && superKind('pinchudo') === 'acupuntura' && superKind('tanque') === 'muralla',
-      `súper según lo armado (${['boxeador', 'chupetin2', 'mazo', 'pinchudo', 'tanque'].map(superKind).join(', ')})`);
+    ok(['boxeador', 'chupetin2', 'mazo', 'pinchudo', 'tanque'].every((id) => superKind(id) === 'olor'),
+      `media barra = olor a pata con cualquier armado (${['boxeador', 'chupetin2', 'mazo', 'pinchudo', 'tanque'].map(superKind).join(', ')})`);
     // Cada súper hace lo suyo: daño (o muralla) contra el brócoli quieto a 5 cm.
     for (const id of ['boxeador', 'chupetin2', 'mazo', 'pinchudo']) {
       const m = fight(arq(id));
@@ -891,12 +891,6 @@ try {
       const hp0 = m.f[1].hp;
       for (let i = 0; i < 200; i++) { m.f[1].x = m.f[0].x + 0.05; stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); }
       ok(m.f[1].hp < hp0 - 3, `${id}: el súper lastima (${(hp0 - m.f[1].hp).toFixed(1)})`);
-    }
-    {
-      const m = fight(arq('tanque'));
-      m.f[0].meter = FIGHT.powerUse.half;
-      for (let i = 0; i < 30; i++) stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]);
-      ok(m.f[0].wall > 100, 'tanque: muralla activa');
     }
     // Remate: acertar y apretar E con media barra.
     {
@@ -910,7 +904,7 @@ try {
       }
       ok(remate && m.f[0].meter < 30, `E después de acertar = remate (barra ${m.f[0].meter.toFixed(0)})`);
     }
-    // Barra llena = OLOR A PATA: marea al que está cerca y el olor queda en la tabla.
+    // Barra llena = CALESITA DEL DOLOR: tres vueltas que pegan.
     {
       const m = fight(arq('boxeador'));
       m.f[1].x = m.f[0].x + 0.05;
@@ -918,7 +912,7 @@ try {
       const hp0 = m.f[1].hp;
       let kind = null;
       for (let i = 0; i < 90; i++) { m.f[1].x = m.f[0].x + 0.05; stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); for (const e of m.events) if (e.type === 'power') kind = e.kind; }
-      ok(kind === 'olor' && m.f[1].hp < hp0 - 8 && m.f[0].meter < 10, `barra llena = olor a pata (saca ${(hp0 - m.f[1].hp).toFixed(1)})`);
+      ok(kind === 'trompo' && m.f[1].hp < hp0 - 8 && m.f[0].meter < 10, `barra llena = calesita del dolor (saca ${(hp0 - m.f[1].hp).toFixed(1)})`);
     }
   }
 

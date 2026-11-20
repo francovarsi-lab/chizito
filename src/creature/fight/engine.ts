@@ -1178,20 +1178,6 @@ function moveHit(m: Match, i: 0 | 1, mv: (typeof MOVES)[string], at: [number, nu
   m.events.push({ type: 'hit', by: i, at, damage: d, kind: 'light', blocked, shield: false, shieldPiece: null, piece: mv.id, speed: 1, combo: 1, heavy: mv.dmg >= 9, chain: null });
 }
 
-/** Súper de TU CHIZITO: sale de lo que armó (la pieza que más pega); con 2 escudos o más, MURALLA. */
-function superOf(f: FighterState): PowerKind {
-  if (Object.keys(f.model.shields).length >= 2) return 'muralla';
-  let best = '', top = 0;
-  for (const l of f.model.limbs) if (l.role === 'arm') for (const p of l.points) {
-    const d = FIGHT.pieceDmg[p.tier] ?? 0;
-    if (!p.inside && d > top) { top = d; best = p.tier; }
-  }
-  if (best === 'chupetin') return 'trompo';
-  if (best === 'aceituna') return 'carozo';
-  if (best.startsWith('escarbadientes')) return 'acupuntura';
-  return 'nube';
-}
-
 /** Granos en la tabla: la quinoa los reabsorbe al pisarlos (o solos, al rato) y recupera vida; un golpe al ras los dispersa. */
 function stepPiles(m: Match): void {
   const G2 = FIGHT.grains;
@@ -1378,8 +1364,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   const wantPw = !!inp.power || f.pwBuf > 0;
   if (f.pwBuf > 0) f.pwBuf--;
   if (wantPw && canAct && f.model.power && f.grounded && f.squat <= 0 && !f.pw) {
-    // La barra tiene DOS mitades. TU CHIZITO: con media barra, el poder de lo que armó (nube, trompo, carozazo, acupuntura,
-    // muralla); con la barra llena, OLOR A PATA. Justo después de acertar sale como REMATE (cancela la vuelta del golpe).
+    // La barra tiene DOS mitades. TU CHIZITO: con media barra, OLOR A PATA; con la barra llena, la CALESITA DEL DOLOR (tres
+    // vueltas que pegan). Justo después de acertar sale como REMATE (cancela la vuelta del golpe).
     // Los rivales tienen un solo poder, con la barra llena.
     const mine = f.model.power === 'queso';
     const remate = !!f.chain && f.chain.t > 0;
@@ -1390,7 +1376,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
         f.lock = 0;
         for (const q of f.limbs) if (q.phase !== 'rest') { q.phase = 'recover'; q.t = FIGHT.recoverMax; }
       }
-      const kind = !mine ? f.model.power : full ? 'olor' : superOf(f);
+      const kind = !mine ? f.model.power : full ? 'trompo' : 'olor';
       f.pw = { kind, phase: 'wind', t: 0, hit: false };
       f.buffer = null;
       f.pwBuf = 0;
