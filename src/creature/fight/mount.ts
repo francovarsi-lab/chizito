@@ -404,6 +404,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         hud.announce(final ? 'ROUND FINAL' : `ROUND ${e.round}`, '', false, 1.5);
         g.audio.play('round', 1);
         views.forEach((v) => v.reattach());
+        set?.candles(false);
         camInit = false;
         break;
       }
@@ -561,6 +562,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       }
       case 'ko':
         set?.cheer(1);
+        set?.candles(true);
         hud.announce('K.O.', '', true, 2.2);
         hud.flash(0.7);
         shake = 0.006;

@@ -30,6 +30,8 @@ export interface FightSet {
   cheer(k: number): void;
   /** La hinchada (los chizitos del bowl) hace la OLA: una vuelta alrededor del bowl. */
   wave(): void;
+  /** Lucecitas del fondo: se apagan de un soplido en el KO (true) y se prenden para el round siguiente (false). */
+  candles(out: boolean): void;
 }
 
 interface Hide {
@@ -421,6 +423,9 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     wave() {
       waveT = 0;
     },
+    candles(out) {
+      bulbs?.blow(out);
+    },
     track(i, head, facing) {
       arena.track(i, head, facing);
     },
@@ -447,6 +452,7 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
       arena.level(1);
       arena.candle(null, 0);
       for (const o of added) o.removeFromParent();
+      bulbs?.blow(false);
       if (bulbs) bulbs.level = bulbsWas;
       for (const h of hidden) h.obj.visible = h.was;
       for (const c of casters) c.m.castShadow = c.cast;

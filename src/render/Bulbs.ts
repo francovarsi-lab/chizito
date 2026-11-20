@@ -9,6 +9,8 @@ export interface Bulbs {
   /** 0..1: brillo (el constructor las deja suaves; la pelea las sube). */
   level: number;
   update(dt: number): void;
+  /** KO: se apagan de un soplido, en barrida de izquierda a derecha (true); vuelven a prenderse titilando (false). */
+  blow(out: boolean): void;
 }
 
 export const BULBS_NAME = 'lucecitas';
@@ -43,6 +45,8 @@ export function createBulbs(z0: number, level = 0.4): Bulbs {
   strand(new THREE.Vector3(-0.9, 0.3, -1.05), new THREE.Vector3(0.6, 0.28, -1.1), 0.08, 30, 0.006, true);
   group.traverse((o) => (o.userData.noPick = true));
   let t = 0;
+  let outAt = -1;
+  let litAt = -1;
   const api: Bulbs = {
     group,
     level,
@@ -52,8 +56,16 @@ export function createBulbs(z0: number, level = 0.4): Bulbs {
       const k = 0.2 + 0.8 * api.level;
       for (const b of bulbs) {
         b.m.scale.y = b.m.scale.x * (1.3 + 0.04 * Math.sin(t * 3 + b.ph));
-        (b.m.material as THREE.MeshBasicMaterial).color.copy(b.base).multiplyScalar(k * (0.9 + 0.1 * Math.sin(t * 2.3 + b.ph)));
+        // Soplido: cada una se apaga cuando le llega la barrida (queda un resto de filamento); al prender, titilan un momento.
+        const sweep = (b.m.position.x + 1) * 0.3;
+        const off = outAt >= 0 ? Math.min(1, Math.max(0, (t - outAt - sweep) / 0.12)) : 0;
+        const on = litAt >= 0 && t - litAt < 0.5 ? (Math.sin((t - litAt) * 60 + b.ph) > -0.2 ? 1 : 0.15) : 1;
+        (b.m.material as THREE.MeshBasicMaterial).color.copy(b.base).multiplyScalar(k * (0.9 + 0.1 * Math.sin(t * 2.3 + b.ph)) * (1 - 0.94 * off) * on);
       }
+    },
+    blow(out) {
+      if (out && outAt < 0) outAt = t;
+      if (!out && outAt >= 0) { outAt = -1; litAt = t; }
     },
   };
   group.userData.bulbs = api;
