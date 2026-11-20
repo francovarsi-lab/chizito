@@ -69,8 +69,9 @@ export interface FighterView {
   /** Punto de mundo de la cabeza (para las estrellitas de mareo). */
   head(): THREE.Vector3;
   /** Gesto de la cara, si tiene una armada (el brócoli): boca abierta 0..1 y cejas (−1 furia, abajo; +1 arriba). */
-  /** `dead`: noqueado (ojos cerrados, sin pupila ni brillo, boca floja). */
-  face?(open: number, brow: number, dead?: boolean): void;
+  /** `dead`: noqueado (ojos cerrados, sin pupila ni brillo, boca floja). `sick` (0..1): olió el olor a pata (asco: ojos
+   *  entrecerrados y torcidos, cejas arriba, boca fruncida que tiembla). */
+  face?(open: number, brow: number, dead?: boolean, sick?: number): void;
   dispose(): void;
 }
 
@@ -399,7 +400,9 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   const faceParts = (name: string): THREE.Object3D[] => inner.children.filter((o) => o.name === name);
   const mouthParts = [...faceParts('boca'), ...faceParts('dientes')];
   const brows = faceParts('ceja');
-  const eyes = faceParts('ojo').map((o) => ({ o, sy: o.scale.y }));
+  const eyes = faceParts('ojo').map((o) => ({ o, sy: o.scale.y, rz: o.rotation.z }));
+  const MOUTH_K = (inner.userData.mouthStretch as number | undefined) ?? 1.1;
+  let clock = 0;
   const eyeDots = [...faceParts('pupila'), ...faceParts('brillo')];
   const MOUTH_TOP = inner.userData.mouthTop as number;
   const TOP = inner.userData.top as number;
@@ -492,17 +495,25 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       outer.updateMatrixWorld(true);
       return new THREE.Vector3(0, TOP, 0).applyMatrix4(outer.matrixWorld);
     },
-    face(open, brow, dead = false) {
+    face(open, brow, dead = false, sick = 0) {
+      clock += 1 / 60;
       // Noqueado: los ojos se cierran (rendija), sin mirada, y la boca queda floja.
-      for (const e of eyes) e.o.scale.y = dead ? e.sy * 0.12 : e.sy;
+      eyes.forEach((e, k) => {
+        e.o.scale.y = dead ? e.sy * 0.12 : e.sy * (1 - 0.6 * sick);
+        e.o.rotation.z = e.rz + sick * (k % 2 ? -0.35 : 0.35) * (1 + 0.3 * Math.sin(clock * 9));
+      });
       for (const d of eyeDots) d.visible = !dead;
-      const sy = 1 + 1.1 * Math.max(0, open);
+      // La boca se estira poco y los dientes no (estirados se despegaban de la cáscara del huevo como pestañas).
+      const sy = 1 + MOUTH_K * Math.max(0, open) * (1 - sick);
       for (const o of mouthParts) {
-        o.scale.y = sy;
-        o.position.y = MOUTH_TOP * (1 - sy);
+        const teeth = o.name === 'dientes';
+        o.scale.y = teeth ? 1 : sy;
+        o.scale.x = 1 - 0.35 * sick;
+        o.rotation.z = 0.12 * sick * Math.sin(clock * 6);
+        o.position.y = teeth ? 0 : MOUTH_TOP * (1 - sy);
       }
       // Cuánto suben o bajan las cejas, en las unidades del modelo (el brócoli va en unidades del boceto; los otros, en metros).
-      for (const o of brows) o.position.y = BROW_STEP * brow;
+      for (const o of brows) o.position.y = BROW_STEP * (brow * (1 - sick) + 1.2 * sick);
     },
     dispose() {
       hurt.restore();

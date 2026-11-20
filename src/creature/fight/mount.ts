@@ -369,7 +369,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const r = m.f[1];
       const mvW = r.mv && r.limbs.some((q) => q.phase === 'windup');
       const hurtNow = m.frame - r.lastHurt < 20;
+      const sick = Math.max(0, Math.min(1, (sickUntil - performance.now()) / 600));
       if (r.ko) views[1].face?.(0.45, 0.8, true);
+      else if (sick > 0) views[1].face?.(0, 0, false, sick);
       else if (m.winner === 1 || (m.phase !== 'fight' && m.roundWinner === 1)) views[1].face?.(0.6 + 0.4 * Math.abs(Math.sin(m.frame * 0.35)), 0.4);
       else if (hurtNow) views[1].face?.(0.1, 0.9);
       else if (mvW || r.pw?.phase === 'wind') views[1].face?.(0.9, -1);
@@ -555,6 +557,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         const victim = (1 - e.by) as 0 | 1;
         const at = P3(e.at[0], e.at[1]);
         const small = e.kind === 'metralla';
+        // Olió el olor a pata (o la nube): cara de asco unos segundos.
+        if (victim === 1 && !e.blocked && (e.kind === 'olor' || e.kind === 'nube' || e.kind === 'queso')) sickUntil = performance.now() + 3500;
         if (!small && !e.blocked) aber = 1;
         if (!small) burst(at, e.blocked ? 6 : 16, 1.2);
         ring(at, small ? 0.006 : 0.016, e.blocked ? 0x9fe0ff : e.kind === 'queso' ? 0xff9424 : 0xffe066);
@@ -831,6 +835,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     song = want;
   };
   let presShake = 0;
+  let sickUntil = 0;
   let candleProp: THREE.Group | null = null;
   const once = (key: string, at: number, fn: () => void): void => {
     if (!present || present.t < at || present.fired.has(key)) return;

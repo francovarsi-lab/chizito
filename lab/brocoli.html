@@ -18,7 +18,9 @@ if (rival) b.scale.setScalar(48);
 scene.add(b);
 // ?open=0..1 abre la boca como en la presentación (misma cuenta que FighterView.face).
 const open = Number(q.get('open') ?? 0);
-for (const o of b.children) if (o.name === 'boca' || o.name === 'dientes') { const sy = 1 + 1.1 * open; o.scale.y = sy; o.position.y = 2.05 * (1 - sy); }
+const sy = 1 + (b.userData.mouthStretch ?? 1.1) * open;
+for (const o of b.children) if (o.name === 'boca') { o.scale.y = sy; o.position.y = b.userData.mouthTop * (1 - sy); }
+if (q.has('dead')) for (const o of b.children) if (o.name === 'ojo') o.scale.y *= 0.12;
 const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
 const [cx, cy, cz, lx, ly] = (q.get('cam') ?? '0,2.4,9,0,2.1').split(',').map(Number);
 cam.position.set(cx, cy, cz); cam.lookAt(lx, ly, 0);

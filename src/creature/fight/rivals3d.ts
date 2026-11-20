@@ -375,6 +375,7 @@ export function createEgg(): THREE.Group {
   }
   root.add(teeth);
   root.userData.mouthTop = 0.0405;
+  root.userData.mouthStretch = 0.3; // la sonrisa está sobre la cáscara curva: estirada de más se despega
   root.userData.browStep = 0.0012;
   root.userData.top = spec.cy + spec.shell.ry;
   return root;
@@ -586,6 +587,7 @@ export function createQuinoa(): THREE.Group {
   row(4, MOUTH.y - MOUTH.h * 0.62, -1);
   root.add(teeth);
   root.userData.mouthTop = MOUTH.y + MOUTH.h;
+  root.userData.mouthStretch = 0.4;
   root.userData.browStep = 0.0015;
   root.userData.top = spec.cy + spec.shell.ry;
   return root;
