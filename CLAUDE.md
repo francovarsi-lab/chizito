@@ -544,7 +544,9 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   cuando están los dos, se mandan el archivo de la criatura (para dibujarla: `buildOther` arma una segunda `Construction`) y el
   `FighterModel` ya calculado y pasado por JSON (los dos simulan con los mismos números). Sincronía por pasos (`Lockstep`): por la
   red sólo viajan las entradas, con 3 cuadros de retardo; un cuadro se simula cuando están las dos (si no, espera). Cada 60 cuadros
-  comparan una huella (`hashMatch`); si difiere sólo se avisa. `vs.me` = qué luchador soy (0 el que invitó): HUD, ayudas y
+  comparan una huella (`hashMatch`); si difiere, el que invitó manda su estado entero (`packMatch`, conserva los Float64Array)
+  y el invitado lo pisa y rehace los pasos que ya simuló (`Lockstep.since`, guarda 10 s); `e` en las huellas = reenvíos. Si el
+  otro no manda su entrada por medio segundo: subtítulo "Esperando a tu amigo…". `vs.me` = qué luchador soy (0 el que invitó): HUD, ayudas y
   carteles usan `me()`. Sin presentación, sin niveles, sin pausa (Esc abre un menú; la pelea sigue). Revancha = pelea `gen + 1`
   en los dos lados. Salir cierra la sala. Red: WebRTC con PeerJS y su servidor público de presentación; `?sala=local-x` (+
   `&anfitrion` en una de las dos) usa BroadcastChannel entre dos pestañas del mismo navegador, sin internet (para probar).

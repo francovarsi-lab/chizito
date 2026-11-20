@@ -22,7 +22,7 @@ import { createEgg, createQuinoa, looseGrains } from './rivals3d';
 import { FightFx } from './fx';
 import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT, POWERS } from './tuning';
-import { hashMatch, Lockstep, newRoom, openLink, type Link, type NetMsg } from './net';
+import { hashMatch, Lockstep, newRoom, openLink, packMatch, unpackMatch, type Link, type NetMsg } from './net';
 import { qFromTo, type Q } from './quat';
 import type { Quad } from '../zones';
 
@@ -118,7 +118,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   let waved = false;
   // ── Pelea contra un amigo (O1): sala por link. `me` = qué luchador soy (0 el que invitó, 1 el invitado). ──
   interface Side { file: string; model: FighterModel }
-  let vs: { room: string; me: 0 | 1; link: Link | null; mine: Side | null; theirs: Side | null; ls: Lockstep | null; gen: number; other: THREE.Group | null; sums: [Map<number, number>, Map<number, number>]; desync: boolean } | null = null;
+  let vs: { room: string; me: 0 | 1; link: Link | null; mine: Side | null; theirs: Side | null; ls: Lockstep | null; gen: number; other: THREE.Group | null; sums: [Map<number, number>, Map<number, number>]; epoch: number; fix: { n: number; e: number; s: string } | null; wait: number } | null = null;
   const me = (): 0 | 1 => vs?.me ?? 0;
   /** Nivel del rival que está dibujado (si cambia el nivel, se rearma su modelo 3D). */
   let viewLevel = 0;
@@ -673,33 +673,57 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const stepVs = (): boolean => {
     const ls = vs?.ls;
     if (!m || !vs || !ls) return false;
+    if (vs.fix && ls.next >= vs.fix.n) applyFix(vs.fix);
     if (ls.wants()) ls.push(hud.menuOpen() ? { x: 0 } : readInput());
     const pair = ls.take();
-    if (!pair) return false;
+    if (!pair) {
+      // Medio segundo sin la entrada del otro: se avisa (si no, parece que se colgó el juego).
+      if (++vs.wait === 30) hud.sub('', 'Esperando a tu amigo…');
+      return false;
+    }
+    if (vs.wait >= 30) hud.sub(null);
+    vs.wait = 0;
     advance2(pair);
     // Cada segundo los dos lados comparan una huella del estado: si difiere, se avisa (no debería pasar: el motor es determinista).
     if (m.frame % 60 === 0) {
       const h = hashMatch(m);
       vs.sums[0].set(m.frame, h);
-      vs.link?.send({ t: 'h', g: vs.gen, f: m.frame, h });
+      vs.link?.send({ t: 'h', g: vs.gen, f: m.frame, h, e: vs.epoch });
       checkSums();
     }
     return true;
   };
   const checkSums = (): void => {
-    if (!vs || vs.desync) return;
+    if (!vs?.ls || !m) return;
     for (const [f, h] of vs.sums[0]) {
       const o = vs.sums[1].get(f);
       if (o === undefined) continue;
       vs.sums[0].delete(f);
       vs.sums[1].delete(f);
       if (o !== h) {
-        // shortcut: sólo se avisa; si llega a pasar en la práctica, reenviar el estado entero desde el que invitó.
-        vs.desync = true;
         console.warn(`[pelea] los dos lados se separaron en el cuadro ${f}`);
-        if (m) hud.popup(0, 0.09, 'SE DESINCRONIZÓ: PEDÍ REVANCHA', '', 'hint');
+        // El que invitó manda su estado entero; el otro lo pisa y rehace los pasos que ya simuló (`applyFix`).
+        if (vs.me === 0) {
+          vs.epoch++;
+          vs.sums = [new Map(), new Map()];
+          vs.link?.send({ t: 'state', g: vs.gen, n: vs.ls.next, e: vs.epoch, s: packMatch(m) });
+        }
+        return;
       }
     }
+  };
+  /** Invitado: pisa la pelea con el estado del que invitó (de antes del paso `n`) y rehace lo que ya simuló desde ahí. */
+  const applyFix = (fix: { n: number; e: number; s: string }): void => {
+    if (!vs?.ls || !m) return;
+    vs.fix = null;
+    const redo = vs.ls.since(fix.n);
+    if (!redo) { hud.popup(0, 0.09, 'SE DESINCRONIZÓ: PEDÍ REVANCHA', '', 'hint'); return; }
+    Object.assign(m, unpackMatch(fix.s));
+    for (const p of redo) stepMatch(m, p);
+    m.events = [];
+    vs.epoch = fix.e;
+    vs.sums = [new Map(), new Map()];
+    prev = cur = [poseOf(m.f[0]), poseOf(m.f[1])];
   };
   const advance2 = (pair: [FightInput, FightInput]): void => {
     if (!m) return;
@@ -1229,7 +1253,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const newGen = (g: number): void => {
     if (!vs) return;
     vs.gen = g;
-    vs.desync = false;
+    if (vs.wait >= 30) hud.sub(null);
+    vs.epoch = 0;
+    vs.fix = null;
+    vs.wait = 0;
     vs.sums = [new Map(), new Map()];
     const v = vs;
     vs.ls = new Lockstep(v.me, (f, i) => v.link?.send({ t: 'in', g, f, i }));
@@ -1249,7 +1276,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     } else if (o.t === 'in') {
       if (o.g === vs.gen) vs.ls?.recv(o.f, o.i);
     } else if (o.t === 'h') {
-      if (o.g === vs.gen) { vs.sums[1].set(o.f, o.h); checkSums(); }
+      if (o.g === vs.gen && o.e === vs.epoch) { vs.sums[1].set(o.f, o.h); checkSums(); }
+    } else if (o.t === 'state') {
+      if (o.g === vs.gen && vs.me === 1 && o.e > vs.epoch) vs.fix = { n: o.n, e: o.e, s: o.s };
     } else if (o.t === 'again' && o.g > vs.gen) {
       newGen(o.g);
       hud.hideMenu();
@@ -1257,7 +1286,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     }
   };
   const joinRoom = (room: string, who: 0 | 1): void => {
-    vs = { room, me: who, link: null, mine: null, theirs: null, ls: null, gen: 0, other: null, sums: [new Map(), new Map()], desync: false };
+    vs = { room, me: who, link: null, mine: null, theirs: null, ls: null, gen: 0, other: null, sums: [new Map(), new Map()], epoch: 0, fix: null, wait: 0 };
     btn.innerHTML = `${SWORDS}PELEAR CON TU AMIGO`;
     say(who === 0 ? 'Mandale este link a tu amigo. Cuando los dos aprieten PELEAR, arranca.' : 'Te invitaron a pelear. Conectando con tu amigo…');
     openLink(room, who === 0).then((link) => {

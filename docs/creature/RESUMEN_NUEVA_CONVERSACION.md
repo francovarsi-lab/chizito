@@ -40,7 +40,7 @@ al final tiene lo último) y `docs/PLAN_PREMIUM.md`. Balance medido: `docs/creat
 2. Que Franco JUEGUE y diga: dificultad de los 3 niveles, chupetín (carga y vuelta), nube que marea, KO, hinchada.
 3. Balance: HECHO el aporreo del chupetín (ver BALANCE.md, 2026-11-20). Queda: aporreo con palitos gana el nivel 1 (a propósito),
    tanque no le gana a la quinoa ni al huevo jugando bien; nivel 3 tan fácil como el 2 con `listo`.
-4. Pelea contra un amigo entre dos computadoras (sin probar); aviso "esperando a tu amigo"; reenvío si se desincroniza.
+4. Pelea contra un amigo: HECHOS el aviso "Esperando a tu amigo…" y el reenvío de estado si se desincroniza. Falta probar entre dos computadoras.
 5. Restos visuales: velitas que se apagan en el KO, focos que barren, capas de música por combo, retratos y reloj en el HUD,
    fundido por profundidad y aberración en efectos, halos del DoF en el constructor, HDRI real, normal map de la tabla.
 6. Integración con `main`: historias distintas; decidir con Franco antes.

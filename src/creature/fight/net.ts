@@ -10,8 +10,10 @@ export type NetMsg =
   | { t: 'me'; file: string; model: FighterModel }
   /** Entrada del cuadro `f` de la pelea número `g`. */
   | { t: 'in'; g: number; f: number; i: FightInput }
-  /** Huella del estado al terminar el cuadro `f` (para detectar si los dos lados se separaron). */
-  | { t: 'h'; g: number; f: number; h: number }
+  /** Huella del estado al terminar el cuadro `f` (para detectar si los dos lados se separaron); `e` = reenvíos de estado hasta acá. */
+  | { t: 'h'; g: number; f: number; h: number; e: number }
+  /** Se separaron: el que invitó manda su estado entero tal como estaba antes del paso `n` del lockstep (el otro lo pisa y rehace). */
+  | { t: 'state'; g: number; n: number; e: number; s: string }
   /** Revancha: empieza la pelea número `g`. */
   | { t: 'again'; g: number };
 
@@ -23,6 +25,8 @@ export interface Link {
 }
 
 const IDLE: FightInput = { x: 0 };
+/** Pasos simulados que se guardan para rehacer (10 s). */
+const KEEP = 600;
 
 /**
  * Sincronía por pasos: mi entrada de ahora vale para el cuadro `delay` más adelante (3 cuadros = 50 ms: lo que tarda en
@@ -33,6 +37,8 @@ export class Lockstep {
   next = 0;
   private sent: number;
   private readonly ins: [Map<number, FightInput>, Map<number, FightInput>] = [new Map(), new Map()];
+  /** Pares ya simulados (los últimos `KEEP`), para rehacer desde un estado reenviado. */
+  private readonly done = new Map<number, [FightInput, FightInput]>();
   constructor(readonly me: 0 | 1, private readonly out: (f: number, i: FightInput) => void, readonly delay = 3) {
     this.sent = delay;
   }
@@ -55,8 +61,20 @@ export class Lockstep {
     if (!a || !b) return null;
     this.ins[0].delete(f);
     this.ins[1].delete(f);
+    this.done.set(f, [a, b]);
+    this.done.delete(f - KEEP);
     this.next++;
     return [a, b];
+  }
+  /** Pares ya simulados desde el paso `from` hasta el último (null si alguno ya no está guardado). */
+  since(from: number): [FightInput, FightInput][] | null {
+    const out: [FightInput, FightInput][] = [];
+    for (let f = from; f < this.next; f++) {
+      const p = this.done.get(f);
+      if (!p) return null;
+      out.push(p);
+    }
+    return out;
   }
 }
 
@@ -67,6 +85,12 @@ export function hashMatch(m: Match): number {
   for (const w of new Uint32Array(v.buffer)) h = Math.imul(h ^ w, 16777619);
   return h >>> 0;
 }
+
+/** Estado entero para reenviar por la red: JSON que conserva los Float64Array (las varas) y los números no finitos. */
+export const packMatch = (m: Match): string =>
+  JSON.stringify(m, (_k, v: unknown) => (v instanceof Float64Array ? { $f64: Array.from(v) } : typeof v === 'number' && !Number.isFinite(v) ? { $n: String(v) } : v));
+export const unpackMatch = (s: string): Match =>
+  JSON.parse(s, (_k, v: { $f64?: number[]; $n?: string } | null) => (v?.$f64 ? new Float64Array(v.$f64) : v?.$n ? Number(v.$n) : v)) as Match;
 
 /** Código de sala corto y legible (sin 0/O ni 1/l). */
 export const newRoom = (): string => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');

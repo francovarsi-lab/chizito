@@ -937,7 +937,7 @@ try {
 
   // ── O1: sincronía por pasos: dos lados con la red atrasada distinto simulan la MISMA pelea ──
   {
-    const { Lockstep, hashMatch } = await server.ssrLoadModule('/src/creature/fight/net.ts');
+    const { Lockstep, hashMatch, packMatch, unpackMatch } = await server.ssrLoadModule('/src/creature/fight/net.ts');
     const box = () => fighterFromSnapshot(JSON.parse(fs.readFileSync('src/creature/fixtures/arq/boxeador.snapshot.json', 'utf8')));
     const wire = [[], []]; // mensajes en viaje hacia cada lado: { at, f, i }
     let now = 0;
@@ -957,6 +957,20 @@ try {
     const n = Math.min(hashes[0].length, hashes[1].length);
     ok(n >= 10 && hashes[0].slice(0, n).every((h, k) => h === hashes[1][k]), `lockstep: ${n} huellas iguales en los dos lados (esperas ${S[0].stalls} / ${S[1].stalls})`);
     ok(S[0].m.f[0].hp < 100 || S[0].m.f[1].hp < 100, 'lockstep: en la pelea sincronizada se pegan de verdad');
+    // Reenvío: el estado pasado por JSON sigue la MISMA pelea (sin Infinity/undefined que se pierdan), y `since` rehace lo simulado.
+    const L0 = S[0].ls, n0 = L0.next - 40;
+    const redo = L0.since(n0);
+    ok(redo && redo.length === 40 && !L0.since(L0.next - 700), 'lockstep: guarda los últimos pasos para rehacer (y no más de 10 s)');
+    const a = createMatch([box(), box()]), feed = [];
+    let q = 3;
+    const rq = () => (q = (q * 1103515245 + 12345) % 2147483648) / 2147483648;
+    for (let k = 0; k < 2400; k++) feed.push([{ x: rq() < 0.3 ? -1 : rq() < 0.5 ? 1 : 0, punch: rq() < 0.05, kick: rq() < 0.03, guard: rq() < 0.1 }, { x: 1, punch: rq() < 0.06, up: rq() < 0.02 }]);
+    for (let k = 0; k < 900; k++) stepMatch(a, feed[k]);
+    const b = createMatch([box(), box()]);
+    Object.assign(b, unpackMatch(packMatch(a)));
+    let same = true;
+    for (let k = 900; k < 2400 && same; k++) { stepMatch(a, feed[k]); stepMatch(b, feed[k]); same = hashMatch(a) === hashMatch(b); }
+    ok(same && packMatch(a) === packMatch(b), `reenvío: el estado por JSON sigue igual 1500 cuadros (fase ${a.phase}, vida ${a.f[0].hp.toFixed(1)} / ${a.f[1].hp.toFixed(1)})`);
   }
 
   // ── T5: ataques hechos a mano (moves.ts): cada uno pega dentro de su ventana y respeta su tipo de guardia ──
