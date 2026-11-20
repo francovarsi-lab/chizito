@@ -405,6 +405,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         g.audio.play('round', 1);
         views.forEach((v) => v.reattach());
         set?.candles(false);
+        set?.sweep();
         camInit = false;
         break;
       }

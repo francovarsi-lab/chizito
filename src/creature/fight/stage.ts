@@ -32,6 +32,8 @@ export interface FightSet {
   wave(): void;
   /** Lucecitas del fondo: se apagan de un soplido en el KO (true) y se prenden para el round siguiente (false). */
   candles(out: boolean): void;
+  /** El foco barre la tabla (entrada de cada round). */
+  sweep(): void;
 }
 
 interface Hide {
@@ -66,6 +68,8 @@ interface Arena {
   /** La vela de la presentación: dónde está y cuánto alumbra (0 = apagada). */
   candle(at: THREE.Vector3 | null, k: number): void;
   cheer(k: number): void;
+  /** El foco cenital barre la tabla (va a un costado, vuelve y se asienta): entrada de cada round. */
+  sweep(): void;
 }
 
 let arenaCache: { z0: number; arena: Arena } | null = null;
@@ -138,11 +142,16 @@ function getArena(z0: number): Arena {
         gl_FragColor = vec4(uColor * f * h * uOpacity, 1.0); }`,
   });
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.012, beamR, beamH, 40, 1, true), beamMat);
-  beam.position.lerpVectors(keyPos, keyAim, 0.5);
+  // Haz y polvo cuelgan de un soporte en la lámpara: al barrer, giran con la luz alrededor de ella.
+  const rig = new THREE.Group();
+  rig.position.copy(keyPos);
+  rig.userData.noPick = true;
+  beam.position.lerpVectors(keyPos, keyAim, 0.5).sub(keyPos);
   beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), keyPos.clone().sub(keyAim).normalize());
   beam.renderOrder = 2;
   beam.userData.noPick = true;
-  add(beam);
+  rig.add(beam);
+  add(rig);
   const DUST = 260;
   const dust = new Float32Array(DUST * 3);
   const motes = Array.from({ length: DUST }, (_, i) => ({ a: (i * 2.39996) % (Math.PI * 2), r: Math.sqrt(((i * 0.618) % 1) * 0.9), h: (i * 0.377) % 1, sp: 0.004 + ((i * 0.53) % 1) * 0.008, ph: i }));
@@ -162,7 +171,7 @@ function getArena(z0: number): Arena {
   const dustMat = new THREE.PointsMaterial({ color: new THREE.Color(1.6, 1.25, 0.85), map: dotTex, size: 0.0016, sizeAttenuation: true, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending });
   const motesObj = new THREE.Points(dustGeo, dustMat);
   motesObj.frustumCulled = false;
-  add(motesObj);
+  rig.add(motesObj);
   const axis = keyPos.clone().sub(keyAim).normalize();
   const side1 = new THREE.Vector3().crossVectors(axis, new THREE.Vector3(0, 0, 1)).normalize();
   const side2 = new THREE.Vector3().crossVectors(axis, side1);
@@ -174,7 +183,7 @@ function getArena(z0: number): Arena {
       const along = 0.05 + h * 0.8;
       const rr = (beamR * (1 - along) + 0.012 * along) * m.r;
       const a = m.a + Math.sin(time * 0.3 + m.ph) * 0.4;
-      p.copy(keyAim).addScaledVector(axis, along * beamH).addScaledVector(side1, Math.cos(a) * rr).addScaledVector(side2, Math.sin(a) * rr);
+      p.copy(keyAim).sub(keyPos).addScaledVector(axis, along * beamH).addScaledVector(side1, Math.cos(a) * rr).addScaledVector(side2, Math.sin(a) * rr);
       dust[3 * i] = p.x;
       dust[3 * i + 1] = p.y;
       dust[3 * i + 2] = p.z;
@@ -224,15 +233,27 @@ function getArena(z0: number): Arena {
   const baseY = onBoard.children.map((c) => c.position.y);
   let hop = 0;
 
+  let now = 0;
+  let sweepAt = -9;
+  const aimRel = keyAim.clone().sub(keyPos);
+  const zAxis = new THREE.Vector3(0, 0, 1);
   const arena: Arena = {
     objects,
     update(t) {
+      now = t;
       placeDust(t);
+      // Barrido: sale hacia un costado, cruza al otro y se asienta en 1,4 s (ida y vuelta amortiguada).
+      const st = t - sweepAt;
+      rig.rotation.z = st < 1.4 ? 0.15 * Math.sin(st * 6) * Math.exp(-2.6 * st) : 0;
+      key.target.position.copy(aimRel).applyAxisAngle(zAxis, rig.rotation.z).add(keyPos);
       hop *= 0.93;
       onBoard.children.forEach((c, i) => (c.position.y = baseY[i] + Math.abs(Math.sin(t * 17 + i * 1.7)) * 0.005 * hop));
     },
     cheer(k) {
       hop = Math.max(hop, k);
+    },
+    sweep() {
+      sweepAt = now;
     },
     track(i, head, facing) {
       // Delante de la cara: hacia el rival, hacia la cámara y un poco arriba; se mueve suave (al darse vuelta cruza).
@@ -425,6 +446,9 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     },
     candles(out) {
       bulbs?.blow(out);
+    },
+    sweep() {
+      arena.sweep();
     },
     track(i, head, facing) {
       arena.track(i, head, facing);
