@@ -34,12 +34,17 @@ await A.keyboard.down('ArrowRight');
 await B.keyboard.down('ArrowLeft');
 const st = (p) => p.evaluate(() => { const m = window.__fight.match(); return { frame: m.frame, phase: m.phase, hp: m.f.map((f) => Math.round(f.hp * 10) / 10), x: m.f.map((f) => Math.round(f.x * 1000) / 1000) }; });
 // De a 3 cuadros por pestaña: es lo que una puede adelantarse a la otra (retardo de entrada).
+// Lo más lejos que llegó cada uno (los golpes empujan para atrás: la posición final sola no alcanza).
+let minX1 = Infinity, maxX0 = -Infinity;
 for (let i = 0; i < 110; i++) {
   for (const p of [A, B]) {
     if (i > 45 && i % 6 === 0) await p.keyboard.press(i % 12 ? 'KeyQ' : 'KeyW');
     await p.evaluate(() => window.__chizito.renderFrames(3));
   }
-  if (i % 10 === 0) log(`vuelta ${i}: ${JSON.stringify(await st(A))}`);
+  const now = await st(A);
+  minX1 = Math.min(minX1, now.x[1]);
+  maxX0 = Math.max(maxX0, now.x[0]);
+  if (i % 10 === 0) log(`vuelta ${i}: ${JSON.stringify(now)}`);
 }
 const [a, c] = [await st(A), await st(B)];
 for (const [p, n] of [[A, 'anfitrion'], [B, 'invitado']]) {
@@ -50,7 +55,7 @@ for (const [p, n] of [[A, 'anfitrion'], [B, 'invitado']]) {
 const ok = (v, msg) => { console.log(`${v ? '  ok' : '  FALLA'}: ${msg}`); if (!v) process.exitCode = 1; };
 ok(/link/i.test(card ?? ''), `el que invita ve la tarjeta con el link (${(card ?? '').slice(0, 60)})`);
 ok(a.frame > 150 && Math.abs(a.frame - c.frame) <= 16, `los dos avanzan juntos (cuadros ${a.frame} / ${c.frame})`);
-ok(a.x[0] > -0.07 && a.x[1] < 0.07, `cada uno mueve SU chizito (x ${a.x})`);
+ok(maxX0 > -0.07 && minX1 < 0.07, `cada uno mueve SU chizito (llegaron a ${maxX0}, ${minX1})`);
 ok(a.hp.some((h) => h < 100) || c.hp.some((h) => h < 100), `se pegan (vida ${a.hp} / ${c.hp})`);
 ok(warns.length === 0, `no se separaron (${warns.length} avisos)`);
 ok(errs.length === 0, `sin errores de página (${errs.slice(0, 3).join(' | ')})`);
