@@ -330,12 +330,13 @@ export class AudioManager {
     if (this.music) return;
     const out = ctx.createGain();
     out.gain.setValueAtTime(0, ctx.currentTime);
-    out.gain.linearRampToValueAtTime(0.32, ctx.currentTime + 1.5);
+    out.gain.linearRampToValueAtTime(0.32, ctx.currentTime + 2.2);
     out.connect(this.master!);
     const fadeOut = (): number => {
       out.gain.cancelScheduledValues(ctx.currentTime);
-      out.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
-      return ctx.currentTime + 1.2;
+      out.gain.setValueAtTime(out.gain.value, ctx.currentTime);
+      out.gain.linearRampToValueAtTime(0, ctx.currentTime + 2.2); // fundido cruzado con la canción que entra
+      return ctx.currentTime + 2.3;
     };
     // Una canción por villano (`musica-brocoloco`, …); si no está, la de la pelea; si tampoco, la base sintetizada.
     const file = this.files.get(song) ?? this.files.get('musica-pelea');
