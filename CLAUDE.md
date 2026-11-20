@@ -497,8 +497,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   (`hud.sub`; frases en `LINES` de mount.ts con sonidos `brocoloco-frase1/2/3`); sube despacio a los ojos. 5,6 s: se encienden
   los focos de golpe, ruge (`rugido`, `¡A LA MESA, BOCADITO!`) y después su nombre. 7,2–10,6 s TU CHIZITO responde (se
   despierta en contrapicado, piñas a la lente, pose de héroe). 10,6–11,6 s VS. La música entra con los focos.
-- PELEAR pide una CARA: sin ningún trazo de ketchup, el primer clic avisa "¡Usá el ketchup para dibujarle un rostro!" y no
-  entra; el segundo entra igual.
+- PELEAR pide una CARA: sin ningún trazo de ketchup avisa "¡Usá el ketchup para dibujarle un rostro!" y NO entra nunca (obligatorio;
+  el diseño es libre).
 - KO: el que cae se desploma (medio segundo) y rueda hasta su reposo físico (`restTilt`: el primer pozo de altura del centro
   de masa), con las extremidades aflojadas pegadas al cuerpo. Nada queda apuntalado en el aire.
 - EL BROCOLOCO se para como un peleador (`FighterModel.stance`: guardia de boxeador, respira, se mece con el paso). La IA se
@@ -556,21 +556,29 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   soltar; `twist.armWind/armFwd` para el de adelante). El chupetín hace un gesto corto (`swing.gesture`) para que se vea con cuál
   pega; la vuelta al pifiar es UN movimiento (`whirl.end`: afloja apenas, sin frenar). KO: el cuerpo pierde la estructura, cae
   ACOSTADO (±90°) y cada extremidad se afloja sobre la tabla (`limp`, `joint.limp`), todos los luchadores.
-- PODER v3 (reemplaza al v2): sin ESCAPE. Barra en dos mitades para TU CHIZITO: media = el poder de lo que armó (nube, trompo,
-  carozazo, acupuntura, muralla), también como remate justo después de acertar; llena = OLOR A PATA (marea, zona de 4 s; sonido
-  `poder-olor`). Rivales: su poder con la barra llena. El corte de cámara del súper es sólo para el poder lleno del jugador (con el
+- PODER v4 (2026-11-20, pedido del usuario): sin ESCAPE. Barra en dos mitades para TU CHIZITO: media = OLOR A PATA (marea, zona
+  de 4 s, sonido `poder-olor`; también como remate justo después de acertar); llena = CALESITA DEL DOLOR (el ex trompo: 3 vueltas,
+  3 golpes de 7; sonido `poder-trompo`). Los poderes según lo armado (nube, carozazo, acupuntura, muralla) quedaron sin uso. Rivales: su poder con la barra llena. El corte de cámara del súper es sólo para el poder lleno del jugador (con el
   vaporazo del rival era un zoom indeseado).
 - MÚSICA POR VILLANO: `musica-brocoloco` / `musica-huevo` / `musica-quinoa` (en `public/assets/sounds/`), desde que se entra a la
   pelea (también con la presentación); si falta, `musica-pelea`; si falta, la base sintetizada. Contra un amigo: `musica-pelea`.
 - HINCHADA: el bowl de chizitos (`hinchada`, pegado a la tabla atrás a la izquierda): cada chizito salta por su cuenta con los
   golpes fuertes y hacen LA OLA una vez por pelea (primer golpe fuerte de tu chizito). Sin caras ni sonido (`FightSet.wave`).
-- CÁMARA: la lateral de siempre (el usuario: "la cámara está bien"); V alterna una AÉREA opcional (38°, más lejos). Los poderes NO
+- CÁMARA: la lateral de siempre (el usuario: "la cámara está bien"); V pasa a AÉREA (38°, más lejos) y a PRIMERA PERSONA (detrás
+  de la cabeza de tu chizito, lente de 24 mm, mirando al rival; en el KO vuelve la lateral). Los poderes NO
   hacen zoom (se sacó el corte de cámara).
 - KO (v2): cae al piso con `koFall` (gravedad y caída × 3,5; con la cámara lenta parecía que flotaba). Los rivales ponen cara de
   noqueado (`face(..., dead)`: ojos en rendija, sin pupila ni brillo, boca floja).
 - CARTELES: el número de daño sólo con 8+ o en cadenas; ¡PIFIÓ! sólo cuando pifia lo pesado.
 - NUBE DE QUESO (media barra sin piezas pesadas) y OLOR A PATA: al soltarlos MAREAN al que está adentro (nube 60 cuadros, olor 70;
   la guardia no tapa la nariz). Antes la nube "no hacía nada".
+- CHUPETÍN (2026-11-20): al pifiar, la VUELTA es todo el castigo (`whirl.after` 0): ni un cuadro quieto después; golpe y vuelta
+  son el mismo movimiento y sólo frena si pega.
+- PIÑAS DE TU CHIZITO = GANCHO de afuera hacia adentro con los dos brazos (`startStrike`, `hook`: gira alrededor de la vertical,
+  apenas inclinado hacia el rival); los rivales con `moves` no cambian. DE CERCA PEGA: rápido ×0,85, aporreo −20 % por golpe (piso
+  45 %), recorrido mínimo 90 %.
+- KO = CADÁVER: el cuerpo cae sobre la tabla y NINGUNA extremidad lo apuntala (`settle`/`contactPoint` ignoran las extremidades
+  noqueadas; todas, también chupetín y varas que atraviesan, se aflojan hasta el piso).
 - CHUPETÍN: la IA no corta su carga (antes la cortaba siempre: "no puedo golpear con el chupetín"); se aleja para que pifie. Al
   pifiar: vuelta entera limpia (sin bamboleo, `whirl.wobble` 0) y expuesto `whirl.after` (40) cuadros más. `swing.poiseHits`
   (aguantar un golpe cargando) quedó en 0: con 1, el doble chupetín ganaba todo.
@@ -592,3 +600,13 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   (`Bulbs.blow`) y vuelven titilando en el round siguiente. Contra un amigo, si falta la entrada del otro medio segundo: "Esperando
   a tu amigo…". Capas de música por combo: NO (con una canción entera en mp3 no hay pistas que sumar; haría falta tenerla en stems).
   ABERRACIÓN CROMÁTICA de impacto (`Stage.aberration`, en 0 no hace nada; en la pelea golpe pesado o poder = 1 y se apaga en ~0,3 s).
+- HUD v3 (2026-11-20): vida con segmentos (dorada tu chizito, verde el rival), PODER azul eléctrico → magenta llena, etiqueta en
+  Bungee con contorno (antes blanco sobre amarillo no se leía). Sin tira de teclas: botón CONTROLES abajo al centro = pausa con la
+  lista (queda el mapita del chizito). Botón CENSURAR (abajo a la derecha, ícono de parlante tachado; se recuerda en el navegador):
+  la voz de los villanos (`*-frase*`, `risa`, `rugido`) suena como el pitido de la tele y sus subtítulos salen `#@$%&*!`.
+  Retratos: encuadran la CARA (ojos/boca de los rivales; los trazos de ketchup de tu chizito). Rival con cara de ASCO al oler el
+  olor a pata (`face(…, sick)`); la boca de los rivales se estira poco y los dientes nunca (`mouthStretch`: en el huevo, estirados,
+  parecían pestañas despegadas).
+- MÚSICA: fundido cruzado de 2,2 s al cambiar de canción; `musica-huevo.mp3` ya está.
+- Ketchup del constructor: PLATITO PLAYO (`makePlate`) con dos sobres acostados, cada uno apoyado en lo de abajo.
+
