@@ -5,7 +5,7 @@ import { stripesTexture } from '../assets/procedural/surfaces';
 import { mulberry32 } from '../util/noise';
 import { PALITO_LENGTH } from '../assets/procedural/palito';
 import { bakeStatic } from '../util/merge';
-import { createSachet, SACHET_H } from '../assets/procedural/ketchup';
+import { createSachet } from '../assets/procedural/ketchup';
 import { buildParty, type Party } from './Party';
 import { buildRoom } from './Room';
 
@@ -81,9 +81,10 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   const swordCup = makeStandCup(assets, { type: 'escarbadientes', count: 12, seed: 67, h: 0.018, r0: 0.009, r1: 0.0125, params: () => ({ variant: 'espadita' }), stripe: '#8a4dff' });
   swordCup.position.copy(BOWL_LAYOUT['escarbadientes:espadita']);
   // Sobrecitos de ketchup en un platito: clic = modo dibujar.
-  const sachetDish = makeBowl(0.029, 0.012, ceramic);
+  // Un PLATITO playo (no un bowl: en la pared curva los sobres la atravesaban) con dos sobres acostados encima.
+  const sachetDish = makePlate(0.032, ceramic);
   sachetDish.position.copy(BOWL_LAYOUT.ketchup);
-  sachetDish.add(fillSachets(3, 81));
+  sachetDish.add(fillSachets(2, 81));
   // Palitos de la selva con su envoltorio (se desenrolla al agarrarlos) y chupetines en un vasito.
   // Platito playo con los paquetes acostados y prolijos (casi paralelos, apenas encimados).
   const selvaBowl = makeBowl(0.04, 0.009, glaze('#17b8a6'));
@@ -309,27 +310,47 @@ function fillSelvaDish(assets: AssetRegistry, count: number, seed: number, radiu
   return bakeStatic(pile, 'palitos-selva');
 }
 
-/** Sobrecitos de ketchup apilados en abanico, apenas parados contra el borde del platito. */
+/**
+ * Platito playo de cerámica: fondo plano (hasta `radius − 7 mm`, a `PLATE_TOP` de alto) y un borde bajo y redondeado.
+ */
+const PLATE_TOP = 0.0022;
+function makePlate(radius: number, mat: THREE.Material): THREE.Group {
+  const pts = [
+    [0, 0], [radius - 0.007, 0], [radius - 0.003, 0.0012], [radius - 0.0008, 0.0034], [radius, 0.0046],
+    [radius - 0.0012, 0.0052], [radius - 0.0035, 0.0042], [radius - 0.007, PLATE_TOP], [0, PLATE_TOP],
+  ].map(([x, y]) => new THREE.Vector2(x, y));
+  const mesh = new THREE.Mesh(new THREE.LatheGeometry(pts, 72), mat);
+  mesh.name = 'bowl';
+  const g = new THREE.Group();
+  g.add(mesh);
+  return g;
+}
+
+/**
+ * Dos sobrecitos de ketchup acostados sobre el platito, uno apenas encima del otro y girado: cada uno se APOYA en lo de abajo
+ * (el plano del plato o la cara de arriba del anterior), así no atraviesan nada.
+ */
 function fillSachets(count: number, seed: number): THREE.Object3D {
   const rnd = mulberry32(seed);
   const pile = new THREE.Group();
+  const S = 0.85; // un poco más chicos que en la mano: entran enteros en el fondo plano
+  let top = PLATE_TOP;
+  const box = new THREE.Box3();
   for (let i = 0; i < count; i++) {
     const s = createSachet(seed + i, 'prop');
+    s.rotation.x = -Math.PI / 2;
+    s.scale.setScalar(S);
     const g = new THREE.Group();
-    // Acostados como cartas en abanico corrido: todos con la MISMA inclinación y giro, cada uno apenas más arriba y corrido
-    // (planos paralelos: no se atraviesan; antes cada uno tenía su giro y se cortaban entre sí).
-    s.rotation.x = -Math.PI / 2 + 0.2;
-    s.position.y = SACHET_H * 0.08;
     g.add(s);
-    // A lo ancho del platito (como se lo ve desde la cámara) y un poco más chicos: así entran enteros.
-    g.rotation.y = Math.PI / 2 + 0.12 + (rnd() - 0.5) * 0.02;
-    g.position.set((i - (count - 1) / 2) * 0.003, 0.004 + i * 0.0024, (i - (count - 1) / 2) * 0.005);
+    g.rotation.y = Math.PI / 2 + (i ? -0.42 : 0.18) + (rnd() - 0.5) * 0.06;
+    g.position.set((i - (count - 1) / 2) * 0.007, 0, (i - (count - 1) / 2) * -0.004);
+    g.updateMatrixWorld(true);
+    box.setFromObject(g);
+    g.position.y = top - box.min.y + 0.0001;
+    g.updateMatrixWorld(true);
+    top = box.setFromObject(g).max.y - 0.0012; // el de arriba se apoya en la panza del de abajo (son blanditos)
     pile.add(g);
   }
-  // Centrados en el platito (el sobre tiene el origen en un borde: si no, uno asomaba por adelante).
-  const c = new THREE.Box3().setFromObject(pile).getCenter(new THREE.Vector3());
-  pile.scale.setScalar(0.85);
-  pile.position.set(-c.x * 0.85, 0, -c.z * 0.85);
   const wrap = new THREE.Group();
   wrap.add(pile);
   return bakeStatic(wrap, 'sobres-ketchup');
