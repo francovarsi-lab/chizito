@@ -36,11 +36,10 @@ al final tiene lo último) y `docs/PLAN_PREMIUM.md`. Balance medido: `docs/creat
 - Quinoa: se le baja la vida sin cargar (rápido saca 75 %). Huevo sin arroz en los ojos ni yema.
 
 ## Pendiente (en orden)
-1. Canción del brócoli: Franco la manda por el chat (no puede entrar a GitHub); guardarla como
-   `public/assets/sounds/musica-brocoloco.mp3`, commit y push.
+1. HECHO: canción del brócoli en `public/assets/sounds/musica-brocoloco.mp3`.
 2. Que Franco JUEGUE y diga: dificultad de los 3 niveles, chupetín (carga y vuelta), nube que marea, KO, hinchada.
-3. Balance fuera de rango: aporreando gana el nivel 1 (86 %); doble chupetín aporreando gana los niveles 2 y 3 (100 %);
-   tanque y boxeador no le ganan a la quinoa ni jugando bien. No se encontró la causa del salto del aporreo en el nivel 1.
+3. Balance: HECHO el aporreo del chupetín (ver BALANCE.md, 2026-11-20). Queda: aporreo con palitos gana el nivel 1 (a propósito),
+   tanque no le gana a la quinoa ni al huevo jugando bien; nivel 3 tan fácil como el 2 con `listo`.
 4. Pelea contra un amigo entre dos computadoras (sin probar); aviso "esperando a tu amigo"; reenvío si se desincroniza.
 5. Restos visuales: velitas que se apagan en el KO, focos que barren, capas de música por combo, retratos y reloj en el HUD,
    fundido por profundidad y aberración en efectos, halos del DoF en el constructor, HDRI real, normal map de la tabla.

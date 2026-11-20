@@ -172,13 +172,15 @@ function rivalDecide(s: Match, mem: AiMem, who: 0 | 1, near: number, dir: -1 | 1
   // Lo lento se castiga (el peso es costo): si al otro le falta más para soltar que lo que tarda mi ataque más rápido, lo corto.
   const slow = windLeft(foe);
   // Revoleo de chupetín cargando (aguanta un golpe sin cortarse): no conviene meterse, mejor alejarse para que pifie y dé la vuelta.
-  if (slow > 0 && foe.swing && near < 0.12 && rnd(mem) < L.cut * 2.5) {
+  // Si lo revolea sin pausa (aporrea, `repeat`), eso no es una carga pensada: lo corta como a cualquier otra.
+  const mashing = foe.repeat >= 1;
+  if (slow > 0 && foe.swing && !mashing && near < 0.12 && rnd(mem) < L.cut * 2.5) {
     mem.doing = 'retreat';
     mem.left = Math.min(slow + 8, 26);
     return { x: (-dir) as -1 | 1 };
   }
   // (Al chupetín no lo corta: se aleja, arriba. Cortarlo siempre lo hacía inútil: "no puedo golpear con el chupetín".)
-  if (slow > 0 && !foe.swing && inReach.length && rnd(mem) < L.cut) {
+  if (slow > 0 && (!foe.swing || mashing) && inReach.length && rnd(mem) < L.cut) {
     const fast = inReach.reduce((a, b) => (MOVES[a].hits[0].from <= MOVES[b].hits[0].from ? a : b));
     if (slow > MOVES[fast].hits[0].from + 2) return { x: 0, move: fast };
   }
