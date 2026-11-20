@@ -85,9 +85,17 @@ export class AudioManager {
   }
 
   /** `intensity` 0..1 modula volumen y brillo del sonido (p. ej. profundidad o velocidad). */
+  /** Botón CENSURAR de la pelea. */
+  censor = false;
+
   play(id: SoundId, intensity = 1): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const file = this.files.get(id);
+    // CENSURADO: la voz del villano se tapa con el pitido de la tele.
+    if (this.censor && /-frase\d$|^risa$|^rugido$/.test(id)) {
+      this.tone({ f0: 1000, f1: 1000, dur: Math.min(2.6, file?.duration ?? 1.1), gain: 0.16, type: 'sine', attack: 0.01 });
+      return;
+    }
     if (file) {
       const src = this.ctx.createBufferSource();
       src.buffer = file;

@@ -752,11 +752,30 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const was = { p: cam.position.clone(), q: cam.quaternion.clone(), fd: st.dof.focusDistance };
     const cv = st.renderer.domElement;
     const side = Math.min(cv.width, cv.height) * 0.8;
+    const FACE = new Set(['ojo', 'boca', 'ceja', 'dientes', 'pupila']);
     views.forEach((v, i) => {
-      // La cara: el mismo punto al que apunta su foco de cara (entre la coronilla y el centro).
-      const h = v.head().lerp(new THREE.Vector3(m!.f[i].x, m!.f[i].y + GROUND, z0), 0.65);
-      cam.position.set(h.x + m!.f[i].facing * 0.03, h.y + 0.006, h.z + 0.085);
-      cam.lookAt(h.x, h.y - 0.006, h.z);
+      // La CARA de verdad: los ojos y la boca de los rivales; en tu chizito, lo que le dibujaste con ketchup. La cámara la mira de
+      // frente (desde el centro del cuerpo hacia la cara) y la encuadra entera.
+      const face = new THREE.Box3();
+      const body = new THREE.Box3().setFromObject(v.root);
+      v.root.traverse((o) => {
+        if (o.visible && (FACE.has(o.name) || o.userData.stroke)) face.expandByObject(o);
+      });
+      let h: THREE.Vector3;
+      const n = new THREE.Vector3();
+      let size = 0.03;
+      if (!face.isEmpty()) {
+        h = face.getCenter(new THREE.Vector3());
+        n.copy(h).sub(body.getCenter(new THREE.Vector3()));
+        size = Math.max(0.012, face.getSize(new THREE.Vector3()).length() * 1.25);
+      } else h = v.head().lerp(new THREE.Vector3(m!.f[i].x, m!.f[i].y + GROUND, z0), 0.65);
+      n.y = 0;
+      // Nunca desde atrás de la escena: la cara tiene que mirar hacia la cámara de la pelea.
+      if (n.lengthSq() < 1e-8 || n.z < 0) n.set(m!.f[i].facing * 0.35, 0, 1);
+      n.normalize();
+      const dist = size / 2 / Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.8) / 2);
+      cam.position.copy(h).addScaledVector(n, dist).add(new THREE.Vector3(0, dist * 0.08, 0));
+      cam.lookAt(h);
       cam.updateMatrixWorld();
       st.dof.focusDistance = cam.position.distanceTo(h);
       st.composer.render(0);
@@ -828,6 +847,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const SONGS: Record<number, SoundId> = { 1: 'musica-brocoloco', 2: 'musica-huevo', 3: 'musica-quinoa' };
   let song: SoundId | null = null;
   const playSong = (): void => {
+    game().audio.censor = censored;
     const want = vs ? 'musica-pelea' : SONGS[Math.min(3, Math.max(1, level))];
     if (want === song) return game().audio.musicOn(true, want);
     game().audio.musicOn(false);
@@ -1391,12 +1411,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (room && /^[a-z0-9-]{4,40}$/.test(room)) joinRoom(room, new URLSearchParams(location.search).has('anfitrion') ? 0 : 1);
   }
 
-  const pause = (on: boolean): void => {
+  const pause = (on: boolean, controls = false): void => {
     if (!m || m.phase === 'over') return;
     // Contra un amigo no se congela (el otro sigue): sólo se abre el menú.
     paused = on && !vs;
     keys.clear();
-    if (on) hud.showMenu(vs ? 'MENÚ' : 'PAUSA', vs ? 'La pelea sigue: tu amigo te espera.' : 'La pelea está congelada.', vs ? [{ a: 'resume', label: 'Seguir' }, { a: 'exit', label: 'Salir de la sala', alt: true }] : [
+    if (on) hud.showMenu(controls ? 'CONTROLES' : vs ? 'MENÚ' : 'PAUSA', vs ? 'La pelea sigue: tu amigo te espera.' : 'La pelea está congelada.', vs ? [{ a: 'resume', label: 'Seguir' }, { a: 'exit', label: 'Salir de la sala', alt: true }] : [
       { a: 'resume', label: 'Seguir' },
       { a: 'again', label: 'Revancha', alt: true },
       { a: 'exit', label: 'Volver a armar', alt: true },
@@ -1404,6 +1424,26 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     else hud.hideMenu();
   };
 
+  hud.onControls = () => {
+    if (!paused) pause(true, true);
+  };
+  // Censura: se recuerda en este navegador.
+  let censored = false;
+  try {
+    censored = localStorage.getItem('chizito-censura') === '1';
+  } catch {
+    /* sin almacenamiento */
+  }
+  hud.setCensor(censored);
+  hud.onCensor = (on) => {
+    censored = on;
+    game().audio.censor = on;
+    try {
+      localStorage.setItem('chizito-censura', on ? '1' : '0');
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
   hud.onMenu = (a) => {
     if (a === 'resume') pause(false);
     if (a === 'again') again();
@@ -1660,17 +1700,17 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       window.setTimeout(() => game().audio.play('apagon', 1), 540);
       window.setTimeout(done, 900);
     });
-  // Sin cara no se pelea (la primera vez): se pide dibujarle un rostro con el ketchup. Si insiste, entra igual.
+  // Sin cara no se pelea: hay que dibujarle un rostro con el ketchup (el diseño es libre, pero el ketchup es obligatorio).
   const nag = document.createElement('div');
   nag.id = 'cf-nag';
   nag.textContent = '¡Usá el ketchup para dibujarle un rostro!';
   host.append(nag);
-  let nagged = false;
   let nagT = 0;
   btn.addEventListener('click', () => {
     const hasFace = [...game().construction.nodes.values()].some((n) => n.data.type === 'ketchup');
-    if (!hasFace && !nagged) {
-      nagged = true;
+    if (!hasFace) {
+      nag.classList.remove('on');
+      void nag.offsetWidth; // vuelve a saltar en cada clic
       nag.classList.add('on');
       window.clearTimeout(nagT);
       nagT = window.setTimeout(() => nag.classList.remove('on'), 3800);

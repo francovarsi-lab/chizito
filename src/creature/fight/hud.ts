@@ -14,32 +14,36 @@ const css = `
 #cfh .top{position:absolute;top:18px;left:50%;transform:translateX(-50%);width:min(1180px,95vw);display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:start}
 #cfh .side{display:flex;flex-direction:column;gap:6px}
 #cfh .side.r{align-items:flex-end}
-#cfh .bar{position:relative;width:100%;height:28px;transform:skewX(-16deg);background:linear-gradient(#2a0e1c,#13060d);border:3px solid var(--ink);
-  border-radius:6px;box-shadow:0 0 0 2px rgba(255,255,255,.85),0 8px 22px rgba(13,16,36,.45);overflow:hidden}
+#cfh .bar{position:relative;width:100%;height:30px;transform:skewX(-16deg);background:linear-gradient(#3a1022,#16060e 60%,#24091a);border:3px solid var(--ink);
+  border-radius:7px;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 5px rgba(13,16,36,.55),0 10px 24px rgba(13,16,36,.5),inset 0 2px 6px rgba(0,0,0,.6);overflow:hidden}
+#cfh .bar::after{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),rgba(13,16,36,.38) calc(10% - 2px) 10%),linear-gradient(rgba(255,255,255,.42),rgba(255,255,255,0) 42%,rgba(0,0,0,0) 70%,rgba(0,0,0,.22))}
 #cfh .bar i,#cfh .bar b{position:absolute;top:0;bottom:0;width:100%}
 #cfh .side.l .bar i,#cfh .side.l .bar b{left:0;transform-origin:left}
 #cfh .side.r .bar i,#cfh .side.r .bar b{right:0;transform-origin:right}
 #cfh .bar b{background:linear-gradient(#ffffff,#ff7a8e 40%,var(--hot));transition:transform .55s cubic-bezier(.4,0,.2,1) .35s}
-#cfh .bar i{background:linear-gradient(#fff7a8 0%,var(--gold) 38%,var(--amber) 100%);box-shadow:inset 0 -6px 10px rgba(180,70,0,.35),inset 0 3px 0 rgba(255,255,255,.65);transition:transform .08s linear}
+#cfh .bar i{background:linear-gradient(#fff9c4 0%,#ffe04a 30%,#ffb51f 62%,#f07a12 100%);box-shadow:inset 0 -7px 10px rgba(170,60,0,.4),inset 0 3px 0 rgba(255,255,255,.7);transition:transform .08s linear}
+#cfh .side.r .bar i{background:linear-gradient(#e9ffc4 0%,#a8ec5a 32%,#5cc435 64%,#2f8f2a 100%);box-shadow:inset 0 -7px 10px rgba(20,80,10,.4),inset 0 3px 0 rgba(255,255,255,.7)}
 #cfh .bar.low i{background:linear-gradient(#ffd0a8,#ff6a3c 45%,#e0241d);animation:cfh-low .5s ease-in-out infinite alternate}
 #cfh .bar .shine{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.35) 45%,transparent 60%);background-size:300% 100%;animation:cfh-shine 3.2s linear infinite}
 @keyframes cfh-low{to{filter:brightness(1.35)}}
 #cfh .gauges{display:flex;gap:8px;width:100%;margin:6px 0 2px;transform:skewX(-16deg)}
-#cfh .side.r .gauges{flex-direction:row-reverse}
-#cfh .gauge{position:relative;height:11px;border:2px solid var(--ink);border-radius:3px;background:rgba(13,16,36,.55);overflow:hidden}
+#cfh .side.r .gauges{flex-direction:row-reverse}#cfh .side.r .gauge span{place-items:center end}
+#cfh .gauge{position:relative;height:18px;border:2px solid var(--ink);border-radius:4px;background:linear-gradient(#0b0e22,#1c2150);box-shadow:0 0 0 2px rgba(255,255,255,.75),inset 0 2px 4px rgba(0,0,0,.6);overflow:hidden}
 #cfh .gauge.pow{flex:1}
 #cfh .gauge i{position:absolute;inset:0;transform-origin:left;transition:transform .1s linear}
 #cfh .side.r .gauge i{transform-origin:right}
-#cfh .gauge.pow i{background:linear-gradient(#fff3b0,#ffb81f 55%,#e8650e)}
+#cfh .gauge.pow i{background:linear-gradient(#d6f6ff,#45c3ff 40%,#3d6bff 70%,#7b3cff);box-shadow:inset 0 2px 0 rgba(255,255,255,.55)}
+#cfh .gauge.pow.full i{background:linear-gradient(#ffe0ff,#ff5fd2 40%,#c02cff 75%,#6a1cff)}
 #cfh .gauge.pow.full i{animation:cfh-pow .5s ease-in-out infinite alternate}
-#cfh .gauge.pow::after{content:'';position:absolute;left:50%;top:-1px;bottom:-1px;width:2px;margin-left:-1px;background:var(--ink);z-index:1}
-#cfh .gauge.pow.half i{filter:brightness(1.18) saturate(1.2);box-shadow:inset 0 0 6px rgba(255,255,255,.7)}
+#cfh .gauge.pow::after{content:'';position:absolute;left:50%;top:-1px;bottom:-1px;width:3px;margin-left:-1.5px;background:#fff;box-shadow:0 0 0 1px var(--ink);z-index:1}
+#cfh .gauge.pow.half,#cfh .gauge.pow.full{box-shadow:0 0 0 2px #fff,0 0 14px rgba(90,170,255,.9)}#cfh .gauge.pow.full{box-shadow:0 0 0 2px #fff,0 0 18px rgba(255,80,210,.95)}
 @keyframes cfh-pow{from{filter:brightness(1)}to{filter:brightness(1.6) saturate(1.3)}}
-#cfh .gauge span{position:absolute;inset:0;display:grid;place-items:center;font:800 8px/1 "Nunito",sans-serif;letter-spacing:.18em;color:#fff;text-shadow:0 1px 0 #000;transform:skewX(16deg)}
+#cfh .gauge span{position:absolute;inset:0;z-index:2;display:grid;place-items:center start;padding:0 14px;font:400 10px/1 "Bungee",Impact,sans-serif;letter-spacing:.1em;color:#fff;transform:skewX(16deg);
+  text-shadow:1px 1px 0 var(--ink),-1px 1px 0 var(--ink),1px -1px 0 var(--ink),-1px -1px 0 var(--ink),0 2px 0 var(--ink),0 0 6px rgba(13,16,36,.9)}
 #cfh .pop.power{font-size:44px;color:#fff3b0;-webkit-text-stroke-color:#a3420a}
 @keyframes cfh-shine{from{background-position:120% 0}to{background-position:-120% 0}}
 #cfh .meta{display:flex;align-items:center;gap:10px}
-#cfh .face{width:48px;height:48px;border-radius:50%;background:#14172b center/cover;border:3px solid var(--ink);box-shadow:0 0 0 2px #fff,0 6px 16px rgba(13,16,36,.5);margin-top:-18px;display:none}#cfh .face.on{display:block;animation:cfh-pop .3s cubic-bezier(.2,1.6,.4,1) both}#cfh .side.l .face{border-color:var(--gold)}#cfh .side.r .face{border-color:var(--leaf)}
+#cfh .face{width:48px;height:48px;border-radius:50%;background:#14172b center/cover;border:3px solid var(--ink);box-shadow:0 0 0 2px #fff,0 6px 16px rgba(13,16,36,.5);margin-top:-2px;display:none}#cfh .face.on{display:block;animation:cfh-pop .3s cubic-bezier(.2,1.6,.4,1) both}#cfh .side.l .face{border-color:var(--gold)}#cfh .side.r .face{border-color:var(--leaf)}
 #cfh .side.r .meta{flex-direction:row-reverse}
 #cfh .name{font:400 17px/1 "Bungee",Impact,sans-serif;letter-spacing:.04em;padding:6px 12px 5px;background:var(--panel);border-radius:6px;transform:skewX(-16deg);
   border-left:5px solid var(--gold);text-shadow:0 2px 0 var(--ink)}
@@ -77,9 +81,12 @@ const css = `
 @keyframes cfh-shout{0%{transform:translate(-50%,-50%) scale(.2) rotate(-14deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(-6deg)}}#cfh .pop.hint{z-index:3;font:800 16px/1.2 "Nunito",sans-serif;-webkit-text-stroke:0;color:#fff;background:rgba(13,16,36,.75);padding:6px 12px;border-radius:999px;text-shadow:none;letter-spacing:.06em}#cfh .pop.cut{color:#ff9fb0}#cfh .pop.block{color:#aee8ff;font-size:20px}
 #cfh .warn{position:absolute;top:120px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;transition:opacity .6s}
 #cfh .warn b{font:800 15px/1.2 "Baloo 2",sans-serif;padding:7px 16px;border-radius:999px;background:var(--panel);box-shadow:0 0 0 2px var(--gold)}
-#cfh .keys{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;max-width:94vw;
-  padding:10px 18px;border-radius:14px;background:var(--panel);box-shadow:0 0 0 2px rgba(255,255,255,.75);font:700 14px/1.2 "Baloo 2",sans-serif;transition:opacity .8s,transform .8s}
-#cfh .keys.off{opacity:0;transform:translate(-50%,14px)}#cfh .keys.mini:not(.off){opacity:.55;transform:translateX(-50%) scale(.78);transform-origin:50% 100%}
+#cfh .keys{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);transition:opacity .8s,transform .8s}
+#cfh .ctl,#cfh .mute{pointer-events:auto;display:flex;align-items:center;gap:8px;border:0;cursor:pointer;padding:9px 16px 8px;border-radius:12px;font:400 14px/1 "Bungee",Impact,sans-serif;letter-spacing:.05em;color:var(--ink);background:linear-gradient(#fff,#e6e8f5);box-shadow:0 0 0 3px var(--ink),0 5px 0 3px var(--ink);transition:transform .12s,filter .15s}
+#cfh .ctl:hover,#cfh .mute:hover{transform:translateY(-2px);filter:brightness(1.05)}
+#cfh .mute{position:absolute;right:22px;bottom:22px;font-size:12px;padding:8px 12px 7px}#cfh .mute .x{display:none}#cfh .mute.on{color:#fff;background:linear-gradient(#ff5b6e,#d3122c)}#cfh .mute.on .x{display:inline}#cfh .mute.on .w{display:none}
+#cfh.presenting .mute{opacity:1!important}#cfh.presenting .ctl{pointer-events:none}
+#cfh .keys.off{opacity:0;transform:translate(-50%,14px);pointer-events:none}#cfh .keys.off .ctl{pointer-events:none}#cfh .keys.mini:not(.off){opacity:.7;transform:translateX(-50%) scale(.85);transform-origin:50% 100%}
 #cfh .intro{position:absolute;left:6vw;bottom:13vh;max-width:70vw;opacity:0;transform:translateX(-60px);transition:opacity .3s,transform .5s cubic-bezier(.2,1.4,.4,1);pointer-events:none}
 #cfh .intro.r{left:auto;right:6vw;text-align:right;transform:translateX(60px)}
 #cfh .intro.on{opacity:1;transform:none}#cfh .intro.on h1{animation:cfh-slam .42s cubic-bezier(.2,1.6,.35,1) both}@keyframes cfh-slam{0%{transform:scale(2.6) rotate(-4deg);opacity:0}60%{opacity:1}100%{transform:none}}#cfh .intro.vs{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%) scale(.6);text-align:center}#cfh .intro.vs.on{transform:translate(-50%,-50%)}#cfh .intro.vs h1{font-size:clamp(70px,13vw,170px);color:#fff;text-shadow:0 8px 0 var(--ink),0 0 50px rgba(255,80,40,.8)}#cfh .bars{position:absolute;inset:0;pointer-events:none;z-index:2}#cfh .subs{position:absolute;left:50%;bottom:12.5vh;z-index:3;transform:translate(-50%,8px);max-width:min(760px,86vw);text-align:center;opacity:0;transition:opacity .45s,transform .6s cubic-bezier(.2,.8,.2,1);pointer-events:none}#cfh .subs.on{opacity:1;transform:translate(-50%,0)}#cfh .subs b{display:block;margin-bottom:6px;font:800 12px/1 "Nunito",sans-serif;letter-spacing:.22em;color:#9df06a;text-shadow:0 1px 0 #000}#cfh .subs span{font:800 clamp(18px,2.2vw,28px)/1.3 "Nunito",sans-serif;color:#fff;text-shadow:0 2px 0 #000,0 0 18px rgba(0,0,0,.9);letter-spacing:.02em}#cfh .intro,#cfh .skip{z-index:3}#cfh .bars:before,#cfh .bars:after{content:'';position:absolute;left:0;right:0;height:9vh;background:#05060c;transition:transform .5s cubic-bezier(.3,.7,.2,1);z-index:2}#cfh .bars:before{top:0;transform:translateY(-100%)}#cfh .bars:after{bottom:0;transform:translateY(100%)}#cfh.presenting .bars:before,#cfh.presenting .bars:after{transform:none}
@@ -142,6 +149,11 @@ export class FightHud {
   private menuSel = 0;
   private pops: { el: HTMLElement; life: number; x: number; y: number; dur: number; rise: number }[] = [];
   onMenu: (a: MenuAction) => void = () => {};
+  /** Botón CONTROLES: abre la pausa con la lista de teclas. */
+  onControls: () => void = () => {};
+  /** Botón CENSURAR: calla las frases del villano (suena un pitido) y tapa sus subtítulos. */
+  onCensor: (on: boolean) => void = () => {};
+  censored = false;
 
   constructor(host: HTMLElement = document.body) {
     this.style = document.createElement('style');
@@ -154,7 +166,7 @@ export class FightHud {
     r.innerHTML = `<div class="top">${side('l')}<div><div class="clock">90</div><div class="round">ROUND 1</div></div>${side('r')}</div>
 <div class="status l"></div><div class="status r"></div><div class="combo l"></div><div class="combo r"></div><div class="warn"></div>
 <div class="ann"></div><div class="flash"></div>
-<div class="keys"><span><kbd>Q</kbd><kbd>W</kbd>brazos (tocar = rápido · mantener = cargado)</span><span><kbd>A</kbd><kbd>S</kbd>piernas</span><span><kbd>↓</kbd>+<kbd>Q</kbd>gancho · <kbd>↓</kbd>+<kbd>A</kbd>barrida</span><span><kbd>→</kbd><kbd>→</kbd>pasito</span><span><kbd>D</kbd>guardia (justo = atajada)</span><span><kbd>E</kbd>poder (media barra) · olor a pata (llena)</span><span><kbd>V</kbd>cámara aérea</span><span><kbd>←</kbd><kbd>→</kbd>moverse</span><span><kbd>↑</kbd>saltar</span><span><kbd>↓</kbd>agacharse</span><span><kbd>Esc</kbd>pausa</span></div>
+<div class="keys"><button class="ctl" type="button"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>CONTROLES</button></div><button class="mute" type="button" title="Censurar al villano"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="w" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="x" d="m16 9 6 6M22 9l-6 6"/></svg><span>CENSURAR</span></button>
 <div class="pad"><div class="cap"><div class="ln" style="top:19%"></div><div class="ln" style="top:75%"></div><div class="vl"></div><div class="hd">cabeza</div>
 <div class="q" data-q="LA" style="left:0;top:19%;width:50%;height:56%"></div><div class="q" data-q="RA" style="left:50%;top:19%;width:50%;height:56%"></div>
 <div class="q" data-q="LL" style="left:0;top:75%;width:50%;height:25%"></div><div class="q" data-q="RL" style="left:50%;top:75%;width:50%;height:25%"></div></div></div>
@@ -181,6 +193,15 @@ export class FightHud {
     this.warn = q('.warn');
     this.menu = q('.menu');
     this.flashEl = q('.flash');
+    q('.ctl').addEventListener('click', (e) => {
+      (e.currentTarget as HTMLElement).blur();
+      this.onControls();
+    });
+    q('.mute').addEventListener('click', (e) => {
+      (e.currentTarget as HTMLElement).blur();
+      this.setCensor(!this.censored);
+      this.onCensor(this.censored);
+    });
     this.menu.addEventListener('click', (e) => {
       const a = (e.target as HTMLElement).closest('button')?.dataset.a as MenuAction | undefined;
       if (a) this.onMenu(a);
@@ -271,7 +292,14 @@ export class FightHud {
 
   /** Pasados unos segundos, la guía de teclas queda chica y transparente (no desaparece: siempre se puede mirar). */
   /** Subtítulo de lo que dice un personaje (null lo saca). */
+  setCensor(on: boolean): void {
+    this.censored = on;
+    this.root.querySelector('.mute')!.classList.toggle('on', on);
+  }
+
   sub(who: string | null, text = ''): void {
+    // Censurado: las palabras del villano salen como insultos de historieta.
+    if (this.censored && who && who !== 'CONEXIÓN') text = text.replace(/[A-Za-zÁÉÍÓÚÑáéíóúñ]/g, (_, i: number) => '#@$%&*!'[i % 7]);
     const el = this.root.querySelector<HTMLElement>('.subs')!;
     if (!who) {
       el.classList.remove('on');
@@ -316,7 +344,7 @@ export class FightHud {
   showMenu(title: string, sub: string, buttons: { a: MenuAction; label: string; alt?: boolean }[], withKeys = false): void {
     const card = this.menu.querySelector('.card') as HTMLElement;
     const grid = withKeys
-      ? `<div class="grid"><span><kbd>Q</kbd> <kbd>W</kbd></span><span>brazos izquierdos / derechos (como armaste el chizito, de frente): cada toque usa el siguiente de ese lado</span><span><kbd>A</kbd> <kbd>S</kbd></span><span>piernas izquierdas / derechas (la parte de abajo del chizito)</span><span><kbd>Q</kbd> mantener</span><span>GOLPE CARGADO: el brazo tiembla atrás y pega hasta 1,6 veces; la carga completa rompe la guardia. Tocar y soltar = golpe RÁPIDO</span><span><kbd>↓</kbd>+<kbd>Q</kbd></span><span>GANCHO: levanta al rival y lo podés seguir en el aire (3 golpes)</span><span><kbd>↓</kbd>+<kbd>A</kbd></span><span>BARRIDA: lo tira al piso</span><span><kbd>→</kbd><kbd>→</kbd></span><span>PASITO (hacia atrás, esquiva)</span><span><kbd>D</kbd></span><span>guardia (mantener): los brazos tapan. Apretada justo antes del golpe = ATAJADA (no recibís nada y el otro queda abierto). 4 bloqueos seguidos rompen la guardia</span><span><kbd>E</kbd></span><span>PODER: con media barra, el de lo que armaste (nube, trompo, carozazo, acupuntura o muralla); con la barra llena, OLOR A PATA (marea y queda flotando). Justo después de acertar sale como remate. La barra se llena pegando y recibiendo</span><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar (brazo en el aire = en picada)</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Q</kbd> <kbd>W</kbd></span><span>UNO-DOS: si la piña acierta, otra enseguida (con 3 brazos, RÁFAGA)</span><span><kbd>Q</kbd> <kbd>A</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>D</kbd> → <kbd>Q</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span><span>cabeza</span><span>lo que tenga arriba pesa y protege</span></div>`
+      ? `<div class="grid"><span><kbd>Q</kbd> <kbd>W</kbd></span><span>brazos izquierdos / derechos (como armaste el chizito, de frente): cada toque usa el siguiente de ese lado</span><span><kbd>A</kbd> <kbd>S</kbd></span><span>piernas izquierdas / derechas (la parte de abajo del chizito)</span><span><kbd>Q</kbd> mantener</span><span>GOLPE CARGADO: el brazo tiembla atrás y pega hasta 1,6 veces; la carga completa rompe la guardia. Tocar y soltar = golpe RÁPIDO</span><span><kbd>↓</kbd>+<kbd>Q</kbd></span><span>GANCHO: levanta al rival y lo podés seguir en el aire (3 golpes)</span><span><kbd>↓</kbd>+<kbd>A</kbd></span><span>BARRIDA: lo tira al piso</span><span><kbd>→</kbd><kbd>→</kbd></span><span>PASITO (hacia atrás, esquiva)</span><span><kbd>D</kbd></span><span>guardia (mantener): los brazos tapan. Apretada justo antes del golpe = ATAJADA (no recibís nada y el otro queda abierto). 4 bloqueos seguidos rompen la guardia</span><span><kbd>E</kbd></span><span>PODER: con media barra, OLOR A PATA (marea y queda flotando); con la barra llena, la CALESITA DEL DOLOR (tres vueltas que pegan). Justo después de acertar sale como remate. La barra se llena pegando y recibiendo</span><span><kbd>V</kbd></span><span>cambiar de cámara</span><span><kbd>Esc</kbd></span><span>pausa</span><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar (brazo en el aire = en picada)</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Q</kbd> <kbd>W</kbd></span><span>UNO-DOS: si la piña acierta, otra enseguida (con 3 brazos, RÁFAGA)</span><span><kbd>Q</kbd> <kbd>A</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>D</kbd> → <kbd>Q</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span><span>cabeza</span><span>lo que tenga arriba pesa y protege</span></div>`
       : '';
     card.innerHTML = `<h2>${title}</h2><p>${sub}</p>${buttons.map((b, i) => `<button data-a="${b.a}" class="${b.alt ? 'alt' : ''}${i === 0 ? ' sel' : ''}">${b.label}</button>`).join('')}${grid}`;
     this.menuSel = 0;

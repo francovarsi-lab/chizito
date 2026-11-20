@@ -8,7 +8,6 @@ const URL = 'http://localhost:5173/';
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1243/chrome-linux64/chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ctx = await b.newContext({ viewport: { width: 480, height: 270 } });
 const errs = [], warns = [];
-const files = fs.readdirSync('public/assets/creatures').filter((f) => f.endsWith('.json'));
 const open = async (q, file) => {
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errs.push(e.message));
@@ -20,12 +19,13 @@ const open = async (q, file) => {
 };
 const T0 = Date.now();
 const log = (t) => console.error(`[${Math.round((Date.now() - T0) / 1000)} s] ${t}`);
-const A = await open('&anfitrion', files[0]);
-const B = await open('', files[Math.min(1, files.length - 1)]);
+// Sin cara (ketchup) no se puede pelear: las dos criaturas de prueba tienen.
+const A = await open('&anfitrion', 'criatura-20261011-1623.json');
+const B = await open('', 'E.json');
 log('cargadas');
 const card = await A.textContent('#cf-room');
-// PELEAR en los dos (si la criatura no tiene cara, el primer clic sólo avisa).
-for (const p of [A, B]) for (let k = 0; k < 2; k++) if (!(await p.evaluate(() => document.querySelector('#cf-btn').disabled))) await p.click('#cf-btn', { force: true });
+// PELEAR en los dos.
+for (const p of [A, B]) if (!(await p.evaluate(() => document.querySelector('#cf-btn').disabled))) await p.click('#cf-btn', { force: true });
 log(`apretado: ${await A.textContent('#cf-room')} | ${await B.textContent('#cf-room')}`);
 await A.waitForFunction(() => window.__fight.isOpen(), null, { timeout: 600000 });
 await B.waitForFunction(() => window.__fight.isOpen(), null, { timeout: 600000 });
