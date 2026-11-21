@@ -437,7 +437,7 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
       for (const c of fans) {
         // Ola: 1,6 s para dar la vuelta; cada uno salta cuando le llega.
         const w = waveT < 0 ? 0 : Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, (waveT - ((c.a + Math.PI) / (Math.PI * 2)) * 1.6) / 0.35))));
-        const j = Math.abs(Math.sin(t * c.f + c.ph)) * fanHop;
+        const j = Math.abs(Math.sin(t * c.f + c.ph)) * (fanHop + 0.12); // siempre se mueven un poco: están vivos
         c.o.position.y = c.y + c.h * j + 0.016 * w;
       }
     },

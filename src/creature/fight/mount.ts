@@ -610,6 +610,11 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   let camCut: { t: number; who: 0 | 1 } | null = null;
   /** Tecla V: 0 la lateral de siempre, 1 aérea, 2 primera persona (detrás de la cabeza de tu chizito, mirando al rival). */
   let camMode = 0;
+  /** Primera persona: los trazos de ketchup (la cara) de tu chizito, buscados una vez por vista. */
+  let fpFor: FighterView | null = null;
+  let fpStrokes: THREE.Object3D[] = [];
+  /** 0..1: en primera persona los dos se enfrentan DE FRENTE (sin el 3/4 hacia la cámara lateral). */
+  let fpK = 0;
   const camera = (dt: number): void => {
     if (!m) return;
     if (present) return presentCamera(dt);
@@ -645,6 +650,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       roll = THREE.MathUtils.degToRad(2) * f.facing;
       if (camCut.t <= 0) camCut = null;
     }
+    game().stage.dof.focusBand = 1.6;
     // Cámara aérea OPCIONAL (tecla V): se ve la tabla entera y la mesa alrededor. Por defecto, la lateral de siempre.
     const aerial = camMode === 1 && !camCut && m.phase !== 'ko';
     if (aerial) D = Math.max(D * 1.35, 0.34);
@@ -662,14 +668,42 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     // PRIMERA PERSONA: atrás y apenas arriba de la cabeza de tu chizito, mirando al rival (se ve el borde de tu cabeza y los
     // brazos cuando pegan). En el KO y en los cortes vuelve la lateral.
     if (camMode === 2 && !camCut && m.phase !== 'ko' && views) {
-      cam.setFocalLength(24);
-      const i = me();
-      const f = m.f[i];
-      const o = m.f[1 - i];
-      const h = views[i].head();
-      tp.set(h.x - f.facing * 0.045, h.y + 0.014, z0 + 0.012);
-      const oTop = Math.max(...o.model.body.map((sh) => Math.max(sh.a[1], sh.b[1]) + sh.r));
-      tl.set(o.x, GROUND + o.y + oTop * 0.45, z0);
+      // PRIMERA PERSONA: la cámara ES tu chizito. Está en su cara (lo que le dibujaste con ketchup), mira hacia donde mira él y
+      // se mueve con él: se inclina, gira con cada piña, se agacha y salta con su cuerpo. Sin suavizado: es su cabeza.
+      cam.setFocalLength(20);
+      // A 6 cm del rival la banda nítida de la lateral (1,6 dpt) desenfoca todo: en primera persona, nítido hasta la tabla.
+      game().stage.dof.focusBand = 9;
+      const v = views[me()];
+      const B = m.f[me()].model.basis;
+      if (fpFor !== v) {
+        fpFor = v;
+        fpStrokes = [];
+        v.root.traverse((o) => {
+          if (o.userData.stroke) fpStrokes.push(o);
+        });
+      }
+      v.root.updateMatrixWorld(true);
+      const fwdW = new THREE.Vector3(...B.f).transformDirection(v.root.matrixWorld);
+      const upW = new THREE.Vector3(...B.u).transformDirection(v.root.matrixWorld);
+      const eye = new THREE.Vector3();
+      if (fpStrokes.length) {
+        const box = new THREE.Box3();
+        for (const o of fpStrokes) box.expandByObject(o);
+        box.getCenter(eye);
+      } else eye.copy(v.head()).lerp(new THREE.Vector3().setFromMatrixPosition(v.root.matrixWorld), 0.4);
+      eye.addScaledVector(fwdW, 0.004);
+      cam.position.copy(eye);
+      cam.up.copy(upW);
+      cam.lookAt(eye.clone().add(fwdW));
+      cam.up.set(0, 1, 0);
+      cam.updateMatrixWorld();
+      camPos.copy(eye);
+      camLook.copy(eye).addScaledVector(fwdW, 0.06);
+      game().stage.focusTarget.copy(new THREE.Vector3(m.f[1 - me()].x, GROUND + m.f[1 - me()].y + 0.02, z0));
+      shake *= Math.pow(0.002, dt);
+      aber = aber < 0.02 ? 0 : aber * Math.pow(1e-6, dt);
+      game().stage.aberration.offset.set(0.0045 * aber, 0.0015 * aber);
+      return;
     }
     if (!camInit) {
       camPos.copy(tp);
@@ -1165,9 +1199,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       }
     }
     const t = m.hitstop > 0 ? 1 : Math.min(1, acc / FIGHT.dt);
+    fpK += ((camMode === 2 && !present && m.phase !== 'ko' ? 1 : 0) - fpK) * Math.min(1, raw * 6);
     if (prev && cur) views.forEach((v, i) => {
       const p = present ? presentPose(i as 0 | 1, cur![i]) : blendPose(prev![i], cur![i], t);
-      v.apply({ ...p, y: p.y + GROUND }, z0, raw);
+      // En primera persona se le saca el 3/4 de la cámara lateral: queda de frente a quien pelea (sólo el dibujo).
+      const yaw = p.yaw - fpK * (m!.f[i].model.yaw ?? FIGHT.stanceYaw);
+      v.apply({ ...p, yaw, y: p.y + GROUND }, z0, raw);
     });
     set?.update(raw);
     // El foco de cara apunta a la altura de la cara (un tercio del centro a la coronilla), no a la punta de la cabeza.
@@ -1486,7 +1523,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (e.code === 'Escape') return pause(true);
     if (e.code === 'KeyV' && !e.repeat) {
       camMode = (camMode + 1) % 3;
-      if (m) hud.popup(m.f[me()].x, m.f[me()].y + 0.07, ['CÁMARA LATERAL', 'CÁMARA AÉREA', 'PRIMERA PERSONA'][camMode], '', 'hint');
+      if (m) hud.popup(m.f[camMode === 2 ? 1 - me() : me()].x, m.f[me()].y + 0.07, ['CÁMARA LATERAL', 'CÁMARA AÉREA', 'PRIMERA PERSONA'][camMode], '', 'hint');
       return;
     }
     if (e.code === 'KeyR' && m?.phase === 'over') return again();

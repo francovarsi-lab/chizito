@@ -124,7 +124,7 @@ export function buildBackdrop(assets: AssetRegistry): Backdrop {
   // La HINCHADA: pegado a la tabla, atrás a la izquierda; sus chizitos saltan para alentar (`stage.ts`, 'hinchada').
   bgBowl.name = 'hinchada';
   bgBowl.position.set(-0.2, 0, -0.35);
-  bgBowl.add(fillBowl(assets, 'chizito', 0.085, 0.05, 26, 21));
+  bgBowl.add(fillCrowd(assets, 0.085, 0.05, 21));
   fightOnly.add(bgBowl);
 
   const plasticYellow = new THREE.MeshPhysicalMaterial({ color: '#d9cdf3', roughness: 0.35, clearcoat: 0.3 }); // lavanda
@@ -267,6 +267,29 @@ function fillBowl(
     pile.add(obj);
   }
   return bakeStatic(pile, `${type}-pile`);
+}
+
+/**
+ * La HINCHADA: chizitos PARADOS apretados en el bowl, asomando medio cuerpo por arriba del borde como una tribuna (acostados
+ * parecían bollos). Cada uno queda suelto (sin fusionar) para que salte por su cuenta y haga la ola (`stage.ts`).
+ */
+function fillCrowd(assets: AssetRegistry, radius: number, height: number, seed: number): THREE.Object3D {
+  const rnd = mulberry32(seed);
+  const crowd = new THREE.Group();
+  const rings: [number, number][] = [[0, 1], [0.034, 6], [0.064, 11]];
+  let i = 0;
+  for (const [r, n] of rings) {
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2 + rnd() * 0.3 + r * 9;
+      const obj = assets.create('chizito', seed * 100 + (i++ % 8), 'prop');
+      // Eje largo (X) para arriba, apenas inclinados hacia afuera y hacia la arena, cada uno distinto.
+      obj.rotation.set((rnd() - 0.5) * 0.25, rnd() * Math.PI * 2, Math.PI / 2 + (rnd() - 0.5) * 0.25, 'YXZ');
+      // Los del centro más altos (tribuna), los del borde asoman menos.
+      obj.position.set(Math.cos(a) * r, height * (1.02 - (r / radius) * 0.35) + rnd() * 0.004, Math.sin(a) * r);
+      crowd.add(obj);
+    }
+  }
+  return crowd;
 }
 
 /** Sube la pieza lo justo para que ningún vértice atraviese el fondo, la pared o el borde del bowl. */
