@@ -305,18 +305,8 @@ export function createEgg(): THREE.Group {
     g.add(a);
     root.add(g);
   });
-  // Fase 2 (vida < 40 %): la clara se raja y asoma la yema. Ocultas hasta entonces.
-  const crack = new THREE.Mesh(new THREE.TorusGeometry(spec.shell.rx * 0.55, 0.0009, 6, 24, Math.PI * 0.9), new THREE.MeshStandardMaterial({ color: 0x6b5a3a, roughness: 0.9 }));
-  crack.name = 'grieta';
-  crack.position.set(spec.shell.rx * 0.4, spec.cy - spec.shell.ry * 0.4, spec.shell.rz * 0.72);
-  crack.rotation.set(0.3, 0.6, -0.5);
-  crack.visible = false;
-  root.add(crack);
-  const yolk = new THREE.Mesh(new THREE.SphereGeometry(spec.shell.rx * 0.32, 20, 14), new THREE.MeshStandardMaterial({ color: 0xffb21e, roughness: 0.45, emissive: 0x3a2000 }));
-  yolk.name = 'yema';
-  yolk.position.set(spec.shell.rx * 0.42, spec.cy - spec.shell.ry * 0.42, spec.shell.rz * 0.62);
-  yolk.visible = false;
-  // shortcut: la yema no se agrega (el usuario veía "un punto amarillo" afuera del huevo); la fase 2 se ve sólo por la grieta.
+  // Fase 2 (vida < 40 %): sin dibujo. La grieta (un arco oscuro) y antes la yema se leían como pestañas o un punto sobre la
+  // cara: el usuario las pidió afuera. La fase 2 se nota en cómo pelea (recibe más y ataca más rápido).
   // Cuerpo: un huevo de verdad (más ancho abajo, más agudo arriba), con unos poquitos hoyuelos de la clara cocida.
   const { rx, ry } = spec.shell;
   const prof: THREE.Vector2[] = [];

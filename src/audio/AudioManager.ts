@@ -33,7 +33,9 @@ export class AudioManager {
   private files = new Map<SoundId, AudioBuffer>();
   private noise: AudioBuffer | null = null;
   private lastCrunch = 0;
-  private music: { stop: () => void } | null = null;
+  private music: { stop: () => void; out: GainNode } | null = null;
+  /** Censura: la música queda en silencio (sigue corriendo, así vuelve donde iba). */
+  private musicHush = false;
   volume = 1;
 
   constructor() {
@@ -85,8 +87,19 @@ export class AudioManager {
   }
 
   /** `intensity` 0..1 modula volumen y brillo del sonido (p. ej. profundidad o velocidad). */
-  /** Botón CENSURAR de la pelea. */
-  censor = false;
+  /** Botón CENSURAR de la pelea: tapa la voz del villano y pausa la música. */
+  get censor(): boolean {
+    return this.musicHush;
+  }
+  set censor(on: boolean) {
+    this.musicHush = on;
+    const m = this.music;
+    if (!m || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    m.out.gain.cancelScheduledValues(t);
+    m.out.gain.setValueAtTime(m.out.gain.value, t);
+    m.out.gain.linearRampToValueAtTime(on ? 0 : 0.32, t + 0.35);
+  }
 
   play(id: SoundId, intensity = 1): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
@@ -338,7 +351,7 @@ export class AudioManager {
     if (this.music) return;
     const out = ctx.createGain();
     out.gain.setValueAtTime(0, ctx.currentTime);
-    out.gain.linearRampToValueAtTime(0.32, ctx.currentTime + 2.2);
+    out.gain.linearRampToValueAtTime(this.musicHush ? 0 : 0.32, ctx.currentTime + 2.2);
     out.connect(this.master!);
     const fadeOut = (): number => {
       out.gain.cancelScheduledValues(ctx.currentTime);
@@ -354,7 +367,7 @@ export class AudioManager {
       src.loop = true;
       src.connect(out);
       src.start();
-      this.music = { stop: () => src.stop(fadeOut()) };
+      this.music = { stop: () => src.stop(fadeOut()), out };
       return;
     }
     const eighth = 60 / 132 / 2;
@@ -404,6 +417,7 @@ export class AudioManager {
         window.clearInterval(timer);
         fadeOut();
       },
+      out,
     };
   }
 

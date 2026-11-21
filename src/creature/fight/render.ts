@@ -389,7 +389,6 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
     const u = c.obj.children[0]?.userData.whip as { uJ1: { value: THREE.Vector3 }; uJ2: { value: THREE.Vector3 } } | undefined;
     return u ? { u, prev: c.obj.quaternion.clone(), b: new THREE.Vector3(), v: new THREE.Vector3(), t: Math.random() * 6 } : null;
   });
-  const crackParts = inner.children.filter((o) => o.name === 'grieta' || o.name === 'yema');
   const bodyGrains = inner.children.find((o) => o.name === 'cuerpo-granos') as THREE.InstancedMesh | undefined;
   const grainTotal = bodyGrains?.count ?? 0;
   const dq = new THREE.Quaternion();
@@ -478,7 +477,6 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
           w.u.uJ2.value.copy(w.b);
         }
       });
-      for (const o of crackParts) o.visible = (p.hp ?? 100) < 40;
     },
     bump(st) {
       squash.kick(st * jelly);
