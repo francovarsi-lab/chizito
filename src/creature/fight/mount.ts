@@ -256,6 +256,15 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   /** Granos de quinoa en el aire (los de la METRALLA): uno por proyectil del motor. */
   const grainGeo = new THREE.SphereGeometry(1, 7, 5).scale(1, 0.6, 1);
   const grainMats = ['#ebdfc3', '#93412e', '#2b2522', '#e3d3b0'].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.5 }));
+  const floretGeo = new THREE.IcosahedronGeometry(1, 1);
+  {
+    const pos = floretGeo.getAttribute('position');
+    for (let n = 0; n < pos.count; n++) pos.setXYZ(n, pos.getX(n) * (1 + 0.25 * Math.sin(n * 2.3)), pos.getY(n) * (1 + 0.25 * Math.cos(n * 1.7)), pos.getZ(n));
+    floretGeo.computeVertexNormals();
+  }
+  const floretMat = new THREE.MeshStandardMaterial({ color: '#3f7f24', roughness: 0.85, flatShading: true });
+  const shellGeo = new THREE.SphereGeometry(1, 8, 6, 0, 1.6, 0, 1.2);
+  const shellMat = new THREE.MeshStandardMaterial({ color: '#f4efe4', roughness: 0.6, side: THREE.DoubleSide });
   const shotMeshes = new Map<number, THREE.Mesh>();
   const syncShots = (): void => {
     const live = new Set<number>();
@@ -263,8 +272,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       live.add(sh.id);
       let g = shotMeshes.get(sh.id);
       if (!g) {
-        g = new THREE.Mesh(grainGeo, grainMats[sh.id % grainMats.length]);
-        g.scale.setScalar(sh.r * 0.75);
+        // Ramito de brócoli (verde, grumoso), cáscara de huevo (lámina blanca curva) o grano de quinoa.
+        g = sh.kind === 'arbolitos' ? new THREE.Mesh(floretGeo, floretMat) : sh.kind === 'cascaras' ? new THREE.Mesh(shellGeo, shellMat) : new THREE.Mesh(grainGeo, grainMats[sh.id % grainMats.length]);
+        g.scale.setScalar(sh.r * (sh.kind === 'arbolitos' || sh.kind === 'cascaras' ? 1 : 0.75));
         game().stage.scene.add(g);
         shotMeshes.set(sh.id, g);
       }
@@ -353,13 +363,14 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       set?.candle(flashN > 0 ? flashAt : null, flashN > 0 ? 0.035 * (flashN / 3) : 0);
       if (flashN >= 0) flashN--;
     }
-    // Mientras se carga un poder se nota: el brócoli larga hilitos de vapor de la copa, el chizito suelta polvito de queso.
+    // Mientras se carga un poder se nota: el brócoli suelta gas y ramitos, el chizito suelta polvito de queso.
     if (m && views) m.f.forEach((f, i) => {
       if (f.pw?.phase !== 'wind' || Math.random() > 0.5) return;
       const h = views![i].head();
-      if (f.pw.kind === 'vapor') cloud(h, 1, 0xffffff, 0.004, 0.02, 0.05);
+      if (f.pw.kind === 'gas') cloud(P3(f.x - f.facing * 0.01, f.y + 0.01), 1, 0x9cc23a, 0.004, 0.02, 0.01);
+      if (f.pw.kind === 'arbolitos') cloud(h, 1, 0x4f8f2a, 0.003, 0.02, 0.01);
       if (f.pw.kind === 'queso') cloud(P3(f.x + f.facing * 0.01, f.y + 0.02), 1, 0xff9a2a, 0.003, 0.02, 0.02);
-      if (f.pw.kind === 'vapor' || f.pw.kind === 'rodada') views![i].hurt(0, 0.0006);
+      if (f.pw.kind === 'arbolitos' || f.pw.kind === 'cascaras' || f.pw.kind === 'rodada' || f.pw.kind === 'gas') views![i].hurt(0, 0.0006);
     });
     syncShots();
     crumbs?.forEach((c) => c.update(dt));
@@ -545,7 +556,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         shake = Math.max(shake, 0.002);
         const front = P3(f.x + f.facing * 0.03, f.y + 0.022);
         if (e.kind === 'queso') cloud(front, 26, 0xff9424, 0.011, 0.05, 0.03, f.facing);
-        if (e.kind === 'vapor') cloud(views[e.who].head(), 30, 0xffffff, 0.012, 0.06, 0.08);
+        if (e.kind === 'gas') cloud(P3(f.x, f.y + 0.015), 80, 0x9cc23a, 0.02, 0.08, 0.02);
+        if (e.kind === 'arbolitos') cloud(views[e.who].head(), 18, 0x4f8f2a, 0.006, 0.04, 0.02);
+        if (e.kind === 'cascaras') cloud(P3(f.x, f.y + 0.03), 16, 0xf2ecdf, 0.006, 0.04, 0.02);
+        if (e.kind === 'avalancha') cloud(P3(f.x + f.facing * 0.02, 0.004), 30, 0xd9c9a0, 0.008, 0.05, 0.01, f.facing);
         if (e.kind === 'rodada') cloud(P3(f.x, 0.004), 8, 0xe9e2d0, 0.006, 0.03, 0.02);
         if (e.kind === 'nube') cloud(P3(f.x + f.facing * 0.035, f.y + 0.02), 60, 0xff9424, 0.016, 0.05, 0.02, f.facing);
         if (e.kind === 'muralla') ring(P3(f.x, f.y + 0.02), 0.03, 0xffe066);

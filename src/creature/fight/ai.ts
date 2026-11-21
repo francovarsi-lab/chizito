@@ -99,12 +99,14 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
     if (mem.doing === 'dash') return { x: mem.left === 1 ? 0 : ((mem.stepDir * dir) as -1 | 1) };
   }
   mem.doing = 'none';
-  // El poder, cuando conviene (cada uno con su lógica): vapor si lo tiene encima, rodar si está a media distancia y en el piso,
-  // granos de lejos, queso de cerca. Más nivel = lo usa mejor (con menos azar).
-  if (me.meter >= FIGHT.power.max && me.model.power && me.stun <= 0) {
-    const k = me.model.power;
-    const good = k === 'vapor' ? near < POWERS.vapor.reach * 0.8 : k === 'rodada' ? near > 0.05 && near < 0.2 && foe.grounded : k === 'metralla' ? near > 0.06 : near < POWERS.queso.reach;
-    if (good && rnd(mem) < 0.02 + 0.02 * mem.level) return { x: 0, power: true };
+  // El poder, cuando conviene (cada uno con su lógica): gas si lo tiene encima, rodar o avalancha a media distancia con el otro en
+  // el piso, lo que se tira (arbolitos, cáscaras, granos) de lejos, queso de cerca. Con media barra usa el chico (sin apuro: puede
+  // esperar el grande). Más nivel = lo usa mejor (con menos azar).
+  const full = me.meter >= FIGHT.power.max;
+  const k = full ? me.model.power : me.meter >= FIGHT.powerUse.half ? me.model.power2 : undefined;
+  if (k && me.stun <= 0) {
+    const good = k === 'gas' ? near < 0.07 : k === 'rodada' || k === 'avalancha' ? near > 0.05 && near < 0.22 && foe.grounded : k === 'metralla' || k === 'arbolitos' || k === 'cascaras' ? near > 0.06 : near < POWERS.queso.reach;
+    if (good && rnd(mem) < (full ? 0.02 + 0.02 * mem.level : 0.0015 + 0.004 * mem.level)) return { x: 0, power: true };
   }
   const attackPrev = mem.wasAttack;
   mem.wasAttack = false;

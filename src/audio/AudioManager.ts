@@ -16,10 +16,10 @@ import { probeFile } from '../assets/probe';
  *  musica-pelea (música de la pelea, en loop; si no está, suena una base sintetizada), apagon (se cortan las luces), vela
  *  (se enciende la vela), rugido (EL BROCOLOCO ruge), brocoloco-frase1/2/3, huevo-frase1/2/3,
  *  quinoa-frase1/2/3 (la voz de cada rival en su presentación: ver los subtítulos en `RIVALS` de mount.ts),
- *  poder-carga (carga un poder), poder-queso, poder-vapor, poder-rodada, poder-metralla
+ *  poder-carga (carga un poder), poder-queso, poder-rodada, poder-metralla
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3' | 'huevo-frase1' | 'huevo-frase2' | 'huevo-frase3' | 'quinoa-frase1' | 'quinoa-frase2' | 'quinoa-frase3' | 'poder-carga' | 'poder-queso' | 'poder-vapor' | 'poder-rodada' | 'poder-metralla' | 'atajada' | 'guardia-rota' | 'barrida' | 'pasito' | 'poder-nube' | 'poder-trompo' | 'poder-carozo' | 'poder-acupuntura' | 'poder-muralla' | 'poder-olor' | 'musica-brocoloco' | 'musica-huevo' | 'musica-quinoa';
-const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3', 'huevo-frase1', 'huevo-frase2', 'huevo-frase3', 'quinoa-frase1', 'quinoa-frase2', 'quinoa-frase3', 'poder-carga', 'poder-queso', 'poder-vapor', 'poder-rodada', 'poder-metralla', 'atajada', 'guardia-rota', 'barrida', 'pasito', 'poder-nube', 'poder-trompo', 'poder-carozo', 'poder-acupuntura', 'poder-muralla', 'poder-olor', 'musica-brocoloco', 'musica-huevo', 'musica-quinoa'];
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3' | 'huevo-frase1' | 'huevo-frase2' | 'huevo-frase3' | 'quinoa-frase1' | 'quinoa-frase2' | 'quinoa-frase3' | 'poder-carga' | 'poder-queso' | 'poder-rodada' | 'poder-metralla' | 'atajada' | 'guardia-rota' | 'barrida' | 'pasito' | 'poder-nube' | 'poder-trompo' | 'poder-carozo' | 'poder-acupuntura' | 'poder-muralla' | 'poder-olor' | 'poder-arbolitos' | 'poder-gas' | 'poder-cascaras' | 'poder-avalancha' | 'musica-brocoloco' | 'musica-huevo' | 'musica-quinoa';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3', 'huevo-frase1', 'huevo-frase2', 'huevo-frase3', 'quinoa-frase1', 'quinoa-frase2', 'quinoa-frase3', 'poder-carga', 'poder-queso', 'poder-rodada', 'poder-metralla', 'atajada', 'guardia-rota', 'barrida', 'pasito', 'poder-nube', 'poder-trompo', 'poder-carozo', 'poder-acupuntura', 'poder-muralla', 'poder-olor', 'poder-arbolitos', 'poder-gas', 'poder-cascaras', 'poder-avalancha', 'musica-brocoloco', 'musica-huevo', 'musica-quinoa'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -120,7 +120,7 @@ export class AudioManager {
       return;
     }
     // Sin archivo propio: suenan como el más parecido (ids listos para grabar).
-    const alias: Partial<Record<SoundId, SoundId>> = { atajada: 'bloqueo', 'guardia-rota': 'escudo', barrida: 'golpe-pesado', pasito: 'drop', 'poder-nube': 'poder-queso', 'poder-trompo': 'zumbido', 'poder-carozo': 'golpe-pesado', 'poder-acupuntura': 'golpe', 'poder-muralla': 'escudo', 'poder-olor': 'poder-queso' };
+    const alias: Partial<Record<SoundId, SoundId>> = { atajada: 'bloqueo', 'guardia-rota': 'escudo', barrida: 'golpe-pesado', pasito: 'drop', 'poder-nube': 'poder-queso', 'poder-trompo': 'zumbido', 'poder-carozo': 'golpe-pesado', 'poder-acupuntura': 'golpe', 'poder-muralla': 'escudo', 'poder-olor': 'poder-queso', 'poder-arbolitos': 'poder-metralla', 'poder-cascaras': 'poder-metralla', 'poder-avalancha': 'poder-metralla' };
     if (alias[id]) return this.play(alias[id]!, intensity);
     switch (id) {
       case 'crack':
@@ -246,10 +246,10 @@ export class AudioManager {
         this.burst({ freq: 800, q: 0.5, dur: 0.5, gain: 0.7, type: 'lowpass', attack: 0.02 });
         for (let k = 0; k < 5; k++) this.tone({ f0: 2000 + k * 380, f1: 2400 + k * 380, dur: 0.12, gain: 0.08, delay: 0.1 + k * 0.05 });
         break;
-      case 'poder-vapor':
-        // Silbido de olla a presión.
-        this.burst({ freq: 3500, q: 0.4, dur: 0.9, gain: 0.55, type: 'highpass', attack: 0.06 });
-        this.tone({ f0: 1900, f1: 2300, dur: 0.7, gain: 0.12, vibrato: 30 });
+      case 'poder-gas':
+        // Gas de brócoli: un "prrrt" grave que tiembla y un soplido.
+        this.tone({ f0: 95, f1: 62, dur: 0.9, gain: 0.5, type: 'sawtooth', lp: 420, vibrato: 28 });
+        this.burst({ freq: 500, q: 0.6, dur: 0.9, gain: 0.3, type: 'lowpass', attack: 0.05 });
         break;
       case 'poder-rodada':
         for (let k = 0; k < 6; k++) this.tone({ f0: 70, f1: 55, dur: 0.18, gain: 0.45, delay: k * 0.12, type: 'triangle' });

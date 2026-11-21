@@ -102,6 +102,8 @@ export interface FighterModel {
   yaw?: number;
   /** Poder especial (ver `POWERS` en tuning.ts). */
   power?: PowerKind;
+  /** Poder de MEDIA barra (los rivales; TU CHIZITO usa el olor a pata). `power` es el de la barra llena. */
+  power2?: PowerKind;
   /** Ataques hechos a mano (`moves.ts`): si los tiene, la IA usa éstos y no las piñas del motor. */
   moves?: string[];
   /** Cuerpo de gelatina (huevo): los golpes seguidos pegan menos y el cuerpo vibra. */
@@ -332,7 +334,9 @@ export function broccoliFighter(_level = 1): FighterModel {
     stance: true,
     faceAt: { mouth: 0.44, eyes: 0.63 },
     yaw: FIGHT.broccoli.yaw,
-    power: 'vapor',
+    // Lógica de brócoli: tira sus ARBOLITOS (media barra) y suelta el GAS que da comerlo (barra llena).
+    power: 'gas',
+    power2: 'arbolitos',
     moves: RIVAL_MOVES['EL BROCOLOCO'],
   };
 }
@@ -372,6 +376,7 @@ export interface RivalSpec {
   yaw: number;
   label: { arm: string; leg: string };
   power: PowerKind;
+  power2: PowerKind;
   jelly?: boolean;
   absorb?: boolean;
 }
@@ -399,7 +404,9 @@ export const EGG: RivalSpec = {
   faceAt: { mouth: 0.39, eyes: 0.6 },
   yaw: 1.0,
   label: { arm: 'espárrago', leg: 'espárrago' },
-  power: 'rodada',
+  // Huevo: rueda (media barra); pelado a golpes, tira sus CÁSCARAS (barra llena).
+  power: 'cascaras',
+  power2: 'rodada',
   jelly: true,
 };
 
@@ -427,7 +434,9 @@ export const QUINOA: RivalSpec = {
   faceAt: { mouth: 0.44, eyes: 0.67 },
   yaw: 1.0,
   label: { arm: 'puño de quinoa', leg: 'pata de quinoa' },
-  power: 'metralla',
+  // Quinoa: dispara granos (media barra); toda la quinoa se le viene encima como AVALANCHA por la tabla (barra llena).
+  power: 'avalancha',
+  power2: 'metralla',
 };
 
 /** Un rival de nivel 2 o 3 como luchador (mismo marco que el brócoli: el frente es la cara, +Z del modelo). */
@@ -486,6 +495,7 @@ export function rivalFromSpec(spec: RivalSpec): FighterModel {
     faceAt: spec.faceAt,
     yaw: spec.yaw,
     power: spec.power,
+    power2: spec.power2,
     jelly: spec.jelly,
     absorb: spec.absorb,
   };

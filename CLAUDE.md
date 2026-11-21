@@ -558,14 +558,19 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   ACOSTADO (±90°) y cada extremidad se afloja sobre la tabla (`limp`, `joint.limp`), todos los luchadores.
 - PODER v4 (2026-11-20, pedido del usuario): sin ESCAPE. Barra en dos mitades para TU CHIZITO: media = OLOR A PATA (marea, zona
   de 4 s, sonido `poder-olor`; también como remate justo después de acertar); llena = CALESITA DEL DOLOR (el ex trompo: 3 vueltas,
-  3 golpes de 7; sonido `poder-trompo`). Los poderes según lo armado (nube, carozazo, acupuntura, muralla) quedaron sin uso. Rivales: su poder con la barra llena. El corte de cámara del súper es sólo para el poder lleno del jugador (con el
+  3 golpes de 7; sonido `poder-trompo`). Los poderes según lo armado (nube, carozazo, acupuntura, muralla) quedaron sin uso.
+  RIVALES (2026-11-21), DOS poderes cada uno con la lógica de su comida (`power2` media barra / `power` llena; el VAPORAZO se
+  sacó: "no tiene sentido"): EL BROCOLOCO arbolitos (ramitos de la copa en arco) / gas de brócoli (nube que marea 1 s); HUEVO
+  rodada / cáscaras (abanico de cáscaras); QUINOA metralla / avalancha (ola de granos al ras que barre las piernas: se salta).
+  Sonidos `poder-arbolitos/gas/cascaras/avalancha`. La IA usa el chico con poca frecuencia (puede esperar el grande). El corte de cámara del súper es sólo para el poder lleno del jugador (con el
   vaporazo del rival era un zoom indeseado).
 - MÚSICA POR VILLANO: `musica-brocoloco` / `musica-huevo` / `musica-quinoa` (en `public/assets/sounds/`), desde que se entra a la
   pelea (también con la presentación); si falta, `musica-pelea`; si falta, la base sintetizada. Contra un amigo: `musica-pelea`.
 - HINCHADA: el bowl de chizitos (`hinchada`, pegado a la tabla atrás a la izquierda): cada chizito salta por su cuenta con los
   golpes fuertes y hacen LA OLA una vez por pelea (primer golpe fuerte de tu chizito). Sin caras ni sonido (`FightSet.wave`).
-- CÁMARA: la lateral de siempre (el usuario: "la cámara está bien"); V pasa a AÉREA (38°, más lejos) y a PRIMERA PERSONA (detrás
-  de la cabeza de tu chizito, lente de 24 mm, mirando al rival; en el KO vuelve la lateral). Los poderes NO
+- CÁMARA: la lateral de siempre (el usuario: "la cámara está bien"); V pasa a AÉREA (38°, más lejos) y a PRIMERA PERSONA: la cámara
+  ES tu chizito (en su cara de ketchup, mira y se mueve con su cuerpo, 20 mm, banda nítida amplia) y en ese modo los dos se
+  enfrentan DE FRENTE (se les saca el 3/4 sólo al dibujar, `fpK`); en el KO vuelve la lateral. Los poderes NO
   hacen zoom (se sacó el corte de cámara).
 - KO (v2): cae al piso con `koFall` (gravedad y caída × 3,5; con la cámara lenta parecía que flotaba). Los rivales ponen cara de
   noqueado (`face(..., dead)`: ojos en rendija, sin pupila ni brillo, boca floja).
@@ -578,7 +583,14 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   apenas inclinado hacia el rival); los rivales con `moves` no cambian. DE CERCA PEGA: rápido ×0,85, aporreo −20 % por golpe (piso
   45 %), recorrido mínimo 90 %.
 - KO = CADÁVER: el cuerpo cae sobre la tabla y NINGUNA extremidad lo apuntala (`settle`/`contactPoint` ignoran las extremidades
-  noqueadas; todas, también chupetín y varas que atraviesan, se aflojan hasta el piso).
+  noqueadas). Cada extremidad va DERECHO a su pose floja final, calculada una vez con el cuerpo ya acostado (`koSettle`): no gira
+  ni se acomoda en el piso.
+- PIFIAR = UN movimiento: el golpe apunta desde el principio más allá del objetivo (`follow`) y el pifio se decide al pasar el
+  punto de impacto (antes frenaba en el final del arco y volvía a arrancar).
+- OLOR A PATA: deja quieto y mareado 2,2 s (también al entrar a la nube, una vez por nube).
+- HINCHADA: chizitos PARADOS en el bowl (`fillCrowd`), sueltos (antes se fusionaban con `bakeStatic` y nunca saltaban).
+- Huevo: sin dibujo de fase 2 (la grieta oscura eran las "pestañas"). Brócoli: dos filas de dientes; la de abajo baja con la
+  mandíbula (`userData.ty`). CENSURAR también calla la música.
 - CHUPETÍN: la IA no corta su carga (antes la cortaba siempre: "no puedo golpear con el chupetín"); se aleja para que pifie. Al
   pifiar: vuelta entera limpia (sin bamboleo, `whirl.wobble` 0) y expuesto `whirl.after` (40) cuadros más. `swing.poiseHits`
   (aguantar un golpe cargando) quedó en 0: con 1, el doble chupetín ganaba todo.

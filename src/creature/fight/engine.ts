@@ -243,7 +243,7 @@ export interface Zone {
   r: number;
   life: number;
   by: 0 | 1;
-  kind: 'nube' | 'olor';
+  kind: 'nube' | 'olor' | 'gas';
   /** Ya mareó a alguien que entró (una vez por nube). */
   dazed?: boolean;
 }
@@ -989,7 +989,7 @@ function stepPower(m: Match, i: 0 | 1): void {
     pw.phase = 'go';
     pw.t = 0;
     m.events.push({ type: 'power', who: i, kind: pw.kind, phase: 'go' });
-    if (pw.kind === 'nube' || pw.kind === 'olor') {
+    if (pw.kind === 'nube' || pw.kind === 'olor' || pw.kind === 'gas') {
       const P = POWERS[pw.kind];
       const zone: Zone = { x: f.x + f.facing * 0.035, y: f.y + 0.02, r: P.r, life: P.life, by: i, kind: pw.kind };
       m.zones.push(zone);
@@ -1017,9 +1017,25 @@ function stepPower(m: Match, i: 0 | 1): void {
         const guard = foe.guard >= FIGHT.guardReady && foe.grounded && foe.arms.length > 0;
         powerHit(m, i, 'queso', [cx, f.y + 0.025], P.dmg * sm, { kb: 0.08, up: 0, stun: guard ? 0 : 20, dizzy: guard ? 0 : P.dizzy, blocked: guard });
       }
-    } else if (pw.kind === 'vapor') {
-      const P = POWERS.vapor;
-      if (gap < P.reach && Math.abs(foe.y - f.y) < 0.06) powerHit(m, i, 'vapor', [(f.x + foe.x) / 2, f.y + 0.035], P.dmg * sm, { kb: P.kb, up: 0.22, stun: P.stun });
+    } else if (pw.kind === 'arbolitos' || pw.kind === 'cascaras') {
+      // Arbolitos: el brócoli sacude la copa y le tira ramitos; cáscaras: el huevo se descascara a lo bruto y las tira en abanico.
+      // Los dos vuelan en arco (con gravedad) desde arriba del cuerpo hacia el rival.
+      const P = POWERS[pw.kind];
+      const top = Math.max(...f.model.body.map((b) => Math.max(b.a[1], b.b[1]) + b.r));
+      const x0 = f.x + f.facing * 0.01;
+      const y0 = f.y + top * (pw.kind === 'arbolitos' ? 0.9 : 0.6);
+      const base = Math.atan2(foe.y + 0.04 - y0, foe.x - x0) + f.facing * 0.35;
+      for (let n = 0; n < P.n; n++) {
+        const a = base + (n / (P.n - 1) - 0.5) * P.spread * f.facing;
+        const sp = P.speed * (0.85 + 0.3 * ((n * 7) % 5) / 4);
+        m.shots.push({ id: m.nextShot++, by: i, x: x0, y: y0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: P.r, dmg: P.dmg * sm, life: P.life, kind: pw.kind });
+      }
+    } else if (pw.kind === 'avalancha') {
+      // Avalancha: una ola de granos que corre por la TABLA hacia el rival; se esquiva saltando.
+      const P = POWERS.avalancha;
+      for (let n = 0; n < P.n; n++) {
+        m.shots.push({ id: m.nextShot++, by: i, x: f.x + f.facing * (0.015 + 0.004 * (n % 7)), y: P.r + 0.004 * ((n * 5) % 3), vx: f.facing * P.speed * (0.9 + 0.2 * ((n * 3) % 4) / 3), vy: 0, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'avalancha' });
+      }
     } else if (pw.kind === 'metralla') {
       const P = POWERS.metralla;
       // Los granos salen del puño de adelante, en abanico hacia el rival, y caen con la gravedad.
@@ -1255,7 +1271,7 @@ function stepZones(m: Match): void {
 function stepShots(m: Match): void {
   for (let n = m.shots.length - 1; n >= 0; n--) {
     const sh = m.shots[n];
-    if (sh.kind !== 'carozo') sh.vy -= G * 0.6 * dt;
+    if (sh.kind !== 'carozo' && sh.kind !== 'avalancha') sh.vy -= G * 0.6 * dt;
     sh.x += sh.vx * dt;
     sh.y += sh.vy * dt;
     const b = m.f[1 - sh.by];
@@ -1266,11 +1282,18 @@ function stepShots(m: Match): void {
         const B = toWorld(b, c.b);
         if (segD(sh.x, sh.y, A[0], A[1], B[0], B[1]) < c.r + sh.r) hit = true;
       }
+      // La avalancha corre al ras: barre las PIERNAS (si no, pasaba por debajo del cuerpo).
+      if (sh.kind === 'avalancha' && !hit) b.model.limbs.forEach((l, k) => {
+        const arr = b.cur[k];
+        l.points.forEach((p, j) => {
+          if (!p.inside && Math.hypot(arr[2 * j] - sh.x, arr[2 * j + 1] - sh.y) < p.r + sh.r + 0.002) hit = true;
+        });
+      });
     }
     if (hit) {
       const blocked = b.guard >= FIGHT.guardReady && b.grounded && b.arms.length > 0 && Math.sign(sh.vx) === -b.facing;
       if (sh.kind === 'carozo') powerHit(m, sh.by, 'carozo', [sh.x, sh.y], sh.dmg, { kb: 0.2, up: 0, stun: 12, dizzy: POWERS.carozo.dizzy, blocked });
-      else powerHit(m, sh.by, 'metralla', [sh.x, sh.y], sh.dmg, { kb: 0.05, up: 0, stun: 5, blocked });
+      else powerHit(m, sh.by, sh.kind ?? 'metralla', [sh.x, sh.y], sh.dmg, { kb: 0.05, up: 0, stun: sh.kind === 'arbolitos' ? 9 : 5, blocked });
     }
     if (hit || --sh.life <= 0 || sh.y < 0 || Math.abs(sh.x) > FIGHT.arenaHalf + 0.05) m.shots.splice(n, 1);
   }
@@ -1401,13 +1424,14 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     const mine = f.model.power === 'queso';
     const remate = !!f.chain && f.chain.t > 0;
     const full = f.meter >= FIGHT.power.max;
-    if ((full || (mine && f.meter >= U.half)) && (remate || !busy)) {
+    const halfKind = mine ? 'olor' : f.model.power2;
+    if ((full || (halfKind && f.meter >= U.half)) && (remate || !busy)) {
       f.meter -= full ? FIGHT.power.max : U.half;
       if (remate) {
         f.lock = 0;
         for (const q of f.limbs) if (q.phase !== 'rest') { q.phase = 'recover'; q.t = FIGHT.recoverMax; }
       }
-      const kind = !mine ? f.model.power : full ? 'trompo' : 'olor';
+      const kind = full ? (mine ? 'trompo' : f.model.power) : halfKind!;
       f.pw = { kind, phase: 'wind', t: 0, hit: false };
       f.buffer = null;
       f.pwBuf = 0;

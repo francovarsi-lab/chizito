@@ -729,11 +729,11 @@ try {
 
   // ── Poderes: cada uno con su lógica (queso marea, vapor empuja, el huevo rueda, la quinoa tira granos) ──
   {
-    const run = (A, B, gap, frames = 120) => {
+    const run = (A, B, gap, frames = 120, meter = FIGHT.power.max) => {
       const m = createMatch([A, B]);
       for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
       m.f[1].x = m.f[0].x + gap;
-      m.f[1].meter = FIGHT.power.max;
+      m.f[1].meter = meter;
       const ev = [];
       let maxShots = 0;
       const x0 = m.f[1].x;
@@ -746,12 +746,19 @@ try {
       }
       return { m, ev, maxShots, moved: x0 - minX };
     };
+    const H = FIGHT.powerUse.half;
     const brok = run(mine, broccoliFighter(1), 0.05);
-    ok(brok.ev.some((e) => e.type === 'power' && e.phase === 'go' && e.kind === 'vapor') && brok.ev.some((e) => e.type === 'powerHit' && e.kind === 'vapor'), 'EL BROCOLOCO larga el VAPORAZO y quema de cerca');
-    const egg = run(mine, rivalFighter(2), 0.14);
+    ok(brok.ev.some((e) => e.type === 'power' && e.phase === 'go' && e.kind === 'gas') && brok.ev.some((e) => e.type === 'dizzy' && e.who === 0), 'EL BROCOLOCO (barra llena) suelta el GAS y marea de cerca');
+    const arb = run(mine, broccoliFighter(1), 0.1, 120, H);
+    ok(arb.ev.some((e) => e.type === 'powerHit' && e.kind === 'arbolitos'), 'EL BROCOLOCO (media barra) tira ARBOLITOS y pegan');
+    const cas = run(mine, rivalFighter(2), 0.1, 120);
+    ok(cas.ev.some((e) => e.type === 'powerHit' && e.kind === 'cascaras'), 'el HUEVO (barra llena) tira CÁSCARAS y pegan');
+    const ava = run(mine, rivalFighter(3), 0.12, 160);
+    ok(ava.ev.some((e) => e.type === 'powerHit' && e.kind === 'avalancha'), 'la QUINOA (barra llena) larga la AVALANCHA y pega al que no salta');
+    const egg = run(mine, rivalFighter(2), 0.14, 120, H);
     ok(egg.moved > 0.05 && egg.ev.some((e) => e.type === 'powerHit' && e.kind === 'rodada'), `el HUEVO rueda contra el rival y lo golpea (${(egg.moved * 100).toFixed(1)} cm)`);
     ok(egg.m.f[1].roll === 0, 'después de rodar queda parado (vuelta entera)');
-    const q = run(mine, rivalFighter(3), 0.12);
+    const q = run(mine, rivalFighter(3), 0.12, 120, H);
     ok(q.maxShots >= 5 && q.ev.some((e) => e.type === 'powerHit' && e.kind === 'metralla'), `la QUINOA tira granos y pegan (${q.maxShots} granos)`);
     ok(q.m.f[1].armorLoss > 0, 'tirar granos le saca coraza (protege menos hasta rearmarse)');
     const me = { ...mine, power: 'queso' };

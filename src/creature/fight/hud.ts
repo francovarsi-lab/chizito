@@ -1,5 +1,5 @@
 import type { Match } from './engine';
-import { FIGHT } from './tuning';
+import { FIGHT, POWERS, type PowerKind } from './tuning';
 import { QUAD_KEYS, type Quad } from '../zones';
 
 /**
@@ -379,12 +379,14 @@ export class FightHud {
       [...this.pips[i].children].forEach((p, n) => p.classList.toggle('on', n < m.wins[i]));
       // PODER: llena, titila (E lo suelta).
       (this.pows[i].firstElementChild as HTMLElement).style.transform = `scaleX(${f.meter / FIGHT.power.max})`;
-      // Partida en dos (TU CHIZITO): media barra = el poder de lo que armó; llena = OLOR A PATA. Los rivales: un poder, lleno.
+      // Partida en dos: media barra = el poder chico, llena = el grande (TU CHIZITO olor a pata / calesita; cada rival los suyos).
       const mine = f.model.power === 'queso';
       const full = f.meter >= FIGHT.power.max;
-      const half = !full && mine && f.meter >= FIGHT.powerUse.half;
+      const k2 = mine ? 'olor' : f.model.power2;
+      const half = !full && !!k2 && f.meter >= FIGHT.powerUse.half;
       const you = i === this.me;
-      const label = full ? (mine ? 'CALESITA DEL DOLOR' : '¡PODER!') + (you ? ' · E' : '') : half ? `OLOR A PATA${you ? ' · E' : ''}` : 'PODER';
+      const name = (k: PowerKind | undefined): string => (k ? POWERS[k].name.replace(/[¡!]/g, '') : 'PODER');
+      const label = full ? name(mine ? 'trompo' : f.model.power) + (you ? ' · E' : '') : half ? name(k2) + (you ? ' · E' : '') : 'PODER';
       this.pows[i].classList.toggle('full', full);
       this.pows[i].classList.toggle('half', half);
       const sp = this.pows[i].lastElementChild as HTMLElement;
