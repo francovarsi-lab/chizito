@@ -505,10 +505,12 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       const sy = 1 + MOUTH_K * Math.max(0, open) * (1 - sick);
       for (const o of mouthParts) {
         const teeth = o.name === 'dientes';
+        // La boca se estira desde su borde de arriba; cada fila de dientes NO se estira: acompaña a su labio (la de arriba queda,
+        // la de abajo baja con la mandíbula), así boca y dientes son un mismo movimiento.
         o.scale.y = teeth ? 1 : sy;
         o.scale.x = 1 - 0.35 * sick;
         o.rotation.z = 0.12 * sick * Math.sin(clock * 6);
-        o.position.y = teeth ? 0 : MOUTH_TOP * (1 - sy);
+        o.position.y = (MOUTH_TOP - (teeth ? ((o.userData.ty as number | undefined) ?? MOUTH_TOP) : 0)) * (1 - sy);
       }
       // Cuánto suben o bajan las cejas, en las unidades del modelo (el brócoli va en unidades del boceto; los otros, en metros).
       for (const o of brows) o.position.y = BROW_STEP * (brow * (1 - sick) + 1.2 * sick);

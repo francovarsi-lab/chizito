@@ -242,6 +242,8 @@ export interface Zone {
   life: number;
   by: 0 | 1;
   kind: 'nube' | 'olor';
+  /** Ya mareó a alguien que entró (una vez por nube). */
+  dazed?: boolean;
 }
 
 export type FightEvent =
@@ -967,10 +969,11 @@ function stepPower(m: Match, i: 0 | 1): void {
     m.events.push({ type: 'power', who: i, kind: pw.kind, phase: 'go' });
     if (pw.kind === 'nube' || pw.kind === 'olor') {
       const P = POWERS[pw.kind];
-      m.zones.push({ x: f.x + f.facing * 0.035, y: f.y + 0.02, r: P.r, life: P.life, by: i, kind: pw.kind });
+      const zone: Zone = { x: f.x + f.facing * 0.035, y: f.y + 0.02, r: P.r, life: P.life, by: i, kind: pw.kind };
+      m.zones.push(zone);
       // OLOR A PATA: además del olor que queda, el primer golpe de aire marea al que esté adentro (la guardia no tapa la nariz).
       // La nube y el olor MAREAN de entrada al que está adentro (la guardia no tapa la nariz): queda atontado un rato.
-      if (Math.abs(foe.x - (f.x + f.facing * 0.035)) < P.r * 1.5 && !foe.ko) powerHit(m, i, pw.kind, [foe.x, foe.y + 0.03], P.dmg, { kb: 0.06, up: 0, stun: 20, dizzy: P.dizzy, blocked: false });
+      if (Math.abs(foe.x - (f.x + f.facing * 0.035)) < P.r * 1.8 && !foe.ko && (zone.dazed = true)) powerHit(m, i, pw.kind, [foe.x, foe.y + 0.03], P.dmg, { kb: 0.06, up: 0, stun: 20, dizzy: P.dizzy, blocked: false });
     } else if (pw.kind === 'carozo') {
       const P = POWERS.carozo;
       m.shots.push({ id: m.nextShot++, by: i, x: center[0], y: foe.y + 0.02, vx: f.facing * P.speed, vy: 0, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'carozo' });
@@ -1214,6 +1217,13 @@ function stepZones(m: Match): void {
       b.hp = Math.max(0, b.hp - soak(m, b, POWERS[z.kind].dps * dt));
       b.blind = Math.max(b.blind, 2);
       b.blindMul = POWERS[z.kind].blind;
+      // Entrar al olor también marea (una vez por nube): queda quieto, atontado.
+      if (!z.dazed && b.stun <= 0) {
+        z.dazed = true;
+        b.dizzyT = POWERS[z.kind].dizzy;
+        b.stun = Math.max(b.stun, POWERS[z.kind].dizzy);
+        m.events.push({ type: 'dizzy', who: (1 - z.by) as 0 | 1 });
+      }
     }
     if (--z.life <= 0) m.zones.splice(n, 1);
   }

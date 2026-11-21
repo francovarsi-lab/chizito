@@ -357,6 +357,7 @@ export function createEgg(): THREE.Group {
   seed.scale(0.00045, 0.0008, 0.0003);
   const teeth = new THREE.Group();
   teeth.name = 'dientes';
+  teeth.userData.ty = (top(0) + bot(0)) / 2; // en el medio de la boca: baja la mitad que el labio de abajo
   for (let i = 0; i < 7; i++) {
     const x = -W * 0.7 + (1.4 * W * i) / 6;
     const s = new THREE.Mesh(seed, M.sesame);

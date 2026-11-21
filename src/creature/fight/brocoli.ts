@@ -358,7 +358,9 @@ function addFace(root: THREE.Group, level: number): void {
   mouth.name = 'boca';
   root.add(mouth);
   // Dientes: fila de arriba colgando (en punta) y fila de abajo más corta, desparejos.
+  // Dos filas aparte: al hablar la de arriba queda con el labio de arriba y la de abajo baja con la mandíbula (`face`, `userData.ty`).
   const teeth: [number, number][] = [];
+  const low: [number, number][] = [];
   const top = 7;
   for (let i = 0; i < top; i++) {
     const xc = -W * 0.78 + (1.56 * W * i) / (top - 1);
@@ -370,15 +372,21 @@ function addFace(root: THREE.Group, level: number): void {
     const xc = -W * 0.55 + (1.1 * W * i) / (top - 3);
     const w = 0.022;
     const h = 0.042 * (i % 2 ? 0.75 : 1);
-    teeth.push([xc - w, botY(xc - w)], [xc + w, botY(xc + w)], [xc, botY(xc) + h]);
+    low.push([xc - w, botY(xc - w)], [xc + w, botY(xc + w)], [xc, botY(xc) + h]);
   }
   M.teethGeo ??= surface(teeth, 0.01);
+  M.lowTeethGeo ??= surface(low, 0.01);
   const t = shared(new THREE.Mesh(M.teethGeo, M.teeth));
   t.name = 'dientes';
+  t.userData.ty = topY(0);
   root.add(t);
+  const lt = shared(new THREE.Mesh(M.lowTeethGeo, M.teeth));
+  lt.name = 'dientes';
+  lt.userData.ty = botY(0);
+  root.add(lt);
 }
 
-let faceMats: { eyeGeo: THREE.BufferGeometry; ball: THREE.BufferGeometry; eye: THREE.Material; glint: THREE.Material; brow: THREE.Material; mouth: THREE.Material; seed: THREE.Material; mouthIn: THREE.Material; teeth: THREE.Material; mouthGeo?: THREE.BufferGeometry; teethGeo?: THREE.BufferGeometry } | null = null;
+let faceMats: { eyeGeo: THREE.BufferGeometry; ball: THREE.BufferGeometry; eye: THREE.Material; glint: THREE.Material; brow: THREE.Material; mouth: THREE.Material; seed: THREE.Material; mouthIn: THREE.Material; teeth: THREE.Material; mouthGeo?: THREE.BufferGeometry; teethGeo?: THREE.BufferGeometry; lowTeethGeo?: THREE.BufferGeometry } | null = null;
 /** Materiales y formas de la cara, compartidos por todos los brócolis (se compilan una vez en el ensayo de la pelea). */
 function faceMaterials(): NonNullable<typeof faceMats> {
   if (faceMats) return faceMats;

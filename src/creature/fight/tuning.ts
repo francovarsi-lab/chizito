@@ -330,7 +330,7 @@ export const POWERS = {
   acupuntura: { name: '¡ACUPUNTURA!', wind: 12, go: 34, reach: 0.06, dmg: 2.6, hits: [4, 10, 16, 22, 28] as readonly number[], stun: 8 },
   muralla: { name: '¡MURALLA!', wind: 10, go: 8, frames: 180 },
   // MEDIA barra de TU CHIZITO: olor a pata (la barra llena es la calesita del dolor, `trompo`). Marea al que lo huele y queda 4 s en el lugar (quema y el rival pega × blind).
-  olor: { name: '¡OLOR A PATA!', wind: 16, go: 22, life: 240, r: 0.075, dps: 3.5, blind: 0.55, dmg: 8, dizzy: 70 },
+  olor: { name: '¡OLOR A PATA!', wind: 16, go: 22, life: 240, r: 0.075, dps: 3.5, blind: 0.55, dmg: 8, dizzy: 130 },
 } as const;
 export type PowerKind = keyof typeof POWERS;
 
