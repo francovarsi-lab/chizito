@@ -17,6 +17,10 @@ constructor (`claude/friendly-faraday-2lyzl2`) y el intérprete/pelea (`claude/c
   Mantener el gasto bajo y avisar si algo se dispara. 3D: SAM 3 (1 crédito, con `prompt` del objeto) antes que Tripo (9) o
   Meshy (30).
 - Sonidos: los va a grabar él; dejar ids de sonido listos para reemplazar por archivos.
+- SIEMPRE, al terminar cada tanda, pasarle el LINK PARA JUGAR (y para pasarle a sus amigos). El link fijo de la rama es
+  `https://chizito-git-<rama-con-guiones>-el-mejor-lugar.vercel.app` (esta: `chizito-git-claude-stoic-newton-87biy2-el-mejor-lugar`):
+  siempre muestra el último deploy de la rama. Vercel: proyecto `chizito`, equipo `team_JOLVbkkbKQEXlwexy9OhUAzu`; la protección
+  "Vercel Authentication" está APAGADA (2026-11-21, pedido del usuario) para que cualquiera abra el link sin pedir permiso.
 
 ## Stack
 - Vite + TypeScript + Three.js (sin React). `postprocessing` (pmndrs) + `n8ao` para el AO.
