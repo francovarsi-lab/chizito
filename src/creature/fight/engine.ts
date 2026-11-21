@@ -1503,9 +1503,12 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if (s.phase === 'strike') {
       // Activo según dónde ESTABA al empezar el paso: el paso que cruza el final del arco también cuenta (el contacto es barrido).
       const phi0 = s.phi;
-      guided(s.target, FIGHT.joint.strike, FIGHT.strikeBoost, (s.target - s.windup) / FIGHT.strikeMinFrames);
+      // UN movimiento: el golpe apunta desde el principio más allá del objetivo (lo que seguiría de largo si pifia), así no frena
+      // en el final del arco para después volver a arrancar; si no tocó nada, pifió apenas pasa el punto de impacto.
+      const through = FIGHT.follow.angle + FIGHT.follow.k * (l.mass / M.bodyMass);
+      guided(s.target + through, FIGHT.joint.strike, FIGHT.strikeBoost, (s.target - s.windup) / FIGHT.strikeMinFrames);
       s.active = !s.landed && phi0 < s.target - 0.12 && s.t < FIGHT.strikeMax;
-      if (!s.active && (dotv(s.w, s.axis) < 1 || s.t >= FIGHT.strikeMax || s.landed)) endStrike(m, i, k);
+      if (!s.active) endStrike(m, i, k);
       return;
     }
     if (s.phase === 'recover' && s.follow > 0) {
