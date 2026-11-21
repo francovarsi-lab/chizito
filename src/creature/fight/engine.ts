@@ -1,6 +1,6 @@
 import type { V3 } from '../types';
 import type { FighterModel, HitKind, MassPoint } from './fighter';
-import { qAxis, qConj, qFromTo, QI, qIntegrate, qMul, qRot, qToVec, type Q } from './quat';
+import { qAxis, qConj, qFromTo, QI, qIntegrate, qMul, qNorm, qRot, qToVec, type Q } from './quat';
 import { FIGHT, JELLY, POWERS, type PowerKind } from './tuning';
 import { MOVE_REST, MOVES, type LimbTag } from './moves';
 import type { Quad } from '../zones';
@@ -45,6 +45,8 @@ type Phase = 'rest' | 'windup' | 'strike' | 'recover';
 
 export interface LimbState {
   q: Q;
+  /** Noqueado: la pose floja final, calculada una vez al caer (ver `koSettle`). */
+  koQ?: Q | null;
   /** rad/s, marco local. */
   w: V3;
   phase: Phase;
@@ -868,19 +870,39 @@ function shieldPose(f: FighterState, id: string): { tilt: number; turned: boolea
  * Pose de una extremidad SIN rigidez (noqueado): cae hacia la tabla desde su articulación, todo lo que la altura le deja (no
  * apuntala el cuerpo), abierta hacia donde ya apuntaba. `up` = el "arriba" del mundo en el marco del luchador inclinado.
  */
-function limp(f: FighterState, k: number): Q {
+function limp(f: FighterState, k: number, tilt = f.tilt, hAt?: number): Q {
   const l = f.model.limbs[k];
   const fa = fwdAxis(f);
-  const c = Math.cos(f.tilt);
-  const sn = Math.sin(f.tilt);
+  const c = Math.cos(tilt);
+  const sn = Math.sin(tilt);
   const up: V3 = [-sn * fa[0], c, -sn * fa[2]];
   let flat = sub(l.dir, scl(up, dotv(l.dir, up)));
   // Apuntaba derecho arriba o abajo: cae a lo largo del cuerpo.
   if (lenv(flat) < 0.2) flat = sub([0, l.dir[1] >= 0 ? 1 : -1, 0], scl(up, (l.dir[1] >= 0 ? 1 : -1) * up[1]));
   flat = normv(flat);
-  const h = toWorld(f, l.pivot)[1];
+  const h = hAt ?? toWorld(f, l.pivot)[1];
   const droop = Math.asin(clamp((h - 0.004) / Math.max(l.reach, 1e-3), 0, 1));
   return qFromTo(l.dir, normv(sub(scl(flat, Math.cos(droop)), scl(up, Math.sin(droop)))));
+}
+
+/**
+ * Noqueado = cadáver: cada extremidad va DERECHO a su pose floja final (la del cuerpo ya acostado, ±90°), sin fuerza ni
+ * vueltas: se calcula una vez al caer y se llega con una caída que sólo frena (nunca se pasa ni se acomoda en el piso).
+ */
+function koSettle(f: FighterState, k: number): void {
+  const s = f.limbs[k];
+  if (!s.koQ) {
+    const T = (Math.sign(Math.abs(f.tilt) > 0.05 ? f.tilt : f.wt || -1) * Math.PI) / 2;
+    const yOf = (p: V3): number => -fwd(f, p) * Math.sin(T) + p[1] * Math.cos(T);
+    let low = Infinity;
+    for (const b of f.model.body) for (const e of [b.a, b.b]) low = Math.min(low, yOf(e) - b.r);
+    s.koQ = limp(f, k, T, yOf(f.model.limbs[k].pivot) - low);
+  }
+  const a = s.q, b = s.koQ;
+  const sg = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3] < 0 ? -1 : 1;
+  const t = 0.14;
+  s.q = qNorm([a[0] + (sg * b[0] - a[0]) * t, a[1] + (sg * b[1] - a[1]) * t, a[2] + (sg * b[2] - a[2]) * t, a[3] + (sg * b[3] - a[3]) * t]);
+  s.w = [0, 0, 0];
 }
 
 // ───────────────────────── Poderes ─────────────────────────
@@ -1408,6 +1430,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   let react = 0;
   M.limbs.forEach((l, k) => {
     const s = f.limbs[k];
+    if (f.ko) return koSettle(f, k);
+    s.koQ = null;
     if (f.mv) {
       // Ataque hecho a mano: la pose sale de las claves (el PD no interviene).
       const q = movePose(f, k);
@@ -1417,10 +1441,6 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     }
     if (l.rigid) {
       // El chupetín y lo que atraviesa no giran solos: si pegan, pega el cuerpo entero (ver la inclinación más abajo).
-      if (f.ko) {
-        drive(f, k, limp(f, k), FIGHT.joint.limp);
-        return;
-      }
       // Aturdido con la carga del chupetín: la carga queda en pausa (no avanza ni se pierde).
       if (s.phase !== 'rest' && !(s.phase === 'windup' && f.stun > 0)) s.t++;
       // El chupetín acompaña el golpe con un gesto corto (atrás al cargar, adelante al soltar): se ve con CUÁL pega.
@@ -1502,11 +1522,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     if (s.phase === 'recover' && s.t > FIGHT.recoverMax) s.phase = 'rest';
     let target: Q = QI();
     let g: { wn: number; zeta: number } = s.phase === 'recover' ? FIGHT.joint.recover : FIGHT.joint.rest;
-    if (f.ko) {
-      // Noqueado: el cuerpo pierde la estructura. Cada extremidad se afloja y cae sobre la tabla (como un dormido), sin rigidez.
-      target = limp(f, k);
-      g = FIGHT.joint.limp;
-    } else if (f.down > 12 || f.pw?.phase === 'go' && f.pw.kind === 'rodada') {
+    if (f.down > 12 || f.pw?.phase === 'go' && f.pw.kind === 'rodada') {
       // Noqueado (o hecho bola para rodar): las extremidades se aflojan y caen pegadas al cuerpo (a lo largo de su eje), así queda acostado sobre la
       // mesa y no apuntalado en el aire por varas rígidas. Las de arriba hacia arriba, las de abajo hacia abajo, apenas abiertas.
       const along = l.dir[1] >= 0 ? 1 : -1;
