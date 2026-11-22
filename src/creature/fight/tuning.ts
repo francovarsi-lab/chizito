@@ -17,7 +17,7 @@ export const FIGHT = {
   // ── Arena (sobre la mesa, alrededor del chizito) ──
   arenaHalf: 0.15,
   /** rad: los luchadores se enfrentan con la cara hacia el rival, girados esto hacia la cámara (3/4 claro, como el arte clave: se ven las caras). */
-  stanceYaw: 0.7,
+  stanceYaw: 0.5,
   /** rad: cuánto puede girar una pierna para apoyar en la postura. */
   stanceMax: 0.9,
   startGap: 0.15,
@@ -59,7 +59,7 @@ export const FIGHT = {
   legPlant: 0.85,
 
   /** `yaw`: el brócoli se planta más de frente que la criatura (≈ 60°, como en el arte clave): su cara se tiene que leer. */
-  broccoli: { bodyGrams: 6, carrotGrams: 1, carrotCarryGrams: 6, yaw: 1.05 },
+  broccoli: { bodyGrams: 6, carrotGrams: 1, carrotCarryGrams: 6, yaw: 0.62 },
 
   // ── Cuerpo ──
   /** m/s²: gravedad de juego (más flotante que la real, para que los saltos se lean). */

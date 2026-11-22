@@ -402,7 +402,7 @@ export const EGG: RivalSpec = {
   armKind: 'light',
   armorMul: 1.05,
   faceAt: { mouth: 0.39, eyes: 0.6 },
-  yaw: 1.0,
+  yaw: 0.58,
   label: { arm: 'espárrago', leg: 'espárrago' },
   // Huevo: rueda (media barra); pelado a golpes, tira sus CÁSCARAS (barra llena).
   power: 'cascaras',
@@ -432,7 +432,7 @@ export const QUINOA: RivalSpec = {
   armorMul: 0.9,
   absorb: true,
   faceAt: { mouth: 0.44, eyes: 0.67 },
-  yaw: 1.0,
+  yaw: 0.58,
   label: { arm: 'puño de quinoa', leg: 'pata de quinoa' },
   // Quinoa: dispara granos (media barra); toda la quinoa se le viene encima como AVALANCHA por la tabla (barra llena).
   power: 'avalancha',

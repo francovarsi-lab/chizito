@@ -629,6 +629,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   let fpStrokes: THREE.Object3D[] = [];
   /** 0..1: en primera persona los dos se enfrentan DE FRENTE (sin el 3/4 hacia la cámara lateral). */
   let fpK = 0;
+  let fpInit = false;
+  const fpEye = new THREE.Vector3();
+  const fpDir = new THREE.Vector3();
   const camera = (dt: number): void => {
     if (!m) return;
     if (present) return presentCamera(dt);
@@ -682,10 +685,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     // PRIMERA PERSONA: atrás y apenas arriba de la cabeza de tu chizito, mirando al rival (se ve el borde de tu cabeza y los
     // brazos cuando pegan). En el KO y en los cortes vuelve la lateral.
     if (camMode === 2 && !camCut && m.phase !== 'ko' && views) {
-      // PRIMERA PERSONA: la cámara ES tu chizito. Está en su cara (lo que le dibujaste con ketchup), mira hacia donde mira él y
-      // se mueve con él: se inclina, gira con cada piña, se agacha y salta con su cuerpo. Sin suavizado: es su cabeza.
-      cam.setFocalLength(20);
-      // A 6 cm del rival la banda nítida de la lateral (1,6 dpt) desenfoca todo: en primera persona, nítido hasta la tabla.
+      // PRIMERA PERSONA: la cámara ES tu chizito (está en su cara de ketchup y va con su cuerpo), pero ESTABILIZADA como una
+      // cabeza de verdad: los ojos compensan. Mira siempre al rival, el horizonte queda derecho y del cuerpo toma sólo una parte
+      // del cabeceo y del giro (se siente la piña sin marear). Antes copiaba cada inclinación y no se veía nada.
+      cam.setFocalLength(24);
       game().stage.dof.focusBand = 9;
       const v = views[me()];
       const B = m.f[me()].model.basis;
@@ -695,10 +698,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         v.root.traverse((o) => {
           if (o.userData.stroke) fpStrokes.push(o);
         });
+        fpInit = false;
       }
       v.root.updateMatrixWorld(true);
       const fwdW = new THREE.Vector3(...B.f).transformDirection(v.root.matrixWorld);
-      const upW = new THREE.Vector3(...B.u).transformDirection(v.root.matrixWorld);
       const eye = new THREE.Vector3();
       if (fpStrokes.length) {
         const box = new THREE.Box3();
@@ -706,13 +709,26 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         box.getCenter(eye);
       } else eye.copy(v.head()).lerp(new THREE.Vector3().setFromMatrixPosition(v.root.matrixWorld), 0.4);
       eye.addScaledVector(fwdW, 0.004);
-      cam.position.copy(eye);
-      cam.up.copy(upW);
-      cam.lookAt(eye.clone().add(fwdW));
+      const o = m.f[1 - me()];
+      const target = new THREE.Vector3(o.x, GROUND + o.y + 0.03, z0);
+      // Dirección: 85 % hacia el rival, 15 % hacia donde mira el cuerpo (el giro de la piña se nota, apenas).
+      const toRival = target.clone().sub(eye).normalize();
+      const dir = toRival.multiplyScalar(0.85).addScaledVector(fwdW, 0.15).normalize();
+      if (!fpInit) {
+        fpEye.copy(eye);
+        fpDir.copy(dir);
+        fpInit = true;
+      }
+      // La posición sigue rápido (es su cabeza) y la mirada más lento (los ojos fijan al rival).
+      fpEye.lerp(eye, 1 - Math.exp(-dt * 14));
+      fpDir.lerp(dir, 1 - Math.exp(-dt * 6)).normalize();
+      const j = new THREE.Vector3((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, 0).multiplyScalar(0.35);
+      cam.position.copy(fpEye).add(j);
       cam.up.set(0, 1, 0);
+      cam.lookAt(fpEye.clone().add(fpDir));
       cam.updateMatrixWorld();
-      camPos.copy(eye);
-      camLook.copy(eye).addScaledVector(fwdW, 0.06);
+      camPos.copy(fpEye);
+      camLook.copy(fpEye).addScaledVector(fpDir, 0.06);
       game().stage.focusTarget.copy(new THREE.Vector3(m.f[1 - me()].x, GROUND + m.f[1 - me()].y + 0.02, z0));
       shake *= Math.pow(0.002, dt);
       aber = aber < 0.02 ? 0 : aber * Math.pow(1e-6, dt);
@@ -1537,6 +1553,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (e.code === 'Escape') return pause(true);
     if (e.code === 'KeyV' && !e.repeat) {
       camMode = (camMode + 1) % 3;
+      fpInit = false;
       if (m) hud.popup(m.f[camMode === 2 ? 1 - me() : me()].x, m.f[me()].y + 0.07, ['CÁMARA LATERAL', 'CÁMARA AÉREA', 'PRIMERA PERSONA'][camMode], '', 'hint');
       return;
     }

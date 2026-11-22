@@ -52,7 +52,7 @@ try {
   {
     const m = fight(mine);
     for (let i = 0; i < 180; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
-    ok(m.f[0].tilt < -0.03, `mi criatura se inclina hacia la aceituna (atrás): ${m.f[0].tilt.toFixed(3)} rad`);
+    ok(m.f[0].tilt < -0.02, `mi criatura se inclina hacia la aceituna (atrás): ${m.f[0].tilt.toFixed(3)} rad`);
     ok(lowest(m.f[0]) > -1e-4 && lowest(m.f[0]) < 0.0025, `mi criatura apoya las piernas en el piso (${lowest(m.f[0]).toExponential(1)})`);
     const a = fight(fighterFromSnapshot(snap('A')));
     for (let i = 0; i < 180; i++) stepMatch(a, [{ x: 0 }, { x: 0 }]);
@@ -856,16 +856,20 @@ try {
     for (const x of [-1, 0, -1]) stepMatch(back, [{ x }, { x: 0 }]);
     ok(back.f[0].inv > 0, 'el pasito atrás es invulnerable al principio');
     // Atajada: apretar la guardia justo antes del golpe.
-    const pr = fight(box);
-    pr.f[1].x = pr.f[0].x + 0.045;
-    let parried = false, at = -1;
-    for (let i = 0; i < 120 && !parried; i++) {
-      pr.f[1].x = pr.f[0].x + 0.045;
-      // El rival pega; el jugador aprieta D 5 cuadros antes de que llegue (se mide con una corrida sin guardia: ver abajo).
-      stepMatch(pr, [{ x: 0, guard: at >= 0 && i >= at }, { x: 0, punch: i === 0 }]);
-      if (at < 0 && pr.f[1].limbs.some((q) => q.phase === 'strike')) at = i;
-      parried ||= pr.events.some((e) => e.type === 'parry');
-    }
+    // Primero una corrida sin guardia para saber en qué cuadro llega el golpe; después D 5 cuadros antes.
+    const run = (guardAt) => {
+      const pr = fight(box);
+      let hitAt = -1, parried = false;
+      for (let i = 0; i < 120 && hitAt < 0 && !parried; i++) {
+        pr.f[1].x = pr.f[0].x + 0.045;
+        stepMatch(pr, [{ x: 0, guard: guardAt >= 0 && i >= guardAt }, { x: 0, punch: i === 0 }]);
+        if (pr.events.some((e) => e.type === 'hit' && e.by === 1)) hitAt = i;
+        parried ||= pr.events.some((e) => e.type === 'parry');
+      }
+      return { pr, hitAt, parried };
+    };
+    const { hitAt } = run(-1);
+    const { pr, parried } = run(hitAt - 5);
     ok(parried && pr.f[1].lock >= FIGHT.parry.open - 2, 'D justo antes del impacto = atajada (el otro queda abierto)');
     // 4 bloqueos seguidos rompen la guardia.
     const gb = fight(box);

@@ -202,7 +202,7 @@ function rivalDecide(s: Match, mem: AiMem, who: 0 | 1, near: number, dir: -1 | 1
     return { x: 0, guard: true };
   }
   // Castigo: el otro pifió o le pegó a la guardia → el ataque más rápido que llegue.
-  if (foe.lock > 4 && inReach.length && rnd(mem) < 0.2 + 0.1 * mem.level) {
+  if (foe.lock > 4 && inReach.length && rnd(mem) < 0.2 + 0.1 * mem.level + (foe.repeat >= 1 ? 0.3 : 0)) {
     const fast = inReach.reduce((a, b) => (MOVES[a].hits[0].from <= MOVES[b].hits[0].from ? a : b));
     return { x: 0, move: fast };
   }

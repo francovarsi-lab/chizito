@@ -1911,10 +1911,10 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   // En el aire después de un gancho: 100 / 80 / 60 %.
   if (b.juggle >= 0 && !b.grounded) dmg *= FIGHT.upper.juggle[Math.min(b.juggle, FIGHT.upper.juggle.length - 1)];
   const fromFront = Math.sign(a.x - b.x || 1) === b.facing;
-  const blocked = blockedBy !== null;
+  let blocked = blockedBy !== null;
   if (blocked) {
     // El brazo que tapó se lleva el golpe y se sacude.
-    const bs = b.limbs[blockedBy];
+    const bs = b.limbs[blockedBy!];
     bs.w = [bs.w[0], bs.w[1], bs.w[2] + (py > b.y ? 1 : -1) * Math.min(30, speed * 12)];
   }
   if (shield) {
@@ -1938,9 +1938,11 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
     m.events.push({ type: 'grains', who: (1 - i) as 0 | 1, at: [px, py], n, pile: pile.id, x: pile.x });
   }
   let parry = false;
-  if (blocked && b.guardT <= FIGHT.parry.window) {
+  // La atajada es de tiempo: con D recién apretada los brazos todavía suben, así que alcanza con que el golpe venga de frente.
+  if ((blocked || (fromFront && b.grounded && b.guard >= FIGHT.guardReady && (b.arms.length > 0 || !!b.shieldPose))) && b.guardT <= FIGHT.parry.window) {
     // ATAJADA justa: no pasa nada de daño, el que pegó queda abierto y el que atajó gana poder.
     parry = true;
+    blocked = true;
     dmg = 0;
     a.lock = Math.max(a.lock, FIGHT.parry.open);
     b.meter = Math.min(FIGHT.power.max, b.meter + FIGHT.parry.meter);
