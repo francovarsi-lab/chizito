@@ -29,6 +29,9 @@ export interface RenderPose {
   /** Ataque hecho a mano en curso y su cuadro (el derrumbe de la quinoa se dibuja aplastado). */
   mv?: string | null;
   mvT?: number;
+  /** Guardia 0..1 y si está aguantando un golpe (bloqueo): se dibuja agachado, echado adelante y haciendo fuerza. */
+  guard?: number;
+  block?: number;
 }
 
 export function blendPose(a: RenderPose, b: RenderPose, t: number): RenderPose {
@@ -71,7 +74,7 @@ export interface FighterView {
   /** Gesto de la cara, si tiene una armada (el brócoli): boca abierta 0..1 y cejas (−1 furia, abajo; +1 arriba). */
   /** `dead`: noqueado (ojos cerrados, sin pupila ni brillo, boca floja). `sick` (0..1): olió el olor a pata (asco: ojos
    *  entrecerrados y torcidos, cejas arriba, boca fruncida que tiembla). */
-  face?(open: number, brow: number, dead?: boolean, sick?: number): void;
+  face?(open: number, brow: number, dead?: boolean, sick?: number, effort?: number): void;
   dispose(): void;
 }
 
@@ -239,6 +242,7 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
 
   let psi = 0;
   let psiInit = false;
+  let brace = 0;
   const squash = new Squash();
   const hurt = new Hurt(pivot);
   const ry = new THREE.Matrix4();
@@ -260,10 +264,13 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
       psi = chase(psi, target, Math.min(1, dt * 14));
       const s = squash.step(dt);
       hurt.step(dt);
-      sc.makeScale(1 - s * 0.5, 1 + s, 1 - s * 0.5);
+      brace += (Math.max(p.guard ?? 0, p.block ?? 0) - brace) * Math.min(1, dt * 12);
+      // Cubriéndose: se achica (agachado) y se echa hacia el golpe; aguantando uno, tiembla.
+      const bs = brace * 0.1;
+      sc.makeScale(1 - s * 0.5 + bs * 0.4, (1 + s) * (1 - bs), 1 - s * 0.5 + bs * 0.4);
       const W = new THREE.Matrix4()
         .makeTranslation(p.x + hurt.offset.x, p.y + hurt.offset.y, z0)
-        .multiply(rz.makeRotationZ(-p.facing * (p.tilt + p.roll)))
+        .multiply(rz.makeRotationZ(-p.facing * (p.tilt + p.roll + 0.14 * brace)))
         .multiply(ry.makeRotationY(psi))
         .multiply(sc)
         .multiply(B)
@@ -379,10 +386,6 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   const jelly = (inner.userData.jelly as number | undefined) ?? 1;
   const jig = inner.userData.jiggle as { freq: number; decay: number; amp: number } | undefined;
   const jiggle = jig ? new Jiggle(jig.freq, jig.decay) : null;
-  // Granos sueltos en los puños (quinoa): son la munición de la METRALLA. No giran solos: se juntan al cargar, desaparecen al
-  // tirarlos y vuelven a armarse de a poco.
-  const auras: THREE.Object3D[] = [];
-  inner.traverse((o) => o.name === 'aura' && auras.push(o));
   const carrots = model.limbs.map((_, i) => ({ obj: inner.children[i], base: inner.children[i].quaternion.clone() }));
   // Brazos de látigo (huevo): cada tramo llega tarde y se pasa (resorte sobre la velocidad de giro del brazo), tope 25° por tramo.
   const k_ = (c: (typeof carrots)[number]): number => carrots.indexOf(c);
@@ -394,7 +397,8 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
     const side = Math.sign(model.limbs[k_(c)].pivot[0] || 1);
     const arm = model.limbs[k_(c)].role === 'arm';
     // En reposo los codos van doblados (puños arriba, como un monstruo) y las rodillas apenas flexionadas.
-    const rest = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), arm ? -side * 0.75 : side * 0.18);
+    // (el giro en Z local lleva la punta hacia arriba con el signo del lado: los dos codos igual; antes uno quedaba al revés)
+    const rest = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), arm ? side * 0.6 : 0);
     return { u, elbow, rest, arm, prev: c.obj.quaternion.clone(), b: new THREE.Vector3(), v: new THREE.Vector3(), t: Math.random() * 6 };
   });
   const bodyGrains = inner.children.find((o) => o.name === 'cuerpo-granos') as THREE.InstancedMesh | undefined;
@@ -416,6 +420,8 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   const BROW_STEP = (inner.userData.browStep as number | undefined) ?? 0.05;
   let psi = 0;
   let init = false;
+  let brace = 0;
+  let breathT = Math.random() * 6;
   const squash = new Squash();
   const hurt = new Hurt(outer);
   const ry = new THREE.Matrix4();
@@ -438,11 +444,17 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       // Derrumbe (quinoa): se aplasta en un montón y se vuelve a armar.
       const t = p.mvT ?? 0;
       const fall = p.mv === 'derrumbe' ? (t < 30 ? Math.min(1, t / 8) : Math.max(0, 1 - (t - 30) / 14)) : 0;
-      sc.makeScale((1 - s * 0.5 - j * 0.5) * (1 + 0.45 * fall), (1 + s + j) * (1 - 0.7 * fall), (1 - s * 0.5 - j * 0.5) * (1 + 0.45 * fall));
+      brace += (Math.max(p.guard ?? 0, p.block ?? 0) - brace) * Math.min(1, dt * 12);
+      // La quinoa es una masa: respira hinchándose y se aplasta un poco al pisar (cambia de forma, no flotan pedazos).
+      breathT += dt;
+      const blob = bodyGrains ? 0.035 * Math.sin(breathT * 2.4) : 0;
+      // Cubriéndose: agachado (más bajo y ancho) y echado hacia el golpe.
+      const bs = brace * 0.12;
+      sc.makeScale((1 - s * 0.5 - j * 0.5 - blob * 0.5 + bs * 0.4) * (1 + 0.45 * fall), (1 + s + j + blob) * (1 - 0.7 * fall) * (1 - bs), (1 - s * 0.5 - j * 0.5 - blob * 0.5 + bs * 0.4) * (1 + 0.45 * fall));
       if (bodyGrains) bodyGrains.count = Math.round(grainTotal * (0.45 + 0.55 * Math.max(0, Math.min(1, (p.hp ?? 100) / 100))));
       outer.matrix
         .makeTranslation(p.x + hurt.offset.x, p.y + hurt.offset.y, z0)
-        .multiply(rz.makeRotationZ(-p.facing * (p.tilt + p.roll)))
+        .multiply(rz.makeRotationZ(-p.facing * (p.tilt + p.roll + 0.16 * brace)))
         .multiply(ry.makeRotationY(psi))
         .multiply(sc)
         .multiply(B)
@@ -452,12 +464,13 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       syncCrownClip(inner);
       const left = 1 - Math.min(1, p.armorLoss / 0.35);
       const charging = p.power === 'metralla';
-      for (const a of auras) {
-        if (charging) a.rotation.y += dt * 9;
-        const want = charging ? 0.55 : left;
-        const k = a.scale.x + (want - a.scale.x) * Math.min(1, dt * 10);
-        a.scale.setScalar(Math.max(1e-3, k));
-        a.visible = k > 0.02;
+      // Sin granos flotando: al cargar la metralla los granos se JUNTAN en los puños (crecen) y al tirarlos quedan flacos hasta
+      // rearmarse.
+      for (const w of whips) {
+        if (!w?.elbow || !w.arm) continue;
+        const want = charging ? 1.35 : 0.78 + 0.22 * left;
+        const k = w.elbow.scale.x + (want - w.elbow.scale.x) * Math.min(1, dt * 8);
+        w.elbow.scale.setScalar(k);
       }
       carrots.forEach((c, k) => {
         const q = p.qs[k];
@@ -510,11 +523,16 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       outer.updateMatrixWorld(true);
       return new THREE.Vector3(0, TOP, 0).applyMatrix4(outer.matrixWorld);
     },
-    face(open, brow, dead = false, sick = 0) {
+    face(open, brow, dead = false, sick = 0, effort = 0) {
       clock += 1 / 60;
+      // Haciendo fuerza (aguanta un golpe): ojos apretados, cejas abajo, boca cerrada y ancha, temblando.
+      if (effort > 0) {
+        open = 0;
+        brow = -1.3 * effort + brow * (1 - effort);
+      }
       // Noqueado: los ojos se cierran (rendija), sin mirada, y la boca queda floja.
       eyes.forEach((e, k) => {
-        e.o.scale.y = dead ? e.sy * 0.12 : e.sy * (1 - 0.6 * sick);
+        e.o.scale.y = dead ? e.sy * 0.12 : e.sy * (1 - 0.6 * sick) * (1 - 0.55 * effort);
         e.o.rotation.z = e.rz + sick * (k % 2 ? -0.35 : 0.35) * (1 + 0.3 * Math.sin(clock * 9));
       });
       for (const d of eyeDots) d.visible = !dead;
@@ -525,8 +543,8 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
         // La boca se estira desde su borde de arriba; cada fila de dientes NO se estira: acompaña a su labio (la de arriba queda,
         // la de abajo baja con la mandíbula), así boca y dientes son un mismo movimiento.
         o.scale.y = teeth ? 1 : sy;
-        o.scale.x = 1 - 0.35 * sick;
-        o.rotation.z = 0.12 * sick * Math.sin(clock * 6);
+        o.scale.x = (1 - 0.35 * sick) * (1 + 0.18 * effort);
+        o.rotation.z = 0.12 * sick * Math.sin(clock * 6) + 0.03 * effort * Math.sin(clock * 40);
         o.position.y = (MOUTH_TOP - (teeth ? ((o.userData.ty as number | undefined) ?? MOUTH_TOP) : 0)) * (1 - sy);
       }
       // Cuánto suben o bajan las cejas, en las unidades del modelo (el brócoli va en unidades del boceto; los otros, en metros).

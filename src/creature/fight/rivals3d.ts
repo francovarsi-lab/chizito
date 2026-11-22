@@ -446,7 +446,7 @@ function ellipsoidPoints(rx: number, ry: number, rz: number, cy: number, n: numb
 /** Extremidad de quinoa: un "chorizo" de granos apretados, de −inner a L en +Y, más gruesa en la punta (puño o pie). En DOS
  *  tramos: el de afuera ('q-codo', con el puño o el pie) cuelga de un codo/rodilla a media altura y `render.ts` lo dobla (una
  *  masa de granos no tiene huesos rectos: se dobla, llega tarde al movimiento y respira). */
-function quinoaLimb(L: number, r0: number, r1: number, inner: number, fist: boolean, seed: number): THREE.Group {
+function quinoaLimb(L: number, r0: number, r1: number, inner: number, seed: number): THREE.Group {
   const g = new THREE.Group();
   const J = L * 0.5;
   const lower = new THREE.Group();
@@ -503,21 +503,6 @@ function quinoaLimb(L: number, r0: number, r1: number, inner: number, fist: bool
   }
   g.add(grains(up, seed));
   lower.add(grains(lo, seed + 1));
-  if (fist) {
-    // El poder: granos sueltos que flotan y giran alrededor del puño ('aura', la anima `render.ts`).
-    const aura = new THREE.Group();
-    aura.name = 'aura';
-    aura.position.y = L - J;
-    const rnd = mulberry32(seed + 3);
-    const loose: { p: THREE.Vector3; n: THREE.Vector3 }[] = [];
-    for (let i = 0; i < 18; i++) {
-      const a = rnd() * Math.PI * 2;
-      const rr = r1 * (1.7 + rnd() * 0.9);
-      loose.push({ p: new THREE.Vector3(Math.cos(a) * rr, (rnd() - 0.4) * r1 * 2.2, Math.sin(a) * rr), n: new THREE.Vector3(rnd() - 0.5, rnd(), rnd() - 0.5).normalize() });
-    }
-    aura.add(grains(loose, seed + 9, 0.0012));
-    lower.add(aura);
-  }
   return g;
 }
 
@@ -532,7 +517,7 @@ export function createQuinoa(): THREE.Group {
   root.userData.jiggle = { freq: 6, decay: 9, amp: 0.06 };
   spec.limbs.forEach((sk, i) => {
     const { g, L } = holder(sk.from, sk.to);
-    g.add(quinoaLimb(L, sk.r0, sk.r1, 0.008, sk.arm, 41 + i * 13));
+    g.add(quinoaLimb(L, sk.r0, sk.r1, 0.008, 41 + i * 13));
     root.add(g);
   });
   const { rx, ry, rz } = spec.shell;
@@ -588,9 +573,11 @@ export function createQuinoa(): THREE.Group {
   mouth.name = 'boca';
   root.add(mouth);
   const bean = new THREE.SphereGeometry(1, 12, 8);
-  const teeth = new THREE.Group();
-  teeth.name = 'dientes';
+  // Dos filas aparte (como el brócoli): la de arriba queda con el labio de arriba y la de abajo baja con la mandíbula al hablar.
   const row = (n: number, y: number, dir: 1 | -1): void => {
+    const teeth = new THREE.Group();
+    teeth.name = 'dientes';
+    teeth.userData.ty = y;
     for (let i = 0; i < n; i++) {
       const x = -MOUTH.w * 0.68 + (1.36 * MOUTH.w * i) / (n - 1);
       const t = new THREE.Mesh(bean, M.bean);
@@ -598,10 +585,10 @@ export function createQuinoa(): THREE.Group {
       stick(spec, t, x, y - dir * 0.0012 * (1 - Math.abs(x / MOUTH.w) * 0.4), 0.0012, (i - (n - 1) / 2) * 0.1);
       teeth.add(t);
     }
+    root.add(teeth);
   };
   row(5, MOUTH.y + MOUTH.h * 0.62, 1);
   row(4, MOUTH.y - MOUTH.h * 0.62, -1);
-  root.add(teeth);
   root.userData.mouthTop = MOUTH.y + MOUTH.h;
   root.userData.mouthStretch = 0.4;
   root.userData.browStep = 0.0015;

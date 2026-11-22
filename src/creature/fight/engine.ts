@@ -1044,13 +1044,28 @@ function stepPower(m: Match, i: 0 | 1): void {
         const guard = foe.guard >= FIGHT.guardReady && foe.grounded && foe.arms.length > 0;
         powerHit(m, i, 'queso', [cx, f.y + 0.025], P.dmg * sm, { kb: 0.08, up: 0, stun: guard ? 0 : 20, dizzy: guard ? 0 : P.dizzy, blocked: guard });
       }
-    } else if (pw.kind === 'arbolitos' || pw.kind === 'cascaras') {
-      // Arbolitos: el brócoli sacude la copa y le tira ramitos; cáscaras: el huevo se descascara a lo bruto y las tira en abanico.
-      // Los dos vuelan en arco (con gravedad) desde arriba del cuerpo hacia el rival.
-      const P = POWERS[pw.kind];
+    } else if (pw.kind === 'arbolitos') {
+      // LLUVIA: los ramitos salen disparados para arriba desde la copa y caen sobre el rival, repartidos en una franja (cada uno
+      // con su tiro parabólico exacto: tiempo de vuelo distinto, así llueven de a poco).
+      const P = POWERS.arbolitos;
+      const top = Math.max(...f.model.body.map((b) => Math.max(b.a[1], b.b[1]) + b.r));
+      const x0 = f.x + f.facing * 0.005;
+      const y0 = f.y + top * 0.9;
+      const g = G * 0.6;
+      for (let n = 0; n < P.n; n++) {
+        const u = ((n * 7) % P.n) / (P.n - 1);
+        const xt = foe.x + (u - 0.5) * P.rain;
+        const T = 0.55 + 0.35 * (((n * 5) % 7) / 6);
+        const yt = foe.y + 0.015;
+        m.shots.push({ id: m.nextShot++, by: i, x: x0, y: y0, vx: (xt - x0) / T, vy: (yt - y0 + 0.5 * g * T * T) / T, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'arbolitos' });
+      }
+    } else if (pw.kind === 'cascaras') {
+      // Cáscaras: el huevo se descascara a lo bruto y las tira en abanico, en arco (con gravedad) hacia el rival; las que no pegan
+      // quedan en la tabla (`stepShots`).
+      const P = POWERS.cascaras;
       const top = Math.max(...f.model.body.map((b) => Math.max(b.a[1], b.b[1]) + b.r));
       const x0 = f.x + f.facing * 0.01;
-      const y0 = f.y + top * (pw.kind === 'arbolitos' ? 0.9 : 0.6);
+      const y0 = f.y + top * 0.6;
       const base = Math.atan2(foe.y + 0.04 - y0, foe.x - x0) + f.facing * 0.35;
       for (let n = 0; n < P.n; n++) {
         const a = base + (n / (P.n - 1) - 0.5) * P.spread * f.facing;
@@ -1361,7 +1376,7 @@ function stepShots(m: Match): void {
     if (hit) {
       const blocked = b.guard >= FIGHT.guardReady && b.grounded && b.arms.length > 0 && Math.sign(sh.vx) === -b.facing;
       if (sh.kind === 'carozo') powerHit(m, sh.by, 'carozo', [sh.x, sh.y], sh.dmg, { kb: 0.2, up: 0, stun: 12, dizzy: POWERS.carozo.dizzy, blocked });
-      else powerHit(m, sh.by, sh.kind ?? 'metralla', [sh.x, sh.y], sh.dmg, { kb: 0.05, up: 0, stun: sh.kind === 'arbolitos' ? 9 : 5, blocked });
+      else powerHit(m, sh.by, sh.kind ?? 'metralla', [sh.x, sh.y], sh.dmg, { kb: sh.kind === 'arbolitos' ? 0.015 : 0.05, up: 0, stun: sh.kind === 'arbolitos' ? 2 : 5, blocked });
     }
     // Las cáscaras que no pegan caen y QUEDAN en la tabla (a la vista): el que las pisa se lastima.
     if (!hit && sh.kind === 'cascaras' && sh.y < 0 && Math.abs(sh.x) < FIGHT.arenaHalf) {
@@ -1673,8 +1688,9 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       const dep = dotv(l.dir, gaitAxis(f));
       // Respira solo mientras pelea: terminado el round queda quieto (si no, parecía colgado de un hilo).
       const breath = fighting ? 0.06 * Math.sin(m.frame * 0.07 + n) + 0.05 * Math.sin(f.gait) : 0;
-      // La quinoa (brazos cortos y gordos) lleva los puños ADELANTE de la cara: arriba parecían orejas.
-      const [fw, up] = M.absorb ? [1, lead ? 0.12 : 0.28] : [lead ? 0.8 : 0.45, lead ? 0.45 : 0.8];
+      // La quinoa (brazos cortos y gordos) va como un gorila: puños ABAJO y adelante, colgando (arriba parecían orejas y adelante
+      // de la cara se la tapaban todo el tiempo).
+      const [fw, up] = M.absorb ? [lead ? 0.8 : 0.55, lead ? -0.45 : -0.6] : [lead ? 0.8 : 0.45, lead ? 0.45 : 0.8];
       const want = normv(addv(addv(scl(fwdAxis(f), fw), [0, up + breath, 0]), scl(gaitAxis(f), dep * 0.5)));
       target = qFromTo(l.dir, want);
       g = FIGHT.joint.guard;
@@ -1682,10 +1698,14 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       // Guardia: los brazos se cruzan DELANTE del cuerpo en diagonal (uno arriba, tapando la cabeza, y otro abajo), así son
       // ellos los que reciben el golpe. Lo que pase por fuera de los brazos, pega.
       const n = f.arms.indexOf(k);
-      // Delante de lo que más sobresale del cuerpo hacia el rival (con el 3/4, la copa del brócoli asoma más que el tallo).
-      const gx = Math.max(...M.body.map((b) => Math.max(fwd(f, b.a), fwd(f, b.b)) + b.r)) + l.reach * 0.3;
-      // El de arriba tapa la cabeza (lo que más asoma con el 3/4: la copa del brócoli, la punta del chizito).
-      const gy = l.pivot[1] + l.reach * (n % 2 === 0 ? 0.8 : -0.4);
+      // Delante de lo que más sobresale del cuerpo hacia el rival (con el 3/4, la copa del brócoli asoma más que el tallo), pero
+      // PEGADOS al cuerpo: con brazos largos (el huevo) quedaban lejos y abiertos y no se leía que se cubría.
+      const gx = Math.max(...M.body.map((b) => Math.max(fwd(f, b.a), fwd(f, b.b)) + b.r)) + (M.moves ? 0.008 : l.reach * 0.3);
+      // JUNTOS delante de la cara y el pecho (uno a la altura de la cara, el otro del pecho, cruzados): se lee que se cubre.
+      const top = Math.max(...M.body.map((b) => Math.max(b.a[1], b.b[1]) + b.r));
+      // Los rivales (marco con el piso en y = 0) recogen los brazos delante de la cara y el pecho; con los brazos largos del huevo
+      // uno quedaba arriba de la cabeza y el otro en el piso. Tu chizito sigue con la diagonal (cubre de la cabeza a las piernas).
+      const gy = M.moves ? (n % 2 === 0 ? top * 0.88 : top * 0.6) : l.pivot[1] + l.reach * (n % 2 === 0 ? 0.8 : -0.4);
       const gq = qFromTo(l.dir, normv(addv(scl(fwdAxis(f), Math.max(gx - fwd(f, l.pivot), l.reach * 0.25)), [0, gy - l.pivot[1], 0])));
       target = slerpI(gq, f.guard);
       g = FIGHT.joint.guard;

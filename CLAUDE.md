@@ -347,8 +347,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   RIVALES, uno por nivel (`rivalFighter` / `rivalView`; `?nivel=2|3` arranca contra ése): 1 EL BROCOLOCO; 2 HUEVO DURO
   (pelado y gelatinoso: rebota más al recibir, brazos LARGOS de espárrago con yema, patas de tallo, recibe ×1,25); 3 MONSTRUO
   DE QUINOA (miles de granos en InstancedMesh, brazos pesados, recibe ×0,7 y se REARMA: tras 1,5 s sin recibir recupera 1,6
-  de vida por segundo; los granos sueltos de los puños ('aura') NO giran solos: son la munición de su poder, se juntan al
-  cargar, desaparecen al tirarlos y vuelven a armarse). Al pasar de nivel (`restart`) se REARMA el modelo 3D del rival
+  de vida por segundo; SIN granos flotando (pedido del usuario): al cargar la metralla los granos se JUNTAN en los puños, que
+  crecen, y al tirarlos quedan flacos hasta rearmarse). Al pasar de nivel (`restart`) se REARMA el modelo 3D del rival
   (`viewLevel`; antes seguía dibujado el brócoli) y se lo presenta con su intro. Espárragos (`asparagus`): tallo afinado con
   fibras y escamitas en espiral, yema = torno esculpido en escamas en ladrillo con borde en V (`shingle`); pata con el corte claro. Los dos nuevos están hechos POR PARTES en
   `rivals3d.ts` (cuerpo, cara con piezas limpias apoyadas con `onShell`, extremidades clavadas), según los bocetos elegidos
@@ -443,7 +443,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   la quinoa lo pisa o a los 8 s (+0,2 de vida por grano); un golpe al ras lo desparrama. Se achica con la vida (`count` de los
   granos del cuerpo, mezclados). Granos sueltos en mount (`looseGrains`, hasta 600): saltan, quedan en la tabla y vuelven
   volando. Ataques: PUÑO CAÑÓN, MAZAZO doble (rompe guardia, 34 de aviso), DERRUMBE (invulnerable 30, se rearma 6 cm más allá)
-  + METRALLA. En guardia lleva los puños adelante de la cara (arriba parecían orejas).
+  + METRALLA. Parado como un GORILA: puños abajo y adelante, colgando (arriba parecían orejas; adelante de la cara se la tapaba
+  todo el tiempo).
 - CUERPOS BLANDOS: el HUEVO es gelatina (`jelly`): vibra al recibir (`Jiggle` en render.ts) y los golpes seguidos pegan cada vez
   menos (`JELLY`); la QUINOA se abolla apenas. `soak()` aplica coraza + gelatina a todo daño.
 - GRAVEDAD: enderezarse necesita APOYO (en el aire no hay torque que lo endereza: antes flotaba como colgado de un cable) y el
@@ -564,9 +565,13 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   de 4 s, sonido `poder-olor`; también como remate justo después de acertar); llena = CALESITA DEL DOLOR (el ex trompo: 3 vueltas,
   3 golpes de 7; sonido `poder-trompo`). Los poderes según lo armado (nube, carozazo, acupuntura, muralla) quedaron sin uso.
   RIVALES (2026-11-21), DOS poderes cada uno con la lógica de su comida (`power2` media barra / `power` llena; el VAPORAZO se
-  sacó: "no tiene sentido"): EL BROCOLOCO arbolitos (ramitos de la copa en arco) / RAÍCES (2026-11-22, el gas "era como el olor a pata sin sentido": la
-  tabla se agrieta bajo el rival 40 cuadros y brotan raíces; si sigue parado ahí, 6 de daño y queda clavado 45; se salta o se sale); HUEVO
-  rodada / cáscaras (abanico de cáscaras; las que no pegan QUEDAN EN LA TABLA, `m.traps`, a la vista: pisarlas saca 4 y frena;
+  sacó: "no tiene sentido"): EL BROCOLOCO arbolitos (LLUVIA: 22 ramitos con copa y tronquito que suben de la copa y llueven sobre una franja de
+  9 cm alrededor del rival, 0,45 cada uno: se ve mucho más de lo que saca) / RAÍCES (2026-11-22, el gas "era como el olor a pata sin sentido": la
+  tabla se agrieta bajo el rival 40 cuadros —grietas en zigzag que se abren, astillas que tiemblan, polvo y un aro oscuro con el
+  alcance— y brotan raíces gruesas retorcidas que se cierran hacia el centro, con brotes verdes; si sigue parado ahí, 6 de daño
+  y queda clavado 45; se salta o se sale); HUEVO
+  rodada / cáscaras (8 cáscaras grandes y blancas en abanico; las que no pegan QUEDAN EN LA TABLA, `m.traps`, tres pedazos
+  rotos juntos, a la vista: pisarlas saca 4 y frena;
   duran 12 s, tope 8); QUINOA metralla / avalancha (ola de granos al ras que barre las piernas: se salta).
   Sonidos `poder-arbolitos/raices/cascaras/avalancha`. La IA usa el chico con poca frecuencia (puede esperar el grande). El corte de cámara del súper es sólo para el poder lleno del jugador (con el
   vaporazo del rival era un zoom indeseado).
@@ -600,7 +605,16 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   el KO festejan a los saltos girando (ganaste) o se desinflan echados atrás (perdiste) (`FightSet.ko`).
 - QUINOA CON CODOS Y RODILLAS (2026-11-22, "articulaciones rectas no condice con un monstruo de mil pelotitas"): cada extremidad
   son dos tramos (`q-codo` a media altura, con una bola de granos en la unión); `render.ts` los dobla con el resorte del látigo
-  (más lento y con el doble de recorrido) sobre una flexión de reposo (codos doblados con los puños arriba). Sólo dibujo.
+  (más lento y con el doble de recorrido) sobre una flexión de reposo (los dos codos igual, `side · 0,6`: antes uno quedaba al
+  revés). Sólo dibujo. Respira hinchándose (cambia de forma). Dientes en DOS filas con `userData.ty` (se movían aparte de la boca).
+- BLOQUEO VISIBLE PARA TODOS (2026-11-22, "al bloquear NUNCA parece que bloquea"): con la guardia (o aguantando un golpe,
+  `RenderPose.guard/block`) el dibujo se AGACHA (más bajo y ancho), se echa hacia el golpe y los rivales ponen CARA DE FUERZA
+  (`face(…, effort)`: ojos apretados, cejas abajo, boca cerrada y ancha, temblando). Los rivales recogen los brazos JUNTOS delante
+  de la cara y el pecho (con los brazos largos del huevo uno quedaba arriba de la cabeza y el otro en el piso); tu chizito sigue
+  con la diagonal.
+- CONSEJO POR RIVAL al empezar cada nivel (`RIVAL_TIP`): raíces (salí o saltá), cáscaras (no las pises), quinoa (lo rápido se
+  hunde: cargá). Contra la quinoa: "¡SE HUNDE! cargá el golpe" las dos primeras veces y "¡SE REARMA!" cuando junta granos.
+- NIVELES PROGRESIVOS: la quinoa recibe ×0,8 (antes 0,9); bot medio 75 % / 39 % / 25 %.
 - PRIMERA PERSONA ESTABILIZADA (2026-11-22, "se mueve demasiado, no se ve nada"): ojo en la cara de ketchup, pero mira al rival
   (85 %, 15 % hacia donde apunta el cuerpo), horizonte siempre derecho, posición suavizada rápido y mirada lento; 24 mm.
 - Huevo: sin dibujo de fase 2 (la grieta oscura eran las "pestañas"). Brócoli: dos filas de dientes; la de abajo baja con la

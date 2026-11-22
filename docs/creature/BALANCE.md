@@ -133,3 +133,7 @@ las cáscaras que no pegan quedan en la tabla y lastiman al pisarlas. Probado y 
 toque el brazo (la IA atajaba casi todo: el nivel 1 bajó de 77 % a 59 %).
 - aporrea: 75 % / 0 % / 9 % · ia: 77 % / 21 % / 34 % · listo: 100 % / 100 % / 100 % (antes ia 80 / 25 / 34).
 - Sigue: el tanque y el pinchudo no le ganan a huevo ni quinoa con la `ia`.
+
+## Bloqueo visible, lluvia de arbolitos y quinoa más dura (2026-11-22)
+Guardia de los rivales con los brazos juntos delante de la cara y el pecho; arbolitos = 22 ramitos de 0,45; quinoa recibe ×0,8.
+- aporrea: 59 % / 0 % / 0 % · ia: 75 % / 39 % / 25 % · listo: 100 % / 100 % / 100 %. Los niveles quedan en orden.

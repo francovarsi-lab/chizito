@@ -24,6 +24,7 @@ import { enterFightSet, GROUND, prewarmFight, type FightSet } from './stage';
 import { AI_LEVELS, FIGHT, POWERS } from './tuning';
 import { hashMatch, Lockstep, newRoom, openLink, packMatch, unpackMatch, type Link, type NetMsg } from './net';
 import { qFromTo, type Q } from './quat';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Quad } from '../zones';
 
 /** Lo que el juego deja en `window.__chizito`: la MISMA escena, cámara y criatura del constructor. */
@@ -83,7 +84,7 @@ const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-wid
 
 const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyQ', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'KeyE', 'KeyV', 'Escape', 'Enter', 'Space']);
 
-const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], armorLoss: f.armorLoss, power: f.pw?.kind ?? null, hp: f.hp, mv: f.mv?.id ?? null, mvT: f.mv?.t ?? 0 });
+const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], armorLoss: f.armorLoss, power: f.pw?.kind ?? null, hp: f.hp, mv: f.mv?.id ?? null, mvT: f.mv?.t ?? 0, guard: f.guard, block: f.block > 0 ? 1 : 0 });
 
 /**
  * La pelea en LA MISMA mesa donde se arma la criatura: la cámara pasa a una vista lateral que sigue y encuadra a los dos, y tu
@@ -256,15 +257,36 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   /** Granos de quinoa en el aire (los de la METRALLA): uno por proyectil del motor. */
   const grainGeo = new THREE.SphereGeometry(1, 7, 5).scale(1, 0.6, 1);
   const grainMats = ['#ebdfc3', '#93412e', '#2b2522', '#e3d3b0'].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.5 }));
-  const floretGeo = new THREE.IcosahedronGeometry(1, 1);
-  {
-    const pos = floretGeo.getAttribute('position');
-    for (let n = 0; n < pos.count; n++) pos.setXYZ(n, pos.getX(n) * (1 + 0.25 * Math.sin(n * 2.3)), pos.getY(n) * (1 + 0.25 * Math.cos(n * 1.7)), pos.getZ(n));
-    floretGeo.computeVertexNormals();
-  }
-  const floretMat = new THREE.MeshStandardMaterial({ color: '#3f7f24', roughness: 0.85, flatShading: true });
-  const shellGeo = new THREE.SphereGeometry(1, 8, 6, 0, 1.6, 0, 1.2);
-  const shellMat = new THREE.MeshStandardMaterial({ color: '#f4efe4', roughness: 0.6, side: THREE.DoubleSide });
+  const paintGeo = (g: THREE.BufferGeometry, hex: string): void => {
+    const c = new THREE.Color(hex);
+    const n = g.getAttribute('position').count;
+    g.setAttribute('color', new THREE.Float32BufferAttribute(Array.from({ length: n * 3 }, (_, i) => [c.r, c.g, c.b][i % 3]), 3));
+  };
+  // Ramito de brócoli de verdad: copa grumosa (varias bolitas verdes) sobre un tronquito claro. Medidas en radios de la bala.
+  const floretGeo = (() => {
+    const parts: THREE.BufferGeometry[] = [];
+    const stem = new THREE.CylinderGeometry(0.28, 0.4, 1.3, 7);
+    stem.translate(0, -0.55, 0);
+    paintGeo(stem, '#a9c97a');
+    parts.push(stem);
+    for (let k = 0; k < 7; k++) {
+      const a = k * 2.4;
+      const r = k === 0 ? 0 : 0.42;
+      const b = new THREE.IcosahedronGeometry(k === 0 ? 0.55 : 0.42, 1);
+      const pos = b.getAttribute('position');
+      for (let n = 0; n < pos.count; n++) pos.setXYZ(n, pos.getX(n) * (1 + 0.12 * Math.sin(n * 2.3)), pos.getY(n) * (1 + 0.12 * Math.cos(n * 1.7)), pos.getZ(n));
+      b.translate(Math.cos(a) * r, 0.35 + (k === 0 ? 0.25 : 0), Math.sin(a) * r);
+      paintGeo(b, k % 2 ? '#3d7a22' : '#2f6a1a');
+      parts.push(b);
+    }
+    const g = mergeGeometries(parts.map((x) => x.toNonIndexed()))!;
+    g.computeVertexNormals();
+    return g;
+  })();
+  const floretMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, flatShading: true });
+  // Cáscara de huevo: un pedazo curvo de esfera, blanco por fuera y apenas más crema por dentro; se ve de lejos.
+  const shellGeo = new THREE.SphereGeometry(1, 12, 8, 0, 1.9, 0, 1.3);
+  const shellMat = new THREE.MeshStandardMaterial({ color: '#fbf7ee', roughness: 0.4, side: THREE.DoubleSide, emissive: '#fff6e0', emissiveIntensity: 0.12 });
   const shotMeshes = new Map<number, THREE.Mesh>();
   const syncShots = (): void => {
     const live = new Set<number>();
@@ -272,51 +294,131 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       live.add(sh.id);
       let g = shotMeshes.get(sh.id);
       if (!g) {
-        // Ramito de brócoli (verde, grumoso), cáscara de huevo (lámina blanca curva) o grano de quinoa.
         g = sh.kind === 'arbolitos' ? new THREE.Mesh(floretGeo, floretMat) : sh.kind === 'cascaras' ? new THREE.Mesh(shellGeo, shellMat) : new THREE.Mesh(grainGeo, grainMats[sh.id % grainMats.length]);
-        g.scale.setScalar(sh.r * (sh.kind === 'arbolitos' || sh.kind === 'cascaras' ? 1 : 0.75));
+        g.scale.setScalar(sh.r * (sh.kind === 'arbolitos' ? 1.25 : sh.kind === 'cascaras' ? 1.5 : 0.75));
+        g.rotation.set(sh.id * 1.3, sh.id * 0.7, 0);
+        g.castShadow = true;
         game().stage.scene.add(g);
         shotMeshes.set(sh.id, g);
       }
-      g.position.copy(P3(sh.x, sh.y, 0.004));
-      g.rotation.x += 0.4;
-      g.rotation.z += 0.3;
+      g.position.copy(P3(sh.x, sh.y, 0.004 + (sh.kind === 'arbolitos' ? ((sh.id % 5) - 2) * 0.006 : 0)));
+      if (sh.kind === 'arbolitos') {
+        // Gira despacio como un arbolito tirado al aire.
+        g.rotation.z += 0.12;
+        g.rotation.y += 0.05;
+      } else {
+        g.rotation.x += sh.kind === 'cascaras' ? 0.25 : 0.4;
+        g.rotation.z += 0.3;
+      }
     }
     for (const [id, g] of shotMeshes) if (!live.has(id)) {
+      // Un ramito que llega a la tabla suelta unas hojitas.
+      if (g.geometry === floretGeo && g.position.y < GROUND + 0.006) cloud(g.position, 3, 0x3d7a22, 0.003, 0.015, 0.008);
       g.removeFromParent();
       shotMeshes.delete(id);
     }
   };
 
-  // ── Lo que queda en la tabla: CÁSCARAS del huevo (tiradas, se ven y se pisan) y las RAÍCES del brócoli (grietas que avisan
-  // y después raíces que brotan). ──
-  const trapGeo = new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, 1.1);
-  trapGeo.scale(1, 0.45, 1);
-  trapGeo.rotateX(Math.PI); // cóncava hacia abajo, apoyada en el borde
-  const trapMat = new THREE.MeshStandardMaterial({ color: '#f6f1e6', roughness: 0.45, side: THREE.DoubleSide });
-  const crackMat = new THREE.MeshBasicMaterial({ color: '#1c1208', transparent: true, opacity: 0.85, depthWrite: false });
-  const rootMat = new THREE.MeshStandardMaterial({ color: '#7a5a2e', roughness: 0.9 });
-  const rootTipMat = new THREE.MeshStandardMaterial({ color: '#4f8f2a', roughness: 0.8 });
-  const rootGeo = new THREE.ConeGeometry(0.0022, 1, 6);
-  rootGeo.translate(0, 0.5, 0);
+  // ── Lo que queda en la tabla: CÁSCARAS del huevo (tiradas, se ven y se pisan) y las RAÍCES del brócoli. ──
+  const trapMat = new THREE.MeshStandardMaterial({ color: '#fbf7ee', roughness: 0.35, side: THREE.DoubleSide, emissive: '#fff3d6', emissiveIntensity: 0.18 });
+  // RAÍCES: primero la tabla avisa (grietas que se abren, astillas que tiemblan, polvo y un aro oscuro con el alcance), después
+  // brotan raíces gruesas retorcidas (tubos que se afinan, marrones con brotes verdes) que se cierran sobre el que quedó parado
+  // ahí, y vuelven a meterse.
+  const crackMat = new THREE.MeshBasicMaterial({ color: '#140c05', transparent: true, opacity: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  const warnMat = new THREE.MeshBasicMaterial({ color: '#3b2a12', transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
+  const splinterMat = new THREE.MeshStandardMaterial({ color: '#b88a52', roughness: 0.8 });
+  const rootMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: '#5fae2e', roughness: 0.6, side: THREE.DoubleSide });
+  const leafGeo = new THREE.SphereGeometry(1, 8, 5).scale(1, 0.25, 0.55);
+  const RS = 8; // lados de cada raíz
+  /** Tubo que se afina a lo largo de la curva (de r0 a casi nada), con color de raíz que se aclara hacia la punta. */
+  const taperTube = (curve: THREE.Curve<THREE.Vector3>, segs: number, r0: number): THREE.BufferGeometry => {
+    const frames = curve.computeFrenetFrames(segs, false);
+    const pos: number[] = [];
+    const col: number[] = [];
+    const idx: number[] = [];
+    const c0 = new THREE.Color('#5b3d1e');
+    const c1 = new THREE.Color('#a77b45');
+    const c = new THREE.Color();
+    for (let i = 0; i <= segs; i++) {
+      const t = i / segs;
+      const p = curve.getPointAt(t);
+      const r = r0 * (1 - 0.88 * t) * (1 + 0.12 * Math.sin(t * 19));
+      c.copy(c0).lerp(c1, t);
+      for (let j = 0; j < RS; j++) {
+        const a = (j / RS) * Math.PI * 2;
+        const n = frames.normals[i].clone().multiplyScalar(Math.cos(a)).addScaledVector(frames.binormals[i], Math.sin(a));
+        pos.push(p.x + n.x * r, p.y + n.y * r, p.z + n.z * r);
+        // Vetas: franjas apenas más oscuras a lo largo.
+        const v = j % 3 === 0 ? 0.8 : 1;
+        col.push(c.r * v, c.g * v, c.b * v);
+      }
+    }
+    for (let i = 0; i < segs; i++) for (let j = 0; j < RS; j++) {
+      const a = i * RS + j, b = i * RS + ((j + 1) % RS), d = (i + 1) * RS + j, e = (i + 1) * RS + ((j + 1) % RS);
+      idx.push(a, d, b, b, d, e);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  };
+  /** Grieta quebrada: una cinta chata en zigzag desde el centro hacia afuera. */
+  const crackGeo = (seed: number, len: number): THREE.BufferGeometry => {
+    const pts: THREE.Vector2[] = [];
+    let a = seed * 2.39;
+    let x = 0, z = 0;
+    const n = 6;
+    pts.push(new THREE.Vector2(0, 0));
+    for (let k = 1; k <= n; k++) {
+      a += Math.sin(seed * 7.1 + k * 3.3) * 0.5;
+      x += Math.cos(a) * (len / n);
+      z += Math.sin(a) * (len / n);
+      pts.push(new THREE.Vector2(x, z));
+    }
+    const pos: number[] = [];
+    for (let k = 0; k < n; k++) {
+      const p = pts[k], q = pts[k + 1];
+      const d = q.clone().sub(p).normalize();
+      const w0 = 0.0014 * (1 - k / n) + 0.0002, w1 = 0.0014 * (1 - (k + 1) / n) + 0.0002;
+      const nx = -d.y, nz = d.x;
+      pos.push(p.x + nx * w0, 0, p.y + nz * w0, q.x + nx * w1, 0, q.y + nz * w1, p.x - nx * w0, 0, p.y - nz * w0);
+      pos.push(p.x - nx * w0, 0, p.y - nz * w0, q.x + nx * w1, 0, q.y + nz * w1, q.x - nx * w1, 0, q.y - nz * w1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    return g;
+  };
   const groundMeshes = new Map<number, THREE.Object3D>();
+  const disposeGroup = (g: THREE.Object3D): void => g.traverse((o) => {
+    const mm = o as THREE.Mesh;
+    if (mm.isMesh && mm.userData.own) mm.geometry.dispose();
+  });
   const syncGround = (): void => {
     const live = new Set<number>();
     for (const t of m?.traps ?? []) {
       live.add(t.id);
       let g = groundMeshes.get(t.id);
+      const size = 0.008 + 0.002 * (t.id % 3);
       if (!g) {
-        g = new THREE.Mesh(trapGeo, trapMat);
-        g.scale.setScalar(0.0055 + 0.0015 * (t.id % 3));
-        g.rotation.set((t.id % 5) * 0.08, t.id * 1.7, (t.id % 3) * 0.1);
-        g.castShadow = true;
+        // Dos o tres pedazos de cáscara juntos, uno boca abajo y otro de canto: se lee "cáscara rota" desde la cámara lateral.
+        g = new THREE.Group();
+        for (let k = 0; k < 3; k++) {
+          const sh = new THREE.Mesh(shellGeo, trapMat);
+          sh.scale.setScalar(size * (1 - 0.25 * k));
+          sh.position.set((k - 1) * size * 0.9, size * 0.25, ((k * 7) % 3 - 1) * size * 0.5);
+          sh.rotation.set(Math.PI + (k === 1 ? 1.1 : 0.2), t.id * 1.7 + k * 2.1, k * 0.4);
+          sh.castShadow = true;
+          g.add(sh);
+        }
         game().stage.scene.add(g);
         groundMeshes.set(t.id, g);
       }
-      // Mismo z que el luchador (y apenas corrido, así no queda tapada por su pie).
-      g.position.copy(P3(t.x, 0.0012, ((t.id % 5) - 2) * 0.003));
-      // Las últimas 2 s se desvanecen achicándose.
-      if (t.life < 120) g.scale.setScalar((0.0055 + 0.0015 * (t.id % 3)) * (t.life / 120));
+      // Mismo z que los luchadores: queda a la vista entre los dos.
+      g.position.copy(P3(t.x, 0.0005, ((t.id % 5) - 2) * 0.002));
+      g.scale.setScalar(t.life < 120 ? t.life / 120 : 1);
     }
     const R = POWERS.raices;
     for (const r of m?.roots ?? []) {
@@ -324,37 +426,79 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       let g = groundMeshes.get(r.id) as THREE.Group | undefined;
       if (!g) {
         g = new THREE.Group();
-        // Grietas: rayas oscuras en estrella sobre la madera.
-        for (let k = 0; k < 7; k++) {
-          const c = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.0012), crackMat);
-          c.rotation.x = -Math.PI / 2;
-          c.rotation.z = k * 0.9 + (r.id % 7) * 0.3;
+        const warn = new THREE.Mesh(new THREE.RingGeometry(R.r * 0.15, R.r, 40).rotateX(-Math.PI / 2), warnMat.clone());
+        warn.name = 'aro';
+        warn.userData.own = true;
+        g.add(warn);
+        for (let k = 0; k < 9; k++) {
+          const c = new THREE.Mesh(crackGeo(r.id + k * 1.618, R.r * (0.7 + 0.5 * ((k * 3) % 4) / 3)), crackMat);
+          c.rotation.y = (k / 9) * Math.PI * 2;
           c.name = 'grieta';
+          c.userData.own = true;
           g.add(c);
         }
-        // Raíces: conos marrones con la punta verde, inclinados hacia afuera.
+        // Astillas de la tabla que se levantan y tiemblan.
+        for (let k = 0; k < 7; k++) {
+          const sp = new THREE.Mesh(new THREE.BoxGeometry(0.0045, 0.0007, 0.0012), splinterMat);
+          const a = k * 0.9 + r.id;
+          sp.position.set(Math.cos(a) * R.r * 0.45, 0, Math.sin(a) * R.r * 0.45);
+          sp.rotation.y = -a;
+          sp.name = 'astilla';
+          sp.userData.own = true;
+          g.add(sp);
+        }
+        // Raíces: 6 tubos que salen del centro, se abren y se curvan hacia adentro (agarran al que está encima).
         for (let k = 0; k < 6; k++) {
-          const root = new THREE.Mesh(rootGeo, k % 2 ? rootTipMat : rootMat);
           const a = (k / 6) * Math.PI * 2 + r.id;
-          root.position.set(Math.cos(a) * 0.006, 0, Math.sin(a) * 0.006);
-          root.rotation.set(Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35);
-          root.userData.h = 0.02 + 0.012 * ((k * 5) % 3);
+          const out = R.r * (0.35 + 0.25 * (k % 2));
+          const h = 0.03 + 0.012 * ((k * 5) % 3);
+          const curve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(Math.cos(a) * out * 0.3, -0.004, Math.sin(a) * out * 0.3),
+            new THREE.Vector3(Math.cos(a) * out, h * 0.3, Math.sin(a) * out),
+            new THREE.Vector3(Math.cos(a + 0.5) * out * 1.1, h * 0.65, Math.sin(a + 0.5) * out * 1.1),
+            new THREE.Vector3(Math.cos(a + 1.1) * out * 0.35, h, Math.sin(a + 1.1) * out * 0.35),
+          ]);
+          const root = new THREE.Mesh(taperTube(curve, 24, 0.0028 + 0.0008 * (k % 3)), rootMat);
           root.name = 'raiz';
           root.castShadow = true;
+          root.userData.own = true;
+          root.userData.n = 24 * RS * 6;
+          root.geometry.setDrawRange(0, 0);
+          const leaf = new THREE.Mesh(leafGeo, leafMat);
+          leaf.position.copy(curve.getPointAt(1));
+          leaf.scale.setScalar(0.0001);
+          leaf.rotation.set(0.6, a, 0.3);
+          leaf.name = 'hoja';
+          root.add(leaf);
           g.add(root);
         }
         game().stage.scene.add(g);
         groundMeshes.set(r.id, g);
       }
-      g.position.copy(P3(r.x, 0.0006, 0));
+      g.position.copy(P3(r.x, 0.0004, 0));
       const warn = Math.min(1, r.t / R.delay);
-      const up = r.t < R.delay ? 0 : Math.min(1, (r.t - R.delay) / 5) * Math.min(1, (R.delay + R.show - r.t) / 15);
+      const grow = r.t < R.delay ? 0 : Math.min(1, (r.t - R.delay) / 7);
+      const back = r.t < R.delay ? 0 : Math.max(0, 1 - (R.delay + R.show - r.t) / 16);
+      const up = grow * (1 - back);
+      // Polvito mientras se agrieta (cada vez más seguido).
+      if (r.t < R.delay && r.t % Math.max(3, 10 - Math.round(warn * 7)) === 0) cloud(P3(r.x, 0.002), 1, 0x8a6a3a, 0.003, 0.012, 0.012);
       for (const c of g.children) {
-        if (c.name === 'grieta') c.scale.set(0.004 + 0.022 * warn * (1 + 0.15 * Math.sin(c.rotation.z * 3)), 1, 1);
-        else c.scale.set(1, Math.max(1e-4, c.userData.h * up), 1);
+        if (c.name === 'aro') ((c as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = r.t < R.delay ? 0.25 + 0.3 * warn * (0.6 + 0.4 * Math.sin(r.t * 0.6)) : 0.35 * (1 - back);
+        else if (c.name === 'grieta') c.scale.setScalar(Math.max(0.05, Math.min(1, warn * 1.2)));
+        else if (c.name === 'astilla') {
+          c.position.y = 0.0006 + 0.0025 * warn + (r.t < R.delay ? 0.0008 * warn * Math.sin(r.t * 2.3 + c.rotation.y * 5) : 0.004 * grow * (1 - back));
+          c.rotation.z = 0.5 * warn * Math.sin(c.rotation.y * 3);
+        } else if (c.name === 'raiz') {
+          const mesh = c as THREE.Mesh;
+          // Crece desde la base (se va dibujando a lo largo) y se mete igual.
+          mesh.geometry.setDrawRange(0, Math.floor((c.userData.n as number) * up / 6) * 6);
+          const leaf = c.children[0];
+          leaf.scale.setScalar(Math.max(0.0001, (up > 0.9 ? (up - 0.9) * 10 : 0) * 0.0035));
+        }
       }
     }
     for (const [id, g] of groundMeshes) if (!live.has(id)) {
+      disposeGroup(g);
       g.removeFromParent();
       groundMeshes.delete(id);
     }
@@ -457,6 +601,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       if (r.ko) views[1].face?.(0.45, 0.8, true);
       else if (sick > 0) views[1].face?.(0, 0, false, sick);
       else if (m.winner === 1 || (m.phase !== 'fight' && m.roundWinner === 1)) views[1].face?.(0.6 + 0.4 * Math.abs(Math.sin(m.frame * 0.35)), 0.4);
+      else if (r.guard > 0.4 || r.block > 0) views[1].face?.(0, -1, false, 0, 1);
       else if (hurtNow) views[1].face?.(0.1, 0.9);
       else if (mvW || r.pw?.phase === 'wind') views[1].face?.(0.9, -1);
       else views[1].face?.(0.15, -0.6);
@@ -585,12 +730,19 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         break;
       case 'reabsorb':
         for (const q of lg) if (q.pile === e.pile) q.st = 2;
+        // Se cura juntando sus granos: que se vea.
+        if (performance.now() - healTipAt > 2500) {
+          healTipAt = performance.now();
+          hud.popup(m.f[e.who].x, m.f[e.who].y + 0.07, '¡SE REARMA!', '', 'hint');
+        }
         break;
       case 'scatter':
         for (const q of lg) if (q.pile === e.pile) { q.st = 3; q.t = 0; q.v.set((Math.random() - 0.5) * 0.8, 0.5, 0.3); }
         break;
       case 'absorb':
         views[e.who].bump(0.35);
+        // Las dos primeras veces se explica por qué no le hizo nada.
+        if (e.who !== me() && absorbTips++ < 2) hud.popup(m.f[e.who].x, m.f[e.who].y + 0.07, '¡SE HUNDE!', 'cargá el golpe: mantené Q / W', 'hint');
         break;
       case 'parry': {
         const f = m.f[e.who];
@@ -642,7 +794,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       case 'powerHit': {
         const victim = (1 - e.by) as 0 | 1;
         const at = P3(e.at[0], e.at[1]);
-        const small = e.kind === 'metralla';
+        const small = e.kind === 'metralla' || e.kind === 'arbolitos';
         // Olió el olor a pata (o la nube): cara de asco unos segundos.
         if (victim === 1 && !e.blocked && (e.kind === 'olor' || e.kind === 'nube' || e.kind === 'queso')) sickUntil = performance.now() + 3500;
         if (!small && !e.blocked) aber = 1;
@@ -1380,7 +1532,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     lg.length = 0;
     ai = newAi(seed++, level);
     hud.me = me();
-    hud.show(!vs ? [model.name, bro.name] : me() === 0 ? ['TU CHIZITO', 'TU AMIGO'] : ['TU AMIGO', 'TU CHIZITO'], warnings(m.f[me()]));
+    hud.show(!vs ? [model.name, bro.name] : me() === 0 ? ['TU CHIZITO', 'TU AMIGO'] : ['TU AMIGO', 'TU CHIZITO'], [...(vs ? [] : [RIVAL_TIP[level - 1] ?? '']).filter(Boolean), ...warnings(m.f[me()])]);
+    absorbTips = 0;
     // Cuántas extremidades hay en cada cuadrante del chizito (lo que maneja cada botón).
     const f0 = m.f[me()];
     const count = (q: Quad): number => (q[1] === 'A' ? f0.arms : [...f0.legs, ...f0.pegs]).filter((k) => model!.limbs[k].side === q[0]).length;
@@ -1399,6 +1552,14 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     camInit = false;
   };
 
+  /** Lo que hay que saber de cada rival (se dice al empezar: cada uno se pelea distinto). */
+  const RIVAL_TIP = [
+    'EL BROCOLOCO: si la tabla se agrieta bajo tus pies, salí o saltá (↑): brotan raíces',
+    'HUEVO DURO: es gelatina (los golpes seguidos rebotan) y tira cáscaras que quedan en la tabla: no las pises',
+    'MONSTRUO DE QUINOA: los golpes rápidos se HUNDEN en sus granos. Mantené Q / W para cargarlos y reventarlo; si junta sus granos, se cura',
+  ];
+  let absorbTips = 0;
+  let healTipAt = 0;
   const warnings = (f: Match['f'][number]): string[] => {
     const md = f.model;
     const w: string[] = [];
