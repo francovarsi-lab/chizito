@@ -443,31 +443,55 @@ function ellipsoidPoints(rx: number, ry: number, rz: number, cy: number, n: numb
   return out;
 }
 
-/** Extremidad de quinoa: un "chorizo" de granos apretados, de −inner a L en +Y, más gruesa en la punta (puño o pie). */
+/** Extremidad de quinoa: un "chorizo" de granos apretados, de −inner a L en +Y, más gruesa en la punta (puño o pie). En DOS
+ *  tramos: el de afuera ('q-codo', con el puño o el pie) cuelga de un codo/rodilla a media altura y `render.ts` lo dobla (una
+ *  masa de granos no tiene huesos rectos: se dobla, llega tarde al movimiento y respira). */
 function quinoaLimb(L: number, r0: number, r1: number, inner: number, fist: boolean, seed: number): THREE.Group {
   const g = new THREE.Group();
+  const J = L * 0.5;
+  const lower = new THREE.Group();
+  lower.name = 'q-codo';
+  lower.position.y = J;
+  g.add(lower);
+  const rAt = (y: number): number => r0 + (r1 - r0) * THREE.MathUtils.clamp((y + inner) / (L + inner), 0, 1);
+  // Núcleo: dos cápsulas que se tocan en el codo (al doblarse no se abre un hueco: las dos llevan una bola ahí).
+  const capsule = (y0: number, y1: number, dy: number): THREE.Mesh => {
+    const core = new THREE.CapsuleGeometry(1, 1, 6, 14);
+    const pos = core.getAttribute('position');
+    const v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i);
+      const t = THREE.MathUtils.clamp((v.y + 1.5) / 3, 0, 1);
+      const y = y0 + t * (y1 - y0);
+      const r = rAt(y);
+      pos.setXYZ(i, v.x * r, y - dy, v.z * r);
+    }
+    core.computeVertexNormals();
+    return new THREE.Mesh(core, quinoaMaterials().core);
+  };
+  g.add(capsule(-inner, J + 0.002, 0));
+  lower.add(capsule(J - 0.002, L, J));
+  const up: { p: THREE.Vector3; n: THREE.Vector3 }[] = [];
+  const lo: { p: THREE.Vector3; n: THREE.Vector3 }[] = [];
   const len = L + inner;
-  const core = new THREE.CapsuleGeometry(1, 1, 6, 14);
-  // Cápsula de radio variable: se escala por altura.
-  const pos = core.getAttribute('position');
-  const v = new THREE.Vector3();
-  for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(pos, i);
-    const t = THREE.MathUtils.clamp((v.y + 1.5) / 3, 0, 1);
-    const r = r0 + (r1 - r0) * t;
-    pos.setXYZ(i, v.x * r, -inner + t * len, v.z * r);
-  }
-  core.computeVertexNormals();
-  g.add(new THREE.Mesh(core, quinoaMaterials().core));
-  const pts: { p: THREE.Vector3; n: THREE.Vector3 }[] = [];
   const N = Math.round((len * (r0 + r1) * Math.PI) / 0.0000021);
   for (let i = 0; i < N; i++) {
     const t = (i + 0.5) / N;
     const a = i * 2.39996;
     const y = -inner * 0.3 + t * (len - inner * 0.7);
-    const r = r0 + (r1 - r0) * THREE.MathUtils.clamp((y + inner) / len, 0, 1);
+    const r = rAt(y);
     const n = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
-    pts.push({ p: new THREE.Vector3(n.x * r, y, n.z * r), n });
+    if (y < J) up.push({ p: new THREE.Vector3(n.x * r, y, n.z * r), n });
+    else lo.push({ p: new THREE.Vector3(n.x * r, y - J, n.z * r), n });
+  }
+  // Una bola de granos en el codo (tapa la unión al doblarse).
+  const rj = rAt(J) * 1.04;
+  for (let i = 0; i < 120; i++) {
+    const yy = 1 - (2 * (i + 0.5)) / 120;
+    const rr = Math.sqrt(1 - yy * yy);
+    const a = i * 2.39996;
+    const n = new THREE.Vector3(Math.cos(a) * rr, yy, Math.sin(a) * rr);
+    lo.push({ p: n.clone().multiplyScalar(rj), n });
   }
   // La punta redondeada (puño / pie).
   for (let i = 0; i < 160; i++) {
@@ -475,14 +499,15 @@ function quinoaLimb(L: number, r0: number, r1: number, inner: number, fist: bool
     const rr = Math.sqrt(1 - yy * yy);
     const a = i * 2.39996;
     const n = new THREE.Vector3(Math.cos(a) * rr, yy, Math.sin(a) * rr);
-    pts.push({ p: new THREE.Vector3(n.x * r1, L + n.y * r1 * 0.9, n.z * r1), n });
+    lo.push({ p: new THREE.Vector3(n.x * r1, L - J + n.y * r1 * 0.9, n.z * r1), n });
   }
-  g.add(grains(pts, seed));
+  g.add(grains(up, seed));
+  lower.add(grains(lo, seed + 1));
   if (fist) {
     // El poder: granos sueltos que flotan y giran alrededor del puño ('aura', la anima `render.ts`).
     const aura = new THREE.Group();
     aura.name = 'aura';
-    aura.position.y = L;
+    aura.position.y = L - J;
     const rnd = mulberry32(seed + 3);
     const loose: { p: THREE.Vector3; n: THREE.Vector3 }[] = [];
     for (let i = 0; i < 18; i++) {
@@ -491,7 +516,7 @@ function quinoaLimb(L: number, r0: number, r1: number, inner: number, fist: bool
       loose.push({ p: new THREE.Vector3(Math.cos(a) * rr, (rnd() - 0.4) * r1 * 2.2, Math.sin(a) * rr), n: new THREE.Vector3(rnd() - 0.5, rnd(), rnd() - 0.5).normalize() });
     }
     aura.add(grains(loose, seed + 9, 0.0012));
-    g.add(aura);
+    lower.add(aura);
   }
   return g;
 }

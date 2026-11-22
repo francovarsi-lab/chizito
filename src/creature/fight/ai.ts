@@ -99,13 +99,13 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
     if (mem.doing === 'dash') return { x: mem.left === 1 ? 0 : ((mem.stepDir * dir) as -1 | 1) };
   }
   mem.doing = 'none';
-  // El poder, cuando conviene (cada uno con su lógica): gas si lo tiene encima, rodar o avalancha a media distancia con el otro en
+  // El poder, cuando conviene (cada uno con su lógica): raíces si el otro está parado en el piso, rodar o avalancha a media distancia con el otro en
   // el piso, lo que se tira (arbolitos, cáscaras, granos) de lejos, queso de cerca. Con media barra usa el chico (sin apuro: puede
   // esperar el grande). Más nivel = lo usa mejor (con menos azar).
   const full = me.meter >= FIGHT.power.max;
   const k = full ? me.model.power : me.meter >= FIGHT.powerUse.half ? me.model.power2 : undefined;
   if (k && me.stun <= 0) {
-    const good = k === 'gas' ? near < 0.07 : k === 'rodada' || k === 'avalancha' ? near > 0.05 && near < 0.22 && foe.grounded : k === 'metralla' || k === 'arbolitos' || k === 'cascaras' ? near > 0.06 : near < POWERS.queso.reach;
+    const good = k === 'raices' ? foe.grounded && foe.stun <= 0 && near < 0.2 : k === 'rodada' || k === 'avalancha' ? near > 0.05 && near < 0.22 && foe.grounded : k === 'metralla' || k === 'arbolitos' || k === 'cascaras' ? near > 0.06 : near < POWERS.queso.reach;
     if (good && rnd(mem) < (full ? 0.02 + 0.02 * mem.level : 0.0015 + 0.004 * mem.level)) return { x: 0, power: true };
   }
   const attackPrev = mem.wasAttack;
@@ -202,7 +202,7 @@ function rivalDecide(s: Match, mem: AiMem, who: 0 | 1, near: number, dir: -1 | 1
     return { x: 0, guard: true };
   }
   // Castigo: el otro pifió o le pegó a la guardia → el ataque más rápido que llegue.
-  if (foe.lock > 4 && inReach.length && rnd(mem) < 0.2 + 0.1 * mem.level + (foe.repeat >= 1 ? 0.3 : 0)) {
+  if (foe.lock > 4 && inReach.length && rnd(mem) < 0.2 + 0.1 * mem.level + (foe.repeat >= 1 && mem.level >= 2 ? 0.3 : 0)) {
     const fast = inReach.reduce((a, b) => (MOVES[a].hits[0].from <= MOVES[b].hits[0].from ? a : b));
     return { x: 0, move: fast };
   }

@@ -335,7 +335,7 @@ export function broccoliFighter(_level = 1): FighterModel {
     faceAt: { mouth: 0.44, eyes: 0.63 },
     yaw: FIGHT.broccoli.yaw,
     // Lógica de brócoli: tira sus ARBOLITOS (media barra) y suelta el GAS que da comerlo (barra llena).
-    power: 'gas',
+    power: 'raices',
     power2: 'arbolitos',
     moves: RIVAL_MOVES['EL BROCOLOCO'],
   };

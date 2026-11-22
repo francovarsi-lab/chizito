@@ -18,8 +18,8 @@ import { probeFile } from '../assets/probe';
  *  quinoa-frase1/2/3 (la voz de cada rival en su presentación: ver los subtítulos en `RIVALS` de mount.ts),
  *  poder-carga (carga un poder), poder-queso, poder-rodada, poder-metralla
  */
-export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3' | 'huevo-frase1' | 'huevo-frase2' | 'huevo-frase3' | 'quinoa-frase1' | 'quinoa-frase2' | 'quinoa-frase3' | 'poder-carga' | 'poder-queso' | 'poder-rodada' | 'poder-metralla' | 'atajada' | 'guardia-rota' | 'barrida' | 'pasito' | 'poder-nube' | 'poder-trompo' | 'poder-carozo' | 'poder-acupuntura' | 'poder-muralla' | 'poder-olor' | 'poder-arbolitos' | 'poder-gas' | 'poder-cascaras' | 'poder-avalancha' | 'musica-brocoloco' | 'musica-huevo' | 'musica-quinoa';
-const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3', 'huevo-frase1', 'huevo-frase2', 'huevo-frase3', 'quinoa-frase1', 'quinoa-frase2', 'quinoa-frase3', 'poder-carga', 'poder-queso', 'poder-rodada', 'poder-metralla', 'atajada', 'guardia-rota', 'barrida', 'pasito', 'poder-nube', 'poder-trompo', 'poder-carozo', 'poder-acupuntura', 'poder-muralla', 'poder-olor', 'poder-arbolitos', 'poder-gas', 'poder-cascaras', 'poder-avalancha', 'musica-brocoloco', 'musica-huevo', 'musica-quinoa'];
+export type SoundId = 'pick' | 'drop' | 'crack' | 'crunch' | 'out' | 'golpe' | 'golpe-pesado' | 'bloqueo' | 'zumbido' | 'pifio' | 'escudo' | 'ko' | 'round' | 'pelea' | 'combo' | 'japish' | 'pimba' | 'soplamoco' | 'risa' | 'musica-pelea' | 'apagon' | 'vela' | 'rugido' | 'brocoloco-frase1' | 'brocoloco-frase2' | 'brocoloco-frase3' | 'huevo-frase1' | 'huevo-frase2' | 'huevo-frase3' | 'quinoa-frase1' | 'quinoa-frase2' | 'quinoa-frase3' | 'poder-carga' | 'poder-queso' | 'poder-rodada' | 'poder-metralla' | 'atajada' | 'guardia-rota' | 'barrida' | 'pasito' | 'poder-nube' | 'poder-trompo' | 'poder-carozo' | 'poder-acupuntura' | 'poder-muralla' | 'poder-olor' | 'poder-arbolitos' | 'poder-raices' | 'poder-cascaras' | 'poder-avalancha' | 'musica-brocoloco' | 'musica-huevo' | 'musica-quinoa';
+const IDS: SoundId[] = ['pick', 'drop', 'crack', 'crunch', 'out', 'golpe', 'golpe-pesado', 'bloqueo', 'zumbido', 'pifio', 'escudo', 'ko', 'round', 'pelea', 'combo', 'japish', 'pimba', 'soplamoco', 'risa', 'musica-pelea', 'apagon', 'vela', 'rugido', 'brocoloco-frase1', 'brocoloco-frase2', 'brocoloco-frase3', 'huevo-frase1', 'huevo-frase2', 'huevo-frase3', 'quinoa-frase1', 'quinoa-frase2', 'quinoa-frase3', 'poder-carga', 'poder-queso', 'poder-rodada', 'poder-metralla', 'atajada', 'guardia-rota', 'barrida', 'pasito', 'poder-nube', 'poder-trompo', 'poder-carozo', 'poder-acupuntura', 'poder-muralla', 'poder-olor', 'poder-arbolitos', 'poder-raices', 'poder-cascaras', 'poder-avalancha', 'musica-brocoloco', 'musica-huevo', 'musica-quinoa'];
 
 const EXTENSIONS: [string, number[]][] = [
   ['ogg', [0x4f, 0x67, 0x67, 0x53]], // OggS
@@ -246,10 +246,10 @@ export class AudioManager {
         this.burst({ freq: 800, q: 0.5, dur: 0.5, gain: 0.7, type: 'lowpass', attack: 0.02 });
         for (let k = 0; k < 5; k++) this.tone({ f0: 2000 + k * 380, f1: 2400 + k * 380, dur: 0.12, gain: 0.08, delay: 0.1 + k * 0.05 });
         break;
-      case 'poder-gas':
-        // Gas de brócoli: un "prrrt" grave que tiembla y un soplido.
-        this.tone({ f0: 95, f1: 62, dur: 0.9, gain: 0.5, type: 'sawtooth', lp: 420, vibrato: 28 });
-        this.burst({ freq: 500, q: 0.6, dur: 0.9, gain: 0.3, type: 'lowpass', attack: 0.05 });
+      case 'poder-raices':
+        // Raíces: la madera cruje y se agrieta (chasquidos secos) sobre un retumbo grave que sube.
+        this.tone({ f0: 45, f1: 80, dur: 1.0, gain: 0.5, type: 'triangle', lp: 300 });
+        for (let k = 0; k < 7; k++) this.burst({ freq: 900 + k * 250, q: 3, dur: 0.03, gain: 0.35, delay: 0.1 + k * 0.09 + Math.random() * 0.03 });
         break;
       case 'poder-rodada':
         for (let k = 0; k < 6; k++) this.tone({ f0: 70, f1: 55, dur: 0.18, gain: 0.45, delay: k * 0.12, type: 'triangle' });

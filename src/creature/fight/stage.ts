@@ -30,6 +30,8 @@ export interface FightSet {
   cheer(k: number): void;
   /** La hinchada (los chizitos del bowl) hace la OLA: una vuelta alrededor del bowl. */
   wave(): void;
+  /** KO: la hinchada (son chizitos: alientan al tuyo) festeja si ganaste y se desinfla si perdiste. */
+  ko(win: boolean): void;
   /** Lucecitas del fondo: se apagan de un soplido en el KO (true) y se prenden para el round siguiente (false). */
   candles(out: boolean): void;
   /** El foco barre la tabla (entrada de cada round). */
@@ -419,13 +421,35 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
   };
   setPR(Math.min(1.25, prWas));
 
-  // HINCHADA: cada chizito del bowl salta por su cuenta (ritmo y altura propios) cuando hay algo que alentar, y una vez por pelea
-  // hacen la OLA (salto en orden alrededor del bowl). Sólo se mueven en Y y giran apenas: sin caras ni formas raras.
-  const fans = (scene.getObjectByName('hinchada')?.children.find((c) => c.children.length > 4)?.children ?? []).map((o, n) => ({
-    o, y: o.position.y, a: Math.atan2(o.position.z, o.position.x), ph: (n * 2.399) % (Math.PI * 2), f: 9 + ((n * 7) % 5), h: 0.006 + ((n * 3) % 4) * 0.0015,
+  // HINCHADA: cada chizito del bowl salta por su cuenta (ritmo y altura propios) cuando hay algo que alentar; TODOS juntos se
+  // mecen como una tribuna que canta (más cuanto más excitados) y se echan hacia la arena en los golpes fuertes; una vez por
+  // pelea hacen la OLA; en el KO festejan a los saltos y girando (ganaste) o se desinflan, echados para atrás (perdiste).
+  // Se inclinan pivotando en su pie y sólo suben: el bowl se abre hacia arriba, así que nunca lo atraviesan.
+  const bowl = scene.getObjectByName('hinchada');
+  const fans = (bowl?.children.find((c) => c.children.length > 4)?.children ?? []).map((o, n) => ({
+    o, p: o.position.clone(), q: o.quaternion.clone(), a: Math.atan2(o.position.z, o.position.x), ph: (n * 2.399) % (Math.PI * 2), f: 8 + ((n * 7) % 5), h: 0.01 + ((n * 3) % 4) * 0.0025,
   }));
+  // Hacia dónde queda la arena vista desde el bowl (en su marco): para echarse hacia adelante.
+  const toArena = new THREE.Vector3();
+  if (bowl) {
+    bowl.updateWorldMatrix(true, false);
+    toArena.copy(bowl.worldToLocal(new THREE.Vector3(0, bowl.getWorldPosition(new THREE.Vector3()).y, 0)));
+    toArena.y = 0;
+    toArena.normalize();
+  }
+  const leanAxis = new THREE.Vector3(toArena.z, 0, -toArena.x); // girar alrededor de este eje echa la cabeza hacia la arena
+  const swayAxis = toArena.clone(); // y alrededor de éste, de lado a lado
+  const lq = new THREE.Quaternion();
+  const sq = new THREE.Quaternion();
+  const spin = new THREE.Quaternion();
+  const UP = new THREE.Vector3(0, 1, 0);
+  const foot = new THREE.Vector3(0, 0.026, 0);
+  const tmp = new THREE.Vector3();
   let fanHop = 0;
+  let lean = 0;
   let waveT = -1;
+  let koT = -1;
+  let koWin = true;
   let t = 0;
   return {
     update(dt) {
@@ -434,15 +458,38 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
       fanHop *= Math.pow(0.25, dt);
       if (waveT >= 0) waveT += dt;
       if (waveT > 2.2) waveT = -1;
+      if (koT >= 0) koT += dt;
+      if (koT > 4) koT = -1;
+      const party = koT >= 0 && koWin ? Math.min(1, koT * 3) * Math.min(1, (4 - koT) * 2) : 0;
+      const sad = koT >= 0 && !koWin ? Math.min(1, koT * 2) * Math.min(1, (4 - koT) * 2) : 0;
+      // Echarse hacia la arena sigue a la excitación con un poco de retardo (todos juntos).
+      lean += ((0.14 * fanHop + 0.1 * party - 0.3 * sad) - lean) * Math.min(1, dt * 6);
+      // Mecerse de lado a lado, todos juntos, como una tribuna que canta.
+      const sway = Math.sin(t * 2.6) * (0.04 + 0.12 * Math.min(1, fanHop) + 0.1 * party) * (1 - sad);
       for (const c of fans) {
         // Ola: 1,6 s para dar la vuelta; cada uno salta cuando le llega.
         const w = waveT < 0 ? 0 : Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, (waveT - ((c.a + Math.PI) / (Math.PI * 2)) * 1.6) / 0.35))));
-        const j = Math.abs(Math.sin(t * c.f + c.ph)) * (fanHop + 0.12); // siempre se mueven un poco: están vivos
-        c.o.position.y = c.y + c.h * j + 0.016 * w;
+        const own = Math.abs(Math.sin(t * c.f + c.ph)) * c.h * (0.1 + 1.6 * Math.min(1, fanHop)); // siempre se mueven un poco
+        const fest = party * Math.abs(Math.sin(t * 7 + c.ph * 0.25)) * (0.018 + c.h);
+        const y = own * (1 - sad) + 0.024 * w + fest - 0.004 * sad;
+        lq.setFromAxisAngle(leanAxis, lean + 0.03 * Math.sin(t * 3.1 + c.ph) * party);
+        sq.setFromAxisAngle(swayAxis, sway);
+        spin.setFromAxisAngle(UP, party * Math.sin(t * 5 + c.ph) * 0.6);
+        lq.multiply(sq).multiply(spin);
+        c.o.quaternion.copy(lq).multiply(c.q);
+        // Pivota sobre el pie: centro = pie + giro · (centro − pie).
+        tmp.copy(foot).applyQuaternion(lq).sub(foot);
+        c.o.position.copy(c.p).add(tmp);
+        c.o.position.y += Math.max(0, y);
       }
     },
     wave() {
       waveT = 0;
+    },
+    ko(win) {
+      koT = 0;
+      koWin = win;
+      if (win) fanHop = 1.5;
     },
     candles(out) {
       bulbs?.blow(out);
@@ -471,7 +518,10 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
       if (lv >= 3) setPR(Math.min(0.8, prWas));
     },
     restore() {
-      for (const c of fans) c.o.position.y = c.y;
+      for (const c of fans) {
+        c.o.position.copy(c.p);
+        c.o.quaternion.copy(c.q);
+      }
       // La arena queda armada para la próxima pelea: sólo se saca de la escena (con las luces a pleno y la vela apagada).
       arena.level(1);
       arena.candle(null, 0);

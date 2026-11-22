@@ -748,7 +748,34 @@ try {
     };
     const H = FIGHT.powerUse.half;
     const brok = run(mine, broccoliFighter(1), 0.05);
-    ok(brok.ev.some((e) => e.type === 'power' && e.phase === 'go' && e.kind === 'gas') && brok.ev.some((e) => e.type === 'dizzy' && e.who === 0), 'EL BROCOLOCO (barra llena) suelta el GAS y marea de cerca');
+    ok(brok.ev.some((e) => e.type === 'roots' && e.hit) && brok.ev.some((e) => e.type === 'powerHit' && e.kind === 'raices'), 'EL BROCOLOCO (barra llena): RAÍCES bajo el que se queda parado');
+    {
+      // Saltar (o salirse) a tiempo esquiva las raíces.
+      const m = createMatch([mine, broccoliFighter(1)]);
+      for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      m.f[1].x = m.f[0].x + 0.1;
+      m.f[1].meter = FIGHT.power.max;
+      let hit = null;
+      for (let i = 0; i < 140; i++) {
+        stepMatch(m, [{ x: m.f[0].x > -0.15 ? -1 : 0 }, { x: 0, power: i === 0 }]);
+        for (const e of m.events) if (e.type === 'roots') hit = e.hit;
+      }
+      ok(hit === false, 'las RAÍCES se esquivan saliéndose de la grieta');
+    }
+    {
+      // Las cáscaras que no pegan quedan en la tabla y al pisarlas lastiman.
+      const m = createMatch([mine, rivalFighter(2)]);
+      for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      m.f[1].x = m.f[0].x + 0.1;
+      m.traps.push({ id: 999, x: m.f[0].x + 0.03, by: 1, life: 600 });
+      const hp = m.f[0].hp;
+      let stepped = false;
+      for (let i = 0; i < 120 && !stepped; i++) {
+        stepMatch(m, [{ x: 1 }, { x: 0 }]);
+        stepped = m.events.some((e) => e.type === 'trap' && e.step);
+      }
+      ok(stepped && m.f[0].hp < hp && !m.traps.length, `pisar una CÁSCARA lastima (${(hp - m.f[0].hp).toFixed(1)})`);
+    }
     const arb = run(mine, broccoliFighter(1), 0.1, 120, H);
     ok(arb.ev.some((e) => e.type === 'powerHit' && e.kind === 'arbolitos'), 'EL BROCOLOCO (media barra) tira ARBOLITOS y pegan');
     const cas = run(mine, rivalFighter(2), 0.1, 120);
@@ -862,7 +889,7 @@ try {
       let hitAt = -1, parried = false;
       for (let i = 0; i < 120 && hitAt < 0 && !parried; i++) {
         pr.f[1].x = pr.f[0].x + 0.045;
-        stepMatch(pr, [{ x: 0, guard: guardAt >= 0 && i >= guardAt }, { x: 0, punch: i === 0 }]);
+        stepMatch(pr, [{ x: 0, guard: guardAt >= 0 && i >= guardAt }, { x: 0, move: i === 0 ? 'zanahoriazo' : undefined }]);
         if (pr.events.some((e) => e.type === 'hit' && e.by === 1)) hitAt = i;
         parried ||= pr.events.some((e) => e.type === 'parry');
       }

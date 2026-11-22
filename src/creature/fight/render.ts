@@ -385,9 +385,17 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   inner.traverse((o) => o.name === 'aura' && auras.push(o));
   const carrots = model.limbs.map((_, i) => ({ obj: inner.children[i], base: inner.children[i].quaternion.clone() }));
   // Brazos de látigo (huevo): cada tramo llega tarde y se pasa (resorte sobre la velocidad de giro del brazo), tope 25° por tramo.
+  const k_ = (c: (typeof carrots)[number]): number => carrots.indexOf(c);
   const whips = carrots.map((c) => {
     const u = c.obj.children[0]?.userData.whip as { uJ1: { value: THREE.Vector3 }; uJ2: { value: THREE.Vector3 } } | undefined;
-    return u ? { u, prev: c.obj.quaternion.clone(), b: new THREE.Vector3(), v: new THREE.Vector3(), t: Math.random() * 6 } : null;
+    // Quinoa: codo/rodilla ('q-codo') que se dobla con el mismo resorte, más lento y con más recorrido (es una masa de granos).
+    const elbow = c.obj.getObjectByName('q-codo') ?? null;
+    if (!u && !elbow) return null;
+    const side = Math.sign(model.limbs[k_(c)].pivot[0] || 1);
+    const arm = model.limbs[k_(c)].role === 'arm';
+    // En reposo los codos van doblados (puños arriba, como un monstruo) y las rodillas apenas flexionadas.
+    const rest = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), arm ? -side * 0.75 : side * 0.18);
+    return { u, elbow, rest, arm, prev: c.obj.quaternion.clone(), b: new THREE.Vector3(), v: new THREE.Vector3(), t: Math.random() * 6 };
   });
   const bodyGrains = inner.children.find((o) => o.name === 'cuerpo-granos') as THREE.InstancedMesh | undefined;
   const grainTotal = bodyGrains?.count ?? 0;
@@ -467,14 +475,23 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
           w.prev.copy(c.obj.quaternion);
           // La punta se queda atrás del movimiento (y en reposo, una ondulación apenas: está vivo).
           w.t += dt;
-          tgt.copy(wv).multiplyScalar(-0.035).add(new THREE.Vector3(Math.sin(w.t * 2.1) * 0.06, 0, Math.cos(w.t * 1.7) * 0.06));
-          // Resorte poco amortiguado: llega tarde y se pasa.
-          const K = 160, C = 9;
+          const q = !!w.elbow;
+          const idle = q ? (w.arm ? 0.16 : 0.07) : 0.06;
+          tgt.copy(wv).multiplyScalar(q ? -0.06 : -0.035).add(new THREE.Vector3(Math.sin(w.t * (q ? 1.3 : 2.1)) * idle, 0, Math.cos(w.t * (q ? 1.1 : 1.7)) * idle));
+          // Resorte poco amortiguado: llega tarde y se pasa (la quinoa, más pesada: más lento).
+          const K = q ? 90 : 160, C = q ? 7 : 9;
           w.v.addScaledVector(tgt.sub(w.b).multiplyScalar(K).addScaledVector(w.v, -C), Math.min(dt, 1 / 30));
           w.b.addScaledVector(w.v, Math.min(dt, 1 / 30));
-          if (w.b.length() > MAXB) w.b.setLength(MAXB);
-          w.u.uJ1.value.copy(w.b).multiplyScalar(0.6);
-          w.u.uJ2.value.copy(w.b);
+          if (w.b.length() > (q ? MAXB * 2 : MAXB)) w.b.setLength(q ? MAXB * 2 : MAXB);
+          if (w.u) {
+            w.u.uJ1.value.copy(w.b).multiplyScalar(0.6);
+            w.u.uJ2.value.copy(w.b);
+          }
+          if (w.elbow) {
+            const a = w.b.length();
+            dq.setFromAxisAngle(a > 1e-6 ? wv.copy(w.b).divideScalar(a) : wv.set(0, 0, 1), a);
+            w.elbow.quaternion.copy(w.rest).multiply(dq);
+          }
         }
       });
     },

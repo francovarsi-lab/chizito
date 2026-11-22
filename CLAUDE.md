@@ -356,8 +356,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   Cada rival tiene nombre, cartel y frases propias (`RIVALS` en mount.ts; sonidos `huevo-frase1/2/3`, `quinoa-frase1/2/3`).
   Laboratorio: `lab/brocoli.html?rival=huevo|quinoa`.
 - PERFIL Y FRENTE: el frente de la pelea es la CARA que marca la F en el constructor (`BUILDER_FACE`, +Z del chizito; arriba =
-  eje largo +X). Se enfrentan con la cara hacia el rival, girados `stanceYaw` (0,7 rad ≈ 40°) hacia la cámara: 3/4 claro, como el
-  arte clave, para que se vean las caras (con 0,45 se veían casi de perfil). Al cambiar de lado se dan vuelta con un giro 3D
+  eje largo +X). Se enfrentan con la cara hacia el rival, girados `stanceYaw` (0,5 rad ≈ 29°) hacia la cámara (2026-11-22: con 0,7 el usuario los vio "DEMASIADO mirando a cámara, no
+  pueden pelear así"; los rivales bajaron de ~60° a ~35°). Al cambiar de lado se dan vuelta con un giro 3D
   real (no espejo): una cara dibujada de costado queda del otro lado. En el motor: `fwd`/`fwdAxis`/`gaitAxis` proyectan el 3D.
 - REGLA DEL USUARIO: cada vara clavada en el chizito (palito, escarbadientes, palito de la selva) es un BRAZO o una PIERNA
   rígida con la articulación en su punto de clavado, SOBRE EL PERÍMETRO del chizito, esté donde esté ("un brazo fuera de lugar
@@ -537,7 +537,7 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   (`stalk`, radio del boceto, se abre arriba hacia las ramas) y la cara del boceto va sobre él (`addFace`, superficie exacta
   con `onStalk`): dos rodajas de remolacha SEPARADAS con pupila y brillo, una tira de morrón por ceja en V sobre su ojo y una
   sonrisa malvada en media luna con dientes blancos arriba y abajo. Zanahorias CLAVADAS: la punta queda adentro del tallo y
-  asoma la parte gruesa. Laboratorio rápido (sólo el brócoli, sin posprocesado): `lab/brocoli.html` con `npm run dev`. EL BROCOLOCO tiene su propio giro hacia la cámara (`FIGHT.broccoli.yaw` ≈ 60°, más de frente que
+  asoma la parte gruesa. Laboratorio rápido (sólo el brócoli, sin posprocesado): `lab/brocoli.html` con `npm run dev`. EL BROCOLOCO tiene su propio giro hacia la cámara (`FIGHT.broccoli.yaw` 0,62 ≈ 35°, apenas más de frente que
   la criatura): PRIORIDAD del usuario, su cara se tiene que entender fácil. Si faltan los GLB, queda el procedural entero.
 - OJO: `Hurt` clona los materiales para el destello; `clone()` NO copia `onBeforeCompile`: se pasa a mano (si no, se pierden
   la zanahoria naranja y el látigo del huevo).
@@ -564,9 +564,11 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   de 4 s, sonido `poder-olor`; también como remate justo después de acertar); llena = CALESITA DEL DOLOR (el ex trompo: 3 vueltas,
   3 golpes de 7; sonido `poder-trompo`). Los poderes según lo armado (nube, carozazo, acupuntura, muralla) quedaron sin uso.
   RIVALES (2026-11-21), DOS poderes cada uno con la lógica de su comida (`power2` media barra / `power` llena; el VAPORAZO se
-  sacó: "no tiene sentido"): EL BROCOLOCO arbolitos (ramitos de la copa en arco) / gas de brócoli (nube que marea 1 s); HUEVO
-  rodada / cáscaras (abanico de cáscaras); QUINOA metralla / avalancha (ola de granos al ras que barre las piernas: se salta).
-  Sonidos `poder-arbolitos/gas/cascaras/avalancha`. La IA usa el chico con poca frecuencia (puede esperar el grande). El corte de cámara del súper es sólo para el poder lleno del jugador (con el
+  sacó: "no tiene sentido"): EL BROCOLOCO arbolitos (ramitos de la copa en arco) / RAÍCES (2026-11-22, el gas "era como el olor a pata sin sentido": la
+  tabla se agrieta bajo el rival 40 cuadros y brotan raíces; si sigue parado ahí, 6 de daño y queda clavado 45; se salta o se sale); HUEVO
+  rodada / cáscaras (abanico de cáscaras; las que no pegan QUEDAN EN LA TABLA, `m.traps`, a la vista: pisarlas saca 4 y frena;
+  duran 12 s, tope 8); QUINOA metralla / avalancha (ola de granos al ras que barre las piernas: se salta).
+  Sonidos `poder-arbolitos/raices/cascaras/avalancha`. La IA usa el chico con poca frecuencia (puede esperar el grande). El corte de cámara del súper es sólo para el poder lleno del jugador (con el
   vaporazo del rival era un zoom indeseado).
 - MÚSICA POR VILLANO: `musica-brocoloco` / `musica-huevo` / `musica-quinoa` (en `public/assets/sounds/`), desde que se entra a la
   pelea (también con la presentación); si falta, `musica-pelea`; si falta, la base sintetizada. Contra un amigo: `musica-pelea`.
@@ -592,7 +594,15 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - PIFIAR = UN movimiento: el golpe apunta desde el principio más allá del objetivo (`follow`) y el pifio se decide al pasar el
   punto de impacto (antes frenaba en el final del arco y volvía a arrancar).
 - OLOR A PATA: deja quieto y mareado 2,2 s (también al entrar a la nube, una vez por nube).
-- HINCHADA: chizitos PARADOS en el bowl (`fillCrowd`), sueltos (antes se fusionaban con `bakeStatic` y nunca saltaban).
+- HINCHADA: chizitos PARADOS en el bowl (`fillCrowd`), sueltos (antes se fusionaban con `bakeStatic` y nunca saltaban). Cada
+  anillo se para a la altura en que entra SIN ATRAVESAR la pared (mismo perfil que `makeBowl`); sólo suben y se inclinan
+  pivotando en el pie. Saltan más con los golpes, se MECEN TODOS JUNTOS como una tribuna que canta y se echan hacia la arena; en
+  el KO festejan a los saltos girando (ganaste) o se desinflan echados atrás (perdiste) (`FightSet.ko`).
+- QUINOA CON CODOS Y RODILLAS (2026-11-22, "articulaciones rectas no condice con un monstruo de mil pelotitas"): cada extremidad
+  son dos tramos (`q-codo` a media altura, con una bola de granos en la unión); `render.ts` los dobla con el resorte del látigo
+  (más lento y con el doble de recorrido) sobre una flexión de reposo (codos doblados con los puños arriba). Sólo dibujo.
+- PRIMERA PERSONA ESTABILIZADA (2026-11-22, "se mueve demasiado, no se ve nada"): ojo en la cara de ketchup, pero mira al rival
+  (85 %, 15 % hacia donde apunta el cuerpo), horizonte siempre derecho, posición suavizada rápido y mirada lento; 24 mm.
 - Huevo: sin dibujo de fase 2 (la grieta oscura eran las "pestañas"). Brócoli: dos filas de dientes; la de abajo baja con la
   mandíbula (`userData.ty`). CENSURAR también calla la música.
 - CHUPETÍN: la IA no corta su carga (antes la cortaba siempre: "no puedo golpear con el chupetín"); se aleja para que pifie. Al

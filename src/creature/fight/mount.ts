@@ -288,6 +288,78 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     }
   };
 
+  // ── Lo que queda en la tabla: CÁSCARAS del huevo (tiradas, se ven y se pisan) y las RAÍCES del brócoli (grietas que avisan
+  // y después raíces que brotan). ──
+  const trapGeo = new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, 1.1);
+  trapGeo.scale(1, 0.45, 1);
+  trapGeo.rotateX(Math.PI); // cóncava hacia abajo, apoyada en el borde
+  const trapMat = new THREE.MeshStandardMaterial({ color: '#f6f1e6', roughness: 0.45, side: THREE.DoubleSide });
+  const crackMat = new THREE.MeshBasicMaterial({ color: '#1c1208', transparent: true, opacity: 0.85, depthWrite: false });
+  const rootMat = new THREE.MeshStandardMaterial({ color: '#7a5a2e', roughness: 0.9 });
+  const rootTipMat = new THREE.MeshStandardMaterial({ color: '#4f8f2a', roughness: 0.8 });
+  const rootGeo = new THREE.ConeGeometry(0.0022, 1, 6);
+  rootGeo.translate(0, 0.5, 0);
+  const groundMeshes = new Map<number, THREE.Object3D>();
+  const syncGround = (): void => {
+    const live = new Set<number>();
+    for (const t of m?.traps ?? []) {
+      live.add(t.id);
+      let g = groundMeshes.get(t.id);
+      if (!g) {
+        g = new THREE.Mesh(trapGeo, trapMat);
+        g.scale.setScalar(0.0055 + 0.0015 * (t.id % 3));
+        g.rotation.set((t.id % 5) * 0.08, t.id * 1.7, (t.id % 3) * 0.1);
+        g.castShadow = true;
+        game().stage.scene.add(g);
+        groundMeshes.set(t.id, g);
+      }
+      // Mismo z que el luchador (y apenas corrido, así no queda tapada por su pie).
+      g.position.copy(P3(t.x, 0.0012, ((t.id % 5) - 2) * 0.003));
+      // Las últimas 2 s se desvanecen achicándose.
+      if (t.life < 120) g.scale.setScalar((0.0055 + 0.0015 * (t.id % 3)) * (t.life / 120));
+    }
+    const R = POWERS.raices;
+    for (const r of m?.roots ?? []) {
+      live.add(r.id);
+      let g = groundMeshes.get(r.id) as THREE.Group | undefined;
+      if (!g) {
+        g = new THREE.Group();
+        // Grietas: rayas oscuras en estrella sobre la madera.
+        for (let k = 0; k < 7; k++) {
+          const c = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.0012), crackMat);
+          c.rotation.x = -Math.PI / 2;
+          c.rotation.z = k * 0.9 + (r.id % 7) * 0.3;
+          c.name = 'grieta';
+          g.add(c);
+        }
+        // Raíces: conos marrones con la punta verde, inclinados hacia afuera.
+        for (let k = 0; k < 6; k++) {
+          const root = new THREE.Mesh(rootGeo, k % 2 ? rootTipMat : rootMat);
+          const a = (k / 6) * Math.PI * 2 + r.id;
+          root.position.set(Math.cos(a) * 0.006, 0, Math.sin(a) * 0.006);
+          root.rotation.set(Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35);
+          root.userData.h = 0.02 + 0.012 * ((k * 5) % 3);
+          root.name = 'raiz';
+          root.castShadow = true;
+          g.add(root);
+        }
+        game().stage.scene.add(g);
+        groundMeshes.set(r.id, g);
+      }
+      g.position.copy(P3(r.x, 0.0006, 0));
+      const warn = Math.min(1, r.t / R.delay);
+      const up = r.t < R.delay ? 0 : Math.min(1, (r.t - R.delay) / 5) * Math.min(1, (R.delay + R.show - r.t) / 15);
+      for (const c of g.children) {
+        if (c.name === 'grieta') c.scale.set(0.004 + 0.022 * warn * (1 + 0.15 * Math.sin(c.rotation.z * 3)), 1, 1);
+        else c.scale.set(1, Math.max(1e-4, c.userData.h * up), 1);
+      }
+    }
+    for (const [id, g] of groundMeshes) if (!live.has(id)) {
+      g.removeFromParent();
+      groundMeshes.delete(id);
+    }
+  };
+
   // ── Estela de cada golpe: la punta de la extremidad deja un trazo mientras pega (y uno tenue mientras carga), así se lee
   // qué extremidad golpea, desde dónde y hacia dónde. Dorado el chizito, verde el brócoli. ──
   // Estela sobria (de juego de pelea serio): fina, corta, sólo mientras pega y tenue; no mientras carga.
@@ -367,12 +439,13 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (m && views) m.f.forEach((f, i) => {
       if (f.pw?.phase !== 'wind' || Math.random() > 0.5) return;
       const h = views![i].head();
-      if (f.pw.kind === 'gas') cloud(P3(f.x - f.facing * 0.01, f.y + 0.01), 1, 0x9cc23a, 0.004, 0.02, 0.01);
+      if (f.pw.kind === 'raices') cloud(P3(f.x + f.facing * 0.012, 0.003), 1, 0x8a6a3a, 0.003, 0.015, 0.01);
       if (f.pw.kind === 'arbolitos') cloud(h, 1, 0x4f8f2a, 0.003, 0.02, 0.01);
       if (f.pw.kind === 'queso') cloud(P3(f.x + f.facing * 0.01, f.y + 0.02), 1, 0xff9a2a, 0.003, 0.02, 0.02);
-      if (f.pw.kind === 'arbolitos' || f.pw.kind === 'cascaras' || f.pw.kind === 'rodada' || f.pw.kind === 'gas') views![i].hurt(0, 0.0006);
+      if (f.pw.kind === 'arbolitos' || f.pw.kind === 'cascaras' || f.pw.kind === 'rodada' || f.pw.kind === 'raices') views![i].hurt(0, 0.0006);
     });
     syncShots();
+    syncGround();
     crumbs?.forEach((c) => c.update(dt));
     updateGrains(dt);
     // T7: la cara del rival reacciona (aviso = cejas abajo y boca abierta; recibe = cejas arriba y boca chica; gana = se ríe).
@@ -556,7 +629,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         shake = Math.max(shake, 0.002);
         const front = P3(f.x + f.facing * 0.03, f.y + 0.022);
         if (e.kind === 'queso') cloud(front, 26, 0xff9424, 0.011, 0.05, 0.03, f.facing);
-        if (e.kind === 'gas') cloud(P3(f.x, f.y + 0.015), 80, 0x9cc23a, 0.02, 0.08, 0.02);
         if (e.kind === 'arbolitos') cloud(views[e.who].head(), 18, 0x4f8f2a, 0.006, 0.04, 0.02);
         if (e.kind === 'cascaras') cloud(P3(f.x, f.y + 0.03), 16, 0xf2ecdf, 0.006, 0.04, 0.02);
         if (e.kind === 'avalancha') cloud(P3(f.x + f.facing * 0.02, 0.004), 30, 0xd9c9a0, 0.008, 0.05, 0.01, f.facing);
@@ -584,8 +656,21 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         g.audio.play(e.blocked ? 'bloqueo' : small ? 'golpe' : 'golpe-pesado', small ? 0.5 : 1);
         break;
       }
+      case 'trap':
+        // Una cáscara cae en la tabla (tic) o alguien la pisa (crac y astillas blancas).
+        if (e.step) {
+          cloud(P3(e.x, 0.003), 10, 0xf6f1e6, 0.004, 0.03, 0.02);
+          g.audio.play('escudo', 0.7);
+        } else g.audio.play('drop', 0.35);
+        break;
+      case 'roots':
+        cloud(P3(e.x, 0.003), e.hit ? 26 : 14, 0x8a6a3a, 0.008, 0.05, 0.02);
+        shake = Math.max(shake, e.hit ? 0.004 : 0.002);
+        g.audio.play('crack', 1);
+        break;
       case 'ko':
         set?.cheer(1);
+        set?.ko(e.who !== me());
         set?.candles(true);
         hud.announce('K.O.', '', true, 2.2);
         hud.flash(0.7);
@@ -1719,6 +1804,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       pfx = null;
       for (const g of shotMeshes.values()) g.removeFromParent();
       shotMeshes.clear();
+      for (const g of groundMeshes.values()) g.removeFromParent();
+      groundMeshes.clear();
       for (const s of stars) s.removeFromParent();
       stars.length = 0;
       for (const t of trails.values()) {

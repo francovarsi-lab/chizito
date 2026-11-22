@@ -237,13 +237,29 @@ export interface Pile {
   t: number;
 }
 
+/** Cáscara de huevo tirada en la tabla (las del poder que caen al piso): queda a la vista y al que la pisa le saca vida. */
+export interface Trap {
+  id: number;
+  x: number;
+  by: 0 | 1;
+  life: number;
+}
+
+/** RAÍCES del brócoli: primero se agrieta la tabla bajo el rival (`t` < delay, se ve venir) y después brotan. */
+export interface Root {
+  id: number;
+  x: number;
+  by: 0 | 1;
+  t: number;
+}
+
 export interface Zone {
   x: number;
   y: number;
   r: number;
   life: number;
   by: 0 | 1;
-  kind: 'nube' | 'olor' | 'gas';
+  kind: 'nube' | 'olor';
   /** Ya mareó a alguien que entró (una vez por nube). */
   dazed?: boolean;
 }
@@ -264,6 +280,8 @@ export type FightEvent =
   | { type: 'absorb'; who: 0 | 1; at: [number, number] }
   | { type: 'reabsorb' | 'scatter'; who: 0 | 1; pile: number }
   | { type: 'powerHit'; by: 0 | 1; kind: PowerKind; at: [number, number]; damage: number; blocked: boolean }
+  | { type: 'trap'; who: 0 | 1; x: number; step: boolean }
+  | { type: 'roots'; who: 0 | 1; x: number; hit: boolean }
 
 
 export interface Match {
@@ -283,6 +301,8 @@ export interface Match {
   shots: Shot[];
   zones: Zone[];
   piles: Pile[];
+  traps: Trap[];
+  roots: Root[];
   nextShot: number;
 }
 
@@ -482,6 +502,8 @@ export function createMatch(models: [FighterModel, FighterModel]): Match {
     shots: [],
     zones: [],
     piles: [],
+    traps: [],
+    roots: [],
     nextShot: 1,
   };
   return m;
@@ -495,6 +517,8 @@ function resetRound(m: Match): void {
   m.shots = [];
   m.zones = [];
   m.piles = [];
+  m.traps = [];
+  m.roots = [];
   m.timer = FIGHT.roundSeconds * 60;
   m.phase = 'intro';
   m.phaseT = 0;
@@ -989,7 +1013,10 @@ function stepPower(m: Match, i: 0 | 1): void {
     pw.phase = 'go';
     pw.t = 0;
     m.events.push({ type: 'power', who: i, kind: pw.kind, phase: 'go' });
-    if (pw.kind === 'nube' || pw.kind === 'olor' || pw.kind === 'gas') {
+    if (pw.kind === 'raices') {
+      // Apunta donde está parado el rival AHORA: tiene `delay` cuadros (la tabla se agrieta) para salirse o saltar.
+      m.roots.push({ id: m.nextShot++, x: foe.x, by: i, t: 0 });
+    } else if (pw.kind === 'nube' || pw.kind === 'olor') {
       const P = POWERS[pw.kind];
       const zone: Zone = { x: f.x + f.facing * 0.035, y: f.y + 0.02, r: P.r, life: P.life, by: i, kind: pw.kind };
       m.zones.push(zone);
@@ -1246,6 +1273,47 @@ function stepPiles(m: Match): void {
   }
 }
 
+/** Lo que hay en la tabla: cáscaras que se pisan y raíces que brotan. */
+function stepGround(m: Match): void {
+  const P = POWERS.cascaras;
+  for (let n = m.traps.length - 1; n >= 0; n--) {
+    const t = m.traps[n];
+    const b = m.f[1 - t.by];
+    // Se pisa con un pie apoyado (o con el cuerpo, si se arrastra) justo encima.
+    let step = false;
+    if (!b.ko && b.grounded && b.inv <= 0) {
+      b.model.limbs.forEach((l, k) => {
+        if (step || l.role !== 'leg') return;
+        const arr = b.cur[k];
+        l.points.forEach((q, j) => {
+          if (!q.inside && arr[2 * j + 1] < q.r + 0.003 && Math.abs(arr[2 * j] - t.x) < q.r + P.trapR) step = true;
+        });
+      });
+      if (!b.legs.length && Math.abs(b.x - t.x) < P.trapR * 2) step = true;
+    }
+    if (step) {
+      powerHit(m, t.by, 'cascaras', [t.x, 0.004], P.trapDmg, { kb: 0.03, up: 0, stun: P.trapStun, blocked: false });
+      m.traps.splice(n, 1);
+      m.events.push({ type: 'trap', who: t.by, x: t.x, step: true });
+    } else if (--t.life <= 0) m.traps.splice(n, 1);
+  }
+  const R = POWERS.raices;
+  for (let n = m.roots.length - 1; n >= 0; n--) {
+    const r = m.roots[n];
+    if (++r.t === R.delay) {
+      const b = m.f[1 - r.by];
+      // Saltando se esquiva; parado encima, lo agarran: queda clavado al piso un rato.
+      const hit = !b.ko && b.grounded && b.inv <= 0 && Math.abs(b.x - r.x) < R.r;
+      if (hit) {
+        powerHit(m, r.by, 'raices', [r.x, 0.01], R.dmg, { kb: 0, up: 0, stun: R.hold, blocked: false });
+        b.vx = 0;
+      }
+      m.events.push({ type: 'roots', who: r.by, x: r.x, hit });
+    }
+    if (r.t >= R.delay + R.show) m.roots.splice(n, 1);
+  }
+}
+
 /** Zonas en la tabla: daño por segundo y el rival pifia más mientras está adentro. */
 function stepZones(m: Match): void {
   for (let n = m.zones.length - 1; n >= 0; n--) {
@@ -1294,6 +1362,13 @@ function stepShots(m: Match): void {
       const blocked = b.guard >= FIGHT.guardReady && b.grounded && b.arms.length > 0 && Math.sign(sh.vx) === -b.facing;
       if (sh.kind === 'carozo') powerHit(m, sh.by, 'carozo', [sh.x, sh.y], sh.dmg, { kb: 0.2, up: 0, stun: 12, dizzy: POWERS.carozo.dizzy, blocked });
       else powerHit(m, sh.by, sh.kind ?? 'metralla', [sh.x, sh.y], sh.dmg, { kb: 0.05, up: 0, stun: sh.kind === 'arbolitos' ? 9 : 5, blocked });
+    }
+    // Las cáscaras que no pegan caen y QUEDAN en la tabla (a la vista): el que las pisa se lastima.
+    if (!hit && sh.kind === 'cascaras' && sh.y < 0 && Math.abs(sh.x) < FIGHT.arenaHalf) {
+      const P = POWERS.cascaras;
+      if (m.traps.length >= P.maxTraps) m.traps.shift();
+      m.traps.push({ id: m.nextShot++, x: sh.x, by: sh.by, life: P.trapLife });
+      m.events.push({ type: 'trap', who: sh.by, x: sh.x, step: false });
     }
     if (hit || --sh.life <= 0 || sh.y < 0 || Math.abs(sh.x) > FIGHT.arenaHalf + 0.05) m.shots.splice(n, 1);
   }
@@ -1911,10 +1986,10 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
   // En el aire después de un gancho: 100 / 80 / 60 %.
   if (b.juggle >= 0 && !b.grounded) dmg *= FIGHT.upper.juggle[Math.min(b.juggle, FIGHT.upper.juggle.length - 1)];
   const fromFront = Math.sign(a.x - b.x || 1) === b.facing;
-  let blocked = blockedBy !== null;
+  const blocked = blockedBy !== null;
   if (blocked) {
     // El brazo que tapó se lleva el golpe y se sacude.
-    const bs = b.limbs[blockedBy!];
+    const bs = b.limbs[blockedBy];
     bs.w = [bs.w[0], bs.w[1], bs.w[2] + (py > b.y ? 1 : -1) * Math.min(30, speed * 12)];
   }
   if (shield) {
@@ -1938,11 +2013,9 @@ function applyHit(m: Match, i: 0 | 1, k: number, j: number, px: number, py: numb
     m.events.push({ type: 'grains', who: (1 - i) as 0 | 1, at: [px, py], n, pile: pile.id, x: pile.x });
   }
   let parry = false;
-  // La atajada es de tiempo: con D recién apretada los brazos todavía suben, así que alcanza con que el golpe venga de frente.
-  if ((blocked || (fromFront && b.grounded && b.guard >= FIGHT.guardReady && (b.arms.length > 0 || !!b.shieldPose))) && b.guardT <= FIGHT.parry.window) {
+  if (blocked && b.guardT <= FIGHT.parry.window) {
     // ATAJADA justa: no pasa nada de daño, el que pegó queda abierto y el que atajó gana poder.
     parry = true;
-    blocked = true;
     dmg = 0;
     a.lock = Math.max(a.lock, FIGHT.parry.open);
     b.meter = Math.min(FIGHT.power.max, b.meter + FIGHT.parry.meter);
@@ -2080,6 +2153,7 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
     resolveHits(m);
     stepShots(m);
     stepZones(m);
+    stepGround(m);
     stepPiles(m);
     for (const f of m.f) {
       // Rearmarse (quinoa): si hace rato que no le pegan, los granos vuelven a su lugar y recupera vida.
@@ -2113,6 +2187,7 @@ export function stepMatch(m: Match, inputs: [FightInput, FightInput]): void {
     if (m.phase === 'ko') {
       m.shots = [];
       m.zones = [];
+      m.roots = [];
     }
     if (m.phase === 'ko') for (const f of m.f) {
       f.pw = null;

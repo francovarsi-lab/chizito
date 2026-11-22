@@ -276,16 +276,27 @@ function fillBowl(
 function fillCrowd(assets: AssetRegistry, radius: number, height: number, seed: number): THREE.Object3D {
   const rnd = mulberry32(seed);
   const crowd = new THREE.Group();
-  const rings: [number, number][] = [[0, 1], [0.034, 6], [0.064, 11]];
+  const t = BOWL_WALL;
+  // Radio interior del bowl a la altura y (mismo perfil que `makeBowl`).
+  const wallR = (y: number): number => {
+    const a = THREE.MathUtils.clamp((y - 0.004 - t) / (height - 0.004 - t), 0, 1);
+    return (radius - t) * (0.45 + 0.55 * Math.sin((a * Math.PI) / 2));
+  };
+  const HALF = 0.026; // medio chizito parado
+  const GIRTH = 0.012; // su radio + margen por la inclinación
+  const rings: [number, number][] = [[0, 1], [0.03, 6], [0.056, 10]];
   let i = 0;
   for (const [r, n] of rings) {
+    // El pie más bajo que entra sin atravesar la pared (la pared se abre hacia arriba: saltar nunca la atraviesa).
+    let yb = 0.004 + t;
+    while (wallR(yb) < r + GIRTH && yb < height) yb += 0.0005;
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2 + rnd() * 0.3 + r * 9;
       const obj = assets.create('chizito', seed * 100 + (i++ % 8), 'prop');
-      // Eje largo (X) para arriba, apenas inclinados hacia afuera y hacia la arena, cada uno distinto.
-      obj.rotation.set((rnd() - 0.5) * 0.25, rnd() * Math.PI * 2, Math.PI / 2 + (rnd() - 0.5) * 0.25, 'YXZ');
-      // Los del centro más altos (tribuna), los del borde asoman menos.
-      obj.position.set(Math.cos(a) * r, height * (1.02 - (r / radius) * 0.35) + rnd() * 0.004, Math.sin(a) * r);
+      // Eje largo (X) para arriba, apenas inclinados, cada uno distinto.
+      obj.rotation.set((rnd() - 0.5) * 0.2, rnd() * Math.PI * 2, Math.PI / 2 + (rnd() - 0.5) * 0.2, 'YXZ');
+      // Los del centro más altos (tribuna), los del borde parados más arriba, sobre los de abajo.
+      obj.position.set(Math.cos(a) * r, Math.max(height * (1.02 - (r / radius) * 0.35), yb + HALF) + rnd() * 0.003, Math.sin(a) * r);
       crowd.add(obj);
     }
   }

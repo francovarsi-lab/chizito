@@ -126,3 +126,10 @@ chupetín al pifiar es el castigo entero (`whirl.after` 0, sin quedarse quieto d
 - aporrea: 79 % / 0 % / 17 % · ia: 87 % / 48 % / 49 % · listo: 100 % / 67 % / 80 %.
 - boxeador (sólo palitos) con `listo`: 100 / 100 / 100 (antes 100 / 100 / 85): sin chupetín se gana jugando bien.
 - Sigue: el tanque no le gana a huevo ni quinoa (8 % / 0 %).
+
+## Más enfrentados, raíces y cáscaras en la tabla (2026-11-22, 8 semillas)
+`stanceYaw` 0,7 → 0,5 y los rivales ~60° → ~35° (pedido: "demasiado mirando a cámara"). Brócoli: RAÍCES en lugar del gas. Huevo:
+las cáscaras que no pegan quedan en la tabla y lastiman al pisarlas. Probado y descartado: una atajada por tiempo sin que el golpe
+toque el brazo (la IA atajaba casi todo: el nivel 1 bajó de 77 % a 59 %).
+- aporrea: 75 % / 0 % / 9 % · ia: 77 % / 21 % / 34 % · listo: 100 % / 100 % / 100 % (antes ia 80 / 25 / 34).
+- Sigue: el tanque y el pinchudo no le ganan a huevo ni quinoa con la `ia`.

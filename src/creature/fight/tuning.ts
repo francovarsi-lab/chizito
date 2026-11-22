@@ -312,7 +312,7 @@ export const FIGHT = {
 /**
  * Poderes (lógica de cada comida). Cuadros de carga (`wind`, se ve venir: se puede esquivar o cubrir) y de acción (`go`).
  *  queso    TU CHIZITO: NUBE DE QUESO, sopla el polvito naranja de su cáscara: marea al rival si está cerca.
- *  Cada rival tiene DOS (media barra / llena): EL BROCOLOCO arbolitos (tira ramitos de la copa) / gas de brócoli (nube que marea);
+ *  Cada rival tiene DOS (media barra / llena): EL BROCOLOCO arbolitos (tira ramitos de la copa) / RAÍCES (brotan de la tabla bajo el rival: se salta o se sale);
  *  HUEVO rodada / cáscaras (se descascara y las tira en abanico); QUINOA metralla / avalancha (ola de granos por la tabla: se salta).
  *  rodada   HUEVO DURO: HUEVAZO RODANTE, se hace bola y rueda contra el rival (los huevos ruedan): se salta o se bloquea.
  *  metralla MONSTRUO DE QUINOA: METRALLA DE GRANOS, se arranca un puñado de granos y los tira en abanico; mientras le faltan, su
@@ -322,8 +322,11 @@ export const POWERS = {
   queso: { name: 'NUBE DE QUESO', wind: 14, go: 26, reach: 0.075, ahead: 0.03, dmg: 4, dizzy: 80, guardDizzy: 0 },
   // Rivales: dos poderes cada uno (media barra / llena), con la lógica de su comida.
   arbolitos: { name: '¡LLUVIA DE ARBOLITOS!', wind: 20, go: 14, n: 4, speed: 0.55, spread: 0.45, dmg: 2.6, r: 0.0055, life: 90 },
-  gas: { name: '¡GAS DE BRÓCOLI!', wind: 26, go: 22, life: 160, r: 0.06, dps: 2, blind: 0.75, dmg: 5, dizzy: 60 },
-  cascaras: { name: '¡LLUVIA DE CÁSCARAS!', wind: 20, go: 16, n: 6, speed: 0.6, spread: 0.7, dmg: 2.6, r: 0.0045, life: 90 },
+  // RAÍCES: el brócoli clava las zanahorias en la tabla y bajo el rival se agrieta la madera; a los `delay` cuadros brotan raíces:
+  // si sigue parado ahí (sin saltar) le pegan y lo dejan clavado `hold` cuadros. Se ve venir: hay que moverse o saltar.
+  raices: { name: '¡RAÍCES!', wind: 24, go: 30, delay: 40, show: 60, r: 0.018, dmg: 6, hold: 45 },
+  // Las que no pegan quedan en la tabla: pisarlas saca `trapDmg` y frena (`trapStun`); duran `trapLife` cuadros (tope `maxTraps`).
+  cascaras: { name: '¡LLUVIA DE CÁSCARAS!', wind: 20, go: 16, n: 6, speed: 0.6, spread: 0.7, dmg: 2.6, r: 0.0045, life: 90, trapDmg: 4, trapStun: 14, trapR: 0.005, trapLife: 720, maxTraps: 8 },
   avalancha: { name: '¡AVALANCHA DE QUINOA!', wind: 26, go: 30, n: 14, speed: 0.42, dmg: 1.4, r: 0.0032, life: 130 },
   rodada: { name: '¡HUEVAZO RODANTE!', wind: 22, go: 48, speed: 0.4, dmg: 13, kb: 0.5, stun: 34 },
   metralla: { name: 'METRALLA DE GRANOS', wind: 20, go: 16, n: 7, speed: 0.6, spread: 0.55, dmg: 2.3, r: 0.0026, life: 80, armorLoss: 0.35, regrow: 240 },
