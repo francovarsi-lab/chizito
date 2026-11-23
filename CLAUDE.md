@@ -573,7 +573,10 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   las piernas; se salta o se sale); HUEVO
   rodada / cáscaras ("¡CASCARITAS!": 8 cáscaras grandes y blancas, LENTAS y en arco alto con estela de brillo, para que se vean; las que no pegan QUEDAN EN LA TABLA, `m.traps`, tres pedazos
   rotos juntos, a la vista: pisarlas saca 2,5 y frena;
-  duran 12 s, tope 8); QUINOA metralla / avalancha (ola de granos al ras que barre las piernas: se salta).
+  duran 12 s, tope 8); QUINOA (2026-11-23, "sus poderes son muy malos") ¡BOLA DE QUINOA! (`metralla`: junta granos en una bola grande, la tira
+  en arco exacto de 0,75 s sobre el rival y REVIENTA al tocarlo o tocar la tabla: 7,5 a todo lo que esté a 3 cm, se para con la
+  guardia; evento `burst`) / ¡TSUNAMI DE QUINOA! (`avalancha`: UNA ola de 900 granos de 2,4 cm de alto que se enrosca hacia
+  adelante y barre la tabla; pega 13 y voltea al que está apoyado; sólo se esquiva saltando).
   Sonidos `poder-arbolitos/raices/cascaras/avalancha`. La IA usa el chico con poca frecuencia (puede esperar el grande). El corte de cámara del súper es sólo para el poder lleno del jugador (con el
   vaporazo del rival era un zoom indeseado).
 - MÚSICA POR VILLANO: `musica-brocoloco` / `musica-huevo` / `musica-quinoa` (en `public/assets/sounds/`), desde que se entra a la
@@ -624,7 +627,8 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   con la diagonal.
 - CONSEJO POR RIVAL al empezar cada nivel (`RIVAL_TIP`): raíces (salí o saltá), cáscaras (no las pises), quinoa (lo rápido se
   hunde: cargá). Contra la quinoa: "¡SE HUNDE! cargá el golpe" las dos primeras veces y "¡SE REARMA!" cuando junta granos.
-- NIVELES PROGRESIVOS: la quinoa recibe ×0,7; bot medio 77 % / 23 % / 20 %.
+- NIVELES PROGRESIVOS: la quinoa recibe ×0,64; bot medio 77 % / 23 % / 20 %.
+- QUINOA MASA CON INERCIA (sólo dibujo): se inclina hacia donde camina con un resorte (al frenar se bambolea) y rebota en cada paso.
 - PRIMERA PERSONA ESTABILIZADA (2026-11-22, "se mueve demasiado, no se ve nada"): ojo en la cara de ketchup, pero mira al rival
   (85 %, 15 % hacia donde apunta el cuerpo), horizonte siempre derecho, posición suavizada rápido y mirada lento; 24 mm.
 - Huevo: sin dibujo de fase 2 (la grieta oscura eran las "pestañas"). Brócoli: dos filas de dientes; la de abajo baja con la

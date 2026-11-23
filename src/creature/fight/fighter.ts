@@ -429,7 +429,7 @@ export const QUINOA: RivalSpec = {
   carryGrams: 14,
   legKind: { power: 1.5, quick: 0.75 },
   armKind: 'heavy',
-  armorMul: 0.7,
+  armorMul: 0.64,
   absorb: true,
   faceAt: { mouth: 0.44, eyes: 0.67 },
   yaw: 0.58,

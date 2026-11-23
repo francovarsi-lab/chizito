@@ -329,9 +329,13 @@ export const POWERS = {
   raices: { name: '¡RAÍCES!', wind: 24, go: 30, delay: 40, show: 60, r: 0.018, dmg: 6, stun: 12, hold: 150 },
   // Las que no pegan quedan en la tabla: pisarlas saca `trapDmg` y frena (`trapStun`); duran `trapLife` cuadros (tope `maxTraps`).
   cascaras: { name: '¡CASCARITAS!', wind: 20, go: 16, n: 8, speed: 0.42, spread: 0.8, dmg: 1.5, r: 0.0075, life: 160, trapDmg: 2.5, trapStun: 10, trapR: 0.005, trapLife: 720, maxTraps: 8 },
-  avalancha: { name: '¡AVALANCHA DE QUINOA!', wind: 26, go: 30, n: 14, speed: 0.42, dmg: 1.4, r: 0.0032, life: 130 },
+  // Barra llena: una OLA gigante de granos (alto `h`) que nace de la quinoa y barre la tabla; sólo se esquiva SALTANDO. Pega una
+  // vez, fuerte, y voltea.
+  avalancha: { name: '¡TSUNAMI DE QUINOA!', wind: 30, go: 40, speed: 0.26, dmg: 13, r: 0.014, h: 0.024, life: 150, stun: 34, kb: 0.18 },
   rodada: { name: '¡HUEVAZO RODANTE!', wind: 22, go: 48, speed: 0.4, dmg: 13, kb: 0.5, stun: 34 },
-  metralla: { name: 'METRALLA DE GRANOS', wind: 20, go: 16, n: 7, speed: 0.6, spread: 0.55, dmg: 2.3, r: 0.0026, life: 80, armorLoss: 0.35, regrow: 240 },
+  // Media barra: junta granos en una BOLA grande que tira en arco (lenta, se ve venir) y que REVIENTA al tocar al rival o la
+  // tabla: lastima a todo lo que esté a `blast` m. Se esquiva alejándose o se para con la guardia.
+  metralla: { name: '¡BOLA DE QUINOA!', wind: 22, go: 16, flight: 0.75, dmg: 7.5, r: 0.009, blast: 0.032, life: 120, stun: 14, armorLoss: 0.35, regrow: 240 },
   // Súper de TU CHIZITO según lo que armó (la pieza que más pega): nube que queda, trompo, carozo, acupuntura o muralla.
   // Marea 1,5 s al que está adentro al soltarla (antes "no hacía nada": sólo 2/s mientras estuviera adentro).
   nube: { name: '¡NUBE DE QUESO!', wind: 16, go: 20, life: 150, r: 0.055, dps: 2, blind: 0.7, dmg: 3, dizzy: 60 },

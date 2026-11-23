@@ -228,6 +228,8 @@ export interface Shot {
   life: number;
   /** Carozo: recto (sin gravedad) y marea. */
   kind?: PowerKind;
+  /** Ya pegó (la ola del tsunami pega una sola vez y sigue de largo). */
+  hit?: boolean;
 }
 
 /** Zona que queda en la tabla (la nube de queso del súper): daño por segundo a quien esté adentro. */
@@ -285,6 +287,7 @@ export type FightEvent =
   | { type: 'reabsorb' | 'scatter'; who: 0 | 1; pile: number }
   | { type: 'powerHit'; by: 0 | 1; kind: PowerKind; at: [number, number]; damage: number; blocked: boolean }
   | { type: 'trap'; who: 0 | 1; x: number; step: boolean }
+  | { type: 'burst'; who: 0 | 1; x: number; y: number }
   | { type: 'roots'; who: 0 | 1; x: number; hit: boolean }
 
 
@@ -1080,24 +1083,20 @@ function stepPower(m: Match, i: 0 | 1): void {
         m.shots.push({ id: m.nextShot++, by: i, x: x0, y: y0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: P.r, dmg: P.dmg * sm, life: P.life, kind: pw.kind });
       }
     } else if (pw.kind === 'avalancha') {
-      // Avalancha: una ola de granos que corre por la TABLA hacia el rival; se esquiva saltando.
+      // TSUNAMI: una sola ola grande de granos que corre por la TABLA hacia el rival; se esquiva saltando.
       const P = POWERS.avalancha;
-      for (let n = 0; n < P.n; n++) {
-        m.shots.push({ id: m.nextShot++, by: i, x: f.x + f.facing * (0.015 + 0.004 * (n % 7)), y: P.r + 0.004 * ((n * 5) % 3), vx: f.facing * P.speed * (0.9 + 0.2 * ((n * 3) % 4) / 3), vy: 0, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'avalancha' });
-      }
+      m.shots.push({ id: m.nextShot++, by: i, x: f.x + f.facing * 0.02, y: 0, vx: f.facing * P.speed, vy: 0, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'avalancha' });
     } else if (pw.kind === 'metralla') {
       const P = POWERS.metralla;
-      // Los granos salen del puño de adelante, en abanico hacia el rival, y caen con la gravedad.
+      // BOLA DE QUINOA: sale del puño de adelante en un arco exacto que cae sobre el rival (tiempo de vuelo `flight`).
       const k = f.arms[0];
       const pts = k !== undefined ? f.cur[k] : null;
       const x0 = pts ? pts[pts.length - 2] : center[0];
-      const y0 = pts ? pts[pts.length - 1] : center[1];
-      const base = Math.atan2(foe.y + 0.022 - y0, foe.x - x0) + f.facing * 0.12;
-      for (let n = 0; n < P.n; n++) {
-        const a = base + (n / (P.n - 1) - 0.5) * P.spread * f.facing;
-        const sp = P.speed * (0.85 + 0.3 * ((n * 7) % 5) / 4);
-        m.shots.push({ id: m.nextShot++, by: i, x: x0, y: y0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: P.r, dmg: P.dmg * sm, life: P.life });
-      }
+      const y0 = Math.max(0.03, pts ? pts[pts.length - 1] : center[1]);
+      const T = P.flight;
+      const g = G * 0.6;
+      const yt = foe.y + 0.02;
+      m.shots.push({ id: m.nextShot++, by: i, x: x0, y: y0, vx: (foe.x - x0) / T, vy: (yt - y0 + 0.5 * g * T * T) / T, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'metralla' });
       f.armorLoss = P.armorLoss;
     }
     return;
@@ -1369,6 +1368,16 @@ function stepShots(m: Match): void {
     sh.x += sh.vx * dt;
     sh.y += sh.vy * dt;
     const b = m.f[1 - sh.by];
+    // TSUNAMI: la ola pega al que está APOYADO cuando le pasa por los pies (saltando pasa por abajo); pega una vez y sigue.
+    if (sh.kind === 'avalancha') {
+      const P = POWERS.avalancha;
+      if (!sh.hit && !b.ko && b.inv <= 0 && Math.abs(b.x - sh.x) < sh.r && (b.grounded || b.y < P.h * 0.5)) {
+        sh.hit = true;
+        powerHit(m, sh.by, 'avalancha', [sh.x, 0.012], sh.dmg, { kb: P.kb, up: 0.25, stun: P.stun, blocked: false });
+      }
+      if (--sh.life <= 0 || Math.abs(sh.x) > FIGHT.arenaHalf + 0.03) m.shots.splice(n, 1);
+      continue;
+    }
     let hit = false;
     if (!b.ko) {
       for (const c of b.model.body) {
@@ -1376,18 +1385,24 @@ function stepShots(m: Match): void {
         const B = toWorld(b, c.b);
         if (segD(sh.x, sh.y, A[0], A[1], B[0], B[1]) < c.r + sh.r) hit = true;
       }
-      // La avalancha corre al ras: barre las PIERNAS (si no, pasaba por debajo del cuerpo).
-      if (sh.kind === 'avalancha' && !hit) b.model.limbs.forEach((l, k) => {
-        const arr = b.cur[k];
-        l.points.forEach((p, j) => {
-          if (!p.inside && Math.hypot(arr[2 * j] - sh.x, arr[2 * j + 1] - sh.y) < p.r + sh.r + 0.002) hit = true;
-        });
-      });
     }
     if (hit) {
       const blocked = b.guard >= FIGHT.guardReady && b.grounded && b.arms.length > 0 && Math.sign(sh.vx) === -b.facing;
       if (sh.kind === 'carozo') powerHit(m, sh.by, 'carozo', [sh.x, sh.y], sh.dmg, { kb: 0.2, up: 0, stun: 12, dizzy: POWERS.carozo.dizzy, blocked });
+      else if (sh.kind === 'metralla') {
+        /* revienta abajo */
+      }
       else powerHit(m, sh.by, sh.kind ?? 'metralla', [sh.x, sh.y], sh.dmg, { kb: sh.kind === 'arbolitos' ? 0.015 : 0.05, up: 0, stun: sh.kind === 'arbolitos' ? 2 : 5, blocked });
+    }
+    // La BOLA DE QUINOA revienta al tocar al rival o la tabla: lastima a todo lo que esté cerca y larga una lluvia de granos.
+    if (sh.kind === 'metralla' && (hit || sh.y < 0)) {
+      const P = POWERS.metralla;
+      const near = !b.ko && b.inv <= 0 && Math.hypot(b.x - sh.x, (b.y + 0.02) - Math.max(0, sh.y)) < P.blast + 0.02;
+      if (near) {
+        const blocked = b.guard >= FIGHT.guardReady && b.grounded && b.arms.length > 0 && Math.sign(sh.vx) === -b.facing;
+        powerHit(m, sh.by, 'metralla', [sh.x, Math.max(0.004, sh.y)], sh.dmg, { kb: 0.1, up: 0, stun: P.stun, blocked });
+      }
+      m.events.push({ type: 'burst', who: sh.by, x: sh.x, y: Math.max(0, sh.y) });
     }
     // Las cáscaras que no pegan caen y QUEDAN en la tabla (a la vista): el que las pisa se lastima.
     if (!hit && sh.kind === 'cascaras' && sh.y < 0 && Math.abs(sh.x) < FIGHT.arenaHalf) {

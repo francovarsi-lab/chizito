@@ -140,3 +140,7 @@ Guardia de los rivales con los brazos juntos delante de la cara y el pecho; arbo
 
 ## Raíces que atan, cascaritas lentas y quinoa ×0,7 (2026-11-23)
 - aporrea: 57 % / 0 % / 0 % · ia: 77 % / 23 % / 20 % · listo: 100 % / 100 % / 100 %.
+
+## Bola de quinoa y tsunami (2026-11-23)
+Bola: 7,5 en área de 3 cm; tsunami: 13, se salta. Quinoa recibe ×0,64.
+- aporrea: 57 % / 0 % / 0 % · ia: 77 % / 23 % / 20 % · listo: 100 % / 100 % / 100 %.

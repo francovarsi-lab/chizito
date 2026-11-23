@@ -424,6 +424,12 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   let init = false;
   let brace = 0;
   let breathT = Math.random() * 6;
+  // Masa con inercia (quinoa): se inclina hacia donde camina con un resorte (llega tarde y al frenar se bambolea) y rebota en
+  // cada paso.
+  let lastX: number | null = null;
+  let lean = 0;
+  let leanV = 0;
+  let stepPh = 0;
   const squash = new Squash();
   const hurt = new Hurt(outer);
   const ry = new THREE.Matrix4();
@@ -450,14 +456,26 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       brace += (Math.max(p.guard ?? 0, p.block ?? 0) - brace) * Math.min(1, dt * 12);
       // La quinoa es una masa: respira hinchándose y se aplasta un poco al pisar (cambia de forma, no flotan pedazos).
       breathT += dt;
-      const blob = bodyGrains ? 0.035 * Math.sin(breathT * 2.4) : 0;
+      let blob = bodyGrains ? 0.035 * Math.sin(breathT * 2.4) : 0;
+      let leanZ = 0;
+      if (bodyGrains && dt > 0) {
+        const v = lastX === null ? 0 : (p.x - lastX) / dt;
+        lastX = p.x;
+        const h = Math.min(dt, 1 / 30);
+        leanV += ((-v * 3.2 - lean) * 70 - leanV * 7) * h;
+        lean = Math.max(-0.35, Math.min(0.35, lean + leanV * h));
+        leanZ = lean;
+        const walking = Math.min(1, Math.abs(v) / 0.05);
+        stepPh += dt * 13 * walking;
+        blob += walking * 0.07 * Math.abs(Math.sin(stepPh));
+      }
       // Cubriéndose: agachado (más bajo y ancho) y echado hacia el golpe.
       const bs = brace * 0.12;
       sc.makeScale((1 - s * 0.5 - j * 0.5 - blob * 0.5 + bs * 0.4) * (1 + 0.45 * fall), (1 + s + j + blob) * (1 - 0.7 * fall) * (1 - bs), (1 - s * 0.5 - j * 0.5 - blob * 0.5 + bs * 0.4) * (1 + 0.45 * fall));
       if (bodyGrains) bodyGrains.count = Math.round(grainTotal * (0.45 + 0.55 * Math.max(0, Math.min(1, (p.hp ?? 100) / 100))));
       outer.matrix
         .makeTranslation(p.x + hurt.offset.x, p.y + hurt.offset.y, z0)
-        .multiply(rz.makeRotationZ(-p.facing * (p.tilt + p.roll + 0.16 * brace)))
+        .multiply(rz.makeRotationZ(-p.facing * (p.tilt + p.roll + 0.16 * brace) + leanZ))
         .multiply(ry.makeRotationY(psi))
         .multiply(sc)
         .multiply(B)

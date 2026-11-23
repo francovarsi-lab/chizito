@@ -290,26 +290,89 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // Cáscara de huevo: un pedazo curvo de esfera, blanco por fuera y apenas más crema por dentro; se ve de lejos.
   const shellGeo = new THREE.SphereGeometry(1, 12, 8, 0, 1.9, 0, 1.3);
   const shellMat = new THREE.MeshStandardMaterial({ color: '#fbf7ee', roughness: 0.4, side: THREE.DoubleSide, emissive: '#fff6e0', emissiveIntensity: 0.12 });
-  const shotMeshes = new Map<number, THREE.Mesh>();
+  // BOLA DE QUINOA: una bola de granos de verdad (blancos, rojos y negros, apretados), un solo dibujo para todas.
+  const GRAIN_COLS = ['#ebdfc3', '#e3d3b0', '#93412e', '#2b2522', '#f1e6cc'];
+  const ballGeo = (() => {
+    const parts: THREE.BufferGeometry[] = [];
+    const core = new THREE.IcosahedronGeometry(0.9, 2);
+    paintGeo(core, '#cdbb92');
+    parts.push(core);
+    for (let k = 0; k < 160; k++) {
+      const y = 1 - (2 * (k + 0.5)) / 160;
+      const rr = Math.sqrt(1 - y * y);
+      const a = k * 2.39996;
+      const gr = new THREE.SphereGeometry(0.2, 5, 3).scale(1, 0.62, 1);
+      gr.lookAt(new THREE.Vector3(Math.cos(a) * rr, y, Math.sin(a) * rr));
+      gr.translate(Math.cos(a) * rr * 0.95, y * 0.95, Math.sin(a) * rr * 0.95);
+      paintGeo(gr, GRAIN_COLS[(k * 7) % GRAIN_COLS.length]);
+      parts.push(gr);
+    }
+    const g = mergeGeometries(parts.map((x) => x.toNonIndexed()))!;
+    g.computeVertexNormals();
+    return g;
+  })();
+  const ballMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 });
+  /** TSUNAMI: cientos de granos formando una ola que se enrosca hacia adelante (marco: x hacia donde avanza, y arriba). */
+  const waveMesh = (H: number): THREE.InstancedMesh => {
+    const N = 900;
+    const im = new THREE.InstancedMesh(grainGeo, new THREE.MeshStandardMaterial({ roughness: 0.5 }), N);
+    const mtx = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const c = new THREE.Color();
+    let seed = 7;
+    const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < N; i++) {
+      const s = rnd();
+      const z = (rnd() - 0.5) * 0.07;
+      // Perfil: sube desde atrás, cresta adelante que se curva hacia el frente (la ola rompe).
+      const y = H * Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.15)), 0.8) * (0.55 + 0.45 * rnd());
+      const curl = s > 0.6 ? (s - 0.6) / 0.4 : 0;
+      const x = -0.03 + 0.036 * s + curl * curl * H * 0.5 * (y / H);
+      q.setFromEuler(new THREE.Euler(rnd() * 6, rnd() * 6, rnd() * 6));
+      const sc = 0.0009 + rnd() * 0.0006;
+      mtx.compose(new THREE.Vector3(x, y, z * (1 - 0.4 * (y / H))), q, new THREE.Vector3(sc, sc, sc));
+      im.setMatrixAt(i, mtx);
+      im.setColorAt(i, c.set(GRAIN_COLS[i % GRAIN_COLS.length]));
+    }
+    im.instanceMatrix.needsUpdate = true;
+    im.castShadow = true;
+    return im;
+  };
+  const shotMeshes = new Map<number, THREE.Object3D>();
   const syncShots = (): void => {
     const live = new Set<number>();
     for (const sh of m?.shots ?? []) {
       live.add(sh.id);
       let g = shotMeshes.get(sh.id);
       if (!g) {
-        g = sh.kind === 'arbolitos' ? new THREE.Mesh(floretGeo, floretMat) : sh.kind === 'cascaras' ? new THREE.Mesh(shellGeo, shellMat) : new THREE.Mesh(grainGeo, grainMats[sh.id % grainMats.length]);
-        g.scale.setScalar(sh.r * (sh.kind === 'arbolitos' ? 1.25 : sh.kind === 'cascaras' ? 1.5 : sh.kind === 'avalancha' ? 2.4 : 1.3));
-        g.rotation.set(sh.id * 1.3, sh.id * 0.7, 0);
+        if (sh.kind === 'avalancha') {
+          g = waveMesh(POWERS.avalancha.h);
+          g.userData.wave = true;
+          g.userData.age = 0;
+        } else {
+          g = sh.kind === 'arbolitos' ? new THREE.Mesh(floretGeo, floretMat) : sh.kind === 'cascaras' ? new THREE.Mesh(shellGeo, shellMat) : sh.kind === 'metralla' ? new THREE.Mesh(ballGeo, ballMat) : new THREE.Mesh(grainGeo, grainMats[sh.id % grainMats.length]);
+          g.scale.setScalar(sh.r * (sh.kind === 'arbolitos' ? 1.25 : sh.kind === 'cascaras' ? 1.5 : sh.kind === 'metralla' ? 1 : 1.3));
+          g.rotation.set(sh.id * 1.3, sh.id * 0.7, 0);
+        }
         g.castShadow = true;
         game().stage.scene.add(g);
         shotMeshes.set(sh.id, g);
       }
+      if (g.userData.wave) {
+        // La ola nace chiquita, crece, ondula y avanza mirando hacia donde va, levantando polvo y granos.
+        g.userData.age += 1;
+        const grow = Math.min(1, g.userData.age / 14);
+        g.position.copy(P3(sh.x, 0, 0));
+        g.scale.set(Math.sign(sh.vx) || 1, grow * (0.9 + 0.1 * Math.sin(g.userData.age * 0.5)), 1);
+        if (g.userData.age % 2 === 0) cloud(P3(sh.x - Math.sign(sh.vx) * 0.02, 0.004), 2, 0xd9c9a0, 0.008, 0.03, 0.02);
+        if (g.userData.age % 3 === 0) sparks(P3(sh.x + Math.sign(sh.vx) * 0.006, POWERS.avalancha.h * grow), 2, 0xf0e2bd, 0.12, 0.08, 0.003);
+        continue;
+      }
       g.position.copy(P3(sh.x, sh.y, 0.004 + (sh.kind === 'arbolitos' ? ((sh.id % 5) - 2) * 0.006 : 0)));
+      // La bola de quinoa deja una estela de granitos.
+      if (sh.kind === 'metralla' && (m?.frame ?? 0) % 2 === 0) sparks(g.position, 2, 0xf0dfb0, 0.03, 0, 0.003);
       // Estelas para que se vean volar: las cascaritas dejan un brillo blanco; los arboletes, hojitas.
       if (sh.kind === 'cascaras' && (sh.id + (m?.frame ?? 0)) % 2 === 0) sparks(g.position, 1, 0xfff6e0, 0.01, 0, 0.004);
-      // La avalancha es una OLA: cada bola de granos levanta polvo al rodar; la metralla deja una estelita.
-      if (sh.kind === 'avalancha' && (sh.id + (m?.frame ?? 0)) % 3 === 0) cloud(P3(sh.x, 0.003), 1, 0xd9c9a0, 0.005, 0.01, 0.012);
-      if (!sh.kind && (sh.id + (m?.frame ?? 0)) % 3 === 0) sparks(g.position, 1, 0xf0dfb0, 0.01, 0, 0.003);
       if (sh.kind === 'arbolitos' && (sh.id + (m?.frame ?? 0)) % 6 === 0) cloud(g.position, 1, 0x4f8f2a, 0.002, 0.004, 0.004);
       if (sh.kind === 'arbolitos') {
         // Gira despacio como un arbolito tirado al aire.
@@ -322,7 +385,12 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     }
     for (const [id, g] of shotMeshes) if (!live.has(id)) {
       // Un ramito que llega a la tabla suelta unas hojitas.
-      if (g.geometry === floretGeo && g.position.y < GROUND + 0.006) cloud(g.position, 3, 0x3d7a22, 0.003, 0.015, 0.008);
+      if ((g as THREE.Mesh).geometry === floretGeo && g.position.y < GROUND + 0.006) cloud(g.position, 3, 0x3d7a22, 0.003, 0.015, 0.008);
+      if (g.userData.wave) {
+        // La ola rompe al final: se desarma en polvo.
+        cloud(g.position, 20, 0xd9c9a0, 0.012, 0.05, 0.02);
+        ((g as THREE.InstancedMesh).material as THREE.Material).dispose();
+      }
       g.removeFromParent();
       shotMeshes.delete(id);
     }
@@ -831,7 +899,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           hud.flash(0.3);
           aber = Math.max(aber, 0.7);
           // Qué hacer contra cada poder del rival (se entiende en el momento, no hay que adivinar).
-          const DO: Record<string, string> = { raices: '¡SALÍ DE LA GRIETA O SALTÁ!', avalancha: '¡SALTÁ!', rodada: '¡SALTÁ O CUBRITE!', cascaras: '¡CUBRITE Y NO PISES LAS CÁSCARAS!', metralla: '¡CUBRITE!', arbolitos: '¡CUBRITE!' };
+          const DO: Record<string, string> = { raices: '¡SALÍ DE LA GRIETA O SALTÁ!', avalancha: '¡SALTÁ!', rodada: '¡SALTÁ O CUBRITE!', cascaras: '¡CUBRITE Y NO PISES LAS CÁSCARAS!', metralla: '¡ALEJATE O CUBRITE!', arbolitos: '¡CUBRITE!' };
           if (e.who !== me() && DO[e.kind]) hud.popup(m.f[me()].x, m.f[me()].y + 0.09, DO[e.kind], '', 'hint');
         }
         shake = Math.max(shake, 0.004);
@@ -889,6 +957,17 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           g.audio.play('escudo', 0.7);
         } else g.audio.play('drop', 0.35);
         break;
+      case 'burst': {
+        // La BOLA DE QUINOA revienta: estallido de granos para todos lados, polvo, onda y temblor.
+        const at = P3(e.x, e.y + 0.004);
+        sparks(at, 50, 0xf0dfb0, 0.4, 0.12, 0.004);
+        sparks(at, 20, 0xc0583f, 0.35, 0.1, 0.0035);
+        cloud(at, 14, 0xd9c9a0, 0.01, 0.04, 0.02);
+        ring(at, 0.04, 0xf0dfb0);
+        shake = Math.max(shake, 0.004);
+        g.audio.play('crunch', 1);
+        break;
+      }
       case 'roots':
         cloud(P3(e.x, 0.003), e.hit ? 26 : 14, 0x8a6a3a, 0.008, 0.05, 0.02);
         sparks(P3(e.x, 0.006), 24, 0xb08850, 0.25, 0.12, 0.004);
