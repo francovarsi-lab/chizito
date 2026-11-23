@@ -323,12 +323,12 @@ export const POWERS = {
   // Rivales: dos poderes cada uno (media barra / llena), con la lógica de su comida.
   // Media barra: una LLUVIA de verdad (muchos ramitos que suben de la copa y caen sobre el rival en una franja de `rain` m), cada
   // uno saca poco: se ve mucho más de lo que lastima.
-  arbolitos: { name: '¡LLUVIA DE ARBOLITOS!', wind: 20, go: 14, n: 22, speed: 0.55, spread: 0.45, dmg: 0.45, r: 0.0055, life: 140, rain: 0.09 },
+  arbolitos: { name: '¡LLUVIA DE ARBOLETES!', wind: 20, go: 14, n: 22, speed: 0.55, spread: 0.45, dmg: 0.45, r: 0.0055, life: 140, rain: 0.09 },
   // RAÍCES: el brócoli clava las zanahorias en la tabla y bajo el rival se agrieta la madera; a los `delay` cuadros brotan raíces:
-  // si sigue parado ahí (sin saltar) le pegan y lo dejan clavado `hold` cuadros. Se ve venir: hay que moverse o saltar.
-  raices: { name: '¡RAÍCES!', wind: 24, go: 30, delay: 40, show: 60, r: 0.018, dmg: 6, hold: 45 },
+  // si sigue parado ahí (sin saltar) le pegan y lo ATAN `hold` cuadros: no camina ni salta (sí pega y se cubre). Se ve venir: hay que moverse o saltar.
+  raices: { name: '¡RAÍCES!', wind: 24, go: 30, delay: 40, show: 60, r: 0.018, dmg: 6, stun: 12, hold: 150 },
   // Las que no pegan quedan en la tabla: pisarlas saca `trapDmg` y frena (`trapStun`); duran `trapLife` cuadros (tope `maxTraps`).
-  cascaras: { name: '¡LLUVIA DE CÁSCARAS!', wind: 20, go: 16, n: 8, speed: 0.6, spread: 0.7, dmg: 2.2, r: 0.006, life: 90, trapDmg: 4, trapStun: 14, trapR: 0.005, trapLife: 720, maxTraps: 8 },
+  cascaras: { name: '¡CASCARITAS!', wind: 20, go: 16, n: 8, speed: 0.42, spread: 0.8, dmg: 1.5, r: 0.0075, life: 160, trapDmg: 2.5, trapStun: 10, trapR: 0.005, trapLife: 720, maxTraps: 8 },
   avalancha: { name: '¡AVALANCHA DE QUINOA!', wind: 26, go: 30, n: 14, speed: 0.42, dmg: 1.4, r: 0.0032, life: 130 },
   rodada: { name: '¡HUEVAZO RODANTE!', wind: 22, go: 48, speed: 0.4, dmg: 13, kb: 0.5, stun: 34 },
   metralla: { name: 'METRALLA DE GRANOS', wind: 20, go: 16, n: 7, speed: 0.6, spread: 0.55, dmg: 2.3, r: 0.0026, life: 80, armorLoss: 0.35, regrow: 240 },

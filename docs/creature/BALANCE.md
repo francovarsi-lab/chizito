@@ -137,3 +137,6 @@ toque el brazo (la IA atajaba casi todo: el nivel 1 bajó de 77 % a 59 %).
 ## Bloqueo visible, lluvia de arbolitos y quinoa más dura (2026-11-22)
 Guardia de los rivales con los brazos juntos delante de la cara y el pecho; arbolitos = 22 ramitos de 0,45; quinoa recibe ×0,8.
 - aporrea: 59 % / 0 % / 0 % · ia: 75 % / 39 % / 25 % · listo: 100 % / 100 % / 100 %. Los niveles quedan en orden.
+
+## Raíces que atan, cascaritas lentas y quinoa ×0,7 (2026-11-23)
+- aporrea: 57 % / 0 % / 0 % · ia: 77 % / 23 % / 20 % · listo: 100 % / 100 % / 100 %.

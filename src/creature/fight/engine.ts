@@ -184,6 +184,8 @@ export interface FighterState {
   jellyN: number;
   /** Coraza que le falta (quinoa, después de tirar granos): 0..1, se rearma sola. */
   armorLoss: number;
+  /** Cuadros que le quedan atado por las RAÍCES: no camina ni salta (sí pega y se cubre). */
+  rooted: number;
   /** Cuadrante mantenido este paso (undefined: la entrada no lo informa). */
   held: Quad | null | undefined;
   /** Pasito: doble toque de flecha (último toque y su dirección), cuadros que le quedan, dirección. */
@@ -251,6 +253,8 @@ export interface Root {
   x: number;
   by: 0 | 1;
   t: number;
+  /** Agarró al rival: quedan enredadas en sus piernas mientras esté atado. */
+  held?: boolean;
 }
 
 export interface Zone {
@@ -452,6 +456,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     heavyLoad: 0,
     jellyN: 0,
     armorLoss: 0,
+    rooted: 0,
     held: undefined,
     lastX: 0,
     tapDir: 0,
@@ -1055,7 +1060,8 @@ function stepPower(m: Match, i: 0 | 1): void {
       for (let n = 0; n < P.n; n++) {
         const u = ((n * 7) % P.n) / (P.n - 1);
         const xt = foe.x + (u - 0.5) * P.rain;
-        const T = 0.55 + 0.35 * (((n * 5) % 7) / 6);
+        // Lentos y altos (0,9–1,4 s en el aire): se tienen que VER llover.
+        const T = 0.9 + 0.5 * (((n * 5) % 7) / 6);
         const yt = foe.y + 0.015;
         m.shots.push({ id: m.nextShot++, by: i, x: x0, y: y0, vx: (xt - x0) / T, vy: (yt - y0 + 0.5 * g * T * T) / T, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'arbolitos' });
       }
@@ -1066,7 +1072,8 @@ function stepPower(m: Match, i: 0 | 1): void {
       const top = Math.max(...f.model.body.map((b) => Math.max(b.a[1], b.b[1]) + b.r));
       const x0 = f.x + f.facing * 0.01;
       const y0 = f.y + top * 0.6;
-      const base = Math.atan2(foe.y + 0.04 - y0, foe.x - x0) + f.facing * 0.35;
+      // Bien altas y lentas: se ven volar y caer.
+      const base = Math.atan2(foe.y + 0.04 - y0, foe.x - x0) + f.facing * 0.75;
       for (let n = 0; n < P.n; n++) {
         const a = base + (n / (P.n - 1) - 0.5) * P.spread * f.facing;
         const sp = P.speed * (0.85 + 0.3 * ((n * 7) % 5) / 4);
@@ -1320,11 +1327,15 @@ function stepGround(m: Match): void {
       // Saltando se esquiva; parado encima, lo agarran: queda clavado al piso un rato.
       const hit = !b.ko && b.grounded && b.inv <= 0 && Math.abs(b.x - r.x) < R.r;
       if (hit) {
-        powerHit(m, r.by, 'raices', [r.x, 0.01], R.dmg, { kb: 0, up: 0, stun: R.hold, blocked: false });
+        powerHit(m, r.by, 'raices', [r.x, 0.01], R.dmg, { kb: 0, up: 0, stun: R.stun, blocked: false });
         b.vx = 0;
+        b.rooted = R.hold;
+        r.held = true;
       }
       m.events.push({ type: 'roots', who: r.by, x: r.x, hit });
     }
+    // Si agarró a alguien, las raíces quedan enredadas mientras dure (y se van cuando se suelta).
+    if (r.held && m.f[1 - r.by].rooted > 0 && !m.f[1 - r.by].ko) r.t = Math.min(r.t, R.delay + R.show - 16);
     if (r.t >= R.delay + R.show) m.roots.splice(n, 1);
   }
 }
@@ -1426,7 +1437,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   f.guardIn = !!input.guard;
   // Pasito: doble toque de flecha (en el motor, con el historial de la entrada).
   if (input.x !== 0 && f.lastX === 0) {
-    if (input.x === f.tapDir && m.frame - f.tapT <= FIGHT.dash.taps && f.grounded && !busy && f.dash <= 0) {
+    if (input.x === f.tapDir && m.frame - f.tapT <= FIGHT.dash.taps && f.grounded && !busy && f.dash <= 0 && f.rooted <= 0) {
       f.dash = FIGHT.dash.frames;
       f.dashDir = input.x;
       if (input.x === -f.facing) f.inv = Math.max(f.inv, FIGHT.dash.backInv);
@@ -1463,7 +1474,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   if (input.kick) f.buffer = { kind: 'kick', t: FIGHT.buffer };
   // Saltar necesita piernas que aguanten el peso (`f.jump` es 0 si no). Primero se agacha (las piernas lentas tardan más) y
   // recién ahí despega: el salto se lee y se puede castigar.
-  if (input.up && f.grounded && !guardHeld && f.jump > 0 && f.squat <= 0 && !busy) f.squat = f.squatN;
+  if (f.rooted > 0) f.rooted--;
+  if (input.up && f.grounded && !guardHeld && f.jump > 0 && f.squat <= 0 && !busy && f.rooted <= 0) f.squat = f.squatN;
   if (f.squat > 0 && --f.squat === 0 && f.grounded && !f.ko) {
     f.vy = f.jump;
     f.vx += input.x * f.speed * 0.4;
@@ -1771,7 +1783,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   }
 
   // ── Cuerpo: avanzar ──
-  const wantVx = canAct ? input.x * f.speed * (1 - 0.65 * f.guard) * (1 - f.crouch) : 0;
+  const wantVx = canAct && f.rooted <= 0 ? input.x * f.speed * (1 - 0.65 * f.guard) * (1 - f.crouch) : 0;
   const acc = f.grounded ? FIGHT.groundAccel : FIGHT.airAccel;
   if (f.grounded || input.x !== 0) f.vx += clamp(wantVx - f.vx, -acc * dt, acc * dt);
   if (f.dash > 0) {

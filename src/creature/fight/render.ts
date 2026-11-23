@@ -255,7 +255,8 @@ export function creatureView(construction: Construction, pivot: THREE.Group, mod
   return {
     root: pivot,
     apply(p, z0, dt) {
-      const target = yawFor(p.facing, p.yaw);
+      // Cubriéndose se abre hacia la cámara (de perfil no se entendía la guardia).
+      const target = yawFor(p.facing, p.yaw + 0.5 * brace);
       if (!psiInit) {
         psi = target;
         psiInit = true;
@@ -391,22 +392,23 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   const k_ = (c: (typeof carrots)[number]): number => carrots.indexOf(c);
   const whips = carrots.map((c) => {
     const u = c.obj.children[0]?.userData.whip as { uJ1: { value: THREE.Vector3 }; uJ2: { value: THREE.Vector3 } } | undefined;
-    // Quinoa: codo/rodilla ('q-codo') que se dobla con el mismo resorte, más lento y con más recorrido (es una masa de granos).
+    // Quinoa: codo/rodilla ('q-codo'); huevo: el látigo del espárrago. Los dos se doblan como un CODO de verdad: sobre UN eje,
+    // hacia el frente de la cara (las rodillas hacia atrás) y nunca al revés (antes el resorte doblaba para cualquier lado).
     const elbow = c.obj.getObjectByName('q-codo') ?? null;
     if (!u && !elbow) return null;
-    const side = Math.sign(model.limbs[k_(c)].pivot[0] || 1);
     const arm = model.limbs[k_(c)].role === 'arm';
-    // En reposo los codos van doblados (puños arriba, como un monstruo) y las rodillas apenas flexionadas.
-    // (el giro en Z local lleva la punta hacia arriba con el signo del lado: los dos codos igual; antes uno quedaba al revés)
-    const rest = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), arm ? side * 0.6 : 0);
-    return { u, elbow, rest, arm, prev: c.obj.quaternion.clone(), b: new THREE.Vector3(), v: new THREE.Vector3(), t: Math.random() * 6 };
+    const front = new THREE.Vector3(0, 0, arm ? 1 : -1).applyQuaternion(c.obj.quaternion.clone().invert());
+    const axis = new THREE.Vector3(0, 1, 0).cross(front);
+    if (axis.lengthSq() < 1e-6) axis.set(1, 0, 0);
+    axis.normalize();
+    // Flexión de reposo: codos doblados (puños adelante), rodillas apenas.
+    const rest = elbow ? (arm ? 0.75 : 0.25) : 0.45;
+    return { u, elbow, axis, rest, arm, prev: c.obj.quaternion.clone(), th: rest, v: 0, t: Math.random() * 6 };
   });
   const bodyGrains = inner.children.find((o) => o.name === 'cuerpo-granos') as THREE.InstancedMesh | undefined;
   const grainTotal = bodyGrains?.count ?? 0;
   const dq = new THREE.Quaternion();
   const wv = new THREE.Vector3();
-  const tgt = new THREE.Vector3();
-  const MAXB = (25 * Math.PI) / 180;
   // Partes de la cara (ver `addFace`): la boca y los dientes se estiran hacia abajo desde su borde de arriba; las cejas suben o bajan.
   const faceParts = (name: string): THREE.Object3D[] => inner.children.filter((o) => o.name === name);
   const mouthParts = [...faceParts('boca'), ...faceParts('dientes')];
@@ -431,7 +433,8 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
   return {
     root: outer,
     apply(p, z0, dt) {
-      const target = yawFor(p.facing, p.yaw);
+      // Cubriéndose se abre hacia la cámara (de perfil no se entendía la guardia).
+      const target = yawFor(p.facing, p.yaw + 0.5 * brace);
       if (!init) {
         psi = target;
         init = true;
@@ -486,25 +489,24 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
           if (wv.lengthSq() > 1e-12) wv.normalize().multiplyScalar((Math.sign(dq.w) || 1) * ang / dt);
           else wv.set(0, 0, 0);
           w.prev.copy(c.obj.quaternion);
-          // La punta se queda atrás del movimiento (y en reposo, una ondulación apenas: está vivo).
           w.t += dt;
-          const q = !!w.elbow;
-          const idle = q ? (w.arm ? 0.16 : 0.07) : 0.06;
-          tgt.copy(wv).multiplyScalar(q ? -0.06 : -0.035).add(new THREE.Vector3(Math.sin(w.t * (q ? 1.3 : 2.1)) * idle, 0, Math.cos(w.t * (q ? 1.1 : 1.7)) * idle));
-          // Resorte poco amortiguado: llega tarde y se pasa (la quinoa, más pesada: más lento).
-          const K = q ? 90 : 160, C = q ? 7 : 9;
-          w.v.addScaledVector(tgt.sub(w.b).multiplyScalar(K).addScaledVector(w.v, -C), Math.min(dt, 1 / 30));
-          w.b.addScaledVector(w.v, Math.min(dt, 1 / 30));
-          if (w.b.length() > (q ? MAXB * 2 : MAXB)) w.b.setLength(q ? MAXB * 2 : MAXB);
+          const sp = wv.length();
+          // A dónde va el codo: su flexión de reposo, MÁS doblado cubriéndose (antebrazos delante de la cara), ESTIRADO cuando el
+          // brazo se mueve rápido (la piña se estira), con un poco de retraso (llega tarde y se pasa) y respirando.
+          let want = w.rest + (w.arm ? 1.0 * brace : 0.25 * brace);
+          want *= 1 - Math.min(1, sp / (w.elbow ? 7 : 9)) * 0.85;
+          want += -0.05 * wv.dot(w.axis) + Math.sin(w.t * (w.elbow ? 1.4 : 2)) * (w.arm ? 0.1 : 0.04);
+          want = Math.max(0, Math.min(2.2, want));
+          const K = w.elbow ? 110 : 150, C = w.elbow ? 11 : 12;
+          const h = Math.min(dt, 1 / 30);
+          w.v += ((want - w.th) * K - w.v * C) * h;
+          w.th = Math.max(0, Math.min(2.3, w.th + w.v * h));
           if (w.u) {
-            w.u.uJ1.value.copy(w.b).multiplyScalar(0.6);
-            w.u.uJ2.value.copy(w.b);
+            // Dos tramos del espárrago: una curva pareja como un brazo con codo.
+            w.u.uJ1.value.copy(w.axis).multiplyScalar(w.th * 0.45);
+            w.u.uJ2.value.copy(w.axis).multiplyScalar(w.th * 0.55);
           }
-          if (w.elbow) {
-            const a = w.b.length();
-            dq.setFromAxisAngle(a > 1e-6 ? wv.copy(w.b).divideScalar(a) : wv.set(0, 0, 1), a);
-            w.elbow.quaternion.copy(w.rest).multiply(dq);
-          }
+          if (w.elbow) w.elbow.quaternion.setFromAxisAngle(w.axis, w.th);
         }
       });
     },

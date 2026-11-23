@@ -253,6 +253,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     if (n > 6) { flashN = 3; flashAt.copy(at).add(new THREE.Vector3(0, 0.01, 0.02)); }
   };
   const ring = (at: THREE.Vector3, size: number, color: number): void => fxOn().ring(at, size, color);
+  const sparks = (at: THREE.Vector3, n: number, color: number, speed: number, up = 0.05, size = 0.004): void => fxOn().sparks(at, n, color, speed, up, size);
+  /** El color de cada poder (aura al cargar, estallido al soltar). */
+  const POWER_COLOR: Record<string, number> = { queso: 0xff9424, olor: 0xb5c83a, nube: 0xff9424, trompo: 0xffd23f, arbolitos: 0x6cc23a, raices: 0xb08850, cascaras: 0xfff3d6, rodada: 0xfff3d6, metralla: 0xf0dfb0, avalancha: 0xe6d3a0 };
   const cloud = (at: THREE.Vector3, n: number, color: number, size: number, spread: number, rise: number, dir = 0): void => fxOn().puff(at, n, color, size, spread, rise, dir);
   /** Granos de quinoa en el aire (los de la METRALLA): uno por proyectil del motor. */
   const grainGeo = new THREE.SphereGeometry(1, 7, 5).scale(1, 0.6, 1);
@@ -295,13 +298,19 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       let g = shotMeshes.get(sh.id);
       if (!g) {
         g = sh.kind === 'arbolitos' ? new THREE.Mesh(floretGeo, floretMat) : sh.kind === 'cascaras' ? new THREE.Mesh(shellGeo, shellMat) : new THREE.Mesh(grainGeo, grainMats[sh.id % grainMats.length]);
-        g.scale.setScalar(sh.r * (sh.kind === 'arbolitos' ? 1.25 : sh.kind === 'cascaras' ? 1.5 : 0.75));
+        g.scale.setScalar(sh.r * (sh.kind === 'arbolitos' ? 1.25 : sh.kind === 'cascaras' ? 1.5 : sh.kind === 'avalancha' ? 2.4 : 1.3));
         g.rotation.set(sh.id * 1.3, sh.id * 0.7, 0);
         g.castShadow = true;
         game().stage.scene.add(g);
         shotMeshes.set(sh.id, g);
       }
       g.position.copy(P3(sh.x, sh.y, 0.004 + (sh.kind === 'arbolitos' ? ((sh.id % 5) - 2) * 0.006 : 0)));
+      // Estelas para que se vean volar: las cascaritas dejan un brillo blanco; los arboletes, hojitas.
+      if (sh.kind === 'cascaras' && (sh.id + (m?.frame ?? 0)) % 2 === 0) sparks(g.position, 1, 0xfff6e0, 0.01, 0, 0.004);
+      // La avalancha es una OLA: cada bola de granos levanta polvo al rodar; la metralla deja una estelita.
+      if (sh.kind === 'avalancha' && (sh.id + (m?.frame ?? 0)) % 3 === 0) cloud(P3(sh.x, 0.003), 1, 0xd9c9a0, 0.005, 0.01, 0.012);
+      if (!sh.kind && (sh.id + (m?.frame ?? 0)) % 3 === 0) sparks(g.position, 1, 0xf0dfb0, 0.01, 0, 0.003);
+      if (sh.kind === 'arbolitos' && (sh.id + (m?.frame ?? 0)) % 6 === 0) cloud(g.position, 1, 0x4f8f2a, 0.002, 0.004, 0.004);
       if (sh.kind === 'arbolitos') {
         // Gira despacio como un arbolito tirado al aire.
         g.rotation.z += 0.12;
@@ -476,6 +485,27 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         groundMeshes.set(r.id, g);
       }
       g.position.copy(P3(r.x, 0.0004, 0));
+      // Agarró: dos lazos de raíz se enroscan en espiral alrededor de las piernas (o de la base del cuerpo, si no tiene).
+      if (r.held && !g.userData.coil) {
+        g.userData.coil = true;
+        g.userData.coilT = r.t;
+        for (let k = 0; k < 2; k++) {
+          const pts: THREE.Vector3[] = [];
+          for (let i = 0; i <= 40; i++) {
+            const t = i / 40;
+            const a = k * Math.PI + t * Math.PI * 2 * 2.6;
+            const rad = 0.0125 - 0.003 * t;
+            pts.push(new THREE.Vector3(Math.cos(a) * rad, 0.001 + t * 0.026, Math.sin(a) * rad));
+          }
+          const coil = new THREE.Mesh(taperTube(new THREE.CatmullRomCurve3(pts), 60, 0.0022), rootMat);
+          coil.name = 'lazo';
+          coil.castShadow = true;
+          coil.userData.own = true;
+          coil.userData.n = 60 * RS * 6;
+          coil.geometry.setDrawRange(0, 0);
+          g.add(coil);
+        }
+      }
       const warn = Math.min(1, r.t / R.delay);
       const grow = r.t < R.delay ? 0 : Math.min(1, (r.t - R.delay) / 7);
       const back = r.t < R.delay ? 0 : Math.max(0, 1 - (R.delay + R.show - r.t) / 16);
@@ -488,6 +518,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         else if (c.name === 'astilla') {
           c.position.y = 0.0006 + 0.0025 * warn + (r.t < R.delay ? 0.0008 * warn * Math.sin(r.t * 2.3 + c.rotation.y * 5) : 0.004 * grow * (1 - back));
           c.rotation.z = 0.5 * warn * Math.sin(c.rotation.y * 3);
+        } else if (c.name === 'lazo') {
+          const k = Math.min(1, (r.t - (g.userData.coilT as number)) / 14) * (1 - back);
+          (c as THREE.Mesh).geometry.setDrawRange(0, Math.floor((c.userData.n as number) * k / 6) * 6);
         } else if (c.name === 'raiz') {
           const mesh = c as THREE.Mesh;
           // Crece desde la base (se va dibujando a lo largo) y se mete igual.
@@ -581,6 +614,15 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     }
     // Mientras se carga un poder se nota: el brócoli suelta gas y ramitos, el chizito suelta polvito de queso.
     if (m && views) m.f.forEach((f, i) => {
+      // CARGANDO un poder: un aura de chispas del color del poder sube alrededor del cuerpo y cada vez más rápido.
+      if (f.pw?.phase === 'wind') {
+        const k = Math.min(1, f.pw.t / POWERS[f.pw.kind].wind);
+        const col = POWER_COLOR[f.pw.kind] ?? 0xffffff;
+        if (Math.random() < 0.4 + 0.6 * k) sparks(P3(f.x + (Math.random() - 0.5) * 0.04, f.y + Math.random() * 0.04), 2, col, 0.05, 0.12 + 0.1 * k, 0.003);
+        if (f.pw.t % 12 === 0) ring(P3(f.x, f.y + 0.025), 0.02 + 0.02 * k, col);
+      }
+      // La CALESITA girando: deja un remolino dorado.
+      if (f.pw?.kind === 'trompo' && f.pw.phase === 'go') sparks(P3(f.x + (Math.random() - 0.5) * 0.05, f.y + 0.01 + Math.random() * 0.035), 3, 0xffd23f, 0.12, 0.02, 0.0035);
       if (f.pw?.phase !== 'wind' || Math.random() > 0.5) return;
       const h = views![i].head();
       if (f.pw.kind === 'raices') cloud(P3(f.x + f.facing * 0.012, 0.003), 1, 0x8a6a3a, 0.003, 0.015, 0.01);
@@ -778,7 +820,21 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         }
         hud.popup(f.x, f.y + 0.075, P.name, '', `shout power ${e.kind}`);
         g.audio.play(`poder-${e.kind}`, 1);
-        shake = Math.max(shake, 0.002);
+        // SOLTAR un poder es un show: estallido de luz y chispas de su color, onda doble, destello y la cámara tiembla.
+        {
+          const col = POWER_COLOR[e.kind] ?? 0xffffff;
+          const c = P3(f.x, f.y + 0.025);
+          sparks(c, 40, col, 0.35, 0.08, 0.005);
+          ring(c, 0.05, col);
+          ring(c, 0.03, 0xffffff);
+          fxOn().impact(c, 1.4, false);
+          hud.flash(0.3);
+          aber = Math.max(aber, 0.7);
+          // Qué hacer contra cada poder del rival (se entiende en el momento, no hay que adivinar).
+          const DO: Record<string, string> = { raices: '¡SALÍ DE LA GRIETA O SALTÁ!', avalancha: '¡SALTÁ!', rodada: '¡SALTÁ O CUBRITE!', cascaras: '¡CUBRITE Y NO PISES LAS CÁSCARAS!', metralla: '¡CUBRITE!', arbolitos: '¡CUBRITE!' };
+          if (e.who !== me() && DO[e.kind]) hud.popup(m.f[me()].x, m.f[me()].y + 0.09, DO[e.kind], '', 'hint');
+        }
+        shake = Math.max(shake, 0.004);
         const front = P3(f.x + f.facing * 0.03, f.y + 0.022);
         if (e.kind === 'queso') cloud(front, 26, 0xff9424, 0.011, 0.05, 0.03, f.facing);
         if (e.kind === 'arbolitos') cloud(views[e.who].head(), 18, 0x4f8f2a, 0.006, 0.04, 0.02);
@@ -804,8 +860,26 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         views[victim].hurt(e.blocked ? 0.3 : small ? 0.4 : 1, e.blocked ? 0.0006 : small ? 0.0008 : 0.0022);
         if (!e.blocked && !small) crumbs?.[victim].emit(at, new THREE.Vector3(m.f[e.by].facing, 0.6, 0.3).normalize(), 5);
         shake = Math.max(shake, small ? 0.0006 : 0.003);
-        if (e.damage >= 8) hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, '', e.blocked ? 'block' : '');
+        if (e.damage >= 8 || e.kind === 'trompo') hud.popup(e.at[0], e.at[1] + 0.008, `−${Math.max(1, Math.round(e.damage))}`, '', e.blocked ? 'block' : '');
         g.audio.play(e.blocked ? 'bloqueo' : small ? 'golpe' : 'golpe-pesado', small ? 0.5 : 1);
+        // CALESITA DEL DOLOR: el poder más fuerte. Cada vuelta que pega es una explosión dorada: onda grande, chispas, confeti,
+        // golpe de cámara, aberración y la hinchada salta.
+        if (e.kind === 'trompo' && !e.blocked) {
+          sparks(at, 70, 0xffd23f, 0.5, 0.1, 0.006);
+          sparks(at, 30, 0xff4d9d, 0.4, 0.08, 0.005);
+          ring(at, 0.07, 0xffd23f);
+          ring(at, 0.045, 0xff4d9d);
+          fxOn().confetti(at, 30);
+          fxOn().impact(at, 2, false);
+          camPunch = 0.25;
+          shake = Math.max(shake, 0.007);
+          aber = 1;
+          hud.flash(0.35);
+          set?.cheer(1);
+          g.audio.play('japish', 0.9);
+        }
+        if (e.kind === 'cascaras' && !e.blocked) sparks(at, 14, 0xfff3d6, 0.25, 0.06, 0.004);
+        if (e.kind === 'arbolitos') cloud(at, 2, 0x3d7a22, 0.004, 0.02, 0.01);
         break;
       }
       case 'trap':
@@ -817,6 +891,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         break;
       case 'roots':
         cloud(P3(e.x, 0.003), e.hit ? 26 : 14, 0x8a6a3a, 0.008, 0.05, 0.02);
+        sparks(P3(e.x, 0.006), 24, 0xb08850, 0.25, 0.12, 0.004);
+        if (e.hit && e.who !== me()) hud.popup(e.x, 0.07, '¡ATADO!', 'no podés caminar: pegá o cubrite', 'hint');
         shake = Math.max(shake, e.hit ? 0.004 : 0.002);
         g.audio.play('crack', 1);
         break;

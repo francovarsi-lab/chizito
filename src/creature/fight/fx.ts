@@ -256,6 +256,17 @@ export class FightFx {
       this.glow.add({ p: at.clone(), v: new THREE.Vector3(Math.sin(a) * sp * 0.6, -Math.cos(a) * sp, (r() - 0.5) * 0.25), life: max, max, size: 0.004 + r() * 0.003, grow: 0, alpha: 0.9, color: new THREE.Color(cols[i % cols.length]).multiplyScalar(0.7), cell: 3, rot: r() * 6, spin: (r() - 0.5) * 12, drag: 1.2, gravity: 0.35 });
     }
   }
+  /** Chispas de luz de un color (poderes): salen en todas direcciones con un empujón para arriba. */
+  sparks(at: THREE.Vector3, n: number, color: number, speed: number, up = 0.05, size = 0.004): void {
+    const r = this.rnd;
+    const c = new THREE.Color(color);
+    for (let i = 0; i < n; i++) {
+      const a = r() * Math.PI * 2;
+      const sp = speed * (0.4 + r() * 0.8);
+      const max = 0.35 + r() * 0.45;
+      this.glow.add({ p: at.clone(), v: new THREE.Vector3(Math.cos(a) * sp, Math.sin(a) * sp * 0.7 + up, (r() - 0.5) * sp * 0.6), life: max, max, size: size * (0.6 + r() * 0.8), grow: -0.6, alpha: 1, color: i % 4 ? c : new THREE.Color(0xffffff), cell: 1, rot: 0, spin: 0, drag: 2.2, gravity: 0.25 });
+    }
+  }
   /** Onda: aro que crece (de frente a la cámara) — para bloqueos y poderes. */
   ring(at: THREE.Vector3, size: number, color: number): void {
     this.glow.add({ p: at.clone(), v: new THREE.Vector3(), life: 0.22, max: 0.22, size: size * 2.2, grow: 1.6, alpha: 0.8, color: new THREE.Color(color), cell: 2, rot: 0, spin: 0, drag: 0, gravity: 0 });

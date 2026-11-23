@@ -565,13 +565,14 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   de 4 s, sonido `poder-olor`; también como remate justo después de acertar); llena = CALESITA DEL DOLOR (el ex trompo: 3 vueltas,
   3 golpes de 7; sonido `poder-trompo`). Los poderes según lo armado (nube, carozazo, acupuntura, muralla) quedaron sin uso.
   RIVALES (2026-11-21), DOS poderes cada uno con la lógica de su comida (`power2` media barra / `power` llena; el VAPORAZO se
-  sacó: "no tiene sentido"): EL BROCOLOCO arbolitos (LLUVIA: 22 ramitos con copa y tronquito que suben de la copa y llueven sobre una franja de
+  sacó: "no tiene sentido"): EL BROCOLOCO arbolitos ("¡LLUVIA DE ARBOLETES!", nombre del usuario: 22 ramitos con copa y tronquito que suben de la copa y llueven sobre una franja de
   9 cm alrededor del rival, 0,45 cada uno: se ve mucho más de lo que saca) / RAÍCES (2026-11-22, el gas "era como el olor a pata sin sentido": la
   tabla se agrieta bajo el rival 40 cuadros —grietas en zigzag que se abren, astillas que tiemblan, polvo y un aro oscuro con el
   alcance— y brotan raíces gruesas retorcidas que se cierran hacia el centro, con brotes verdes; si sigue parado ahí, 6 de daño
-  y queda clavado 45; se salta o se sale); HUEVO
-  rodada / cáscaras (8 cáscaras grandes y blancas en abanico; las que no pegan QUEDAN EN LA TABLA, `m.traps`, tres pedazos
-  rotos juntos, a la vista: pisarlas saca 4 y frena;
+  y lo ATA 150 cuadros (`f.rooted`: no camina, no salta ni da pasitos; sí pega y se cubre) con dos lazos de raíz enroscados en
+  las piernas; se salta o se sale); HUEVO
+  rodada / cáscaras ("¡CASCARITAS!": 8 cáscaras grandes y blancas, LENTAS y en arco alto con estela de brillo, para que se vean; las que no pegan QUEDAN EN LA TABLA, `m.traps`, tres pedazos
+  rotos juntos, a la vista: pisarlas saca 2,5 y frena;
   duran 12 s, tope 8); QUINOA metralla / avalancha (ola de granos al ras que barre las piernas: se salta).
   Sonidos `poder-arbolitos/raices/cascaras/avalancha`. La IA usa el chico con poca frecuencia (puede esperar el grande). El corte de cámara del súper es sólo para el poder lleno del jugador (con el
   vaporazo del rival era un zoom indeseado).
@@ -606,7 +607,16 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - QUINOA CON CODOS Y RODILLAS (2026-11-22, "articulaciones rectas no condice con un monstruo de mil pelotitas"): cada extremidad
   son dos tramos (`q-codo` a media altura, con una bola de granos en la unión); `render.ts` los dobla con el resorte del látigo
   (más lento y con el doble de recorrido) sobre una flexión de reposo (los dos codos igual, `side · 0,6`: antes uno quedaba al
-  revés). Sólo dibujo. Respira hinchándose (cambia de forma). Dientes en DOS filas con `userData.ty` (se movían aparte de la boca).
+  revés). Sólo dibujo. Respira hinchándose (cambia de forma).
+- CODOS DE VERDAD (2026-11-23, "los codos están al revés, en contra de la articulación"): quinoa (`q-codo`) y huevo (el látigo)
+  se doblan sobre UN eje (hacia el frente de la cara; rodillas hacia atrás), sin hiperextensión (0–2,3 rad): reposo doblado, se
+  ESTIRAN al pegar (según la velocidad del brazo), se DOBLAN cubriéndose (antebrazos delante de la cara), con retraso y respiración.
+- DEFENSA QUE SE LEE: cubriéndose, además de agacharse y la cara de fuerza, el dibujo se ABRE hacia la cámara (+0,5 rad de giro):
+  de perfil no se entendía.
+- SHOW DE PODERES: cargando, aura de chispas del color del poder que sube y ondas; al soltar, estallido de chispas, onda doble,
+  destello y aberración; contra un poder del rival, un aviso de qué hacer ("¡SALTÁ!", "¡CUBRITE!"…). CALESITA DEL DOLOR: remolino
+  dorado mientras gira y cada golpe es una explosión dorada y rosa con confeti, golpe de cámara y la hinchada salta. Granos de la
+  metralla más grandes con estela; la avalancha son bolas que ruedan levantando polvo. Dientes en DOS filas con `userData.ty` (se movían aparte de la boca).
 - BLOQUEO VISIBLE PARA TODOS (2026-11-22, "al bloquear NUNCA parece que bloquea"): con la guardia (o aguantando un golpe,
   `RenderPose.guard/block`) el dibujo se AGACHA (más bajo y ancho), se echa hacia el golpe y los rivales ponen CARA DE FUERZA
   (`face(…, effort)`: ojos apretados, cejas abajo, boca cerrada y ancha, temblando). Los rivales recogen los brazos JUNTOS delante
@@ -614,7 +624,7 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   con la diagonal.
 - CONSEJO POR RIVAL al empezar cada nivel (`RIVAL_TIP`): raíces (salí o saltá), cáscaras (no las pises), quinoa (lo rápido se
   hunde: cargá). Contra la quinoa: "¡SE HUNDE! cargá el golpe" las dos primeras veces y "¡SE REARMA!" cuando junta granos.
-- NIVELES PROGRESIVOS: la quinoa recibe ×0,8 (antes 0,9); bot medio 75 % / 39 % / 25 %.
+- NIVELES PROGRESIVOS: la quinoa recibe ×0,7; bot medio 77 % / 23 % / 20 %.
 - PRIMERA PERSONA ESTABILIZADA (2026-11-22, "se mueve demasiado, no se ve nada"): ojo en la cara de ketchup, pero mira al rival
   (85 %, 15 % hacia donde apunta el cuerpo), horizonte siempre derecho, posición suavizada rápido y mirada lento; 24 mm.
 - Huevo: sin dibujo de fase 2 (la grieta oscura eran las "pestañas"). Brócoli: dos filas de dientes; la de abajo baja con la

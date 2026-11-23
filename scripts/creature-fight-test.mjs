@@ -750,6 +750,22 @@ try {
     const brok = run(mine, broccoliFighter(1), 0.05);
     ok(brok.ev.some((e) => e.type === 'roots' && e.hit) && brok.ev.some((e) => e.type === 'powerHit' && e.kind === 'raices'), 'EL BROCOLOCO (barra llena): RAÍCES bajo el que se queda parado');
     {
+      // Las raíces ATAN: el que quedó agarrado no camina ni salta un rato.
+      const m = createMatch([mine, broccoliFighter(1)]);
+      for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      m.f[1].x = m.f[0].x + 0.1;
+      m.f[1].meter = FIGHT.power.max;
+      let at = -1;
+      for (let i = 0; i < 120 && at < 0; i++) {
+        stepMatch(m, [{ x: 0 }, { x: 0, power: i === 0 }]);
+        if (m.events.some((e) => e.type === 'roots' && e.hit)) at = i;
+      }
+      for (let i = 0; i < 20; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+      const x0 = m.f[0].x;
+      for (let i = 0; i < 60; i++) stepMatch(m, [{ x: -1, up: i === 5 }, { x: 0 }]);
+      ok(at >= 0 && Math.abs(m.f[0].x - x0) < 0.003 && m.f[0].grounded, `las RAÍCES atan: no camina ni salta (${((m.f[0].x - x0) * 1000).toFixed(1)} mm)`);
+    }
+    {
       // Saltar (o salirse) a tiempo esquiva las raíces.
       const m = createMatch([mine, broccoliFighter(1)]);
       for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
