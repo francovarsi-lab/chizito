@@ -92,14 +92,14 @@ MOVES.latigo = {
 };
 
 // ── MONSTRUO DE QUINOA (nivel 3: enseña a elegir el golpe). ──
-// Puño cañón: el brazo se dispara recto como un chorro de granos (se bloquea).
+// Puño cañón: el brazo se va BIEN atrás y arriba (se ve venir) y se dispara recto con todo el peso: un monstruo pesado pega duro.
 MOVES.canon = {
-  id: 'canon', hits: [{ from: 18, to: 24, with: ['armF'] }], total: 54, dmg: 5, kb: 0.35, stun: 14, guard: 'block', reach: 0.08, tell: 'zumbido', w: [2, 3, 1],
-  keys: [{ t: 0, limbs: REST }, { t: 15, limbs: { armF: [-0.4, 0.3, 0.8] } }, { t: 19, limbs: { armF: [1, 0.08, 0] }, vx: 0.35 }, { t: 30, limbs: { armF: [1, 0.08, 0] } }, { t: 54, limbs: REST }],
+  id: 'canon', hits: [{ from: 22, to: 28, with: ['armF'] }], total: 60, dmg: 8, kb: 0.55, stun: 20, guard: 'block', reach: 0.08, tell: 'zumbido', w: [2, 3, 1],
+  keys: [{ t: 0, limbs: REST }, { t: 19, limbs: { armF: [-0.8, 0.55, 0.5] }, vx: -0.08 }, { t: 23, limbs: { armF: [1, 0.08, 0] }, vx: 0.45 }, { t: 34, limbs: { armF: [1, 0.08, 0] } }, { t: 60, limbs: REST }],
 };
 // Mazazo doble: los dos puños arriba 34 cuadros (aviso) y bajan dos veces: rompe la guardia.
 MOVES.mazazo = {
-  id: 'mazazo', hits: [{ from: 36, to: 41, with: ['armF', 'armB'] }, { from: 52, to: 57, with: ['armF', 'armB'] }], total: 76, dmg: 5, kb: 0.3, stun: 16, guard: 'break', reach: 0.065, tell: 'rugido', w: [3, 1, 0],
+  id: 'mazazo', hits: [{ from: 36, to: 41, with: ['armF', 'armB'] }, { from: 52, to: 57, with: ['armF', 'armB'] }], total: 76, dmg: 7, kb: 0.4, stun: 20, guard: 'break', reach: 0.065, tell: 'rugido', w: [3, 1, 0],
   keys: [
     { t: 0, limbs: REST }, { t: 30, limbs: { armF: [0.1, 1, 0.3], armB: [0.1, 1, 0.3] } }, { t: 38, limbs: { armF: [0.9, -0.3, 0.1], armB: [0.9, -0.3, 0.1] }, vx: 0.15 },
     { t: 46, limbs: { armF: [0.1, 1, 0.3], armB: [0.1, 1, 0.3] } }, { t: 54, limbs: { armF: [0.9, -0.3, 0.1], armB: [0.9, -0.3, 0.1] }, vx: 0.1 }, { t: 76, limbs: REST },

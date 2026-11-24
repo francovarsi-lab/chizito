@@ -347,7 +347,7 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   RIVALES, uno por nivel (`rivalFighter` / `rivalView`; `?nivel=2|3` arranca contra ése): 1 EL BROCOLOCO; 2 HUEVO DURO
   (pelado y gelatinoso: rebota más al recibir, brazos LARGOS de espárrago con yema, patas de tallo, recibe ×1,25); 3 MONSTRUO
   DE QUINOA (miles de granos en InstancedMesh, brazos pesados, recibe ×0,7 y se REARMA: tras 1,5 s sin recibir recupera 1,6
-  de vida por segundo; SIN granos flotando (pedido del usuario): al cargar la metralla los granos se JUNTAN en los puños, que
+  de vida por segundo; SIN granos flotando (pedido del usuario): al reagruparse los granos se JUNTAN en los puños, que
   crecen, y al tirarlos quedan flacos hasta rearmarse). Al pasar de nivel (`restart`) se REARMA el modelo 3D del rival
   (`viewLevel`; antes seguía dibujado el brócoli) y se lo presenta con su intro. Espárragos (`asparagus`): tallo afinado con
   fibras y escamitas en espiral, yema = torno esculpido en escamas en ladrillo con borde en V (`shingle`); pata con el corte claro. Los dos nuevos están hechos POR PARTES en
@@ -479,7 +479,7 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - SONIDOS: ids listos para que el usuario grabe los suyos (`public/assets/sounds/<id>.ogg|mp3|wav`; si no hay archivo, suena
   un sintetizado de verdad: golpe con cuerpo + crujido, campana, bronces, voces con formantes, vapor; con compresor): `golpe`, `golpe-pesado`, `bloqueo`, `zumbido` (golpe pesado que arranca), `pifio`, `escudo` (se rompe),
   `ko`, `round`, `pelea`, `combo` (sale una combinación), `japish` (el grito ¡JAPISH!, en golpes fuertes y combinaciones),
-  `poder-carga`, `poder-queso`, `poder-vapor`, `poder-rodada`, `poder-metralla`,
+  `poder-carga`, `poder-queso`, `poder-vapor`, `poder-rodada`, `poder-metralla`, `poder-rearme`,
   `risa` (presentación del brócoli), `pimba` (¡PIMBA!, patada que entra), `soplamoco` (¡SOPLAMOCO!, piña a la cara: el 38 % de
   arriba del cuerpo del que recibe), más los del constructor (`pick`, `drop`, `crack`, `crunch`, `out`). Los yerros alternan
   ¡PIFIÓ! y ¡PIF!. PALABRAS DE HISTORIETA: quietas 1,4 s, dentro de la pantalla y debajo de las barras (no se van volando), como
@@ -565,18 +565,20 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   de 4 s, sonido `poder-olor`; también como remate justo después de acertar); llena = CALESITA DEL DOLOR (el ex trompo: 3 vueltas,
   3 golpes de 7; sonido `poder-trompo`). Los poderes según lo armado (nube, carozazo, acupuntura, muralla) quedaron sin uso.
   RIVALES (2026-11-21), DOS poderes cada uno con la lógica de su comida (`power2` media barra / `power` llena; el VAPORAZO se
-  sacó: "no tiene sentido"): EL BROCOLOCO arbolitos ("¡LLUVIA DE ARBOLETES!", nombre del usuario: 22 ramitos con copa y tronquito que suben de la copa y llueven sobre una franja de
-  9 cm alrededor del rival, 0,45 cada uno: se ve mucho más de lo que saca) / RAÍCES (2026-11-22, el gas "era como el olor a pata sin sentido": la
+  sacó: "no tiene sentido"): EL BROCOLOCO arbolitos ("¡LLUVIA DE ARBOLITOS!", nombre del usuario, NO "arboletes": 22 ramitos con copa y tronquito que suben de la copa y llueven sobre una franja de
+  5 cm alrededor del rival, 0,7 cada uno: quieto debajo saca ~10, cubierto ~6; antes 0,45 en 9 cm y "ni me rasguña") / RAÍCES (2026-11-22, el gas "era como el olor a pata sin sentido": la
   tabla se agrieta bajo el rival 40 cuadros —grietas en zigzag que se abren, astillas que tiemblan, polvo y un aro oscuro con el
   alcance— y brotan raíces gruesas retorcidas que se cierran hacia el centro, con brotes verdes; si sigue parado ahí, 6 de daño
   y lo ATA 150 cuadros (`f.rooted`: no camina, no salta ni da pasitos; sí pega y se cubre) con dos lazos de raíz enroscados en
   las piernas; se salta o se sale); HUEVO
   rodada / cáscaras ("¡CASCARITAS!": 8 cáscaras grandes y blancas, LENTAS y en arco alto con estela de brillo, para que se vean; las que no pegan QUEDAN EN LA TABLA, `m.traps`, tres pedazos
   rotos juntos, a la vista: pisarlas saca 2,5 y frena;
-  duran 12 s, tope 8); QUINOA (2026-11-23, "sus poderes son muy malos") ¡BOLA DE QUINOA! (`metralla`: junta granos en una bola grande, la tira
-  en arco exacto de 0,75 s sobre el rival y REVIENTA al tocarlo o tocar la tabla: 7,5 a todo lo que esté a 3 cm, se para con la
-  guardia; evento `burst`) / ¡TSUNAMI DE QUINOA! (`avalancha`: UNA ola de 900 granos de 2,4 cm de alto que se enrosca hacia
-  adelante y barre la tabla; pega 13 y voltea al que está apoyado; sólo se esquiva saltando).
+  duran 12 s, tope 8); QUINOA ¡REAGRUPARSE! (`rearme`, 2026-11-24: la bola de quinoa "no se veía", DESCARTADA: se frena 80 cuadros, levanta los
+  brazos y barre la tabla, los granos vuelven volando de toda la tabla y TODOS los montoncitos se absorben ×2; +8 de vida; quieta y
+  expuesta: un golpe que entra lo corta; aviso "¡PEGALE AHORA QUE SE ESTÁ ARMANDO!") / ¡TSUNAMI DE QUINOA! (`avalancha`: UNA ola
+  de 1600 granos de 5 cm de alto, más alta que el chizito, que se enrosca hacia adelante y barre la tabla; pega 18 y voltea al que
+  está apoyado; sólo se esquiva saltando más de 1,2 cm). MONSTRUO PESADO QUE PEGA DURO: cañón 8 (se carga bien atrás, 22 cuadros
+  de aviso, empuja 0,55) y mazazo 7 + 7.
   Sonidos `poder-arbolitos/raices/cascaras/avalancha`. La IA usa el chico con poca frecuencia (puede esperar el grande). El corte de cámara del súper es sólo para el poder lleno del jugador (con el
   vaporazo del rival era un zoom indeseado).
 - MÚSICA POR VILLANO: `musica-brocoloco` / `musica-huevo` / `musica-quinoa` (en `public/assets/sounds/`), desde que se entra a la
@@ -594,6 +596,9 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   la guardia no tapa la nariz). Antes la nube "no hacía nada".
 - CHUPETÍN (2026-11-20): al pifiar, la VUELTA es todo el castigo (`whirl.after` 0): ni un cuadro quieto después; golpe y vuelta
   son el mismo movimiento y sólo frena si pega.
+- PATADAS PAREJAS (2026-11-24): las piernas también cargan el MISMO ARCO (`FIGHT.sweep/sweepHeavy`) sin importar hacia qué lado
+  mira: una aceituna en la pierna de adelante pateaba sin recorrido (rápido y sacando mucho) y al darse vuelta, entera. Prueba:
+  `node scripts/kick-probe.mjs`.
 - PIÑAS DE TU CHIZITO = GANCHO de afuera hacia adentro con los dos brazos (`startStrike`, `hook`: gira alrededor de la vertical,
   apenas inclinado hacia el rival); los rivales con `moves` no cambian. DE CERCA PEGA: rápido ×0,85, aporreo −20 % por golpe (piso
   45 %), recorrido mínimo 90 %.
@@ -618,16 +623,16 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   de perfil no se entendía.
 - SHOW DE PODERES: cargando, aura de chispas del color del poder que sube y ondas; al soltar, estallido de chispas, onda doble,
   destello y aberración; contra un poder del rival, un aviso de qué hacer ("¡SALTÁ!", "¡CUBRITE!"…). CALESITA DEL DOLOR: remolino
-  dorado mientras gira y cada golpe es una explosión dorada y rosa con confeti, golpe de cámara y la hinchada salta. Granos de la
-  metralla más grandes con estela; la avalancha son bolas que ruedan levantando polvo. Dientes en DOS filas con `userData.ty` (se movían aparte de la boca).
+  dorado mientras gira y cada golpe es una explosión dorada y rosa con confeti, golpe de cámara y la hinchada salta. La
+  avalancha (tsunami) es una ola de granos que levanta polvo. Dientes en DOS filas con `userData.ty` (se movían aparte de la boca).
 - BLOQUEO VISIBLE PARA TODOS (2026-11-22, "al bloquear NUNCA parece que bloquea"): con la guardia (o aguantando un golpe,
   `RenderPose.guard/block`) el dibujo se AGACHA (más bajo y ancho), se echa hacia el golpe y los rivales ponen CARA DE FUERZA
   (`face(…, effort)`: ojos apretados, cejas abajo, boca cerrada y ancha, temblando). Los rivales recogen los brazos JUNTOS delante
   de la cara y el pecho (con los brazos largos del huevo uno quedaba arriba de la cabeza y el otro en el piso); tu chizito sigue
   con la diagonal.
 - CONSEJO POR RIVAL al empezar cada nivel (`RIVAL_TIP`): raíces (salí o saltá), cáscaras (no las pises), quinoa (lo rápido se
-  hunde: cargá). Contra la quinoa: "¡SE HUNDE! cargá el golpe" las dos primeras veces y "¡SE REARMA!" cuando junta granos.
-- NIVELES PROGRESIVOS: la quinoa recibe ×0,64; bot medio 77 % / 23 % / 20 %.
+  hunde: cargá; si se frena a reagruparse, pegale). Contra la quinoa: "¡SE HUNDE! cargá el golpe" las dos primeras veces y "¡SE REARMA!" cuando junta granos.
+- NIVELES PROGRESIVOS: la quinoa recibe ×0,64; bot medio 79 % / 29 % / 14 %.
 - QUINOA MASA CON INERCIA (sólo dibujo): se inclina hacia donde camina con un resorte (al frenar se bambolea) y rebota en cada paso.
 - PRIMERA PERSONA ESTABILIZADA (2026-11-22, "se mueve demasiado, no se ve nada"): ojo en la cara de ketchup, pero mira al rival
   (85 %, 15 % hacia donde apunta el cuerpo), horizonte siempre derecho, posición suavizada rápido y mirada lento; 24 mm.

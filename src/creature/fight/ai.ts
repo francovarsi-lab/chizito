@@ -100,12 +100,12 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   }
   mem.doing = 'none';
   // El poder, cuando conviene (cada uno con su lógica): raíces si el otro está parado en el piso, rodar o avalancha a media distancia con el otro en
-  // el piso, lo que se tira (arbolitos, cáscaras, granos) de lejos, queso de cerca. Con media barra usa el chico (sin apuro: puede
+  // el piso, lo que se tira (arbolitos, cáscaras) de lejos, reagruparse de lejos y con poca vida, queso de cerca. Con media barra usa el chico (sin apuro: puede
   // esperar el grande). Más nivel = lo usa mejor (con menos azar).
   const full = me.meter >= FIGHT.power.max;
   const k = full ? me.model.power : me.meter >= FIGHT.powerUse.half ? me.model.power2 : undefined;
   if (k && me.stun <= 0) {
-    const good = k === 'raices' ? foe.grounded && foe.stun <= 0 && near < 0.2 : k === 'rodada' || k === 'avalancha' ? near > 0.05 && near < 0.22 && foe.grounded : k === 'metralla' || k === 'arbolitos' || k === 'cascaras' ? near > 0.06 : near < POWERS.queso.reach;
+    const good = k === 'raices' ? foe.grounded && foe.stun <= 0 && near < 0.2 : k === 'rodada' || k === 'avalancha' ? near > 0.05 && near < 0.22 && foe.grounded : k === 'rearme' ? me.hp < 70 && near > 0.08 : k === 'arbolitos' || k === 'cascaras' ? near > 0.06 : near < POWERS.queso.reach;
     if (good && rnd(mem) < (full ? 0.02 + 0.02 * mem.level : 0.0015 + 0.004 * mem.level)) return { x: 0, power: true };
   }
   const attackPrev = mem.wasAttack;

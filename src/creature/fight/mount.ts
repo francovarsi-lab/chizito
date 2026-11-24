@@ -255,7 +255,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const ring = (at: THREE.Vector3, size: number, color: number): void => fxOn().ring(at, size, color);
   const sparks = (at: THREE.Vector3, n: number, color: number, speed: number, up = 0.05, size = 0.004): void => fxOn().sparks(at, n, color, speed, up, size);
   /** El color de cada poder (aura al cargar, estallido al soltar). */
-  const POWER_COLOR: Record<string, number> = { queso: 0xff9424, olor: 0xb5c83a, nube: 0xff9424, trompo: 0xffd23f, arbolitos: 0x6cc23a, raices: 0xb08850, cascaras: 0xfff3d6, rodada: 0xfff3d6, metralla: 0xf0dfb0, avalancha: 0xe6d3a0 };
+  const POWER_COLOR: Record<string, number> = { queso: 0xff9424, olor: 0xb5c83a, nube: 0xff9424, trompo: 0xffd23f, arbolitos: 0x6cc23a, raices: 0xb08850, cascaras: 0xfff3d6, rodada: 0xfff3d6, rearme: 0xf0dfb0, avalancha: 0xe6d3a0 };
   const cloud = (at: THREE.Vector3, n: number, color: number, size: number, spread: number, rise: number, dir = 0): void => fxOn().puff(at, n, color, size, spread, rise, dir);
   /** Granos de quinoa en el aire (los de la METRALLA): uno por proyectil del motor. */
   const grainGeo = new THREE.SphereGeometry(1, 7, 5).scale(1, 0.6, 1);
@@ -290,31 +290,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   // Cáscara de huevo: un pedazo curvo de esfera, blanco por fuera y apenas más crema por dentro; se ve de lejos.
   const shellGeo = new THREE.SphereGeometry(1, 12, 8, 0, 1.9, 0, 1.3);
   const shellMat = new THREE.MeshStandardMaterial({ color: '#fbf7ee', roughness: 0.4, side: THREE.DoubleSide, emissive: '#fff6e0', emissiveIntensity: 0.12 });
-  // BOLA DE QUINOA: una bola de granos de verdad (blancos, rojos y negros, apretados), un solo dibujo para todas.
   const GRAIN_COLS = ['#ebdfc3', '#e3d3b0', '#93412e', '#2b2522', '#f1e6cc'];
-  const ballGeo = (() => {
-    const parts: THREE.BufferGeometry[] = [];
-    const core = new THREE.IcosahedronGeometry(0.9, 2);
-    paintGeo(core, '#cdbb92');
-    parts.push(core);
-    for (let k = 0; k < 160; k++) {
-      const y = 1 - (2 * (k + 0.5)) / 160;
-      const rr = Math.sqrt(1 - y * y);
-      const a = k * 2.39996;
-      const gr = new THREE.SphereGeometry(0.2, 5, 3).scale(1, 0.62, 1);
-      gr.lookAt(new THREE.Vector3(Math.cos(a) * rr, y, Math.sin(a) * rr));
-      gr.translate(Math.cos(a) * rr * 0.95, y * 0.95, Math.sin(a) * rr * 0.95);
-      paintGeo(gr, GRAIN_COLS[(k * 7) % GRAIN_COLS.length]);
-      parts.push(gr);
-    }
-    const g = mergeGeometries(parts.map((x) => x.toNonIndexed()))!;
-    g.computeVertexNormals();
-    return g;
-  })();
-  const ballMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 });
   /** TSUNAMI: cientos de granos formando una ola que se enrosca hacia adelante (marco: x hacia donde avanza, y arriba). */
   const waveMesh = (H: number): THREE.InstancedMesh => {
-    const N = 900;
+    const N = 1600;
     const im = new THREE.InstancedMesh(grainGeo, new THREE.MeshStandardMaterial({ roughness: 0.5 }), N);
     const mtx = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -323,13 +302,13 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < N; i++) {
       const s = rnd();
-      const z = (rnd() - 0.5) * 0.07;
+      const z = (rnd() - 0.5) * 0.09;
       // Perfil: sube desde atrás, cresta adelante que se curva hacia el frente (la ola rompe).
       const y = H * Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.15)), 0.8) * (0.55 + 0.45 * rnd());
       const curl = s > 0.6 ? (s - 0.6) / 0.4 : 0;
-      const x = -0.03 + 0.036 * s + curl * curl * H * 0.5 * (y / H);
+      const x = -0.05 + 0.06 * s + curl * curl * H * 0.5 * (y / H);
       q.setFromEuler(new THREE.Euler(rnd() * 6, rnd() * 6, rnd() * 6));
-      const sc = 0.0009 + rnd() * 0.0006;
+      const sc = 0.0011 + rnd() * 0.0008;
       mtx.compose(new THREE.Vector3(x, y, z * (1 - 0.4 * (y / H))), q, new THREE.Vector3(sc, sc, sc));
       im.setMatrixAt(i, mtx);
       im.setColorAt(i, c.set(GRAIN_COLS[i % GRAIN_COLS.length]));
@@ -350,8 +329,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           g.userData.wave = true;
           g.userData.age = 0;
         } else {
-          g = sh.kind === 'arbolitos' ? new THREE.Mesh(floretGeo, floretMat) : sh.kind === 'cascaras' ? new THREE.Mesh(shellGeo, shellMat) : sh.kind === 'metralla' ? new THREE.Mesh(ballGeo, ballMat) : new THREE.Mesh(grainGeo, grainMats[sh.id % grainMats.length]);
-          g.scale.setScalar(sh.r * (sh.kind === 'arbolitos' ? 1.25 : sh.kind === 'cascaras' ? 1.5 : sh.kind === 'metralla' ? 1 : 1.3));
+          g = sh.kind === 'arbolitos' ? new THREE.Mesh(floretGeo, floretMat) : sh.kind === 'cascaras' ? new THREE.Mesh(shellGeo, shellMat) : new THREE.Mesh(grainGeo, grainMats[sh.id % grainMats.length]);
+          g.scale.setScalar(sh.r * (sh.kind === 'arbolitos' ? 1.25 : sh.kind === 'cascaras' ? 1.5 : 1.3));
           g.rotation.set(sh.id * 1.3, sh.id * 0.7, 0);
         }
         g.castShadow = true;
@@ -369,9 +348,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         continue;
       }
       g.position.copy(P3(sh.x, sh.y, 0.004 + (sh.kind === 'arbolitos' ? ((sh.id % 5) - 2) * 0.006 : 0)));
-      // La bola de quinoa deja una estela de granitos.
-      if (sh.kind === 'metralla' && (m?.frame ?? 0) % 2 === 0) sparks(g.position, 2, 0xf0dfb0, 0.03, 0, 0.003);
-      // Estelas para que se vean volar: las cascaritas dejan un brillo blanco; los arboletes, hojitas.
+      // Estelas para que se vean volar: las cascaritas dejan un brillo blanco; los arbolitos, hojitas.
       if (sh.kind === 'cascaras' && (sh.id + (m?.frame ?? 0)) % 2 === 0) sparks(g.position, 1, 0xfff6e0, 0.01, 0, 0.004);
       if (sh.kind === 'arbolitos' && (sh.id + (m?.frame ?? 0)) % 6 === 0) cloud(g.position, 1, 0x4f8f2a, 0.002, 0.004, 0.004);
       if (sh.kind === 'arbolitos') {
@@ -899,7 +876,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           hud.flash(0.3);
           aber = Math.max(aber, 0.7);
           // Qué hacer contra cada poder del rival (se entiende en el momento, no hay que adivinar).
-          const DO: Record<string, string> = { raices: '¡SALÍ DE LA GRIETA O SALTÁ!', avalancha: '¡SALTÁ!', rodada: '¡SALTÁ O CUBRITE!', cascaras: '¡CUBRITE Y NO PISES LAS CÁSCARAS!', metralla: '¡ALEJATE O CUBRITE!', arbolitos: '¡CUBRITE!' };
+          const DO: Record<string, string> = { raices: '¡SALÍ DE LA GRIETA O SALTÁ!', avalancha: '¡SALTÁ!', rodada: '¡SALTÁ O CUBRITE!', cascaras: '¡CUBRITE Y NO PISES LAS CÁSCARAS!', rearme: '¡PEGALE AHORA QUE SE ESTÁ ARMANDO!', arbolitos: '¡CORRETE O CUBRITE!' };
           if (e.who !== me() && DO[e.kind]) hud.popup(m.f[me()].x, m.f[me()].y + 0.09, DO[e.kind], '', 'hint');
         }
         shake = Math.max(shake, 0.004);
@@ -907,6 +884,15 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         if (e.kind === 'queso') cloud(front, 26, 0xff9424, 0.011, 0.05, 0.03, f.facing);
         if (e.kind === 'arbolitos') cloud(views[e.who].head(), 18, 0x4f8f2a, 0.006, 0.04, 0.02);
         if (e.kind === 'cascaras') cloud(P3(f.x, f.y + 0.03), 16, 0xf2ecdf, 0.006, 0.04, 0.02);
+        if (e.kind === 'rearme') {
+          // Los granos perdidos vuelven volando desde toda la tabla (los de los montoncitos llegan con el evento 'reabsorb').
+          spawnGrains(e.who, [f.x, 0], f.x, 0, -1);
+          for (let k = 0; k < 160 && lg.length < LOOSE_MAX; k++) {
+            const r = Math.random;
+            lg.push({ pile: -1, who: e.who, p: P3(f.x + (r() - 0.5) * 0.24, r() * 0.004, (r() - 0.5) * 0.05), v: new THREE.Vector3(), st: 2, t: 0, s: 0.0007 + r() * 0.0004 });
+          }
+          ring(P3(f.x, 0.003), 0.08, 0xf0dfb0);
+        }
         if (e.kind === 'avalancha') cloud(P3(f.x + f.facing * 0.02, 0.004), 30, 0xd9c9a0, 0.008, 0.05, 0.01, f.facing);
         if (e.kind === 'rodada') cloud(P3(f.x, 0.004), 8, 0xe9e2d0, 0.006, 0.03, 0.02);
         if (e.kind === 'nube') cloud(P3(f.x + f.facing * 0.035, f.y + 0.02), 60, 0xff9424, 0.016, 0.05, 0.02, f.facing);
@@ -918,7 +904,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       case 'powerHit': {
         const victim = (1 - e.by) as 0 | 1;
         const at = P3(e.at[0], e.at[1]);
-        const small = e.kind === 'metralla' || e.kind === 'arbolitos';
+        const small = e.kind === 'arbolitos';
         // Olió el olor a pata (o la nube): cara de asco unos segundos.
         if (victim === 1 && !e.blocked && (e.kind === 'olor' || e.kind === 'nube' || e.kind === 'queso')) sickUntil = performance.now() + 3500;
         if (!small && !e.blocked) aber = 1;
@@ -957,17 +943,6 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           g.audio.play('escudo', 0.7);
         } else g.audio.play('drop', 0.35);
         break;
-      case 'burst': {
-        // La BOLA DE QUINOA revienta: estallido de granos para todos lados, polvo, onda y temblor.
-        const at = P3(e.x, e.y + 0.004);
-        sparks(at, 50, 0xf0dfb0, 0.4, 0.12, 0.004);
-        sparks(at, 20, 0xc0583f, 0.35, 0.1, 0.0035);
-        cloud(at, 14, 0xd9c9a0, 0.01, 0.04, 0.02);
-        ring(at, 0.04, 0xf0dfb0);
-        shake = Math.max(shake, 0.004);
-        g.audio.play('crunch', 1);
-        break;
-      }
       case 'roots':
         cloud(P3(e.x, 0.003), e.hit ? 26 : 14, 0x8a6a3a, 0.008, 0.05, 0.02);
         sparks(P3(e.x, 0.006), 24, 0xb08850, 0.25, 0.12, 0.004);
@@ -1303,7 +1278,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     },
     3: {
       name: 'MONSTRUO DE QUINOA',
-      tag: 'diez mil granos · se rearma solo y te tira metralla',
+      tag: 'diez mil granos · se reagrupa y te tira un tsunami',
       lines: [
         { at: 1.1, until: 3.2, text: '¿Un solo chizito? Nosotros somos diez mil.', sound: 'quinoa-frase1' },
         { at: 3.5, until: 5.5, text: 'Pegame. Cada grano que se cae vuelve a su lugar.', sound: 'quinoa-frase2' },
@@ -1711,7 +1686,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const RIVAL_TIP = [
     'EL BROCOLOCO: si la tabla se agrieta bajo tus pies, salí o saltá (↑): brotan raíces',
     'HUEVO DURO: es gelatina (los golpes seguidos rebotan) y tira cáscaras que quedan en la tabla: no las pises',
-    'MONSTRUO DE QUINOA: los golpes rápidos se HUNDEN en sus granos. Mantené Q / W para cargarlos y reventarlo; si junta sus granos, se cura',
+    'MONSTRUO DE QUINOA: los golpes rápidos se HUNDEN en sus granos. Mantené Q / W para cargarlos y reventarlo. Si se frena a juntar sus granos, se cura: ¡pegale ahí!',
   ];
   let absorbTips = 0;
   let healTipAt = 0;

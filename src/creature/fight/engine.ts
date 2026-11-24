@@ -287,7 +287,6 @@ export type FightEvent =
   | { type: 'reabsorb' | 'scatter'; who: 0 | 1; pile: number }
   | { type: 'powerHit'; by: 0 | 1; kind: PowerKind; at: [number, number]; damage: number; blocked: boolean }
   | { type: 'trap'; who: 0 | 1; x: number; step: boolean }
-  | { type: 'burst'; who: 0 | 1; x: number; y: number }
   | { type: 'roots'; who: 0 | 1; x: number; hit: boolean }
 
 
@@ -714,7 +713,8 @@ function startStrike(m: Match, i: 0 | 1, k: number, kind: 'arm' | 'kick' | 'air'
     target = Math.atan2(sn, cs) + FIGHT.overshoot;
     // MISMO RECORRIDO para todos los brazos: con la guardia de 3/4 un hombro queda adelante (le salía un jab corto) y el otro
     // atrás (un golpe largo). El de adelante se carga más atrás hasta completar el mismo arco: los dos cargan y pegan parecido.
-    if (kind !== 'kick') windup = Math.min(windup, Math.max(target - (heavy ? FIGHT.sweepHeavy : FIGHT.sweep), -FIGHT.windupCap));
+    // Las PIERNAS también (pedido del usuario): una aceituna en la pierna de adelante pateaba sin recorrido y al darse vuelta, entera.
+    windup = Math.min(windup, Math.max(target - (heavy ? FIGHT.sweepHeavy : FIGHT.sweep), -FIGHT.windupCap));
   }
   s.axis = normv(axis);
   s.windup = windup;
@@ -1086,20 +1086,22 @@ function stepPower(m: Match, i: 0 | 1): void {
       // TSUNAMI: una sola ola grande de granos que corre por la TABLA hacia el rival; se esquiva saltando.
       const P = POWERS.avalancha;
       m.shots.push({ id: m.nextShot++, by: i, x: f.x + f.facing * 0.02, y: 0, vx: f.facing * P.speed, vy: 0, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'avalancha' });
-    } else if (pw.kind === 'metralla') {
-      const P = POWERS.metralla;
-      // BOLA DE QUINOA: sale del puño de adelante en un arco exacto que cae sobre el rival (tiempo de vuelo `flight`).
-      const k = f.arms[0];
-      const pts = k !== undefined ? f.cur[k] : null;
-      const x0 = pts ? pts[pts.length - 2] : center[0];
-      const y0 = Math.max(0.03, pts ? pts[pts.length - 1] : center[1]);
-      const T = P.flight;
-      const g = G * 0.6;
-      const yt = foe.y + 0.02;
-      m.shots.push({ id: m.nextShot++, by: i, x: x0, y: y0, vx: (foe.x - x0) / T, vy: (yt - y0 + 0.5 * g * T * T) / T, r: P.r, dmg: P.dmg * sm, life: P.life, kind: 'metralla' });
-      f.armorLoss = P.armorLoss;
+    } else if (pw.kind === 'rearme') {
+      // REAGRUPARSE: todos los granos perdidos de la tabla vuelven volando a la vez.
+      const P = POWERS.rearme;
+      for (const p of m.piles) {
+        f.hp = Math.min(FIGHT.hp, f.hp + p.n * FIGHT.grains.back * P.pileMul);
+        m.events.push({ type: 'reabsorb', who: i, pile: p.id });
+      }
+      m.piles = [];
     }
     return;
+  }
+  if (pw.kind === 'rearme') {
+    // Quieto juntando granos: se cura de a poco; un golpe que entra (lo deja aturdido) lo corta.
+    f.vx = 0;
+    if (f.stun > 0) pw.t = POWERS.rearme.go;
+    else f.hp = Math.min(FIGHT.hp, f.hp + POWERS.rearme.heal / POWERS.rearme.go);
   }
   if (pw.kind === 'rodada') {
     const P = POWERS.rodada;
@@ -1371,7 +1373,7 @@ function stepShots(m: Match): void {
     // TSUNAMI: la ola pega al que está APOYADO cuando le pasa por los pies (saltando pasa por abajo); pega una vez y sigue.
     if (sh.kind === 'avalancha') {
       const P = POWERS.avalancha;
-      if (!sh.hit && !b.ko && b.inv <= 0 && Math.abs(b.x - sh.x) < sh.r && (b.grounded || b.y < P.h * 0.5)) {
+      if (!sh.hit && !b.ko && b.inv <= 0 && Math.abs(b.x - sh.x) < sh.r && (b.grounded || b.y < P.jumpH)) {
         sh.hit = true;
         powerHit(m, sh.by, 'avalancha', [sh.x, 0.012], sh.dmg, { kb: P.kb, up: 0.25, stun: P.stun, blocked: false });
       }
@@ -1389,20 +1391,7 @@ function stepShots(m: Match): void {
     if (hit) {
       const blocked = b.guard >= FIGHT.guardReady && b.grounded && b.arms.length > 0 && Math.sign(sh.vx) === -b.facing;
       if (sh.kind === 'carozo') powerHit(m, sh.by, 'carozo', [sh.x, sh.y], sh.dmg, { kb: 0.2, up: 0, stun: 12, dizzy: POWERS.carozo.dizzy, blocked });
-      else if (sh.kind === 'metralla') {
-        /* revienta abajo */
-      }
-      else powerHit(m, sh.by, sh.kind ?? 'metralla', [sh.x, sh.y], sh.dmg, { kb: sh.kind === 'arbolitos' ? 0.015 : 0.05, up: 0, stun: sh.kind === 'arbolitos' ? 2 : 5, blocked });
-    }
-    // La BOLA DE QUINOA revienta al tocar al rival o la tabla: lastima a todo lo que esté cerca y larga una lluvia de granos.
-    if (sh.kind === 'metralla' && (hit || sh.y < 0)) {
-      const P = POWERS.metralla;
-      const near = !b.ko && b.inv <= 0 && Math.hypot(b.x - sh.x, (b.y + 0.02) - Math.max(0, sh.y)) < P.blast + 0.02;
-      if (near) {
-        const blocked = b.guard >= FIGHT.guardReady && b.grounded && b.arms.length > 0 && Math.sign(sh.vx) === -b.facing;
-        powerHit(m, sh.by, 'metralla', [sh.x, Math.max(0.004, sh.y)], sh.dmg, { kb: 0.1, up: 0, stun: P.stun, blocked });
-      }
-      m.events.push({ type: 'burst', who: sh.by, x: sh.x, y: Math.max(0, sh.y) });
+      else powerHit(m, sh.by, sh.kind ?? 'cascaras', [sh.x, sh.y], sh.dmg, { kb: sh.kind === 'arbolitos' ? 0.015 : 0.05, up: 0, stun: sh.kind === 'arbolitos' ? 2 : 5, blocked });
     }
     // Las cáscaras que no pegan caen y QUEDAN en la tabla (a la vista): el que las pisa se lastima.
     if (!hit && sh.kind === 'cascaras' && sh.y < 0 && Math.abs(sh.x) < FIGHT.arenaHalf) {
@@ -1436,7 +1425,6 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
   f.turnT++;
   if (f.buffer && --f.buffer.t <= 0) f.buffer = null;
   if (fighting && !f.ko && !f.pw) f.meter = Math.min(FIGHT.power.max, f.meter + FIGHT.power.passive * dt);
-  if (f.armorLoss > 0) f.armorLoss = Math.max(0, f.armorLoss - POWERS.metralla.armorLoss / POWERS.metralla.regrow);
   if (f.inv > 0) f.inv--;
   if (f.wall > 0) f.wall--;
   if (f.blind > 0) f.blind--;
@@ -1701,12 +1689,11 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
         const out = Math.sign(dotv(rot(qAxis(fa, 1), [0, -1, 0]), ga)) || 1;
         target = qMul(qAxis(fa, side * out * lift), target);
       }
-    } else if (M.stance && l.role === 'arm' && s.phase === 'rest' && f.guard <= 0.02 && !f.shieldPose && f.pw?.kind === 'metralla') {
-      // Metralla: el brazo de adelante se va atrás (carga) y se estira hacia el rival al tirar los granos.
-      const lead = f.arms.indexOf(k) === 0;
-      const want = f.pw.phase === 'wind' ? addv(scl(fwdAxis(f), lead ? -0.6 : 0.4), [0, lead ? 0.8 : 0.3, 0]) : addv(scl(fwdAxis(f), 1), [0, lead ? 0.15 : 0.5, 0]);
+    } else if (M.stance && l.role === 'arm' && s.phase === 'rest' && f.guard <= 0.02 && !f.shieldPose && f.pw?.kind === 'rearme') {
+      // Reagruparse: levanta los dos brazos (llama a los granos) y después los barre hacia la tabla y de vuelta, como juntándolos.
+      const want = f.pw.phase === 'wind' ? addv(scl(fwdAxis(f), -0.2), [0, 1, 0]) : addv(scl(fwdAxis(f), 0.6), [0, -0.3 + 0.7 * Math.sin(f.pw.t * 0.22 + f.arms.indexOf(k) * Math.PI), 0]);
       target = qFromTo(l.dir, normv(want));
-      g = f.pw.phase === 'wind' ? FIGHT.joint.windup : FIGHT.joint.strike;
+      g = FIGHT.joint.windup;
     } else if (M.stance && l.role === 'arm' && s.phase === 'rest' && f.guard <= 0.02 && !f.shieldPose) {
       // Guardia de boxeador cuando no pega (EL BROCOLOCO: se mueve como una persona): el brazo de adelante al frente y abajo de la
       // cara, el de atrás más alto, cerca; respira (sube y baja apenas) y se mece con el paso.

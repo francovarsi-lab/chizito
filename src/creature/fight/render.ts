@@ -484,9 +484,8 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       outer.updateMatrixWorld(true);
       syncCrownClip(inner);
       const left = 1 - Math.min(1, p.armorLoss / 0.35);
-      const charging = p.power === 'metralla';
-      // Sin granos flotando: al cargar la metralla los granos se JUNTAN en los puños (crecen) y al tirarlos quedan flacos hasta
-      // rearmarse.
+      const charging = p.power === 'rearme';
+      // Sin granos flotando: al reagruparse los granos se JUNTAN en los puños (crecen).
       for (const w of whips) {
         if (!w?.elbow || !w.arm) continue;
         const want = charging ? 1.35 : 0.78 + 0.22 * left;

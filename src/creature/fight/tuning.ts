@@ -313,29 +313,27 @@ export const FIGHT = {
  * Poderes (lógica de cada comida). Cuadros de carga (`wind`, se ve venir: se puede esquivar o cubrir) y de acción (`go`).
  *  queso    TU CHIZITO: NUBE DE QUESO, sopla el polvito naranja de su cáscara: marea al rival si está cerca.
  *  Cada rival tiene DOS (media barra / llena): EL BROCOLOCO arbolitos (tira ramitos de la copa) / RAÍCES (brotan de la tabla bajo el rival: se salta o se sale);
- *  HUEVO rodada / cáscaras (se descascara y las tira en abanico); QUINOA metralla / avalancha (ola de granos por la tabla: se salta).
+ *  HUEVO rodada / cáscaras (se descascara y las tira en abanico); QUINOA rearme / avalancha (ola de granos por la tabla: se salta).
  *  rodada   HUEVO DURO: HUEVAZO RODANTE, se hace bola y rueda contra el rival (los huevos ruedan): se salta o se bloquea.
- *  metralla MONSTRUO DE QUINOA: METRALLA DE GRANOS, se arranca un puñado de granos y los tira en abanico; mientras le faltan, su
- *           coraza de granos protege menos (`armorLoss`) hasta rearmarse.
  */
 export const POWERS = {
   queso: { name: 'NUBE DE QUESO', wind: 14, go: 26, reach: 0.075, ahead: 0.03, dmg: 4, dizzy: 80, guardDizzy: 0 },
   // Rivales: dos poderes cada uno (media barra / llena), con la lógica de su comida.
-  // Media barra: una LLUVIA de verdad (muchos ramitos que suben de la copa y caen sobre el rival en una franja de `rain` m), cada
-  // uno saca poco: se ve mucho más de lo que lastima.
-  arbolitos: { name: '¡LLUVIA DE ARBOLETES!', wind: 20, go: 14, n: 22, speed: 0.55, spread: 0.45, dmg: 0.45, r: 0.0055, life: 140, rain: 0.09 },
+  // Media barra: una LLUVIA de verdad (muchos ramitos que suben de la copa y caen sobre el rival en una franja de `rain` m). Es un
+  // PODER: quieto debajo saca ~10 (antes 0,45 cada uno y casi todos caían al lado: "ni me rasguña"); cubierto, la mitad.
+  arbolitos: { name: '¡LLUVIA DE ARBOLITOS!', wind: 20, go: 14, n: 22, speed: 0.55, spread: 0.45, dmg: 0.7, r: 0.0065, life: 140, rain: 0.05 },
   // RAÍCES: el brócoli clava las zanahorias en la tabla y bajo el rival se agrieta la madera; a los `delay` cuadros brotan raíces:
   // si sigue parado ahí (sin saltar) le pegan y lo ATAN `hold` cuadros: no camina ni salta (sí pega y se cubre). Se ve venir: hay que moverse o saltar.
   raices: { name: '¡RAÍCES!', wind: 24, go: 30, delay: 40, show: 60, r: 0.018, dmg: 6, stun: 12, hold: 150 },
   // Las que no pegan quedan en la tabla: pisarlas saca `trapDmg` y frena (`trapStun`); duran `trapLife` cuadros (tope `maxTraps`).
   cascaras: { name: '¡CASCARITAS!', wind: 20, go: 16, n: 8, speed: 0.42, spread: 0.8, dmg: 1.5, r: 0.0075, life: 160, trapDmg: 2.5, trapStun: 10, trapR: 0.005, trapLife: 720, maxTraps: 8 },
-  // Barra llena: una OLA gigante de granos (alto `h`) que nace de la quinoa y barre la tabla; sólo se esquiva SALTANDO. Pega una
-  // vez, fuerte, y voltea.
-  avalancha: { name: '¡TSUNAMI DE QUINOA!', wind: 30, go: 40, speed: 0.26, dmg: 13, r: 0.014, h: 0.024, life: 150, stun: 34, kb: 0.18 },
+  // Barra llena: una OLA gigante de granos (alto `h`, más alta que el chizito) que nace de la quinoa y barre la tabla; sólo se
+  // esquiva SALTANDO (a más de `jumpH`). Pega una vez, MUY fuerte, y voltea.
+  avalancha: { name: '¡TSUNAMI DE QUINOA!', wind: 30, go: 40, speed: 0.26, dmg: 18, r: 0.022, h: 0.05, jumpH: 0.012, life: 150, stun: 46, kb: 0.32 },
   rodada: { name: '¡HUEVAZO RODANTE!', wind: 22, go: 48, speed: 0.4, dmg: 13, kb: 0.5, stun: 34 },
-  // Media barra: junta granos en una BOLA grande que tira en arco (lenta, se ve venir) y que REVIENTA al tocar al rival o la
-  // tabla: lastima a todo lo que esté a `blast` m. Se esquiva alejándose o se para con la guardia.
-  metralla: { name: '¡BOLA DE QUINOA!', wind: 22, go: 16, flight: 0.75, dmg: 7.5, r: 0.009, blast: 0.032, life: 120, stun: 14, armorLoss: 0.35, regrow: 240 },
+  // Media barra: ¡REAGRUPARSE! (la bola "no se veía"): se frena `go` cuadros y absorbe TODOS los granos perdidos (los montoncitos
+  // de la tabla vuelven volando, × `pileMul`) más `heal` de vida repartida. Quieto y expuesto: un golpe sin cubrirse lo corta.
+  rearme: { name: '¡REAGRUPARSE!', wind: 14, go: 80, heal: 8, pileMul: 2 },
   // Súper de TU CHIZITO según lo que armó (la pieza que más pega): nube que queda, trompo, carozo, acupuntura o muralla.
   // Marea 1,5 s al que está adentro al soltarla (antes "no hacía nada": sólo 2/s mientras estuviera adentro).
   nube: { name: '¡NUBE DE QUESO!', wind: 16, go: 20, life: 150, r: 0.055, dps: 2, blind: 0.7, dmg: 3, dizzy: 60 },

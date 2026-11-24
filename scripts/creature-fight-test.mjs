@@ -801,9 +801,28 @@ try {
     const egg = run(mine, rivalFighter(2), 0.14, 120, H);
     ok(egg.moved > 0.05 && egg.ev.some((e) => e.type === 'powerHit' && e.kind === 'rodada'), `el HUEVO rueda contra el rival y lo golpea (${(egg.moved * 100).toFixed(1)} cm)`);
     ok(egg.m.f[1].roll === 0, 'después de rodar queda parado (vuelta entera)');
-    const q = run(mine, rivalFighter(3), 0.12, 120, H);
-    ok(q.ev.some((e) => e.type === 'burst') && q.ev.some((e) => e.type === 'powerHit' && e.kind === 'metralla'), 'la QUINOA tira la BOLA DE QUINOA: revienta y pega');
-    ok(q.m.f[1].armorLoss > 0, 'tirar granos le saca coraza (protege menos hasta rearmarse)');
+    {
+      // REAGRUPARSE (media barra de la quinoa): se frena, vuelven todos los montoncitos y se cura; un golpe que entra lo corta.
+      const reg = (hitIt) => {
+        const m = createMatch([mine, rivalFighter(3)]);
+        for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(m, [{ x: 0 }, { x: 0 }]);
+        m.f[1].x = m.f[0].x + (hitIt ? 0.045 : 0.15);
+        m.f[1].hp = 50;
+        m.f[1].meter = H;
+        m.piles.push({ id: 991, x: m.f[1].x + 0.1, n: 10, t: 0 });
+        let x = m.f[1].x, still = true;
+        for (let i = 0; i < 110; i++) {
+          stepMatch(m, [{ x: 0, punch: hitIt && i === 30 }, { x: 0, power: i === 0 }]);
+          if (m.f[1].pw?.phase === 'go' && Math.abs(m.f[1].x - x) > 0.002) still = false;
+          x = m.f[1].x;
+        }
+        return { m, still };
+      };
+      const a = reg(false);
+      ok(a.m.f[1].hp > 62 && !a.m.piles.length && a.still, `la QUINOA se REAGRUPA: quieta, junta los montoncitos y se cura (50 → ${a.m.f[1].hp.toFixed(1)})`);
+      const b = reg(true);
+      ok(b.m.f[1].hp < a.m.f[1].hp - 3, `un golpe corta el REAGRUPARSE (${b.m.f[1].hp.toFixed(1)} contra ${a.m.f[1].hp.toFixed(1)})`);
+    }
     const me = { ...mine, power: 'queso' };
     const ch = createMatch([me, broccoliFighter(1)]);
     for (let i = 0; i < FIGHT.introFrames; i++) stepMatch(ch, [{ x: 0 }, { x: 0 }]);

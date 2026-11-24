@@ -434,9 +434,9 @@ export const QUINOA: RivalSpec = {
   faceAt: { mouth: 0.44, eyes: 0.67 },
   yaw: 0.58,
   label: { arm: 'puño de quinoa', leg: 'pata de quinoa' },
-  // Quinoa: dispara granos (media barra); toda la quinoa se le viene encima como AVALANCHA por la tabla (barra llena).
+  // Quinoa: se REAGRUPA (media barra: junta los granos perdidos y se cura); toda la quinoa se le viene encima como TSUNAMI (llena).
   power: 'avalancha',
-  power2: 'metralla',
+  power2: 'rearme',
 };
 
 /** Un rival de nivel 2 o 3 como luchador (mismo marco que el brócoli: el frente es la cara, +Z del modelo). */

@@ -144,3 +144,10 @@ Guardia de los rivales con los brazos juntos delante de la cara y el pecho; arbo
 ## Bola de quinoa y tsunami (2026-11-23)
 Bola: 7,5 en área de 3 cm; tsunami: 13, se salta. Quinoa recibe ×0,64.
 - aporrea: 57 % / 0 % / 0 % · ia: 77 % / 23 % / 20 % · listo: 100 % / 100 % / 100 %.
+
+## Quinoa que pega duro, ¡REAGRUPARSE!, arbolitos que lastiman y patada pareja (2026-11-24, 8 semillas)
+Cañón 5 → 8 (carga más atrás, 22 cuadros de aviso, empuja 0,55), mazazo 5 → 7 por golpe, tsunami 13 → 18 (ola de 5 cm, más ancha).
+La bola se cambió por REAGRUPARSE (quieta 80 cuadros: +8 de vida y los montoncitos × 2; un golpe lo corta). Arbolitos 0,45 → 0,7
+en una franja de 5 cm (quieto debajo saca ~10, cubierto ~6; `node scripts/power-probe.mjs`). Las patadas cargan el mismo arco
+de los dos lados (`node scripts/kick-probe.mjs`). Probado: cañón 9 / mazazo 8 / tsunami 22 dejaba la quinoa en 4 % con la `ia`.
+- aporrea: 59 % / 0 % / 0 % · ia: 79 % / 29 % / 14 % · listo: 100 % / 100 % / 93 %. Niveles en orden, la quinoa es la más dura.
