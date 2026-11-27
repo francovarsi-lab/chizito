@@ -84,7 +84,7 @@ const SWORDS = `<svg viewBox="0 0 24 24" fill="none" stroke="#0d1024" stroke-wid
 
 const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyQ', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyJ', 'KeyX', 'KeyK', 'KeyC', 'KeyL', 'KeyR', 'KeyE', 'KeyV', 'Escape', 'Enter', 'Space']);
 
-const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], armorLoss: f.armorLoss, power: f.pw?.kind ?? null, hp: f.hp, mv: f.mv?.id ?? null, mvT: f.mv?.t ?? 0, guard: f.guard, block: f.block > 0 ? 1 : 0 });
+const poseOf = (f: Match['f'][number]): RenderPose => ({ x: f.x, y: f.y, tilt: f.tilt, facing: f.facing, yaw: f.yaw, roll: f.roll, qs: f.limbs.map((s) => [...s.q] as RenderPose['qs'][number]), broken: [...f.broken], st: [...f.st], power: f.pw?.kind ?? null, hp: f.hp, mv: f.mv?.id ?? null, mvT: f.mv?.t ?? 0, guard: f.guard, block: f.block > 0 ? 1 : 0 });
 
 /**
  * La pelea en LA MISMA mesa donde se arma la criatura: la cámara pasa a una vista lateral que sigue y encuadra a los dos, y tu
@@ -197,9 +197,10 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   /** Punto del plano de la pelea (y del motor) en el mundo: el piso es la tabla. */
   const P3 = (x: number, y: number, dz = 0.008): THREE.Vector3 => new THREE.Vector3(x, y + GROUND, z0 + dz);
   // Granos sueltos de la quinoa (T8): saltan al reventarla, quedan en la tabla y vuelven volando cuando los reabsorbe.
-  const LOOSE_MAX = 600;
+  const LOOSE_MAX = 900;
   let loose: THREE.InstancedMesh | null = null;
-  const lg: { pile: number; who: 0 | 1; p: THREE.Vector3; v: THREE.Vector3; st: 0 | 1 | 2 | 3; t: number; s: number }[] = [];
+  // st: 0 vuela, 1 quieto en la tabla, 2 vuelve directo, 3 se va de la tabla, 4 TORBELLINO (gira en espiral hacia la quinoa: a, r, h).
+  const lg: { pile: number; who: 0 | 1; p: THREE.Vector3; v: THREE.Vector3; st: 0 | 1 | 2 | 3 | 4; t: number; s: number; a?: number; r?: number; h?: number }[] = [];
   const lgM = new THREE.Matrix4();
   const lgQ = new THREE.Quaternion();
   const lgS = new THREE.Vector3();
@@ -228,6 +229,15 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           else g.st = 1;
         }
         if (g.st === 3 && g.t > 1.2) lg.splice(i, 1);
+      } else if (g.st === 4) {
+        // Torbellino: el radio se cierra, gira cada vez más rápido y sube; al llegar al cuerpo, se suma.
+        const f = m?.f[g.who];
+        if (!f) { lg.splice(i, 1); continue; }
+        g.r! -= dt * (0.025 + 0.05 * (0.14 - g.r!) / 0.14);
+        g.a! += dt * (5 + 0.25 / Math.max(0.01, g.r!));
+        g.h! += dt * 0.02 * (1 + g.t);
+        g.p.copy(P3(f.x + Math.cos(g.a!) * g.r!, f.y + Math.min(0.05, g.h!), Math.sin(g.a!) * g.r! * 0.7));
+        if (g.r! < 0.014) lg.splice(i, 1);
       } else if (g.st === 2) {
         const f = m?.f[g.who];
         const to = f ? P3(f.x, f.y + 0.035, 0) : g.p;
@@ -666,6 +676,20 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         if (Math.random() < 0.4 + 0.6 * k) sparks(P3(f.x + (Math.random() - 0.5) * 0.04, f.y + Math.random() * 0.04), 2, col, 0.05, 0.12 + 0.1 * k, 0.003);
         if (f.pw.t % 12 === 0) ring(P3(f.x, f.y + 0.025), 0.02 + 0.02 * k, col);
       }
+      // REAGRUPARSE: aspira granos de toda la tabla en un TORBELLINO (los que había tirados primero, después más del borde) con polvo
+      // girando.
+      if (f.pw?.kind === 'rearme' && f.pw.phase === 'go') {
+        if (!loose) spawnGrains(i as 0 | 1, [f.x, 0], f.x, 0, -1);
+        for (const g of lg) if (g.who === i && (g.st === 1 || g.st === 2)) { g.st = 4; g.a = Math.atan2(g.p.z - z0, g.p.x - f.x); g.r = Math.min(0.14, Math.hypot(g.p.x - f.x, g.p.z - z0)); g.h = g.p.y - GROUND; g.t = 0; }
+        for (let n = 0; n < 9 && lg.length < LOOSE_MAX; n++) {
+          const r = Math.random;
+          lg.push({ pile: -1, who: i as 0 | 1, p: P3(f.x, 0), v: new THREE.Vector3(), st: 4, t: 0, s: 0.0012 + r() * 0.0007, a: r() * 6.28, r: 0.05 + r() * 0.09, h: 0.001 });
+        }
+        // Polvo que gira en el embudo (dos brazos de la espiral) y chispas color quinoa.
+        const a = f.pw.t * 0.45;
+        for (const sgn of [0, Math.PI]) cloud(P3(f.x + Math.cos(a + sgn) * 0.045, 0.004 + (f.pw.t % 24) * 0.0015, Math.sin(a + sgn) * 0.03), 1, 0xd9c9a0, 0.007, 0.02, 0.01);
+        if (f.pw.t % 10 === 0) ring(P3(f.x, 0.003), 0.11 - (f.pw.t % 40) * 0.002, 0xf0dfb0);
+      }
       // La CALESITA girando: deja un remolino dorado.
       if (f.pw?.kind === 'trompo' && f.pw.phase === 'go') sparks(P3(f.x + (Math.random() - 0.5) * 0.05, f.y + 0.01 + Math.random() * 0.035), 3, 0xffd23f, 0.12, 0.02, 0.0035);
       if (f.pw?.phase !== 'wind' || Math.random() > 0.5) return;
@@ -886,12 +910,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         if (e.kind === 'cascaras') cloud(P3(f.x, f.y + 0.03), 16, 0xf2ecdf, 0.006, 0.04, 0.02);
         if (e.kind === 'rearme') {
           // Los granos perdidos vuelven volando desde toda la tabla (los de los montoncitos llegan con el evento 'reabsorb').
-          spawnGrains(e.who, [f.x, 0], f.x, 0, -1);
-          for (let k = 0; k < 160 && lg.length < LOOSE_MAX; k++) {
-            const r = Math.random;
-            lg.push({ pile: -1, who: e.who, p: P3(f.x + (r() - 0.5) * 0.24, r() * 0.004, (r() - 0.5) * 0.05), v: new THREE.Vector3(), st: 2, t: 0, s: 0.0007 + r() * 0.0004 });
-          }
-          ring(P3(f.x, 0.003), 0.08, 0xf0dfb0);
+          ring(P3(f.x, 0.003), 0.14, 0xf0dfb0);
         }
         if (e.kind === 'avalancha') cloud(P3(f.x + f.facing * 0.02, 0.004), 30, 0xd9c9a0, 0.008, 0.05, 0.01, f.facing);
         if (e.kind === 'rodada') cloud(P3(f.x, 0.004), 8, 0xe9e2d0, 0.006, 0.03, 0.02);

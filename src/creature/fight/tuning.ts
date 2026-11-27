@@ -331,9 +331,9 @@ export const POWERS = {
   // esquiva SALTANDO (a más de `jumpH`). Pega una vez, MUY fuerte, y voltea.
   avalancha: { name: '¡TSUNAMI DE QUINOA!', wind: 30, go: 40, speed: 0.26, dmg: 18, r: 0.022, h: 0.05, jumpH: 0.012, life: 150, stun: 46, kb: 0.32 },
   rodada: { name: '¡HUEVAZO RODANTE!', wind: 22, go: 48, speed: 0.4, dmg: 13, kb: 0.5, stun: 34 },
-  // Media barra: ¡REAGRUPARSE! (la bola "no se veía"): se frena `go` cuadros y absorbe TODOS los granos perdidos (los montoncitos
+  // Media barra: ¡REAGRUPARSE! (la bola "no se veía"): se frena `go` cuadros (2,3 s: tiene que NOTARSE el torbellino) y absorbe TODOS los granos perdidos (los montoncitos
   // de la tabla vuelven volando, × `pileMul`) más `heal` de vida repartida. Quieto y expuesto: un golpe sin cubrirse lo corta.
-  rearme: { name: '¡REAGRUPARSE!', wind: 14, go: 80, heal: 8, pileMul: 2 },
+  rearme: { name: '¡REAGRUPARSE!', wind: 14, go: 140, heal: 8, pileMul: 2 },
   // Súper de TU CHIZITO según lo que armó (la pieza que más pega): nube que queda, trompo, carozo, acupuntura o muralla.
   // Marea 1,5 s al que está adentro al soltarla (antes "no hacía nada": sólo 2/s mientras estuviera adentro).
   nube: { name: '¡NUBE DE QUESO!', wind: 16, go: 20, life: 150, r: 0.055, dps: 2, blind: 0.7, dmg: 3, dizzy: 60 },
@@ -341,8 +341,9 @@ export const POWERS = {
   carozo: { name: '¡CAROZAZO!', wind: 18, go: 10, speed: 0.55, dmg: 9, r: 0.004, life: 70, dizzy: 50 },
   acupuntura: { name: '¡ACUPUNTURA!', wind: 12, go: 34, reach: 0.06, dmg: 2.6, hits: [4, 10, 16, 22, 28] as readonly number[], stun: 8 },
   muralla: { name: '¡MURALLA!', wind: 10, go: 8, frames: 180 },
-  // MEDIA barra de TU CHIZITO: olor a pata (la barra llena es la calesita del dolor, `trompo`). Marea al que lo huele y queda 4 s en el lugar (quema y el rival pega × blind).
-  olor: { name: '¡OLOR A PATA!', wind: 16, go: 22, life: 240, r: 0.075, dps: 3.5, blind: 0.55, dmg: 8, dizzy: 130 },
+  // MEDIA barra de TU CHIZITO: olor a pata (la barra llena es la calesita del dolor, `trompo`). NO saca vida (pedido del usuario): marea y
+  // frena al que lo huele (queda quieto para pegarle) y adentro pega × blind.
+  olor: { name: '¡OLOR A PATA!', wind: 16, go: 22, life: 240, r: 0.075, dps: 0, blind: 0.55, dmg: 0, dizzy: 130 },
 } as const;
 export type PowerKind = keyof typeof POWERS;
 

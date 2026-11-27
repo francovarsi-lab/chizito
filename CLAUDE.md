@@ -573,12 +573,19 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   las piernas; se salta o se sale); HUEVO
   rodada / cáscaras ("¡CASCARITAS!": 8 cáscaras grandes y blancas, LENTAS y en arco alto con estela de brillo, para que se vean; las que no pegan QUEDAN EN LA TABLA, `m.traps`, tres pedazos
   rotos juntos, a la vista: pisarlas saca 2,5 y frena;
-  duran 12 s, tope 8); QUINOA ¡REAGRUPARSE! (`rearme`, 2026-11-24: la bola de quinoa "no se veía", DESCARTADA: se frena 80 cuadros, levanta los
-  brazos y barre la tabla, los granos vuelven volando de toda la tabla y TODOS los montoncitos se absorben ×2; +8 de vida; quieta y
-  expuesta: un golpe que entra lo corta; aviso "¡PEGALE AHORA QUE SE ESTÁ ARMANDO!") / ¡TSUNAMI DE QUINOA! (`avalancha`: UNA ola
+  duran 12 s, tope 8); QUINOA ¡REAGRUPARSE! (`rearme`, 2026-11-24: la bola de quinoa "no se veía", DESCARTADA; 2026-11-27 "no se nota": ahora 140
+  cuadros (2,3 s) de TORBELLINO: granos de toda la tabla giran en espiral cerrándose y subiendo hasta el cuerpo (`lg` estado 4 en
+  mount), polvo en dos brazos de espiral y anillos; los montoncitos se absorben ×2; +8 de vida repartida; quieta y expuesta: un golpe
+  que entra lo corta; aviso "¡PEGALE AHORA QUE SE ESTÁ ARMANDO!") / ¡TSUNAMI DE QUINOA! (`avalancha`: UNA ola
   de 1600 granos de 5 cm de alto, más alta que el chizito, que se enrosca hacia adelante y barre la tabla; pega 18 y voltea al que
-  está apoyado; sólo se esquiva saltando más de 1,2 cm). MONSTRUO PESADO QUE PEGA DURO: cañón 8 (se carga bien atrás, 22 cuadros
-  de aviso, empuja 0,55) y mazazo 7 + 7.
+  está apoyado; sólo se esquiva saltando más de 1,2 cm).
+  QUINOA = MASA QUE CAMBIA DE FORMA (2026-11-27, "nunca hace nada con eso"): `MoveKey.stretch` estira cada extremidad (×0,6–2,1,
+  interpolado entre claves; `f.st` en el motor escala los puntos desde el hombro: lo que se ve es lo que pega; el dibujo la alarga y
+  la afina con el mismo volumen) y el cuerpo sigue a los brazos (se aprieta si se encogen, se alarga si se estiran). Ataques: PUÑO
+  ELÁSTICO (`canon`: se encoge atrás y se dispara al doble, 11 cm, 7), MARTILLO (`mazazo`: puños en dos mazas ×1,8, 6 + 6, rompe
+  guardia), LÁTIGO DE GRANOS (`barrido`: barre al ras estirado ×1,9, hay que saltarlo, derriba, 6), DERRUMBE Y GÉISER (`derrumbe`:
+  charco invulnerable que corre por la tabla y se rearma de golpe estirándose alto con los brazos arriba, 6). Núcleo con TEXTURA de
+  granos (`quinoaSkin`): antes se veía una base marrón entre los granos, más al achicarse.
   Sonidos `poder-arbolitos/raices/cascaras/avalancha`. La IA usa el chico con poca frecuencia (puede esperar el grande). El corte de cámara del súper es sólo para el poder lleno del jugador (con el
   vaporazo del rival era un zoom indeseado).
 - MÚSICA POR VILLANO: `musica-brocoloco` / `musica-huevo` / `musica-quinoa` (en `public/assets/sounds/`), desde que se entra a la
@@ -592,6 +599,7 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
 - KO (v2): cae al piso con `koFall` (gravedad y caída × 3,5; con la cámara lenta parecía que flotaba). Los rivales ponen cara de
   noqueado (`face(..., dead)`: ojos en rendija, sin pupila ni brillo, boca floja).
 - CARTELES: el número de daño sólo con 8+ o en cadenas; ¡PIFIÓ! sólo cuando pifia lo pesado.
+- OLOR A PATA NO SACA VIDA (2026-11-27, pedido del usuario): sólo marea y frena (sirve para pegarle después).
 - NUBE DE QUESO (media barra sin piezas pesadas) y OLOR A PATA: al soltarlos MAREAN al que está adentro (nube 60 cuadros, olor 70;
   la guardia no tapa la nariz). Antes la nube "no hacía nada".
 - CHUPETÍN (2026-11-20): al pifiar, la VUELTA es todo el castigo (`whirl.after` 0): ni un cuadro quieto después; golpe y vuelta
@@ -632,7 +640,7 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   con la diagonal.
 - CONSEJO POR RIVAL al empezar cada nivel (`RIVAL_TIP`): raíces (salí o saltá), cáscaras (no las pises), quinoa (lo rápido se
   hunde: cargá; si se frena a reagruparse, pegale). Contra la quinoa: "¡SE HUNDE! cargá el golpe" las dos primeras veces y "¡SE REARMA!" cuando junta granos.
-- NIVELES PROGRESIVOS: la quinoa recibe ×0,64; bot medio 79 % / 29 % / 14 %.
+- NIVELES PROGRESIVOS: la quinoa recibe ×0,72; bot medio 79 % / 29 % / 5 %, el que juega bien 100 % / 73 % / 45 % (la quinoa, jefe final).
 - QUINOA MASA CON INERCIA (sólo dibujo): se inclina hacia donde camina con un resorte (al frenar se bambolea) y rebota en cada paso.
 - PRIMERA PERSONA ESTABILIZADA (2026-11-22, "se mueve demasiado, no se ve nada"): ojo en la cara de ketchup, pero mira al rival
   (85 %, 15 % hacia donde apunta el cuerpo), horizonte siempre derecho, posición suavizada rápido y mirada lento; 24 mm.

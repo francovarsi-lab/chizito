@@ -811,7 +811,7 @@ try {
         m.f[1].meter = H;
         m.piles.push({ id: 991, x: m.f[1].x + 0.1, n: 10, t: 0 });
         let x = m.f[1].x, still = true;
-        for (let i = 0; i < 110; i++) {
+        for (let i = 0; i < 170; i++) {
           stepMatch(m, [{ x: 0, punch: hitIt && i === 30 }, { x: 0, power: i === 0 }]);
           if (m.f[1].pw?.phase === 'go' && Math.abs(m.f[1].x - x) > 0.002) still = false;
           x = m.f[1].x;
@@ -819,7 +819,7 @@ try {
         return { m, still };
       };
       const a = reg(false);
-      ok(a.m.f[1].hp > 62 && !a.m.piles.length && a.still, `la QUINOA se REAGRUPA: quieta, junta los montoncitos y se cura (50 → ${a.m.f[1].hp.toFixed(1)})`);
+      ok(a.m.f[1].hp > 57 && !a.m.piles.length && a.still, `la QUINOA se REAGRUPA: quieta, junta los montoncitos y se cura (50 → ${a.m.f[1].hp.toFixed(1)})`);
       const b = reg(true);
       ok(b.m.f[1].hp < a.m.f[1].hp - 3, `un golpe corta el REAGRUPARSE (${b.m.f[1].hp.toFixed(1)} contra ${a.m.f[1].hp.toFixed(1)})`);
     }
@@ -957,13 +957,14 @@ try {
     };
     ok(['boxeador', 'chupetin2', 'mazo', 'pinchudo', 'tanque'].every((id) => superKind(id) === 'olor'),
       `media barra = olor a pata con cualquier armado (${['boxeador', 'chupetin2', 'mazo', 'pinchudo', 'tanque'].map(superKind).join(', ')})`);
-    // Cada súper hace lo suyo: daño (o muralla) contra el brócoli quieto a 5 cm.
+    // El olor a pata NO saca vida (pedido del usuario): sólo marea y frena al brócoli quieto a 5 cm.
     for (const id of ['boxeador', 'chupetin2', 'mazo', 'pinchudo']) {
       const m = fight(arq(id));
       m.f[0].meter = FIGHT.powerUse.half;
       const hp0 = m.f[1].hp;
-      for (let i = 0; i < 200; i++) { m.f[1].x = m.f[0].x + 0.05; stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); }
-      ok(m.f[1].hp < hp0 - 3, `${id}: el súper lastima (${(hp0 - m.f[1].hp).toFixed(1)})`);
+      let dizzy = false;
+      for (let i = 0; i < 200; i++) { m.f[1].x = m.f[0].x + 0.05; stepMatch(m, [{ x: 0, power: i === 0 }, { x: 0 }]); dizzy ||= m.f[1].dizzyT > 0; }
+      ok(m.f[1].hp === hp0 && dizzy, `${id}: el olor a pata marea sin sacar vida (${(hp0 - m.f[1].hp).toFixed(1)})`);
     }
     // Remate: acertar y apretar E con media barra.
     {

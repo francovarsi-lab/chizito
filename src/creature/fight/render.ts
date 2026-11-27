@@ -20,8 +20,8 @@ export interface RenderPose {
   roll: number;
   qs: Q[];
   broken: string[];
-  /** Coraza de granos que le falta (quinoa): 0..1 de lo que tiró. */
-  armorLoss: number;
+  /** Largo de cada extremidad (la quinoa se estira en sus ataques). */
+  st?: number[];
   /** Poder que está cargando o soltando (o null). */
   power: string | null;
   /** Vida (para la fase 2 del huevo: se raja; la quinoa se achica). */
@@ -452,7 +452,10 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       // La vibración alterna: se estira a lo alto y se ensancha (volumen parejo, como una gelatina).
       // Derrumbe (quinoa): se aplasta en un montón y se vuelve a armar.
       const t = p.mvT ?? 0;
-      const fall = p.mv === 'derrumbe' ? (t < 30 ? Math.min(1, t / 8) : Math.max(0, 1 - (t - 30) / 14)) : 0;
+      // Derrumbe: charco hasta el cuadro 30, se rearma de golpe y se ESTIRA alto (géiser), y vuelve.
+      let fall = p.mv === 'derrumbe' ? (t < 30 ? Math.min(1, t / 8) : t < 36 ? 1 - ((t - 30) / 6) * 1.35 : -0.35 * Math.max(0, 1 - (t - 36) / 12)) : 0;
+      // La masa sigue a los brazos: si se encogen se aprieta (se agacha), si se estiran se alarga con ellos.
+      if (bodyGrains && p.st?.length && p.mv !== 'derrumbe') fall += Math.max(-0.15, Math.min(0.2, (1 - p.st.reduce((a, b) => a + b, 0) / p.st.length) * 0.5));
       brace += (Math.max(p.guard ?? 0, p.block ?? 0) - brace) * Math.min(1, dt * 12);
       // La quinoa es una masa: respira hinchándose y se aplasta un poco al pisar (cambia de forma, no flotan pedazos).
       breathT += dt;
@@ -483,12 +486,12 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
       outer.matrixWorldNeedsUpdate = true;
       outer.updateMatrixWorld(true);
       syncCrownClip(inner);
-      const left = 1 - Math.min(1, p.armorLoss / 0.35);
       const charging = p.power === 'rearme';
       // Sin granos flotando: al reagruparse los granos se JUNTAN en los puños (crecen).
       for (const w of whips) {
         if (!w?.elbow || !w.arm) continue;
-        const want = charging ? 1.35 : 0.78 + 0.22 * left;
+        // Martillo: los puños se juntan en dos mazas enormes.
+        const want = charging ? 1.35 : p.mv === 'mazazo' && (p.mvT ?? 0) < 60 ? 1.8 : 1;
         const k = w.elbow.scale.x + (want - w.elbow.scale.x) * Math.min(1, dt * 8);
         w.elbow.scale.setScalar(k);
       }
@@ -497,6 +500,9 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
         // Giro en el marco del luchador llevado al del modelo: Bᵀ · q · B.
         tq.set(q[0], q[1], q[2], q[3]);
         c.obj.quaternion.copy(BqInv).multiply(tq).multiply(Bq).multiply(c.base);
+        // Se estira como masa: más larga y más fina (mismo volumen).
+        const st = p.st?.[k] ?? 1;
+        c.obj.scale.set(1 / Math.sqrt(st), st, 1 / Math.sqrt(st));
         const w = whips[k];
         if (w && dt > 0) {
           // Velocidad de giro del brazo en su propio marco (dq = prev⁻¹ · actual).

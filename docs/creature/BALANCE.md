@@ -151,3 +151,11 @@ La bola se cambió por REAGRUPARSE (quieta 80 cuadros: +8 de vida y los montonci
 en una franja de 5 cm (quieto debajo saca ~10, cubierto ~6; `node scripts/power-probe.mjs`). Las patadas cargan el mismo arco
 de los dos lados (`node scripts/kick-probe.mjs`). Probado: cañón 9 / mazazo 8 / tsunami 22 dejaba la quinoa en 4 % con la `ia`.
 - aporrea: 59 % / 0 % / 0 % · ia: 79 % / 29 % / 14 % · listo: 100 % / 100 % / 93 %. Niveles en orden, la quinoa es la más dura.
+
+## Quinoa que cambia de forma, olor a pata sin daño (2026-11-27, 8 semillas)
+Ataques nuevos de la quinoa (puño elástico 7, martillo 6 + 6, látigo de granos 6 bajo, derrumbe y géiser 6), reagruparse de 2,3 s
+(+8) y la quinoa recibe ×0,72 (antes 0,64). El OLOR A PATA ya no saca vida: el bot `listo` ahora pega cargado mientras el otro
+está mareado (es para eso). Probado: martillo estirado ×1,5 y 7 + 7 dejaba a la quinoa en 0 % para todos; escarbadientes que no
+se hunden en la quinoa: el pinchudo pasa de 13 % a 88–100 % (el pinchazo la aturde siempre), descartado.
+- aporrea: 59 % / 0 % / 0 % · ia: 79 % / 29 % / 5 % · listo: 100 % / 73 % / 45 %.
+- Sigue: pinchudo 0 % / 13 % contra la quinoa (sus pinchazos se hunden: hay que cargar); tanque 25 %.

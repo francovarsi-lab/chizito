@@ -182,8 +182,8 @@ export interface FighterState {
   heavyLoad: number;
   /** Gelatina: golpes recibidos seguidos y cuadros desde el último. */
   jellyN: number;
-  /** Coraza que le falta (quinoa, después de tirar granos): 0..1, se rearma sola. */
-  armorLoss: number;
+  /** Largo de cada extremidad (1 = el suyo): la masa de la quinoa se ESTIRA en sus ataques (lo que se ve es lo que pega). */
+  st: number[];
   /** Cuadros que le quedan atado por las RAÍCES: no camina ni salta (sí pega y se cubre). */
   rooted: number;
   /** Cuadrante mantenido este paso (undefined: la entrada no lo informa). */
@@ -457,7 +457,7 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
     lastStrikeF: -999,
     heavyLoad: 0,
     jellyN: 0,
-    armorLoss: 0,
+    st: model.limbs.map(() => 1),
     rooted: 0,
     held: undefined,
     lastX: 0,
@@ -556,8 +556,9 @@ function settle(f: FighterState, stick = false): boolean {
   M.limbs.forEach((l, k) => {
     const q = f.limbs[k].q;
     const arr = f.cur[k];
+    const st = f.st[k];
     l.points.forEach((p, j) => {
-      const w = toWorld(f, posed(q, l.pivot, p.p));
+      const w = toWorld(f, posed(q, l.pivot, st === 1 ? p.p : addv(l.pivot, scl(sub(p.p, l.pivot), st))));
       arr[2 * j] = w[0];
       arr[2 * j + 1] = w[1];
       // Noqueado es un cadáver: cae el cuerpo sobre la tabla; las extremidades flojas no lo apuntalan (quedan tiradas encima).
@@ -961,7 +962,7 @@ function interrupt(b: FighterState): void {
 }
 
 function soak(m: Match, b: FighterState, dmg: number): number {
-  let mul = ((b.model.armorMul ?? 1) + b.armorLoss) * (b.model.jelly && b.hp < FIGHT.phase2 ? FIGHT.phase2Mul : 1);
+  let mul = (b.model.armorMul ?? 1) * (b.model.jelly && b.hp < FIGHT.phase2 ? FIGHT.phase2Mul : 1);
   if (b.model.jelly) {
     b.jellyN = m.frame - b.lastHurt < JELLY.window ? b.jellyN + 1 : 0;
     mul *= Math.max(JELLY.min, 1 - JELLY.step * b.jellyN);
@@ -1180,6 +1181,18 @@ function stepMove(m: Match, i: 0 | 1): void {
     if (key.inv) f.inv = Math.max(f.inv, key.inv);
     if (key.dx) f.x = clamp(f.x + f.facing * key.dx, -FIGHT.arenaHalf, FIGHT.arenaHalf);
   }
+  // Estirar (la masa): interpola el largo de cada extremidad entre las claves que lo dicen (las demás valen 1).
+  f.model.limbs.forEach((_, k) => {
+    const tg = tagsOf(f, k);
+    const val = (key: (typeof mv.keys)[number]): number => key.stretch?.[tg[0]] ?? key.stretch?.[tg[1]] ?? 1;
+    let a = mv.keys[0], b2 = mv.keys[mv.keys.length - 1];
+    for (const key of mv.keys) {
+      if (key.t <= t) a = key;
+      if (key.t >= t) { b2 = key; break; }
+    }
+    const e0 = b2.t > a.t ? clamp((t - a.t) / (b2.t - a.t), 0, 1) : 1;
+    f.st[k] = val(a) + (val(b2) - val(a)) * e0 * e0 * (3 - 2 * e0);
+  });
   const live = mv.hits.findIndex((h) => t >= h.from && t <= h.to);
   const tags = new Set(mv.hits.flatMap((h) => h.with));
   f.limbs.forEach((s, k) => {
@@ -1492,6 +1505,7 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
     m.events.push({ type: 'move', who: i, id: input.move, tell: MOVES[input.move].tell });
   }
   if (f.mv) stepMove(m, i);
+  else if (f.st.some((v) => v !== 1)) f.st.fill(1);
   // Huevo en fase 2 (se rajó): ataca un 20 % más rápido (un paso extra cada 4).
   if (f.mv && f.model.jelly && f.hp < FIGHT.phase2 && m.frame % 4 === 0) stepMove(m, i);
   // Un golpe por vez: no arranca otro mientras uno carga o pega, ni mientras paga el anterior (salvo una combinación, que sigue

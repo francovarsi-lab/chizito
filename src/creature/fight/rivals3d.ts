@@ -374,11 +374,38 @@ export function createEgg(): THREE.Group {
 
 // ───────────────────────── MONSTRUO DE QUINOA ─────────────────────────
 
+/** Textura del núcleo: granos de quinoa pintados apretados (crema, rojos y negros). Entre los granos de verdad (y cuando se achica
+ *  con la vida) se ve más quinoa, no una base marrón ("tiene que ser todo cubierto de granitos"). */
+function quinoaSkin(): THREE.DataTexture {
+  const N = 256;
+  const d = new Uint8Array(N * N * 4);
+  const rnd = mulberry32(17);
+  const hex = ['#ebdfc3', '#e3d3b0', '#93412e', '#6e2c22', '#2b2522'].map((h) => [1, 3, 5].map((o) => parseInt(h.slice(o, o + 2), 16)));
+  for (let i = 0; i < N * N; i++) d.set([214, 198, 162, 255], i * 4);
+  for (let k = 0; k < 2600; k++) {
+    const c = hex[(r => (r < 0.42 ? 0 : r < 0.62 ? 1 : r < 0.76 ? 2 : r < 0.84 ? 3 : 4))(rnd())];
+    const cx = rnd() * N, cy = rnd() * N, rx = 2.2 + rnd() * 1.2, ry = rx * 0.7;
+    for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) {
+      const e = (x / rx) ** 2 + (y / ry) ** 2;
+      if (e > 1) continue;
+      const shade = 1.08 - 0.3 * e;
+      const i = (((Math.floor(cy + y) + N) % N) * N + ((Math.floor(cx + x) + N) % N)) * 4;
+      d.set(c.map((v) => Math.min(255, v * shade)), i);
+    }
+  }
+  const t = new THREE.DataTexture(d, N, N);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(3, 2);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.needsUpdate = true;
+  return t;
+}
+
 let quinoaMats: Record<string, THREE.Material> | null = null;
 function quinoaMaterials(): Record<string, THREE.Material> {
   quinoaMats ??= {
-    // Lo de abajo de los granos (no se ve casi): quinoa cocida apretada.
-    core: new THREE.MeshPhysicalMaterial({ color: '#8f7656', roughness: 0.85 }),
+    // Lo de abajo de los granos: quinoa pintada (granos apretados), del mismo color que los granos.
+    core: new THREE.MeshPhysicalMaterial({ map: quinoaSkin(), roughness: 0.7 }),
     grain: new THREE.MeshPhysicalMaterial({ vertexColors: false, color: '#ffffff', roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.4 }),
     olive: new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.25, clearcoat: 0.9, clearcoatRoughness: 0.1 }),
     pupil: new THREE.MeshPhysicalMaterial({ color: '#141012', roughness: 0.25, clearcoat: 0.9 }),

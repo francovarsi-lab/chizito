@@ -20,6 +20,8 @@ export interface MoveKey {
   vx?: number;
   vy?: number;
   wt?: number;
+  /** Largo de cada extremidad (1 = el suyo; la quinoa se estira hasta ×2): se interpola entre claves, sin dato vale 1. */
+  stretch?: Partial<Record<LimbTag, number>>;
 }
 
 export interface Move {
@@ -91,29 +93,50 @@ MOVES.latigo = {
   keys: [{ t: 0, limbs: REST }, { t: 18, limbs: { armF: [-0.6, -0.7, 0.4], armB: [-0.4, -0.8, 0.5] } }, { t: 23, limbs: { armF: [0.9, -0.55, 0], armB: [0.8, -0.6, 0.2] }, vx: 0.15 }, { t: 30, limbs: { armF: [0.9, -0.5, -0.2], armB: [0.8, -0.5, 0] } }, { t: 48, limbs: REST }],
 };
 
-// ── MONSTRUO DE QUINOA (nivel 3: enseña a elegir el golpe). ──
-// Puño cañón: el brazo se va BIEN atrás y arriba (se ve venir) y se dispara recto con todo el peso: un monstruo pesado pega duro.
+// ── MONSTRUO DE QUINOA (nivel 3): una MASA de granos que cambia de forma para pegar (el usuario: "nunca hace nada con eso"). ──
+// Puño elástico: el brazo se encoge atrás (se aprieta como un resorte, se ve venir) y se DISPARA estirándose al doble: pega de lejos.
 MOVES.canon = {
-  id: 'canon', hits: [{ from: 22, to: 28, with: ['armF'] }], total: 60, dmg: 8, kb: 0.55, stun: 20, guard: 'block', reach: 0.08, tell: 'zumbido', w: [2, 3, 1],
-  keys: [{ t: 0, limbs: REST }, { t: 19, limbs: { armF: [-0.8, 0.55, 0.5] }, vx: -0.08 }, { t: 23, limbs: { armF: [1, 0.08, 0] }, vx: 0.45 }, { t: 34, limbs: { armF: [1, 0.08, 0] } }, { t: 60, limbs: REST }],
-};
-// Mazazo doble: los dos puños arriba 34 cuadros (aviso) y bajan dos veces: rompe la guardia.
-MOVES.mazazo = {
-  id: 'mazazo', hits: [{ from: 36, to: 41, with: ['armF', 'armB'] }, { from: 52, to: 57, with: ['armF', 'armB'] }], total: 76, dmg: 7, kb: 0.4, stun: 20, guard: 'break', reach: 0.065, tell: 'rugido', w: [3, 1, 0],
+  id: 'canon', hits: [{ from: 22, to: 30, with: ['armF'] }], total: 62, dmg: 7, kb: 0.55, stun: 20, guard: 'block', reach: 0.11, tell: 'zumbido', w: [1, 3, 3],
   keys: [
-    { t: 0, limbs: REST }, { t: 30, limbs: { armF: [0.1, 1, 0.3], armB: [0.1, 1, 0.3] } }, { t: 38, limbs: { armF: [0.9, -0.3, 0.1], armB: [0.9, -0.3, 0.1] }, vx: 0.15 },
-    { t: 46, limbs: { armF: [0.1, 1, 0.3], armB: [0.1, 1, 0.3] } }, { t: 54, limbs: { armF: [0.9, -0.3, 0.1], armB: [0.9, -0.3, 0.1] }, vx: 0.1 }, { t: 76, limbs: REST },
+    { t: 0, limbs: REST }, { t: 18, limbs: { armF: [-0.8, 0.55, 0.5] }, stretch: { armF: 0.7 }, vx: -0.06 },
+    { t: 24, limbs: { armF: [1, 0.1, 0] }, stretch: { armF: 2.1 }, vx: 0.2 }, { t: 32, limbs: { armF: [1, 0.1, 0] }, stretch: { armF: 2.1 } },
+    { t: 44, limbs: { armF: [0.8, 0.1, 0.2] }, stretch: { armF: 1 } }, { t: 62, limbs: REST },
   ],
 };
-// Derrumbe: se desarma en un montón (invulnerable 30 cuadros) y se rearma 6 cm más allá: castigable al rearmarse.
+// Martillo: los dos brazos arriba, los puños se juntan en dos MAZAS enormes (render) y bajan dos veces estirándose: rompe la guardia.
+MOVES.mazazo = {
+  id: 'mazazo', hits: [{ from: 36, to: 41, with: ['armF', 'armB'] }, { from: 52, to: 57, with: ['armF', 'armB'] }], total: 76, dmg: 6, kb: 0.4, stun: 20, guard: 'break', reach: 0.08, tell: 'rugido', w: [3, 2, 0],
+  keys: [
+    { t: 0, limbs: REST }, { t: 30, limbs: { armF: [0.1, 1, 0.3], armB: [0.1, 1, 0.3] }, stretch: { armF: 1.3, armB: 1.3 } },
+    { t: 38, limbs: { armF: [0.9, -0.3, 0.1], armB: [0.9, -0.3, 0.1] }, stretch: { armF: 1.1, armB: 1.1 }, vx: 0.15 },
+    { t: 46, limbs: { armF: [0.1, 1, 0.3], armB: [0.1, 1, 0.3] }, stretch: { armF: 1.3, armB: 1.3 } },
+    { t: 54, limbs: { armF: [0.9, -0.3, 0.1], armB: [0.9, -0.3, 0.1] }, stretch: { armF: 1.1, armB: 1.1 }, vx: 0.1 }, { t: 76, limbs: REST },
+  ],
+};
+// Látigo de granos: el brazo baja a la tabla y BARRE estirándose casi al doble, al ras: hay que saltarlo (derriba).
+MOVES.barrido = {
+  id: 'barrido', hits: [{ from: 22, to: 28, with: ['armF'] }], total: 58, dmg: 6, kb: 0.3, stun: 14, guard: 'low', reach: 0.12, tell: 'risa', w: [1, 3, 2], down: 30,
+  keys: [
+    { t: 0, limbs: REST }, { t: 16, limbs: { armF: [-0.5, -0.6, 0.9] }, stretch: { armF: 0.9 } },
+    { t: 24, limbs: { armF: [1, -0.55, 0] }, stretch: { armF: 1.9 } }, { t: 30, limbs: { armF: [1, -0.5, -0.2] }, stretch: { armF: 1.9 } },
+    { t: 42, stretch: { armF: 1 } }, { t: 58, limbs: REST },
+  ],
+};
+// Derrumbe y GÉISER: se derrite en un charco (invulnerable), corre por la tabla por debajo y se REARMA de golpe encima del otro,
+// subiendo con los brazos estirados: pega con todo el cuerpo. Se ve el charco venir: alejarse o cubrirse.
 MOVES.derrumbe = {
-  id: 'derrumbe', hits: [], total: 56, dmg: 0, kb: 0, stun: 0, guard: 'block', reach: 0.05, tell: 'risa', w: [2, 0, 0],
-  keys: [{ t: 0, limbs: REST }, { t: 2, inv: 30, limbs: { armF: [0.3, -1, 0.6], armB: [0.3, -1, 0.6] } }, { t: 30, dx: 0.06 }, { t: 56, limbs: REST }],
+  id: 'derrumbe', hits: [{ from: 34, to: 40, with: ['body', 'armF', 'armB'] }], total: 66, dmg: 6, kb: 0.45, stun: 18, guard: 'block', reach: 0.11, tell: 'risa', w: [1, 2, 2],
+  keys: [
+    { t: 0, limbs: REST }, { t: 2, inv: 30, limbs: { armF: [0.3, -1, 0.6], armB: [0.3, -1, 0.6] }, stretch: { armF: 0.6, armB: 0.6 } },
+    { t: 6, vx: 0.2 }, { t: 14, vx: 0.2 }, { t: 22, vx: 0.2 },
+    { t: 34, limbs: { armF: [0.5, 1, 0.2], armB: [0.3, 1, 0.4] }, stretch: { armF: 1.6, armB: 1.6 }, vy: 0.45, vx: 0.15 },
+    { t: 46, stretch: { armF: 1, armB: 1 } }, { t: 66, limbs: REST },
+  ],
 };
 
 /** Ataques de cada rival (por nombre del modelo). */
 export const RIVAL_MOVES: Record<string, string[]> = {
   'EL BROCOLOCO': ['zanahoriazo', 'doble', 'cabezazo', 'pisoton'],
   'HUEVO DURO': ['pinchazo', 'latigo'],
-  'MONSTRUO DE QUINOA': ['canon', 'mazazo', 'derrumbe'],
+  'MONSTRUO DE QUINOA': ['canon', 'mazazo', 'barrido', 'derrumbe'],
 };

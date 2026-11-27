@@ -62,7 +62,8 @@ try {
       if (!mv && foeWind && near < reach * 1.8 && !mineBusy) return { x: 0, guard: true };
       if (me.meter >= FIGHT.powerUse.half && me.model.power && near < reach * 1.5) return { x: 0, power: true };
       if (near > reach) return { x: dir };
-      if (foe.lock > 4 || me.counter > 0 || mem.t % 80 === 0) {
+      // Mareado por el olor a pata (no saca vida, lo deja quieto): es el momento de pegarle cargado.
+      if (foe.lock > 4 || me.counter > 0 || foe.dizzyT > 20 || mem.t % 80 === 0) {
         mem.q = mem.t % 2 ? 'LA' : 'RA';
         mem.hold = 24;
         return { x: 0, quad: mem.q, quadHeld: mem.q };
