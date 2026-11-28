@@ -1,5 +1,5 @@
 // Captura de un poder del rival: abre la pelea, espera el combate, le da el poder al rival y avanza `cuadros` antes de dibujar.
-// Uso (con `npx vite --port 5173`): node scripts/power-shot.mjs <png> <nivel> <poder|ataque> [cuadros]
+// Uso (con `npx vite --port 5173`): node scripts/power-shot.mjs <png> <nivel> <poder|ataque|guardia> [cuadros] [cuadros dibujados]
 import { chromium } from 'playwright';
 const [out, lvl = '3', kind = 'avalancha', after = '50', draw = '3'] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1243/chrome-linux64/chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -21,9 +21,11 @@ await p.evaluate(([kind, after]) => {
   if (kind === 'rearme') { m.f[1].hp = 45; m.piles.push({ id: 9999, x: m.f[0].x + 0.05, n: 12, t: 0 }); }
   // Un ataque hecho a mano (canon, mazazo, barrido, derrumbe) o un poder.
   if (['canon', 'mazazo', 'barrido', 'derrumbe'].includes(kind)) m.f[1].mv = { id: kind, t: 0, hit: [] };
-  else m.f[1].pw = { kind, phase: 'wind', t: 0, hit: false };
+  else if (kind !== 'guardia') m.f[1].pw = { kind, phase: 'wind', t: 0, hit: false };
   F.advance(Number(after), { x: 0 });
 }, [kind, after]);
+// 'guardia': tu chizito se cubre (D apretada) mientras se dibuja.
+if (kind === 'guardia') await p.keyboard.down('KeyD');
 const d = await p.evaluate((n) => window.__chizito.renderFrames(n), Number(draw));
 await p.evaluate((src) => { const img = document.createElement('img'); img.src = src; Object.assign(img.style, { position: 'fixed', inset: '0', width: '100vw', height: '100vh', zIndex: '50', pointerEvents: 'none' }); document.body.appendChild(img); }, d);
 await p.waitForTimeout(150);

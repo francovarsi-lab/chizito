@@ -402,8 +402,16 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
     if (axis.lengthSq() < 1e-6) axis.set(1, 0, 0);
     axis.normalize();
     // Flexión de reposo: codos doblados (puños adelante), rodillas apenas.
-    const rest = elbow ? (arm ? 0.75 : 0.25) : 0.45;
+    const rest = elbow ? (arm ? 0.75 : 0.25) : 0.7;
     return { u, elbow, axis, rest, arm, prev: c.obj.quaternion.clone(), th: rest, v: 0, t: Math.random() * 6 };
+  });
+  // Estirarse (quinoa): sólo el tramo de arriba se alarga como masa; el codo y el puño se corren hacia afuera y quedan REDONDOS.
+  // El largo sigue al motor con un resorte que se pasa y rebota (se lee elástico, no una escala rígida).
+  const stretchy = carrots.map((c) => {
+    const lower = c.obj.getObjectByName('q-codo');
+    if (!lower) return null;
+    const upper = lower.parent!.children.filter((o) => o !== lower);
+    return { lower, upper, J: lower.position.y, s: 1, v: 0 };
   });
   const bodyGrains = inner.children.find((o) => o.name === 'cuerpo-granos') as THREE.InstancedMesh | undefined;
   const grainTotal = bodyGrains?.count ?? 0;
@@ -500,9 +508,17 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
         // Giro en el marco del luchador llevado al del modelo: Bᵀ · q · B.
         tq.set(q[0], q[1], q[2], q[3]);
         c.obj.quaternion.copy(BqInv).multiply(tq).multiply(Bq).multiply(c.base);
-        // Se estira como masa: más larga y más fina (mismo volumen).
-        const st = p.st?.[k] ?? 1;
-        c.obj.scale.set(1 / Math.sqrt(st), st, 1 / Math.sqrt(st));
+        const sy = stretchy[k];
+        if (sy && dt > 0) {
+          const h = Math.min(dt, 1 / 30);
+          sy.v += (((p.st?.[k] ?? 1) - sy.s) * 420 - sy.v * 16) * h;
+          sy.s = Math.max(0.5, sy.s + sy.v * h);
+          // Largo total = s·L: el tramo de arriba (J) se estira 2s − 1 y se afina (mismo volumen, con tope).
+          const su = Math.max(0.35, 2 * sy.s - 1);
+          const thin = Math.max(0.5, Math.min(1.15, 1 / Math.sqrt(su)));
+          for (const o of sy.upper) o.scale.set(thin, su, thin);
+          sy.lower.position.y = sy.J * su;
+        }
         const w = whips[k];
         if (w && dt > 0) {
           // Velocidad de giro del brazo en su propio marco (dq = prev⁻¹ · actual).
@@ -516,9 +532,11 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
           const sp = wv.length();
           // A dónde va el codo: su flexión de reposo, MÁS doblado cubriéndose (antebrazos delante de la cara), ESTIRADO cuando el
           // brazo se mueve rápido (la piña se estira), con un poco de retraso (llega tarde y se pasa) y respirando.
-          let want = w.rest + (w.arm ? 1.0 * brace : 0.25 * brace);
+          let want = w.rest + (w.arm ? 1.5 * brace : 0.25 * brace);
           want *= 1 - Math.min(1, sp / (w.elbow ? 7 : 9)) * 0.85;
           want += -0.05 * wv.dot(w.axis) + Math.sin(w.t * (w.elbow ? 1.4 : 2)) * (w.arm ? 0.1 : 0.04);
+          // Estirado (quinoa) el codo se endereza: es una masa tirante, no un brazo doblado.
+          if (stretchy[k]) want *= Math.max(0, 1 - (stretchy[k]!.s - 1) * 1.5);
           want = Math.max(0, Math.min(2.2, want));
           const K = w.elbow ? 110 : 150, C = w.elbow ? 11 : 12;
           const h = Math.min(dt, 1 / 30);
@@ -526,8 +544,9 @@ function modelView(scene: THREE.Scene, model: FighterModel, inner: THREE.Group, 
           w.th = Math.max(0, Math.min(2.3, w.th + w.v * h));
           if (w.u) {
             // Dos tramos del espárrago: una curva pareja como un brazo con codo.
-            w.u.uJ1.value.copy(w.axis).multiplyScalar(w.th * 0.45);
-            w.u.uJ2.value.copy(w.axis).multiplyScalar(w.th * 0.55);
+            // Un CODO de verdad a media altura (casi todo el doblez) y apenas de curva en el antebrazo.
+            w.u.uJ1.value.copy(w.axis).multiplyScalar(w.th * 0.85);
+            w.u.uJ2.value.copy(w.axis).multiplyScalar(w.th * 0.15);
           }
           if (w.elbow) w.elbow.quaternion.setFromAxisAngle(w.axis, w.th);
         }

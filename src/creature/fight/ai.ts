@@ -65,7 +65,7 @@ export function aiInput(s: Match, mem: AiMem, who: 0 | 1 = 1): FightInput {
   if (!foeStriking) mem.seenStrike = false;
   if (mem.react > 0) {
     mem.react--;
-    const guardP = readable ? Math.min(0.95, Math.max(L.guard, 0.55 + 0.15 * foe.repeat)) : L.guard;
+    const guardP = readable ? Math.min(0.8, Math.max(L.guard, 0.45 + 0.15 * foe.repeat)) : L.guard;
     if (mem.react === 0 && !dodge && foeStriking && near < reach * 1.8 && rnd(mem) < guardP) {
       mem.doing = 'guard';
       mem.left = 18 + Math.floor(rnd(mem) * 14);

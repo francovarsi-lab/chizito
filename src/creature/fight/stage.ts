@@ -310,6 +310,10 @@ export async function prewarmFight(s: Stage, z0: number, extra: THREE.Object3D[]
   // de salida), así que se compila con ese mismo destino.
   const prevTarget = s.renderer.getRenderTarget();
   s.renderer.setRenderTarget(s.composer.inputBuffer);
+  // En la pelea el recorte local está prendido (la copa del brócoli, las varas adentro del chizito): con él apagado el shader
+  // salía otro y se compilaba en medio de la intro (la trababa ~2 s).
+  const clipWas = s.renderer.localClippingEnabled;
+  s.renderer.localClippingEnabled = true;
   try {
     s.renderer.compile(s.scene, s.camera, rehearsal);
     const done = s.renderer.compileAsync(rehearsal, s.camera, s.scene);
@@ -327,6 +331,7 @@ export async function prewarmFight(s: Stage, z0: number, extra: THREE.Object3D[]
     });
     await done;
   } finally {
+    s.renderer.localClippingEnabled = clipWas;
     s.renderer.setRenderTarget(prevTarget);
     for (const f of flags) {
       f.m.castShadow = f.c;

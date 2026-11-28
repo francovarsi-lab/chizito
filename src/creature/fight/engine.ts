@@ -1345,6 +1345,8 @@ function stepGround(m: Match): void {
         b.vx = 0;
         b.rooted = R.hold;
         r.held = true;
+        // Las raíces se cierran SOBRE el atrapado (antes los lazos quedaban donde cayó el poder, al costado: "no hay visual").
+        r.x = b.x;
       }
       m.events.push({ type: 'roots', who: r.by, x: r.x, hit });
     }
@@ -1718,7 +1720,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       const breath = fighting ? 0.06 * Math.sin(m.frame * 0.07 + n) + 0.05 * Math.sin(f.gait) : 0;
       // La quinoa (brazos cortos y gordos) va como un gorila: puños ABAJO y adelante, colgando (arriba parecían orejas y adelante
       // de la cara se la tapaban todo el tiempo).
-      const [fw, up] = M.absorb ? [lead ? 0.8 : 0.55, lead ? -0.45 : -0.6] : [lead ? 0.8 : 0.45, lead ? 0.45 : 0.8];
+      // El huevo (brazos largos de espárrago) los deja CAER a los costados, apenas adelante (arriba parecía un espantapájaros).
+      const [fw, up] = M.absorb ? [lead ? 0.8 : 0.55, lead ? -0.45 : -0.6] : M.jelly ? [0, -1] : [lead ? 0.8 : 0.45, lead ? 0.45 : 0.8];
       const want = normv(addv(addv(scl(fwdAxis(f), fw), [0, up + breath, 0]), scl(gaitAxis(f), dep * 0.5)));
       target = qFromTo(l.dir, want);
       g = FIGHT.joint.guard;
@@ -1733,8 +1736,15 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       const top = Math.max(...M.body.map((b) => Math.max(b.a[1], b.b[1]) + b.r));
       // Los rivales (marco con el piso en y = 0) recogen los brazos delante de la cara y el pecho; con los brazos largos del huevo
       // uno quedaba arriba de la cabeza y el otro en el piso. Tu chizito sigue con la diagonal (cubre de la cabeza a las piernas).
-      const gy = M.moves ? (n % 2 === 0 ? top * 0.88 : top * 0.6) : l.pivot[1] + l.reach * (n % 2 === 0 ? 0.8 : -0.4);
-      const gq = qFromTo(l.dir, normv(addv(scl(fwdAxis(f), Math.max(gx - fwd(f, l.pivot), l.reach * 0.25)), [0, gy - l.pivot[1], 0])));
+      // Guardia de verdad (2026-11-27, "ninguna es real"): la quinoa (brazos cortos con codo) el brazo va adelante a la altura del pecho y el
+      // antebrazo sube delante de la cara (el codo lo dobla `render.ts`); sin codo (palitos, zanahorias) las varas SUBEN delante de
+      // la cara (la de adelante) y la otra cruza adelante a la altura del pecho, como un antebrazo. Lo bajo queda expuesto.
+      const elbows = !!M.absorb;
+      void gx;
+      void top;
+      const gq = elbows
+        ? qFromTo(l.dir, normv(addv(scl(fwdAxis(f), 1), [0, n % 2 === 0 ? -0.05 : -0.25, 0])))
+        : qFromTo(l.dir, normv(addv(scl(fwdAxis(f), n % 2 === 0 ? 0.55 : 1), [0, n % 2 === 0 ? 1 : -0.15, 0])));
       target = slerpI(gq, f.guard);
       g = FIGHT.joint.guard;
     } else if (f.air > 5 && l.role === 'arm') target = qAxis(gaitAxis(f), 0.3);

@@ -676,4 +676,19 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
   parecían pestañas despegadas).
 - MÚSICA: fundido cruzado de 2,2 s al cambiar de canción; `musica-huevo.mp3` ya está.
 - Ketchup del constructor: PLATITO PLAYO (`makePlate`) con dos sobres acostados, cada uno apoyado en lo de abajo.
+- TANDA 2026-11-28 (pedidos de Franco):
+  - "ATAJADA" no va: el cartel dice ¡BLOQUEADO!. ¡TUKI! se turna con ¡JAPISH! en golpes fuertes al cuerpo (sonido `tuki`).
+  - GUARDIAS REALES: sin codo (palitos, zanahorias, espárragos) una vara SUBE delante de la cara y la otra cruza el pecho
+    (apenas baja); la quinoa (`absorb`) pone el brazo adelante y el codo sube el antebrazo. Los rivales se cubren menos
+    (`AI_LEVELS.guard` 0,36 / 0,45; tope de lectura 0,8).
+  - HUEVO: brazos COLGANDO en reposo (`stance` con `jelly`), un CODO a media altura (`whipify` dobla en L·0,48 con el 85 %;
+    nudo de escamas ahí), espárragos más gruesos (r 3,6–4 mm).
+  - RAÍCES: al agarrar, `r.x` pasa a la posición del atrapado; el dibujo lo sigue y lo hace temblar; 3 lazos gruesos.
+  - QUINOA: el estiramiento se dibuja sólo en el tramo de arriba (`stretchy` en render.ts: 2s − 1, más fino) con el puño redondo y
+    un resorte (420 / 16) que rebota; estirada, el codo se endereza. Torbellino: los granos se PEGAN al cuerpo (estado 5) 1,6 s.
+    Boca en anillos (la de abanico se hundía detrás del núcleo y asomaba quinoa).
+  - CURACIÓN VISIBLE (hud.ts): la barra brilla verde con un barrido y salen "+N".
+  - PRESENTACIÓN: la vela se esconde después del plano del brócoli; mapita del chizito chico (×0,62) y translúcido. El ENSAYO
+    compila con `localClippingEnabled` (si no, la copa del brócoli compilaba en plena intro: ~2 s trabado), incluye la vela y lo
+    que tiran los poderes, y al abrir la pelea se recompila tu chizito como está (piezas nuevas) a oscuras.
 

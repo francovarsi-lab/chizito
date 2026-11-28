@@ -353,6 +353,6 @@ export const JELLY = { window: 36, step: 0.22, min: 0.45 };
 /** Rival: cuán bien juega el brócoli en cada nivel. */
 export const AI_LEVELS = [
   { reaction: 30, guard: 0.1, aggression: 0.035, jump: 0.002, retreat: 0.2, chain: 0, think: 16, cut: 0.08 },
-  { reaction: 15, guard: 0.48, aggression: 0.05, jump: 0.004, retreat: 0.3, chain: 0.06, think: 11, cut: 0.25 },
-  { reaction: 11, guard: 0.6, aggression: 0.065, jump: 0.006, retreat: 0.35, chain: 0.09, think: 9, cut: 0.32 },
+  { reaction: 15, guard: 0.36, aggression: 0.05, jump: 0.004, retreat: 0.3, chain: 0.06, think: 11, cut: 0.25 },
+  { reaction: 11, guard: 0.45, aggression: 0.065, jump: 0.006, retreat: 0.35, chain: 0.09, think: 9, cut: 0.32 },
 ] as const;

@@ -135,6 +135,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   let aber = 0;
   let whiffN = 0;
   let lastShout = -999;
+  let shoutN = 0;
   let lastHint = -999;
   let fightT = 0;
   let level2 = 0;
@@ -200,7 +201,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
   const LOOSE_MAX = 900;
   let loose: THREE.InstancedMesh | null = null;
   // st: 0 vuela, 1 quieto en la tabla, 2 vuelve directo, 3 se va de la tabla, 4 TORBELLINO (gira en espiral hacia la quinoa: a, r, h).
-  const lg: { pile: number; who: 0 | 1; p: THREE.Vector3; v: THREE.Vector3; st: 0 | 1 | 2 | 3 | 4; t: number; s: number; a?: number; r?: number; h?: number }[] = [];
+  const lg: { pile: number; who: 0 | 1; p: THREE.Vector3; v: THREE.Vector3; st: 0 | 1 | 2 | 3 | 4 | 5; t: number; s: number; a?: number; r?: number; h?: number; o?: THREE.Vector3 }[] = [];
   const lgM = new THREE.Matrix4();
   const lgQ = new THREE.Quaternion();
   const lgS = new THREE.Vector3();
@@ -237,7 +238,21 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         g.a! += dt * (5 + 0.25 / Math.max(0.01, g.r!));
         g.h! += dt * 0.02 * (1 + g.t);
         g.p.copy(P3(f.x + Math.cos(g.a!) * g.r!, f.y + Math.min(0.05, g.h!), Math.sin(g.a!) * g.r! * 0.7));
-        if (g.r! < 0.014) lg.splice(i, 1);
+        // Llega al cuerpo: se PEGA en la superficie (no desaparece en el aire) y se queda ahí un rato antes de hundirse.
+        if (g.r! < 0.034) {
+          const c = P3(f.x, f.y + 0.04, 0);
+          const d = g.p.clone().sub(c);
+          d.set(d.x / 0.031, d.y / 0.028, d.z / 0.026);
+          d.normalize();
+          g.o = new THREE.Vector3(d.x * 0.031, 0.04 + d.y * 0.028, d.z * 0.026);
+          g.st = 5;
+          g.t = 0;
+        }
+      } else if (g.st === 5) {
+        const f = m?.f[g.who];
+        if (!f || g.t > 1.6) { lg.splice(i, 1); continue; }
+        g.p.copy(P3(f.x + g.o!.x, f.y + g.o!.y, g.o!.z));
+        if (g.t > 1.1) g.s *= 0.9;
       } else if (g.st === 2) {
         const f = m?.f[g.who];
         const to = f ? P3(f.x, f.y + 0.035, 0) : g.p;
@@ -539,20 +554,24 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         game().stage.scene.add(g);
         groundMeshes.set(r.id, g);
       }
-      g.position.copy(P3(r.x, 0.0004, 0));
+      // Atado: las raíces siguen al atrapado (y lo hacen temblar: forcejea).
+      const victim = m!.f[1 - r.by];
+      const held = r.held && victim.rooted > 0;
+      if (held) views?.[1 - r.by].hurt(0, 0.0004);
+      g.position.copy(P3(held ? victim.x : r.x, 0.0004, 0));
       // Agarró: dos lazos de raíz se enroscan en espiral alrededor de las piernas (o de la base del cuerpo, si no tiene).
       if (r.held && !g.userData.coil) {
         g.userData.coil = true;
         g.userData.coilT = r.t;
-        for (let k = 0; k < 2; k++) {
+        for (let k = 0; k < 3; k++) {
           const pts: THREE.Vector3[] = [];
-          for (let i = 0; i <= 40; i++) {
-            const t = i / 40;
-            const a = k * Math.PI + t * Math.PI * 2 * 2.6;
-            const rad = 0.0125 - 0.003 * t;
-            pts.push(new THREE.Vector3(Math.cos(a) * rad, 0.001 + t * 0.026, Math.sin(a) * rad));
+          for (let i = 0; i <= 48; i++) {
+            const t = i / 48;
+            const a = (k * Math.PI * 2) / 3 + t * Math.PI * 2 * 2.8;
+            const rad = 0.0115 - 0.0035 * t;
+            pts.push(new THREE.Vector3(Math.cos(a) * rad, 0.001 + t * (0.03 + 0.004 * k), Math.sin(a) * rad));
           }
-          const coil = new THREE.Mesh(taperTube(new THREE.CatmullRomCurve3(pts), 60, 0.0022), rootMat);
+          const coil = new THREE.Mesh(taperTube(new THREE.CatmullRomCurve3(pts), 60, 0.003), rootMat);
           coil.name = 'lazo';
           coil.castShadow = true;
           coil.userData.own = true;
@@ -790,10 +809,11 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
           const face = e.at[1] - vic.y > lo + (hi - lo) * 0.62;
           const kick = m.f[e.by].model.limbs.find((l) => l.pieceIds.includes(e.piece))?.role === 'leg';
           // Palabra sólo en los golpes que la merecen: el cierre de una combinación o uno muy fuerte.
-          const word = e.chain || e.damage >= 10 ? (kick ? 'pimba' : face ? 'soplamoco' : 'japish') : null;
+          // ¡TUKI! (pedido del usuario) se turna con ¡JAPISH! en los golpes fuertes al cuerpo.
+          const word = e.chain || e.damage >= 10 ? (kick ? 'pimba' : face ? 'soplamoco' : (shoutN++ % 2 ? 'tuki' : 'japish')) : null;
           if (word) {
             lastShout = m.frame;
-            hud.popup(e.at[0], e.at[1] + 0.03, word === 'japish' ? '¡JAPISH!' : word === 'pimba' ? '¡PIMBA!' : '¡SOPLAMOCO!', '', `shout ${word}`);
+            hud.popup(e.at[0], e.at[1] + 0.03, `¡${word.toUpperCase()}!`, '', `shout ${word}`);
             g.audio.play(word, 1);
           }
         }
@@ -857,7 +877,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         break;
       case 'parry': {
         const f = m.f[e.who];
-        hud.popup(f.x, f.y + 0.05, '¡ATAJADA!', '', 'shout');
+        hud.popup(f.x, f.y + 0.05, '¡BLOQUEADO!', '', 'shout');
         g.audio.play('atajada', 1);
         break;
       }
@@ -1371,6 +1391,8 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const lit = t >= B_LIGHTS;
     const flick = 0.85 + 0.15 * Math.sin(t * 23) * Math.sin(t * 7.3 + 1);
     const candleK = t < 0.4 ? 0 : t < B_LIGHTS ? 0.02 * smooth((t - 0.4) / 0.5) * flick : 0.02 * Math.max(0, 1 - (t - B_LIGHTS) * 2) * flick;
+    // La vela es del primer plano del brócoli: después no queda parada en la arena (se veía en el VS como un palito rosa).
+    candleProp.visible = t < B_LIGHTS + 0.6;
     const flame = candleProp.getObjectByName('llama')!;
     flame.visible = t > 0.4 && t < B_LIGHTS + 0.6;
     flame.scale.set(0.0013, 0.0032 * flick, 0.0013);
@@ -2002,7 +2024,14 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       const quinoa = createQuinoa();
       await idle();
       const g = game();
-      await prewarmFight(g.stage, g.pivot.position.z, [bro, egg, quinoa], [g.pivot]);
+      // También la vela de la presentación y lo que tiran los poderes (ramitos, cáscaras, granos, raíces): si no, su primer
+      // dibujo compilaba un shader y trababa (la intro del brócoli se trababa ~2 s al prender la vela).
+      const props = new THREE.Group();
+      props.add(makeCandle(), new THREE.Mesh(floretGeo, floretMat), new THREE.Mesh(shellGeo, shellMat), ...grainMats.map((mt) => new THREE.Mesh(grainGeo, mt)));
+      for (const mt of [crackMat, warnMat, splinterMat, rootMat, leafMat]) props.add(new THREE.Mesh(grainGeo, mt));
+      props.add(waveMesh(POWERS.avalancha.h));
+      props.traverse((o) => o.position.set(0, GROUND + 0.02, 0));
+      await prewarmFight(g.stage, g.pivot.position.z, [bro, egg, quinoa, props], [g.pivot]);
     })().catch((err) => console.warn('[pelea] no se pudo dejar lista de antemano', err)));
   const hurryUp = (): void => {
     hurry = true;
@@ -2031,6 +2060,9 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       // Si el ensayo no terminó (se apretó PELEAR enseguida), termina ya, sin esperar ratos libres.
       hurryUp();
       await prewarm();
+      // Tu chizito como está AHORA (el ensayo se hizo con el de ese momento): las piezas clavadas después se compilan acá, a
+      // oscuras, y no en medio de la intro del brócoli (se trababa ~2 s).
+      await prewarmFight(g.stage, g.pivot.position.z, [], [g.pivot]);
       const parts = await loadBroccoliParts();
       rivalParts = parts;
       viewLevel = level;

@@ -190,6 +190,21 @@ function asparagus(L: number, r: number, inner: number, withTip: boolean, seed: 
     g.add(s);
   }
   if (withTip) {
+    // CODO: un nudo del espárrago (anillo de escamas más grandes, apenas más grueso) donde se dobla el brazo (`whipify`, L·0,48).
+    const knot = new THREE.TorusGeometry(r * 1.02, r * 0.28, 8, 24).rotateX(Math.PI / 2);
+    paint(knot, () => col('#557f2a'));
+    const km = new THREE.Mesh(knot, M.aspa);
+    km.position.y = L * 0.48;
+    g.add(km);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + 0.3;
+      const s = new THREE.Mesh(bract, M.aspaScale);
+      s.position.set(Math.cos(a) * r * 1.05, L * 0.48 + r * 0.4, Math.sin(a) * r * 1.05);
+      s.lookAt(s.position.clone().add(new THREE.Vector3(Math.cos(a), 0, Math.sin(a))));
+      s.rotateX(-0.12);
+      s.scale.setScalar(1.35);
+      g.add(s);
+    }
     // La yema: perfil cerrado y aguzado (más ancho que el tallo abajo, abraza su extremo), esculpido en escamas superpuestas
     // como tejas: filas en ladrillo con el borde en V (la punta de cada escama arriba). Verde oscuro en los pliegues y la punta
     // de cada escama violácea, más hacia arriba.
@@ -271,10 +286,10 @@ function whipify(g: THREE.Group, L: number): void {
         Object.assign(sh.uniforms, u);
         sh.vertexShader = `uniform vec3 uJ1; uniform vec3 uJ2; uniform float uLen;
 vec3 rotv(vec3 v, vec3 r) { float a = length(r); if (a < 1e-5) return v; vec3 k = r / a; return v * cos(a) + cross(k, v) * sin(a) + k * dot(k, v) * (1.0 - cos(a)); }
-vec3 whipP(vec3 p) { float j1 = uLen / 3.0, j2 = 2.0 * uLen / 3.0; vec3 q = p;
+vec3 whipP(vec3 p) { float j1 = uLen * 0.48, j2 = uLen * 0.75; vec3 q = p;
   q = mix(q, rotv(q - vec3(0.0, j2, 0.0), uJ2) + vec3(0.0, j2, 0.0), smoothstep(j2 - 0.003, j2 + 0.003, p.y));
   q = mix(q, rotv(q - vec3(0.0, j1, 0.0), uJ1) + vec3(0.0, j1, 0.0), smoothstep(j1 - 0.003, j1 + 0.003, p.y)); return q; }
-vec3 whipN(vec3 n, vec3 p) { float j1 = uLen / 3.0, j2 = 2.0 * uLen / 3.0;
+vec3 whipN(vec3 n, vec3 p) { float j1 = uLen * 0.48, j2 = uLen * 0.75;
   n = mix(n, rotv(n, uJ2), smoothstep(j2 - 0.003, j2 + 0.003, p.y)); return mix(n, rotv(n, uJ1), smoothstep(j1 - 0.003, j1 + 0.003, p.y)); }
 ${sh.vertexShader}`
           .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n  objectNormal = whipN(objectNormal, position);')
@@ -589,14 +604,18 @@ export function createQuinoa(): THREE.Group {
     brow.name = 'ceja';
     root.add(brow);
   }
+  // En anillos (no un abanico): con triángulos grandes el medio quedaba más hundido que el núcleo y asomaba quinoa ("agujeros").
   const tris: [number, number][] = [];
-  const N = 28;
-  for (let i = 0; i < N; i++) {
-    const a0 = (i / N) * Math.PI * 2;
-    const a1 = ((i + 1) / N) * Math.PI * 2;
-    tris.push([0, MOUTH.y], [Math.cos(a0) * MOUTH.w, MOUTH.y + Math.sin(a0) * MOUTH.h], [Math.cos(a1) * MOUTH.w, MOUTH.y + Math.sin(a1) * MOUTH.h]);
+  const N = 28, RINGS = 5;
+  const at = (i: number, k: number): [number, number] => {
+    const a = (i / N) * Math.PI * 2, f = k / RINGS;
+    return [Math.cos(a) * MOUTH.w * f, MOUTH.y + Math.sin(a) * MOUTH.h * f];
+  };
+  for (let k = 0; k < RINGS; k++) for (let i = 0; i < N; i++) {
+    tris.push(at(i, k), at(i, k + 1), at(i + 1, k + 1));
+    if (k > 0) tris.push(at(i, k), at(i + 1, k + 1), at(i + 1, k));
   }
-  const mouth = new THREE.Mesh(onShellGeo(spec, tris, -0.0004), M.mouth);
+  const mouth = new THREE.Mesh(onShellGeo(spec, tris, -0.0002), M.mouth);
   mouth.name = 'boca';
   root.add(mouth);
   const bean = new THREE.SphereGeometry(1, 12, 8);

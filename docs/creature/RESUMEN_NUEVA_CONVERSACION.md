@@ -1,47 +1,53 @@
-# Resumen para un chat nuevo — CUMPLEAÑITO / Chizito Fight (al 2026-11-19)
+# Resumen para un chat nuevo — CUMPLEAÑITO / Chizito Fight (al 2026-11-28)
 
-Repo privado `francovarsi-lab/chizito`. **Rama vigente: `claude/wonderful-galileo-8j38yn`** (sale de
-`claude/charming-cray-7n5v8f`; contiene todo lo anterior). Leer primero `CLAUDE.md` (decisiones; la sección "Pelea" es larga y
-al final tiene lo último) y `docs/PLAN_PREMIUM.md`. Balance medido: `docs/creature/BALANCE.md`.
+Repo `francovarsi-lab/chizito`, rama **`claude/stoic-newton-87biy2`** (nunca `main`, sin pull requests). Vite + TypeScript +
+Three.js. Dos partes: el CONSTRUCTOR (clavás palitos y snacks en un chizito y le dibujás la cara con ketchup) y la PELEA (TU
+CHIZITO contra 3 rivales: EL BROCOLOCO, HUEVO DURO, MONSTRUO DE QUINOA; también contra un amigo por link). Todas las decisiones
+están en `CLAUDE.md` (leerlo entero; la sección "Pelea" es larga y lo último está al final). Balance: `docs/creature/BALANCE.md`.
 
 ## Reglas permanentes (Franco)
-- Español rioplatense. Usa Claude de ESCRITORIO; las sesiones corren en la nube. Informes CORTOS: hash, qué mirar, qué quedó sin
-  probar. "Avanzá con todo": hacer toda la lista antes de reportar.
-- Link para probar: Vercel publica cada push de la rama (proyecto `chizito`, equipo "Franco"; buscar el último deploy con la
-  herramienta de Vercel). También `npx vite --host 0.0.0.0 --port 5173` + `report_preview_port` (nombre "juego").
-- NO pushear a `main`. Sin PRs salvo pedido. Commits con autor Franco Varsi, en español.
-- "Apuntar al 100 para llegar al 10": premium, color de verdad (NADA de pasteles), fluidez primero (60 fps). JUGABLE PRIMERO:
-  Franco no le podía ganar al brócoli; la dificultad del nivel 1 quedó baja a propósito.
-- La cámara de la pelea "está bien": no cambiarla; para otras vistas, opcionales (V = aérea).
-- DESCARTADO (no volver a poner): barra de AIRE, plato dorado, "NIVEL N", "¡MAREADO!", etiquetas en los golpes, "SE ESTÁ
-  ESTABILIZANDO", sugus y bowl de chizitos en el constructor, ESCAPE del poder, zoom de cámara en los poderes, la yema del huevo.
+- Español rioplatense. Usa Claude de ESCRITORIO. Un commit y un push por tanda, firmados por Franco Varsi. Reportes CORTOS (qué
+  cambió, qué mirar, qué quedó sin probar) y SIEMPRE el link para jugar:
+  https://chizito-git-claude-stoic-newton-87biy2-el-mejor-lugar.vercel.app (último deploy de la rama; protección de Vercel apagada).
+- "Avanzá fuerte / con todo": hacer TODA la lista antes de volver. Apuntar al 100, fluidez primero (60 fps).
+- DESCARTADO, no volver a poner: barra de aire, "NIVEL N", "¡MAREADO!", las palabras "trastabilla" / "se está estabilizando" /
+  "atajada" (se dice ¡BLOQUEADO!), colores pastel, granitos flotando en la quinoa, la bola de quinoa, "arboletes" (son ARBOLITOS).
 
-## Cómo probar / medir
-- `npm install` (si se instala algo con el server prendido: `npx vite --force`).
-- Pruebas: `npx tsc --noEmit` y `node scripts/creature-fight-test.mjs` → **233 OK**.
-- Balance: `node scripts/fight-matrix.mjs 20` (~75 s). Detalle: `MDEBUG=1 MATRIX_CHILD=1 node scripts/fight-matrix.mjs 2 boxeador`.
-- Tiempos y daño por brazo: `node scripts/fight-probe.mjs arq/boxeador arq/mazo arq/chupetin1`.
-- Capturas (3D por software, lento): `node scripts/fight-look.mjs <dir>` (round 1 + KO del huevo, ~10 min),
-  `node scripts/one.mjs "seed=3" out.png` (constructor), `node scripts/versus-test.mjs <dir>` (pelea contra un amigo).
+## Cómo probar
+- `node scripts/creature-fight-test.mjs` → 240 OK. `npm run typecheck`, `npm run build`.
+- Balance: `node scripts/fight-matrix.mjs 8` (~25 s). Hoy: bot medio (`ia`) 79 % / 23 % / 4 %; el que juega bien (`listo`)
+  100 % / 68 % / 52 %; aporreando 61 % / 0 % / 14 %.
+- Sondas sin navegador: `kick-probe.mjs` (patada pareja de los dos lados), `power-probe.mjs` (daño de cada poder),
+  `roots-probe.mjs` (las raíces atan 2,5 s), `fight-probe.mjs`.
+- Capturas (WebGL por software, 1–5 min cada una; no editar `src/` mientras corren): `npx vite --port 5173` y
+  `node scripts/power-shot.mjs <png> <nivel> <poder|ataque|guardia> [cuadros] [cuadros dibujados]`,
+  `node scripts/fight-shot.mjs`, `CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome node scripts/present-shots.mjs <dir>`.
+- Pelea contra un amigo: `node scripts/versus-test.mjs <dir>` (~7 min) → 6 de 6.
 
-## Hecho en esta etapa
-- Balance + IA (sangrado, castigo a lo lento, quinoa con granos entre los dos).
-- O1: pelea contra un amigo por link (`fight/net.ts`, PeerJS + lockstep). Probada entre dos pestañas; NO entre dos computadoras.
-- Jugable primero: golpes rápidos (palito 11–13 cuadros, aceituna ~24, chupetín ~27), aceituna pega pesado siempre, los dos
-  hombros giran igual, gesto del chupetín, vuelta al pifiar = un solo giro limpio y queda expuesto.
-- KO: cae al piso acostado, piernas plegadas, brazos flojos; los rivales ponen cara de noqueado.
-- Poder v3: media barra = el de lo armado (nube que MAREA, trompo, carozazo, acupuntura, muralla); llena = OLOR A PATA.
-- Canción por villano (`musica-brocoloco|huevo|quinoa`), arranca al entrar a la pelea. Hinchada: el bowl de chizitos salta y
-  hace la ola una vez. Menos carteles. Sobres de ketchup dentro del platito. Volver a armar → arranca contra el brócoli.
-- Quinoa: se le baja la vida sin cargar (rápido saca 75 %). Huevo sin arroz en los ojos ni yema.
+## Hecho en las últimas tandas (2026-11-24 → 28)
+- Quinoa: MASA QUE CAMBIA DE FORMA (`MoveKey.stretch`, `f.st` en el motor: lo que se ve es lo que pega). Puño elástico, martillo
+  con puños-maza, látigo de granos al ras (se salta), derrumbe que corre como charco y se rearma en géiser. En el dibujo se estira
+  SÓLO el tramo de arriba (el puño queda redondo) con un resorte que rebota. ¡REAGRUPARSE! (reemplaza la bola): torbellino de
+  2,3 s; los granos giran en espiral, se PEGAN al cuerpo y se hunden. Tsunami de 5 cm que saca 18. Núcleo con textura de granos
+  (sin base marrón); boca en anillos (antes asomaba quinoa por agujeros).
+- Patadas con el mismo recorrido de los dos lados (la aceituna en la pierna ya no pega sin cargar).
+- Lluvia de ARBOLITOS que lastima (~10 quieto, ~6 cubierto). Olor a pata SIN daño (marea y frena).
+- Raíces: se cierran sobre el atrapado y lo siguen, 3 lazos gruesos, tiembla atado (el motor ya ataba; el dibujo quedaba al costado).
+- Huevo: brazos colgando abajo en reposo, UN codo de verdad a media altura (nudo de escamas), espárragos más gruesos.
+- Guardias "reales": varas (palitos, zanahorias, espárragos) = una delante de la cara y otra cruzando el pecho; la quinoa brazo
+  adelante y antebrazo arriba (codo). Rivales se cubren menos (`AI_LEVELS.guard` 0,36 / 0,45).
+- Vida que se regenera se VE: la barra brilla verde con un barrido y salen "+N" verdes.
+- ¡TUKI! se turna con ¡JAPISH! en los golpes fuertes al cuerpo (sonido `tuki`, sin archivo suena como japish).
+- Presentación: la vela del brócoli desaparece después de su plano (en el VS parecía un palito de la selva); el mapita del chizito
+  (abajo a la izquierda) más chico y translúcido; se trababa ~2 s por un shader de la copa del brócoli compilado en plena intro
+  (el ensayo lo compilaba sin recorte local) y por las piezas nuevas de tu chizito: ahora se compilan antes, a oscuras.
 
-## Pendiente (en orden)
-1. HECHO: canción del brócoli en `public/assets/sounds/musica-brocoloco.mp3`.
-2. Que Franco JUEGUE y diga: dificultad de los 3 niveles, chupetín (carga y vuelta), nube que marea, KO, hinchada.
-3. Balance: HECHO el aporreo del chupetín (ver BALANCE.md, 2026-11-20). Queda: aporreo con palitos gana el nivel 1 (a propósito),
-   tanque no le gana a la quinoa ni al huevo jugando bien; nivel 3 tan fácil como el 2 con `listo`.
-4. Pelea contra un amigo: HECHOS el aviso "Esperando a tu amigo…" y el reenvío de estado si se desincroniza. Falta probar entre dos computadoras.
-5. Restos visuales: HECHOS lucecitas que se apagan en el KO, foco que barre, retratos y reloj en el HUD. Capas de música: sólo
-   con la canción en stems. Aberración en impactos: HECHA. Quedan: fundido por profundidad en efectos, halos del DoF en el constructor, HDRI real,
-   normal map de la tabla.
-6. Integración con `main`: historias distintas; decidir con Franco antes.
+## Pendiente
+- Que Franco juegue y confirme: guardias nuevas, estiramientos, torbellino, raíces, huevo, ¿el "escudo que tapa al personaje" era
+  el mapita? (se achicó; si era otra cosa, pedir captura).
+- Pinchudo casi no le gana a la quinoa (sus pinchazos se hunden; probado que no se hundan: pasa a 88–100 %, descartado).
+- Aporreando se le gana 14 % a la quinoa (antes 0 %).
+- HDRI real: la red de la sesión bloquea Poly Haven; si Franco sube un `.hdr` a `public/assets/hdri/interior.hdr` se usa solo.
+- Partículas que se funden con la tabla (fundido por profundidad): sin hacer.
+- Probar la pelea contra un amigo entre dos computadoras de verdad.
+- Integrar la rama a `main`: no comparten historia; decidirlo con Franco (reemplazar `main` o mezclar resolviendo conflictos).

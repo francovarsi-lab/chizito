@@ -76,8 +76,9 @@ const css = `
 @keyframes cfh-in{from{transform:skewX(-8deg) scale(2.4);opacity:0}to{transform:skewX(-8deg) scale(1);opacity:1}}
 #cfh .pop{position:absolute;transform:translate(-50%,-50%);font:400 28px/1 "Bungee",Impact,sans-serif;color:#fff;-webkit-text-stroke:2px var(--ink);text-shadow:0 4px 0 var(--ink);white-space:nowrap;text-align:center}
 #cfh .pop small{display:block;font-size:12px;letter-spacing:.1em;-webkit-text-stroke:0;color:var(--gold)}
-#cfh .pop.heavy{font-size:40px;color:var(--gold)}
-#cfh .pop.shout,#cfh .pop.whiff{z-index:3;font-size:58px;color:#ffe14d;-webkit-text-stroke:3px #b3121f;paint-order:stroke fill;text-shadow:0 5px 0 #5a0710,0 0 26px rgba(255,90,40,.7);animation:cfh-shout .45s cubic-bezier(.2,1.7,.4,1) both}#cfh .pop.pimba{color:#8fe9ff;-webkit-text-stroke-color:#0f3f7a;text-shadow:0 5px 0 #08224a,0 0 26px rgba(60,170,255,.7)}#cfh .pop.soplamoco{font-size:50px;color:#c5ff6e;-webkit-text-stroke-color:#24601a;text-shadow:0 5px 0 #123a0c,0 0 26px rgba(150,255,80,.6)}#cfh .pop.whiff{font-size:40px;color:#f2f2f2;-webkit-text-stroke:3px #3d3d55;text-shadow:0 4px 0 #1d1d2e;animation-name:cfh-whiff}@keyframes cfh-whiff{0%{transform:translate(-50%,-50%) scale(.3) rotate(10deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(4deg)}}
+#cfh .pop.heavy{font-size:40px;color:var(--gold)}#cfh .pop.heal{font-size:30px;color:#9dff7a;-webkit-text-stroke-color:#14501a;text-shadow:0 4px 0 #0c3310,0 0 18px rgba(120,255,90,.8)}
+#cfh .bar.heal{box-shadow:0 0 0 3px #b9ff8f,0 0 22px 6px rgba(120,255,90,.75)}#cfh .bar.heal i{filter:brightness(1.35) saturate(1.2)}#cfh .bar.heal:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(210,255,190,.85),transparent);background-size:40% 100%;background-repeat:no-repeat;animation:cfh-heal .5s linear infinite;pointer-events:none}@keyframes cfh-heal{from{background-position:-40% 0}to{background-position:140% 0}}
+#cfh .pop.shout,#cfh .pop.whiff{z-index:3;font-size:58px;color:#ffe14d;-webkit-text-stroke:3px #b3121f;paint-order:stroke fill;text-shadow:0 5px 0 #5a0710,0 0 26px rgba(255,90,40,.7);animation:cfh-shout .45s cubic-bezier(.2,1.7,.4,1) both}#cfh .pop.pimba{color:#8fe9ff;-webkit-text-stroke-color:#0f3f7a;text-shadow:0 5px 0 #08224a,0 0 26px rgba(60,170,255,.7)}#cfh .pop.tuki{font-size:62px;color:#ffb3ec;-webkit-text-stroke-color:#7a0f5c;text-shadow:0 5px 0 #4a0838,0 0 26px rgba(255,90,200,.7)}#cfh .pop.soplamoco{font-size:50px;color:#c5ff6e;-webkit-text-stroke-color:#24601a;text-shadow:0 5px 0 #123a0c,0 0 26px rgba(150,255,80,.6)}#cfh .pop.whiff{font-size:40px;color:#f2f2f2;-webkit-text-stroke:3px #3d3d55;text-shadow:0 4px 0 #1d1d2e;animation-name:cfh-whiff}@keyframes cfh-whiff{0%{transform:translate(-50%,-50%) scale(.3) rotate(10deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(4deg)}}
 @keyframes cfh-shout{0%{transform:translate(-50%,-50%) scale(.2) rotate(-14deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(-6deg)}}#cfh .pop.hint{z-index:3;font:800 16px/1.2 "Nunito",sans-serif;-webkit-text-stroke:0;color:#fff;background:rgba(13,16,36,.75);padding:6px 12px;border-radius:999px;text-shadow:none;letter-spacing:.06em}#cfh .pop.cut{color:#ff9fb0}#cfh .pop.block{color:#aee8ff;font-size:20px}
 #cfh .warn{position:absolute;top:120px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;transition:opacity .6s}
 #cfh .warn b{font:800 15px/1.2 "Baloo 2",sans-serif;padding:7px 16px;border-radius:999px;background:var(--panel);box-shadow:0 0 0 2px var(--gold)}
@@ -96,7 +97,7 @@ const css = `
 #cfh .skip{position:absolute;right:22px;bottom:18px;font:800 12px/1 "Nunito",sans-serif;letter-spacing:.06em;color:rgba(255,255,255,.75);opacity:0;transition:opacity .3s}
 #cfh.presenting .skip{opacity:1}
 #cfh.presenting .top,#cfh.presenting .pad,#cfh.presenting .keys,#cfh.presenting .warn{opacity:0!important}
-#cfh .pad{position:absolute;left:22px;bottom:22px;width:78px;height:146px;pointer-events:none}
+#cfh .pad{position:absolute;left:14px;bottom:14px;width:78px;height:146px;pointer-events:none;transform:scale(.62);transform-origin:0 100%;opacity:.6;transition:opacity .3s}
 #cfh .pad .cap{position:absolute;inset:0;border-radius:39px;overflow:hidden;background:linear-gradient(90deg,#e8ad2c,#f6cb43 38%,#fbe189 58%,#f0bb36);box-shadow:0 0 0 3px #fff,0 0 0 6px var(--ink),0 6px 0 6px var(--ink)}
 #cfh .pad .ln{position:absolute;left:0;right:0;border-top:2px dashed rgba(13,16,36,.55)}
 #cfh .pad .vl{position:absolute;top:19%;bottom:0;left:50%;border-left:2px dashed rgba(13,16,36,.55)}
@@ -344,7 +345,7 @@ export class FightHud {
   showMenu(title: string, sub: string, buttons: { a: MenuAction; label: string; alt?: boolean }[], withKeys = false): void {
     const card = this.menu.querySelector('.card') as HTMLElement;
     const grid = withKeys
-      ? `<div class="grid"><span><kbd>Q</kbd> <kbd>W</kbd></span><span>brazos izquierdos / derechos (como armaste el chizito, de frente): cada toque usa el siguiente de ese lado</span><span><kbd>A</kbd> <kbd>S</kbd></span><span>piernas izquierdas / derechas (la parte de abajo del chizito)</span><span><kbd>Q</kbd> mantener</span><span>GOLPE CARGADO: el brazo tiembla atrás y pega hasta 1,6 veces; la carga completa rompe la guardia. Tocar y soltar = golpe RÁPIDO</span><span><kbd>↓</kbd>+<kbd>Q</kbd></span><span>GANCHO: levanta al rival y lo podés seguir en el aire (3 golpes)</span><span><kbd>↓</kbd>+<kbd>A</kbd></span><span>BARRIDA: lo tira al piso</span><span><kbd>→</kbd><kbd>→</kbd></span><span>PASITO (hacia atrás, esquiva)</span><span><kbd>D</kbd></span><span>guardia (mantener): los brazos tapan. Apretada justo antes del golpe = ATAJADA (no recibís nada y el otro queda abierto). 4 bloqueos seguidos rompen la guardia</span><span><kbd>E</kbd></span><span>PODER: con media barra, OLOR A PATA (marea y queda flotando); con la barra llena, la CALESITA DEL DOLOR (tres vueltas que pegan). Justo después de acertar sale como remate. La barra se llena pegando y recibiendo</span><span><kbd>V</kbd></span><span>cámara: lateral, aérea o primera persona</span><span><kbd>Esc</kbd></span><span>pausa</span><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar (brazo en el aire = en picada)</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Q</kbd> <kbd>W</kbd></span><span>UNO-DOS: si la piña acierta, otra enseguida (con 3 brazos, RÁFAGA)</span><span><kbd>Q</kbd> <kbd>A</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>D</kbd> → <kbd>Q</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span><span>cabeza</span><span>lo que tenga arriba pesa y protege</span></div>`
+      ? `<div class="grid"><span><kbd>Q</kbd> <kbd>W</kbd></span><span>brazos izquierdos / derechos (como armaste el chizito, de frente): cada toque usa el siguiente de ese lado</span><span><kbd>A</kbd> <kbd>S</kbd></span><span>piernas izquierdas / derechas (la parte de abajo del chizito)</span><span><kbd>Q</kbd> mantener</span><span>GOLPE CARGADO: el brazo tiembla atrás y pega hasta 1,6 veces; la carga completa rompe la guardia. Tocar y soltar = golpe RÁPIDO</span><span><kbd>↓</kbd>+<kbd>Q</kbd></span><span>GANCHO: levanta al rival y lo podés seguir en el aire (3 golpes)</span><span><kbd>↓</kbd>+<kbd>A</kbd></span><span>BARRIDA: lo tira al piso</span><span><kbd>→</kbd><kbd>→</kbd></span><span>PASITO (hacia atrás, esquiva)</span><span><kbd>D</kbd></span><span>guardia (mantener): los brazos tapan. Apretada justo antes del golpe = BLOQUEADO (no recibís nada y el otro queda abierto). 4 bloqueos seguidos rompen la guardia</span><span><kbd>E</kbd></span><span>PODER: con media barra, OLOR A PATA (marea y lo deja quieto, no saca vida: pegale); con la barra llena, la CALESITA DEL DOLOR (tres vueltas que pegan). Justo después de acertar sale como remate. La barra se llena pegando y recibiendo</span><span><kbd>V</kbd></span><span>cámara: lateral, aérea o primera persona</span><span><kbd>Esc</kbd></span><span>pausa</span><span><kbd>←</kbd><kbd>→</kbd></span><span>moverse</span><span><kbd>↑</kbd></span><span>saltar (brazo en el aire = en picada)</span><span><kbd>↓</kbd></span><span>agacharse</span><span><kbd>Q</kbd> <kbd>W</kbd></span><span>UNO-DOS: si la piña acierta, otra enseguida (con 3 brazos, RÁFAGA)</span><span><kbd>Q</kbd> <kbd>A</kbd></span><span>PIÑA Y PATADA: si la piña acierta, patada parado en la otra pierna</span><span><kbd>D</kbd> → <kbd>Q</kbd></span><span>CONTRA: bloqueá y soltá una piña enseguida</span><span>cabeza</span><span>lo que tenga arriba pesa y protege</span></div>`
       : '';
     card.innerHTML = `<h2>${title}</h2><p>${sub}</p>${buttons.map((b, i) => `<button data-a="${b.a}" class="${b.alt ? 'alt' : ''}${i === 0 ? ' sel' : ''}">${b.label}</button>`).join('')}${grid}`;
     this.menuSel = 0;
@@ -370,8 +371,25 @@ export class FightHud {
     if (code === 'Enter' || code === 'Space' || code === 'KeyZ') this.onMenu(btns[this.menuSel].dataset.a as MenuAction);
   }
 
+  /** Curación que se VE (pedido del usuario): la barra brilla verde mientras sube y salen "+N" del que se cura. */
+  private lastHp: number[] = [FIGHT.hp, FIGHT.hp];
+  private healAcc = [0, 0];
+  private healT = [0, 0];
+
   update(m: Match, dt: number, project: (x: number, y: number) => [number, number] | null): void {
     m.f.forEach((f, i) => {
+      const gain = f.hp - this.lastHp[i];
+      this.lastHp[i] = f.hp;
+      if (gain > 0 && gain < 30 && m.phase === 'fight') {
+        this.healAcc[i] += gain;
+        this.healT[i] = 0.35;
+        if (this.healAcc[i] >= 1.5) {
+          this.popup(f.x, f.y + 0.06, `+${Math.round(this.healAcc[i])}`, '', 'heal');
+          this.healAcc[i] = 0;
+        }
+      }
+      this.healT[i] = Math.max(0, this.healT[i] - dt);
+      this.bars[i].classList.toggle('heal', this.healT[i] > 0);
       const k = Math.max(0, f.hp) / FIGHT.hp;
       this.fill[i].style.transform = `scaleX(${k})`;
       this.ghost[i].style.transform = `scaleX(${k})`;
