@@ -375,15 +375,19 @@ function makeFighter(model: FighterModel, x: number, facing: 1 | -1): FighterSta
   const stance: Q[] = model.limbs.map(() => QI());
   if (legs.length) {
     const bottom = Math.min(...model.body.map((b) => Math.min(b.a[1], b.b[1]) - b.r));
-    const ground = Math.min(Math.max(...legs.map((k) => model.limbs[k].pivot[1] - model.limbs[k].reach)), bottom - 0.001);
-    for (const k of legs) {
+    // Lo más abajo que llega cada pierna girando hacia abajo lo permitido (no siempre derecha: una pierna muy abierta no llega
+    // a la vertical). Con la cuenta "derecha hacia abajo", la corta y abierta quedaba flotando (pedido del usuario).
+    const a0s = legs.map((k) => Math.acos(clamp(-model.limbs[k].dir[1], -1, 1)));
+    const lowest = legs.map((k, n) => model.limbs[k].pivot[1] - model.limbs[k].reach * Math.cos(Math.max(0, a0s[n] - FIGHT.stanceMax)));
+    const ground = Math.min(Math.max(...lowest), bottom - 0.001);
+    legs.forEach((k, n) => {
       const l = model.limbs[k];
       const axis = crossv(l.dir, [0, -1, 0]);
-      if (lenv(axis) < 1e-6) continue;
-      const a0 = Math.acos(clamp(-l.dir[1], -1, 1));
+      if (lenv(axis) < 1e-6) return;
       const a = Math.acos(clamp((l.pivot[1] - ground) / l.reach, -1, 1));
-      stance[k] = qAxis(normv(axis), clamp(a0 - a, -FIGHT.stanceMax, FIGHT.stanceMax));
-    }
+      // Hacia abajo, hasta `stanceMax`; hacia afuera (la larga que se abre para bajar a la altura de la corta), más.
+      stance[k] = qAxis(normv(axis), clamp(a0s[n] - a, -FIGHT.stanceOut, FIGHT.stanceMax));
+    });
   }
   let It = model.bodyMass * (0.6 * 0.025 * 0.025);
   for (const l of model.limbs) for (const p of l.points) It += p.m * (p.p[0] * p.p[0] + p.p[1] * p.p[1]);
@@ -1204,12 +1208,17 @@ function stepMove(m: Match, i: 0 | 1): void {
   if (live >= 0 && !f.mv!.hit[live] && !b.ko && b.inv <= 0 && b.down <= 0) {
     const h = mv.hits[live];
     const bodies = b.model.body.map((sh) => { const A = toWorld(b, sh.a), B = toWorld(b, sh.b); return { A, B, r: sh.r }; });
+    // Los escudos (papitas, nachos) están por fuera del cuerpo: lo que los toca pega en el escudo (antes los ataques de los
+    // rivales los ignoraban y el escudo no recibía nunca).
+    const shields = shieldPoints(b);
     let at: [number, number] | null = null;
+    let shield: string | null = null;
     for (const w of h.with) {
       if (w === 'body') {
         for (const mine of f.model.body) {
           const A = toWorld(f, mine.a), B = toWorld(f, mine.b);
-          for (const o of bodies) if (segSegD(A[0], A[1], B[0], B[1], o.A[0], o.A[1], o.B[0], o.B[1]) < mine.r + o.r + 0.004) at = [(A[0] + o.A[0]) / 2, (A[1] + o.A[1]) / 2];
+          for (const sp of shields) if (!shield && segD(sp.x, sp.y, A[0], A[1], B[0], B[1]) < mine.r + sp.r + 0.004) { shield = sp.piece; at = [sp.x, sp.y]; }
+          if (!shield) for (const o of bodies) if (segSegD(A[0], A[1], B[0], B[1], o.A[0], o.A[1], o.B[0], o.B[1]) < mine.r + o.r + 0.004) at = [(A[0] + o.A[0]) / 2, (A[1] + o.A[1]) / 2];
         }
         continue;
       }
@@ -1217,9 +1226,10 @@ function stepMove(m: Match, i: 0 | 1): void {
         if (!tagsOf(f, k).includes(w)) return;
         const c = f.cur[k];
         l.points.forEach((p, j) => {
-          if (p.inside) return;
+          if (p.inside || shield) return;
           const x = c[2 * j], y = c[2 * j + 1];
-          for (const o of bodies) if (segD(x, y, o.A[0], o.A[1], o.B[0], o.B[1]) < o.r + p.r) at = [x, y];
+          for (const sp of shields) if (!shield && Math.hypot(x - sp.x, y - sp.y) < sp.r + p.r) { shield = sp.piece; at = [x, y]; }
+          if (!shield) for (const o of bodies) if (segD(x, y, o.A[0], o.A[1], o.B[0], o.B[1]) < o.r + p.r) at = [x, y];
         });
       });
     }
@@ -1227,7 +1237,7 @@ function stepMove(m: Match, i: 0 | 1): void {
     if (at && mv.guard === 'low' && !b.grounded) at = null;
     if (at) {
       f.mv!.hit[live] = true;
-      moveHit(m, i, mv, at);
+      moveHit(m, i, mv, at, shield);
     }
   }
   if (t >= mv.total) {
@@ -1237,7 +1247,7 @@ function stepMove(m: Match, i: 0 | 1): void {
 }
 
 /** Un ataque hecho a mano toca al rival: guardia (bloquea, se rompe o no sirve), atajada, daño, aturdimiento y empujón. */
-function moveHit(m: Match, i: 0 | 1, mv: (typeof MOVES)[string], at: [number, number]): void {
+function moveHit(m: Match, i: 0 | 1, mv: (typeof MOVES)[string], at: [number, number], shield: string | null = null): void {
   const a = m.f[i];
   const b = m.f[1 - i];
   const dir = Math.sign(b.x - a.x) || a.facing;
@@ -1255,7 +1265,14 @@ function moveHit(m: Match, i: 0 | 1, mv: (typeof MOVES)[string], at: [number, nu
     b.guardBreak = FIGHT.guardBreak.frames;
     m.events.push({ type: 'guardBreak', who: (1 - i) as 0 | 1 });
   }
-  const d = soak(m, b, mv.dmg * (blocked ? FIGHT.chip : 1));
+  if (shield) {
+    b.shields[shield] = (b.shields[shield] ?? 1) - 1;
+    if (b.shields[shield] <= 0 && !b.broken.includes(shield)) {
+      b.broken.push(shield);
+      m.events.push({ type: 'shieldBreak', who: (1 - i) as 0 | 1, piece: shield, at, vel: [dir * 0.2, 0.25] });
+    }
+  }
+  const d = soak(m, b, mv.dmg * (blocked ? FIGHT.chip : 1) * (shield ? FIGHT.shieldPass : 1));
   b.hp = Math.max(0, b.hp - d);
   b.lastHurt = m.frame;
   b.meter = Math.min(FIGHT.power.max, b.meter + d * FIGHT.power.onHurt);
@@ -1278,7 +1295,7 @@ function moveHit(m: Match, i: 0 | 1, mv: (typeof MOVES)[string], at: [number, nu
     }
   }
   m.hitstop = Math.max(m.hitstop, blocked ? 3 : 5);
-  m.events.push({ type: 'hit', by: i, at, damage: d, kind: 'light', blocked, shield: false, shieldPiece: null, piece: mv.id, speed: 1, combo: 1, heavy: mv.dmg >= 9, chain: null });
+  m.events.push({ type: 'hit', by: i, at, damage: d, kind: 'light', blocked, shield: !!shield, shieldPiece: shield, piece: mv.id, speed: 1, combo: 1, heavy: mv.dmg >= 9, chain: null });
 }
 
 /** Granos en la tabla: la quinoa los reabsorbe al pisarlos (o solos, al rato) y recupera vida; un golpe al ras los dispersa. */
@@ -1603,7 +1620,9 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
         // Se tira con el cuerpo entero hacia el rival.
         f.vx += f.facing * FIGHT.swing.lunge * (f.grounded ? 1 : 0.3);
       } else if (s.phase === 'strike') {
-        s.active = !s.landed && s.t < FIGHT.swing.strikeFrames && Math.abs(f.wt) > FIGHT.swing.activeW;
+        // Pega mientras el cuerpo se tira (inclinación) O gira (torso): un chupetín de costado pega girando, sin inclinarse, y antes
+        // nunca contaba (pifiaba siempre).
+        s.active = !s.landed && s.t < FIGHT.swing.strikeFrames && Math.max(Math.abs(f.wt), Math.abs(f.twistV)) > FIGHT.swing.activeW;
         if (s.t >= FIGHT.swing.strikeFrames || s.landed) endStrike(m, i, k);
       } else if (s.phase === 'recover' && s.t > FIGHT.recoverMax) s.phase = 'rest';
       return;
@@ -1740,11 +1759,25 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       // antebrazo sube delante de la cara (el codo lo dobla `render.ts`); sin codo (palitos, zanahorias) las varas SUBEN delante de
       // la cara (la de adelante) y la otra cruza adelante a la altura del pecho, como un antebrazo. Lo bajo queda expuesto.
       const elbows = !!M.absorb;
-      void gx;
-      void top;
-      const gq = elbows
-        ? qFromTo(l.dir, normv(addv(scl(fwdAxis(f), 1), [0, n % 2 === 0 ? -0.05 : -0.25, 0])))
-        : qFromTo(l.dir, normv(addv(scl(fwdAxis(f), n % 2 === 0 ? 0.55 : 1), [0, n % 2 === 0 ? 1 : -0.15, 0])));
+      let gq: Q;
+      if (M.moves && !M.jelly) {
+        // EL BROCOLOCO y la QUINOA (2026-11-28, "el huevo se cubre bien, el brócoli y la quinoa no"): cada brazo APUNTA a un punto
+        // delante de la CARA, en su marco propio (x = la cara), cruzado hacia el otro lado: uno a la altura de la cara y el otro del
+        // pecho. Con el 3/4 la cara mira entre el rival y la cámara, así los brazos quedan entre la cara y la cámara y se ve que se
+        // tapa (antes apuntaban hacia el rival desde un hombro bajo: una zanahoria quedaba horizontal y la otra abajo).
+        const front = Math.max(...M.body.map((q) => Math.max(q.a[0], q.b[0]) + q.r));
+        const side = Math.sign(l.pivot[2]) || (n % 2 ? 1 : -1);
+        const tgt: V3 = n % 2 === 0
+          ? [front + (elbows ? 0.004 : 0.008), top * (elbows ? 0.55 : 0.62), -side * 0.004]
+          : [front + (elbows ? 0.008 : 0.012), top * (elbows ? 0.15 : 0.25), -side * 0.006];
+        const d = sub(tgt, l.pivot);
+        gq = qFromTo(l.dir, lenv(d) > 1e-5 ? normv(d) : [1, 0, 0]);
+      } else {
+        void gx;
+        gq = elbows
+          ? qFromTo(l.dir, normv(addv(scl(fwdAxis(f), 1), [0, n % 2 === 0 ? -0.05 : -0.25, 0])))
+          : qFromTo(l.dir, normv(addv(scl(fwdAxis(f), n % 2 === 0 ? 0.55 : 1), [0, n % 2 === 0 ? 1 : -0.15, 0])));
+      }
       target = slerpI(gq, f.guard);
       g = FIGHT.joint.guard;
     } else if (f.air > 5 && l.role === 'arm') target = qAxis(gaitAxis(f), 0.3);
@@ -1777,7 +1810,15 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
       const front = l.role === 'arm' && !l.rigid && !back;
       want = f.limbs[sk].phase === 'windup' ? -sg * (front ? T.armWind : amt * T.wind) : sg * (front ? T.armFwd : amt);
       // Lo fijo gira alrededor de la cara de frente (giro 0), no de la guardia de 3/4: si no, el hombro de adelante llega antes.
-      if (l.rigid) want -= base;
+      if (l.rigid) {
+        // El golpe termina PASADO de donde la bola apunta al rival (no un giro fijo): un chupetín clavado de costado o hacia atrás
+        // quedaba a 36° o más del rival al final del giro y pifiaba siempre (pedido del usuario: "el brazo izquierdo no pega nada").
+        let far = l.points[0];
+        for (const q of l.points) if (Math.hypot(q.p[0], q.p[2]) > Math.hypot(far.p[0], far.p[2])) far = q;
+        const beta = Math.atan2(-f.facing * far.p[2], far.p[0]);
+        const dir = Math.sign(beta) || sg;
+        want = (f.limbs[sk].phase === 'windup' ? -dir * amt * T.wind : dir * Math.min(Math.abs(beta) + T.swingOver, T.swingMax)) - base;
+      }
       rate = f.limbs[sk].phase === 'windup' ? T.rate.windup : T.rate.strike;
     }
     const tw0 = f.twist;

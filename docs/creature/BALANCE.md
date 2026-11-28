@@ -159,3 +159,10 @@ está mareado (es para eso). Probado: martillo estirado ×1,5 y 7 + 7 dejaba a l
 se hunden en la quinoa: el pinchudo pasa de 13 % a 88–100 % (el pinchazo la aturde siempre), descartado.
 - aporrea: 59 % / 0 % / 0 % · ia: 79 % / 29 % / 5 % · listo: 100 % / 73 % / 45 %.
 - Sigue: pinchudo 0 % / 13 % contra la quinoa (sus pinchazos se hunden: hay que cargar); tanque 25 %.
+
+## Dificultad FIJADA (2026-11-28, pedido de Franco: "se volvió más difícil, no me parece mal, establezcamos ese detalle")
+Esta es la dificultad de referencia: los cambios que vengan no la tienen que bajar ni subir sin avisar. Rivales que se cubren
+menos (`AI_LEVELS.guard` 0,36 / 0,45) pero castigan; chupetín que pega de los dos lados en cualquier ángulo; los ataques de los
+rivales ahora pegan en los escudos (papita/nacho, ×0,3 del daño).
+- aporrea: 75 % / 0 % / 0 % · ia: 88 % / 23 % / 0 % · listo: 100 % / 75 % / 57 %. Margen aceptado: ±10 puntos por nivel.
+- Doble chupetín: 100 % con `listo` en los tres niveles (ya estaba en 95–100 %). Pinchudo y desparejo siguen flojos con la quinoa.

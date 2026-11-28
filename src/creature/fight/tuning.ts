@@ -20,6 +20,8 @@ export const FIGHT = {
   stanceYaw: 0.5,
   /** rad: cuánto puede girar una pierna para apoyar en la postura. */
   stanceMax: 0.9,
+  /** rad: cuánto puede abrirse hacia afuera una pierna larga para apoyar a la altura de la corta. */
+  stanceOut: 1.5,
   startGap: 0.15,
 
   // ── Pesos (gramos), tabla de la realidad del chat de mecánicas. El palito de la selva usa la masa del intérprete. ──
@@ -214,7 +216,7 @@ export const FIGHT = {
    * Giro del torso (rad) al pegar con el cuerpo entero: el hombro que pega va atrás al cargar y adelante al soltar (piña); la
    * cadera gira menos en una patada. `rate` = qué tan rápido sigue al objetivo (1/s).
    */
-  twist: { arm: -0.2, armWind: 0.45, armFwd: 0.25, armBack: 1.5, kick: 0.15, swing: 0.95, wind: 0.6, rate: { strike: 16, windup: 9, rest: 6 }, min: -0.9, max: 2.2 },
+  twist: { arm: -0.2, armWind: 0.45, armFwd: 0.25, armBack: 1.5, kick: 0.15, swing: 0.95, swingOver: 0.45, swingMax: 2.7, wind: 0.6, rate: { strike: 16, windup: 9, rest: 6 }, min: -0.9, max: 2.2 },
   /** Pies bajo el centro de masa: cuánto corrigen las piernas apoyadas (normal / mientras otra patea) y hasta cuánto (rad). */
   support: { rest: 0.25, kick: 0.9, max: 0.45 },
   /** Ángulo de la marcha (rad) y de las piernas al agacharse. */

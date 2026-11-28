@@ -411,8 +411,7 @@ export class FightHud {
       if (sp.textContent !== label) sp.textContent = label;
       const st: string[] = [];
       if (f.bleed.length) st.push(`<em class="bleed">SANGRA ×${f.bleed.length}</em>`);
-      const sh = Object.keys(f.shields).filter((id) => !f.broken.includes(id));
-      if (sh.length) st.push(`<em class="shield">ESCUDO ${sh.map((id) => '▮'.repeat(Math.max(0, f.shields[id]))).join(' ')}</em>`);
+      // Sin píldora de ESCUDO: tapaba al personaje; el escudo se ve astillarse sobre el cuerpo.
       const html = st.join('');
       if (this.status[i].innerHTML !== html) this.status[i].innerHTML = html;
     });

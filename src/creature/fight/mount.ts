@@ -231,28 +231,30 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
         }
         if (g.st === 3 && g.t > 1.2) lg.splice(i, 1);
       } else if (g.st === 4) {
-        // Torbellino: el radio se cierra, gira cada vez más rápido y sube; al llegar al cuerpo, se suma.
+        // Torbellino POR LA TABLA (2026-11-28, "tira partículas al aire pero no se ve que se juntan con su cuerpo"): los granos
+        // corren al ras de la madera en espiral, como arena que se escurre, cada vez más rápido al acercarse; al llegar a los pies
+        // TREPAN por el cuerpo y se pegan.
         const f = m?.f[g.who];
         if (!f) { lg.splice(i, 1); continue; }
-        g.r! -= dt * (0.025 + 0.05 * (0.14 - g.r!) / 0.14);
-        g.a! += dt * (5 + 0.25 / Math.max(0.01, g.r!));
-        g.h! += dt * 0.02 * (1 + g.t);
-        g.p.copy(P3(f.x + Math.cos(g.a!) * g.r!, f.y + Math.min(0.05, g.h!), Math.sin(g.a!) * g.r! * 0.7));
-        // Llega al cuerpo: se PEGA en la superficie (no desaparece en el aire) y se queda ahí un rato antes de hundirse.
-        if (g.r! < 0.034) {
-          const c = P3(f.x, f.y + 0.04, 0);
-          const d = g.p.clone().sub(c);
-          d.set(d.x / 0.031, d.y / 0.028, d.z / 0.026);
-          d.normalize();
-          g.o = new THREE.Vector3(d.x * 0.031, 0.04 + d.y * 0.028, d.z * 0.026);
+        g.r! -= dt * (0.035 + 0.07 * (0.14 - g.r!) / 0.14);
+        g.a! += dt * (2.2 + 0.05 / Math.max(0.01, g.r!));
+        g.p.copy(P3(f.x + Math.cos(g.a!) * g.r!, g.s * 0.6, Math.sin(g.a!) * g.r! * 0.7));
+        if (g.r! < 0.03) {
+          // Adónde se pega: del lado por donde llega, a una altura al azar del cuerpo (los primeros abajo, después más arriba).
+          g.h = -0.2 + Math.random() * 1.1;
           g.st = 5;
           g.t = 0;
         }
       } else if (g.st === 5) {
+        // Trepa por la superficie (elipsoide del cuerpo) desde los pies hasta su lugar, se queda pegado y se hunde.
         const f = m?.f[g.who];
-        if (!f || g.t > 1.6) { lg.splice(i, 1); continue; }
-        g.p.copy(P3(f.x + g.o!.x, f.y + g.o!.y, g.o!.z));
-        if (g.t > 1.1) g.s *= 0.9;
+        if (!f || g.t > 1.3) { lg.splice(i, 1); continue; }
+        const k = Math.min(1, g.t / 0.4);
+        const yy = -0.95 + (g.h! + 0.95) * (1 - (1 - k) * (1 - k));
+        const w = Math.sqrt(Math.max(0, 1 - yy * yy));
+        g.a! += dt * 1.5 * (1 - k);
+        g.p.copy(P3(f.x + Math.cos(g.a!) * 0.031 * w, f.y + 0.04 + yy * 0.028, Math.sin(g.a!) * 0.026 * w));
+        if (g.t > 0.9) g.s *= 0.88;
       } else if (g.st === 2) {
         const f = m?.f[g.who];
         const to = f ? P3(f.x, f.y + 0.035, 0) : g.p;
@@ -699,15 +701,17 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
       // girando.
       if (f.pw?.kind === 'rearme' && f.pw.phase === 'go') {
         if (!loose) spawnGrains(i as 0 | 1, [f.x, 0], f.x, 0, -1);
-        for (const g of lg) if (g.who === i && (g.st === 1 || g.st === 2)) { g.st = 4; g.a = Math.atan2(g.p.z - z0, g.p.x - f.x); g.r = Math.min(0.14, Math.hypot(g.p.x - f.x, g.p.z - z0)); g.h = g.p.y - GROUND; g.t = 0; }
-        for (let n = 0; n < 9 && lg.length < LOOSE_MAX; n++) {
+        for (const g of lg) if (g.who === i && (g.st === 1 || g.st === 2)) { g.st = 4; g.a = Math.atan2((g.p.z - z0) / 0.7, g.p.x - f.x); g.r = Math.min(0.14, Math.hypot(g.p.x - f.x, (g.p.z - z0) / 0.7)); g.h = 0; g.t = 0; }
+        for (let n = 0; n < 12 && lg.length < LOOSE_MAX; n++) {
           const r = Math.random;
-          lg.push({ pile: -1, who: i as 0 | 1, p: P3(f.x, 0), v: new THREE.Vector3(), st: 4, t: 0, s: 0.0012 + r() * 0.0007, a: r() * 6.28, r: 0.05 + r() * 0.09, h: 0.001 });
+          lg.push({ pile: -1, who: i as 0 | 1, p: P3(f.x, 0), v: new THREE.Vector3(), st: 4, t: 0, s: 0.0011 + r() * 0.0006, a: r() * 6.28, r: 0.06 + r() * 0.08, h: 0 });
         }
-        // Polvo que gira en el embudo (dos brazos de la espiral) y chispas color quinoa.
-        const a = f.pw.t * 0.45;
-        for (const sgn of [0, Math.PI]) cloud(P3(f.x + Math.cos(a + sgn) * 0.045, 0.004 + (f.pw.t % 24) * 0.0015, Math.sin(a + sgn) * 0.03), 1, 0xd9c9a0, 0.007, 0.02, 0.01);
-        if (f.pw.t % 10 === 0) ring(P3(f.x, 0.003), 0.11 - (f.pw.t % 40) * 0.002, 0xf0dfb0);
+        // Polvito AL RAS siguiendo los dos brazos de la espiral (antes subía y se leía como partículas en el aire).
+        const a = f.pw.t * 0.3;
+        if (f.pw.t % 2 === 0) for (const sgn of [0, Math.PI]) cloud(P3(f.x + Math.cos(a + sgn) * 0.06, 0.002, Math.sin(a + sgn) * 0.042), 1, 0xd9c9a0, 0.005, 0.004, 0.006);
+        if (f.pw.t % 10 === 0) ring(P3(f.x, 0.002), 0.11 - (f.pw.t % 40) * 0.002, 0xf0dfb0);
+        // El cuerpo se infla de a golpecitos a medida que le llegan los granos.
+        if (f.pw.t % 14 === 0) views![i].bump(0.12);
       }
       // La CALESITA girando: deja un remolino dorado.
       if (f.pw?.kind === 'trompo' && f.pw.phase === 'go') sparks(P3(f.x + (Math.random() - 0.5) * 0.05, f.y + 0.01 + Math.random() * 0.035), 3, 0xffd23f, 0.12, 0.02, 0.0035);
