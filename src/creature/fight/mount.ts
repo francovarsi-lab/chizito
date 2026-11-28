@@ -1685,7 +1685,7 @@ export function mountFight(deps: { pieces: PieceRegistry; game: () => Game; host
     const avg = perfAcc / perfN;
     perfN = 0;
     perfAcc = 0;
-    if (avg > 0.022 && level2 < 3) set.degrade(++level2);
+    if (avg > 0.022 && level2 < 4) set.degrade(++level2);
   };
 
   const restart = (lv = level, withPresent = false): void => {

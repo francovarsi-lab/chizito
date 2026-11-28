@@ -1768,8 +1768,8 @@ function stepFighter(m: Match, i: 0 | 1, inp: FightInput): void {
         const front = Math.max(...M.body.map((q) => Math.max(q.a[0], q.b[0]) + q.r));
         const side = Math.sign(l.pivot[2]) || (n % 2 ? 1 : -1);
         const tgt: V3 = n % 2 === 0
-          ? [front + (elbows ? 0.004 : 0.008), top * (elbows ? 0.55 : 0.62), -side * 0.004]
-          : [front + (elbows ? 0.008 : 0.012), top * (elbows ? 0.15 : 0.25), -side * 0.006];
+          ? [front + (elbows ? 0.016 : 0.008), top * (elbows ? 0.5 : 0.62), -side * 0.004]
+          : [front + (elbows ? 0.02 : 0.012), top * (elbows ? 0.1 : 0.25), -side * 0.006];
         const d = sub(tgt, l.pivot);
         gq = qFromTo(l.dir, lenv(d) > 1e-5 ? normv(d) : [1, 0, 0]);
       } else {

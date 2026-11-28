@@ -424,7 +424,8 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
     s.renderer.setPixelRatio(pr);
     s.resize();
   };
-  setPR(Math.min(1.25, prWas));
+  // Resolución entera (hasta 1,5): la pelea se veía blanda a 1,25. Si no da, `degrade` baja primero la resolución.
+  setPR(prWas);
 
   // HINCHADA: cada chizito del bowl salta por su cuenta (ritmo y altura propios) cuando hay algo que alentar; TODOS juntos se
   // mecen como una tribuna que canta (más cuanto más excitados) y se echan hacia la arena en los golpes fuertes; una vez por
@@ -518,9 +519,10 @@ export function enterFightSet(s: Stage, z0: number, fighters: THREE.Object3D[], 
       fanHop = Math.max(fanHop, k);
     },
     degrade(lv) {
-      if (lv >= 1 && ao) ao.enabled = false;
-      if (lv >= 2) s.dof.enabled = false;
-      if (lv >= 3) setPR(Math.min(0.8, prWas));
+      if (lv === 1) setPR(Math.min(1.25, prWas));
+      if (lv >= 2 && ao) ao.enabled = false;
+      if (lv >= 3) s.dof.enabled = false;
+      if (lv >= 4) setPR(Math.min(0.8, prWas));
     },
     restore() {
       for (const c of fans) {

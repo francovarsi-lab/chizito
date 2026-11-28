@@ -692,3 +692,18 @@ Al terminar cada fase: capturas con Playwright, autocrítica de realismo, commit
     compila con `localClippingEnabled` (si no, la copa del brócoli compilaba en plena intro: ~2 s trabado), incluye la vela y lo
     que tiran los poderes, y al abrir la pelea se recompila tu chizito como está (piezas nuevas) a oscuras.
 
+- TANDA 2 del 2026-11-28 (pedidos de Franco):
+  - CHUPETÍN QUE PEGA DE LOS DOS LADOS ("el brazo izquierdo con chupetín pifia siempre"): el golpe cuenta mientras el cuerpo se
+    inclina O GIRA (`twistV`; clavado de costado pega girando y antes nunca contaba) y el giro termina pasado de donde apunta la bola
+    (`twist.swingOver` 0,45, tope `swingMax` 2,7), no un giro fijo. Prueba: `node scripts/chupetin-probe.mjs` (ángulos y lados).
+  - ESCUDOS: los ataques hechos a mano de los rivales (`moveHit`) ahora pegan en papitas/nachos (×`shieldPass`, se astillan y
+    se rompen); antes los ignoraban. Sin píldora "ESCUDO ▮▮" en el HUD (tapaba al personaje).
+  - PIERNAS DESPAREJAS: el piso común sale de lo más bajo que alcanza cada pierna girando hasta `stanceMax` (no "derecha hacia
+    abajo"); la larga puede abrirse hasta `stanceOut` (1,5). Antes la corta y abierta quedaba flotando. Prueba:
+    `node scripts/legs-probe.mjs`.
+  - GUARDIA DEL BROCOLOCO Y LA QUINOA: cada brazo apunta a un punto delante de la CARA en el marco propio (x = cara), uno a la
+    altura de la cara y otro del pecho, cruzados; la quinoa más afuera (el cuerpo es grande). El huevo sigue como estaba (bien).
+  - TORBELLINO de ¡REAGRUPARSE!: los granos corren AL RAS de la tabla en espiral y al llegar TREPAN por el cuerpo y se pegan; el
+    polvo va al ras y el cuerpo se infla de a golpecitos (antes subían y se leían como partículas en el aire).
+  - DIFICULTAD FIJADA (ver `docs/creature/BALANCE.md`): la actual es la de referencia.
+  - CALIDAD: la pelea va a la resolución entera (hasta 1,5; antes 1,25); si va lenta baja primero a 1,25, después AO, DoF y 0,8.
